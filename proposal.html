@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI-Native SDLC — Proposal</title>
+<style>
+  @page {
+    size: letter;
+    margin: 0.6in 0.7in;
+  }
+  @page :first {
+    margin-top: 0;
+  }
+
+  :root {
+    --ink: #1a1a2e;
+    --muted: #555;
+    --accent: #2563eb;
+    --accent-light: #dbeafe;
+    --border: #d1d5db;
+    --bg-subtle: #f8f9fb;
+    --warn: #dc2626;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+    font-size: 10pt;
+    line-height: 1.5;
+    color: var(--ink);
+    max-width: 8.5in;
+    margin: 0 auto;
+    background: #fff;
+  }
+
+  /* ── Cover / header ── */
+  .cover {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    color: #fff;
+    padding: 2.2in 0.7in 0.8in;
+    page-break-after: always;
+    break-after: page;
+  }
+  .cover h1 {
+    font-size: 28pt;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    line-height: 1.15;
+    margin-bottom: 0.15in;
+  }
+  .cover .subtitle {
+    font-size: 13pt;
+    font-weight: 400;
+    color: #94a3b8;
+    margin-bottom: 0.6in;
+    max-width: 5.5in;
+  }
+  .cover .meta {
+    font-size: 9pt;
+    color: #64748b;
+    border-top: 1px solid #334155;
+    padding-top: 0.15in;
+  }
+  .cover .meta span { margin-right: 0.4in; }
+
+  /* ── Section pages ── */
+  .page {
+    padding: 0.15in 0;
+    page-break-after: always;
+    break-after: page;
+  }
+  .page:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+
+  h2 {
+    font-size: 16pt;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 0.15in;
+    padding-bottom: 0.06in;
+    border-bottom: 2.5px solid var(--accent);
+    display: inline-block;
+  }
+  h3 {
+    font-size: 11pt;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0.18in 0 0.06in;
+  }
+  h4 {
+    font-size: 10pt;
+    font-weight: 600;
+    color: var(--muted);
+    margin: 0.12in 0 0.04in;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  p, li { color: var(--ink); }
+  p { margin-bottom: 0.08in; }
+  ul, ol { padding-left: 0.22in; margin-bottom: 0.1in; }
+  li { margin-bottom: 0.03in; }
+
+  /* ── Callout boxes ── */
+  .callout {
+    background: var(--accent-light);
+    border-left: 3px solid var(--accent);
+    padding: 0.12in 0.15in;
+    margin: 0.12in 0;
+    border-radius: 0 4px 4px 0;
+    font-size: 9.5pt;
+  }
+  .callout strong { color: var(--accent); }
+
+  .callout-warn {
+    background: #fef2f2;
+    border-left-color: var(--warn);
+  }
+  .callout-warn strong { color: var(--warn); }
+
+  /* ── Tables ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.1in 0 0.15in;
+    font-size: 9.5pt;
+  }
+  th {
+    background: var(--ink);
+    color: #fff;
+    text-align: left;
+    padding: 0.06in 0.1in;
+    font-weight: 600;
+    font-size: 8.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  td {
+    padding: 0.055in 0.1in;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tr:nth-child(even) td { background: var(--bg-subtle); }
+
+  /* ── Diagram / flow ── */
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin: 0.15in 0;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .flow-step {
+    background: var(--accent);
+    color: #fff;
+    padding: 0.06in 0.14in;
+    border-radius: 4px;
+    font-size: 8.5pt;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .flow-step small {
+    display: block;
+    font-weight: 400;
+    font-size: 7.5pt;
+    opacity: 0.85;
+  }
+  .flow-arrow {
+    font-size: 11pt;
+    color: var(--accent);
+    padding: 0 0.04in;
+    font-weight: 700;
+  }
+  .flow-step.human {
+    background: #16213e;
+  }
+
+  /* ── Hierarchy diagram ── */
+  .hierarchy {
+    font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+    font-size: 9.5pt;
+    line-height: 1.6;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.12in 0.18in;
+    margin: 0.1in 0 0.15in;
+    color: var(--ink);
+  }
+  .hierarchy .node { color: var(--accent); font-weight: 700; }
+  .hierarchy .dim { color: #94a3b8; }
+
+  /* ── Two-column layout ── */
+  .cols {
+    display: flex;
+    gap: 0.25in;
+    margin: 0.1in 0;
+  }
+  .cols > div { flex: 1; }
+
+  /* ── Tag / badge ── */
+  .tag {
+    display: inline-block;
+    font-size: 7.5pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.015in 0.08in;
+    border-radius: 3px;
+    margin-right: 0.04in;
+  }
+  .tag-ai { background: var(--accent-light); color: var(--accent); }
+  .tag-human { background: #fef3c7; color: #92400e; }
+  .tag-both { background: #e0e7ff; color: #3730a3; }
+
+  /* ── NOC section ── */
+  .noc-flow {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr auto 1fr;
+    align-items: center;
+    gap: 0.06in;
+    margin: 0.12in 0;
+    font-size: 9pt;
+  }
+  .noc-box {
+    border: 1.5px solid var(--accent);
+    border-radius: 4px;
+    padding: 0.08in 0.1in;
+    text-align: center;
+  }
+  .noc-box.agent { background: var(--accent-light); }
+  .noc-box.human-box { background: #fef3c7; border-color: #d97706; }
+  .noc-arrow { text-align: center; color: var(--accent); font-weight: 700; font-size: 13pt; }
+
+  .small { font-size: 8.5pt; color: var(--muted); }
+  .mt { margin-top: 0.15in; }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════ COVER ════════════════════ -->
+<div class="cover">
+  <h1>AI-Native SDLC</h1>
+  <div class="subtitle">
+    A proposal to replace ticket-centric agile with a spec-driven, agent-observable development lifecycle.
+  </div>
+  <div class="meta">
+    <span>Draft for Review</span>
+    <span>April 2026</span>
+    <span>Status: Experimental</span>
+  </div>
+</div>
+
+<!-- ════════════════════ PAGE 1: THE CASE ════════════════════ -->
+<div class="page">
+<h2>Why change?</h2>
+
+<p>Jira-era agile was designed for humans writing tickets, humans doing work, and humans reading dashboards. AI agents break every assumption in that model:</p>
+
+<div class="cols">
+  <div>
+    <h4>What broke</h4>
+    <ul>
+      <li><strong>Tickets are the root artifact.</strong> But agents need specs — structured intent they can read, not prose tickets with context in comments and tribal knowledge.</li>
+      <li><strong>Humans are the only assignees.</strong> Agents have no identity, budget, or audit trail in Jira. Their work is invisible.</li>
+      <li><strong>Work is a status on a card.</strong> Agent work is a <em>run</em> — prompt, tool calls, cost, evals, diffs. None of this is capturable in a ticket status.</li>
+      <li><strong>Reporting assumes human throughput.</strong> Story points and velocity don't measure agent cost-per-feature, regression rate by author type, or defect density per spec.</li>
+    </ul>
+  </div>
+  <div>
+    <h4>What we need instead</h4>
+    <ul>
+      <li><strong>Spec as root.</strong> Versioned, structured, machine-readable. The durable artifact that both humans and agents treat as source of truth.</li>
+      <li><strong>Agents as first-class assignees.</strong> With capabilities, constraints, budgets, and observable execution traces.</li>
+      <li><strong>Runs as a primitive.</strong> Every agent execution captured: what it did, what it cost, whether it passed evals, what artifacts it produced.</li>
+      <li><strong>Role-specific views.</strong> Execs see initiative rollups. PMs see spec status. Devs see task queues. All are projections over the same graph.</li>
+    </ul>
+  </div>
+</div>
+
+<h3>Five principles</h3>
+<table>
+  <tr><th style="width:30%">Principle</th><th>Implication</th></tr>
+  <tr><td><strong>Spec is the root, not the ticket</strong></td><td>Tickets are ephemeral projections. Specs are versioned markdown in the repo, linked from the tracker.</td></tr>
+  <tr><td><strong>Agents are assignees, not tools</strong></td><td>They have identities, budgets, audit trails. Assign a task to an agent the same way you assign it to a person.</td></tr>
+  <tr><td><strong>Runs are first-class</strong></td><td>Every agent execution is a node in the work graph: cost, tool calls, evals, artifacts. This is how you get observability.</td></tr>
+  <tr><td><strong>Views are projections</strong></td><td>Boards, timelines, dashboards are queries — not schema. Stop forcing everyone into the same Kanban board.</td></tr>
+  <tr><td><strong>Bugs are spec violations</strong></td><td>Not a parallel system. A bug is a signal that reality disagrees with a prior spec. Same graph, same pipeline.</td></tr>
+</table>
+</div>
+
+<!-- ════════════════════ PAGE 2: THE MODEL ════════════════════ -->
+<div class="page">
+<h2>The work graph</h2>
+<p>Everything is a typed node with typed edges. The graph is event-sourced — append-only log with materialized views.</p>
+
+<div class="hierarchy">
+<span class="node">Initiative</span> <span class="dim">— business outcome, owner=human, horizon=quarters</span><br>
+&nbsp;&nbsp;└─ <span class="node">Spec</span> <span class="dim">— versioned markdown, the "why + what"</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─ <span class="node">Plan</span> <span class="dim">— decomposition into tasks, can be agent-drafted</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;└─ <span class="node">Task</span> <span class="dim">— unit of execution, assignee = human | agent</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ <span class="node">Run</span> <span class="dim">— one agent execution: cost, tools, evals, artifacts</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ <span class="node">ADR</span> <span class="dim">— architecture decisions linked to the spec</span>
+</div>
+
+<div class="callout">
+  <strong>The key insight:</strong> Jira has no equivalent of a <strong>Run</strong>. Agent work is invisible in ticket-based systems. Runs make it observable — cost per feature, regression per agent, eval trends over time.
+</div>
+
+<h3>Edge types</h3>
+<table>
+  <tr><th>Edge</th><th>Connects</th><th>Enables</th></tr>
+  <tr><td><code>decomposes</code></td><td>Plan → Spec</td><td>Trace any task back to the intent it serves</td></tr>
+  <tr><td><code>violates</code></td><td>Bug Spec → Spec</td><td>Defect density per spec — which specs keep breaking?</td></tr>
+  <tr><td><code>regression-of</code></td><td>Bug Spec → Run</td><td>Which agent/model/run introduced this bug?</td></tr>
+  <tr><td><code>implements</code></td><td>PR → Task</td><td>Link every merge to a task and its originating spec</td></tr>
+  <tr><td><code>verified-by</code></td><td>Bug Spec → Run</td><td>Prove the fix works, with the run as evidence</td></tr>
+  <tr><td><code>supersedes</code></td><td>Spec → Spec</td><td>Version history of intent, not just code</td></tr>
+</table>
+
+<h3>What the graph unlocks (vs. Jira)</h3>
+<div class="cols">
+  <div>
+    <h4>Jira can answer</h4>
+    <ul>
+      <li>How many tickets closed this sprint?</li>
+      <li>What's our velocity trend?</li>
+      <li>Who has the most open tickets?</li>
+    </ul>
+  </div>
+  <div>
+    <h4>The work graph can answer</h4>
+    <ul>
+      <li>What's the cost per feature, from spec to deploy?</li>
+      <li>Which specs have the most defects?</li>
+      <li>Do agent-authored features regress more than human-authored?</li>
+      <li>Which agent/model produces the most durable code?</li>
+      <li>How long from user-reported signal to merged fix?</li>
+    </ul>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════════ PAGE 3: SPEC LAYER ════════════════════ -->
+<div class="page">
+<h2>The spec layer</h2>
+<p>The entire framework says "spec is the root" — so we can't defer how specs work. Specs are schema-enforced markdown in the repo, validated in CI, indexed for agents.</p>
+
+<h3>Why not an external tool?</h3>
+<div class="callout">
+  <strong>Specs must version with the code they describe.</strong> A spec updated in the same PR as the code change is reviewable, atomic, and doesn't require sync between systems. External tools (Notion, Kiro, Spec Kit) put specs outside the repo — creating sync drift, a second source of truth, and another integration agents must bridge.
+</div>
+
+<h3>Spec anatomy</h3>
+<div class="cols">
+  <div>
+    <h4>YAML frontmatter (structured, parseable)</h4>
+    <div class="hierarchy">
+<span class="node">id:</span> SPEC-001 <span class="dim">← immutable, referenced everywhere</span><br>
+<span class="node">title:</span> "User auth flow"<br>
+<span class="node">status:</span> draft → active → superseded<br>
+<span class="node">version:</span> 1 <span class="dim">← bumps on material changes</span><br>
+<span class="node">initiative:</span> INI-003 <span class="dim">← links to Linear</span><br>
+<span class="node">owner:</span> franklin <span class="dim">← human accountable</span><br>
+<span class="node">tags:</span> [auth, security]<br>
+<span class="node">linear_project:</span> PRJ-XYZ
+    </div>
+  </div>
+  <div>
+    <h4>Body sections (required)</h4>
+    <table>
+      <tr><th>Section</th><th>Purpose</th></tr>
+      <tr><td>Problem</td><td>What's wrong, why it matters</td></tr>
+      <tr><td>Success criteria</td><td>Measurable outcomes</td></tr>
+      <tr><td>Scope</td><td>In / explicitly out</td></tr>
+      <tr><td>Design</td><td>Architecture, linked ADRs</td></tr>
+      <tr><td>Acceptance criteria</td><td>Testable conditions (Given/When/Then)</td></tr>
+      <tr><td>Risks & constraints</td><td>What could go wrong</td></tr>
+      <tr><td>Migration</td><td>For refactors: current → target → strategy → rollback</td></tr>
+    </table>
+  </div>
+</div>
+
+<h3>Three artifact types, one system</h3>
+<table>
+  <tr><th>Artifact</th><th>ID format</th><th>Key fields</th><th>Example</th></tr>
+  <tr><td><strong>Spec</strong></td><td>SPEC-NNN</td><td>status, version, initiative, owner, acceptance criteria</td><td><code>specs/SPEC-001-user-auth.md</code></td></tr>
+  <tr><td><strong>ADR</strong></td><td>ADR-NNN</td><td>status, linked spec, context → decision → consequences</td><td><code>specs/adrs/ADR-001-postgres.md</code></td></tr>
+  <tr><td><strong>Bug spec</strong></td><td>BUG-NNN</td><td>severity, violates (spec id), regression_of (run id), confidence</td><td><code>specs/bugs/BUG-001-login-timeout.md</code></td></tr>
+</table>
+
+<h3>How it works in practice</h3>
+<div class="hierarchy" style="font-family: inherit; font-size: 9.5pt;">
+<strong>1. Author</strong> — copy template, fill frontmatter + sections, open PR<br>
+<strong>2. Validate</strong> — CI checks: frontmatter schema, required sections, reference resolution, status transitions<br>
+<strong>3. Review</strong> — team reviews the spec like code — intent, scope, acceptance criteria<br>
+<strong>4. Index</strong> — CI auto-generates <span class="node">spec-index.json</span> — agents read this instead of scanning<br>
+<strong>5. Link</strong> — create Linear project, set <code>linear_project</code> field, bidirectional link established<br>
+<strong>6. Evolve</strong> — spec changes go through PRs. Version bumps on material changes. Old versions are superseded, never deleted.
+</div>
+
+<div class="callout">
+  <strong>Agent workflow:</strong> agent reads <code>spec-index.json</code> → finds the active spec for its task → reads the full spec → uses acceptance criteria as a checklist → cites criteria in PR comments. During triage, the NOC agent searches the index to find which spec a bug violates.
+</div>
+</div>
+
+<!-- ════════════════════ PAGE 4: ROLES & TOOLING ════════════════════ -->
+<div class="page">
+<h2>Who does what</h2>
+<p>The agent operates like a very fast, tireless junior engineer who drafts well but needs sign-off.</p>
+
+<table>
+  <tr><th>Stage</th><th><span class="tag tag-ai">AI</span> Does</th><th><span class="tag tag-human">Human</span> Does</th></tr>
+  <tr><td><strong>Discovery</strong></td><td>Research, summarize feedback, draft problem statements</td><td>Define the problem, validate with users</td></tr>
+  <tr><td><strong>Spec</strong></td><td>Draft specs, link ADRs</td><td>Review, refine intent, approve scope</td></tr>
+  <tr><td><strong>Planning</strong></td><td>Decompose into tasks, estimate, identify risks</td><td>Challenge assumptions, approve approach</td></tr>
+  <tr><td><strong>Implementation</strong></td><td>Write code + tests, open PRs</td><td>Review PRs, own architecture calls</td></tr>
+  <tr><td><strong>Triage</strong></td><td>Capture, normalize, reproduce, classify</td><td>Confirm, prioritize, decide tradeoffs</td></tr>
+  <tr><td><strong>Review</strong></td><td>Static analysis, consistency, flag regressions</td><td>Review for intent and maintainability</td></tr>
+  <tr><td><strong>Deploy</strong></td><td>Execute steps, monitor rollout</td><td>Approve releases, decide rollback</td></tr>
+</table>
+
+<div class="callout-warn callout">
+  <strong>Stays human forever:</strong> priority tradeoffs, stakeholder relationships, spec intent ("what should the system do?"), accountability, and architecture vision. Agents propose; humans decide.
+</div>
+
+<h2 class="mt">Proposed tooling stack</h2>
+
+<table>
+  <tr><th>Layer</th><th>Tool</th><th>Why</th></tr>
+  <tr>
+    <td><strong>Work graph</strong></td>
+    <td><a href="https://linear.app/" style="color: var(--accent); text-decoration: none; font-weight: 600;">Linear</a></td>
+    <td>Opinionated data model (issues, projects, cycles, initiatives), clean GraphQL API, MCP server for agent access. Rigid schema means an agent that works on one workspace works on all of them — unlike Jira/ClickUp where custom fields require per-project adapters.</td>
+  </tr>
+  <tr>
+    <td><strong>Specs & ADRs</strong></td>
+    <td>Schema-enforced markdown in repo</td>
+    <td>YAML frontmatter (id, status, version, initiative, owner) + required body sections + CI validation + auto-generated index. Versioned alongside code — spec changes are reviewable in the same PR as the code. Agents parse the frontmatter and index directly.</td>
+  </tr>
+  <tr>
+    <td><strong>Execution</strong></td>
+    <td>Claude Code + <a href="https://jules.google/" style="color: var(--accent); text-decoration: none; font-weight: 600;">Jules</a></td>
+    <td>Claude Code (local, interactive): orchestration, architecture, debugging, spec work, PR review. Jules (cloud, async): parallel execution of well-scoped tasks — tests, features, bug fixes, chores. Claude Code calls Jules via REST API and reviews its PRs.</td>
+  </tr>
+  <tr>
+    <td><strong>CI/CD</strong></td>
+    <td>GitHub Actions</td>
+    <td>Existing infra. Extend with eval pipelines for agent-produced code.</td>
+  </tr>
+  <tr>
+    <td><strong>Run telemetry</strong></td>
+    <td>Structured logs (interim)</td>
+    <td>JSON per run, linked from Linear issue comments. Eventual target: dedicated store with dashboards.</td>
+  </tr>
+</table>
+
+<div class="callout">
+  <strong>Linear's gaps:</strong> no Run primitive, no typed edges beyond basics, no event sourcing. We fill these with structured side-logs and naming conventions until better tooling emerges or we build a thin layer.
+</div>
+</div>
+
+<!-- ════════════════════ PAGE 5: AGENT ARCHITECTURE ════════════════════ -->
+<div class="page">
+<h2>Agent architecture: Claude Code + Jules</h2>
+<p>Two agents with complementary execution models. Claude Code is the brain — it plans, orchestrates, and reviews. Jules is the workforce — it executes well-scoped tasks in parallel in the cloud.</p>
+
+<table>
+  <tr><th style="width:22%">Dimension</th><th>Claude Code</th><th>Jules</th></tr>
+  <tr><td><strong>Runs where</strong></td><td>Local, in your terminal</td><td>Cloud VM (Ubuntu), clones your repo</td></tr>
+  <tr><td><strong>Mode</strong></td><td>Synchronous — you steer in real-time</td><td>Asynchronous — fire and forget</td></tr>
+  <tr><td><strong>Context</strong></td><td>Full: local env, MCP (Linear, Slack), env vars, running services</td><td>Repo clone only. No MCP, no local env</td></tr>
+  <tr><td><strong>Output</strong></td><td>Edits your working tree</td><td>Creates branch + PR on GitHub</td></tr>
+  <tr><td><strong>Concurrency</strong></td><td>One session</td><td>Up to 15 (Pro) / 60 (Ultra) concurrent</td></tr>
+</table>
+
+<h3>The spec is the contract between them</h3>
+<div class="callout">
+  Jules has no MCP, no Linear, no local context. Everything it needs must be in the <strong>task prompt</strong> or in the <strong>repo</strong>. Claude Code assembles the prompt by extracting the relevant spec section, acceptance criteria, and constraints — then fires it to Jules via API. The spec layer is what makes this handoff seamless.
+</div>
+
+<h3>Orchestration flow</h3>
+<div class="flow">
+  <div class="flow-step human">You + Claude Code<small>write spec & plan</small></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">Claude Code<small>creates tasks, assigns</small></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">Jules API<small>parallel cloud execution</small></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">Jules<small>creates PRs</small></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">Claude Code<small>reviews PRs vs spec</small></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step human">You<small>final review + merge</small></div>
+</div>
+
+<h3>Task routing: which agent gets what</h3>
+<table>
+  <tr><th>Task type</th><th>Agent</th><th>Why</th></tr>
+  <tr><td>Spec drafting & refinement</td><td><span class="tag tag-ai">Claude</span></td><td>Needs interactive dialogue, MCP (Linear), local context</td></tr>
+  <tr><td>Planning & decomposition</td><td><span class="tag tag-ai">Claude</span></td><td>Needs judgment, spec interpretation, Linear issue creation</td></tr>
+  <tr><td>Architecture-sensitive implementation</td><td><span class="tag tag-ai">Claude</span></td><td>Needs local env, debugging, multi-file judgment calls</td></tr>
+  <tr><td>Well-scoped feature from spec</td><td><span class="tag tag-both">Jules</span></td><td>Clear acceptance criteria, self-contained, parallelizable</td></tr>
+  <tr><td>Write tests for module X</td><td><span class="tag tag-both">Jules</span></td><td>Self-contained, spec has the expected behavior</td></tr>
+  <tr><td>Bug fix with failing test</td><td><span class="tag tag-both">Jules</span></td><td>"Make this test pass" — clear, verifiable</td></tr>
+  <tr><td>Bug investigation & reproduction</td><td><span class="tag tag-ai">Claude</span></td><td>Needs local env, interactive debugging, MCP</td></tr>
+  <tr><td>Dependency updates, lint fixes</td><td><span class="tag tag-both">Jules</span></td><td>Mechanical, parallelizable</td></tr>
+  <tr><td>PR review against spec</td><td><span class="tag tag-ai">Claude</span></td><td>Needs spec context + judgment</td></tr>
+  <tr><td>Nightly maintenance</td><td><span class="tag tag-both">Jules</span></td><td>Scheduled tasks: deps audit, TODO cleanup, coverage gaps</td></tr>
+</table>
+
+<h3>How Claude Code calls Jules</h3>
+<p>Jules exposes a REST API. Claude Code calls it directly from your terminal to create tasks, check status, and review output.</p>
+<div class="hierarchy">
+<span class="dim"># Create a Jules task with auto-PR</span><br>
+curl -X POST <span class="node">julius.googleapis.com/v1alpha/sessions</span> \<br>
+&nbsp;&nbsp;-H "X-Goog-Api-Key: $JULES_API_KEY" \<br>
+&nbsp;&nbsp;-d '{ "prompt": "<span class="node">... spec section + acceptance criteria ...</span>",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"sourceContext": { "source": "sources/ID" },<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"automationMode": "<span class="node">AUTO_CREATE_PR</span>",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"requirePlanApproval": false }'<br>
+<br>
+<span class="dim"># Or via CLI</span><br>
+jules remote new --repo owner/repo --session "task prompt"
+</div>
+
+<h3>Jules-eligible checklist</h3>
+<p>Claude Code assesses each task before routing:</p>
+<div class="cols">
+  <div>
+    <h4>Send to Jules if</h4>
+    <ul>
+      <li>Clear acceptance criteria in the spec</li>
+      <li>Self-contained — no env/infra/MCP deps</li>
+      <li>Has a test to verify, or task IS writing tests</li>
+      <li>Mechanical / parallelizable</li>
+      <li>Doesn't require architecture decisions</li>
+    </ul>
+  </div>
+  <div>
+    <h4>Keep in Claude Code if</h4>
+    <ul>
+      <li>Needs local env, credentials, or running services</li>
+      <li>Requires MCP (Linear, Slack, monitoring)</li>
+      <li>Requires interactive debugging or exploration</li>
+      <li>Involves architecture or judgment calls</li>
+      <li>Multi-step refactor with cascading decisions</li>
+    </ul>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════════ PAGE 6: BUG TRACKING + NOC AGENT ════════════════════ -->
+<div class="page">
+<h2>Bug tracking & the NOC agent</h2>
+<p>Defects aren't a parallel system — they're signals that reality disagrees with a prior spec. The triage pipeline is a six-stage funnel with a clear AI/human split at every gate.</p>
+
+<div class="flow">
+  <div class="flow-step">Capture<small>AI ingests</small></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">Normalize<small>AI drafts</small></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">Reproduce<small>AI attempts</small></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step human">Classify<small>human confirms</small></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step human">Prioritize<small>human decides</small></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">Schedule<small>AI executes</small></div>
+</div>
+
+<h3>The NOC agent: always-on intake</h3>
+<p>A dedicated agent monitors all signal sources continuously. Think of it as a Network Operations Center staffed by an agent with human escalation.</p>
+
+<div style="margin: 0.12in 0;">
+<table>
+  <tr><th>Signal source</th><th>How it arrives</th><th>Agent action</th></tr>
+  <tr><td>User reports (support, in-app, email)</td><td>Webhook / queue from support tool</td><td>Parse, ask clarifying questions, draft Bug Spec</td></tr>
+  <tr><td>Error monitoring (Sentry, Datadog)</td><td>Alert webhook</td><td>Correlate with recent deploys, check frequency/trend, auto-classify severity</td></tr>
+  <tr><td>Eval regressions</td><td>CI pipeline event</td><td>Link to the run + PR that introduced it, flag as regression</td></tr>
+  <tr><td>Slack / internal reports</td><td>Channel listener (MCP)</td><td>Extract signal from conversation noise, normalize into Bug Spec</td></tr>
+  <tr><td>Uptime / health checks</td><td>Monitoring alerts</td><td>Immediate sev1 escalation if threshold hit, begin correlation</td></tr>
+</table>
+</div>
+
+<h3>User reports: closing the loop</h3>
+<p>The highest-value integration. When a user reports a bug:</p>
+<ol>
+  <li><strong>NOC agent receives the signal</strong> — from support tool, in-app feedback, or email.</li>
+  <li><strong>Agent asks for context</strong> — replies to the reporter with specific questions (device? steps? when did it start?) rather than generic intake forms.</li>
+  <li><strong>Agent normalizes</strong> — drafts a Bug Spec with repro steps, linked spec, confidence scores. Cites the user's exact words.</li>
+  <li><strong>Agent attempts reproduction</strong> — runs the repro in a sandbox, attaches results as evidence.</li>
+  <li><strong>Human confirms in &lt;60 seconds</strong> — reviews the pre-built spec, approves/edits.</li>
+  <li><strong>Reporter gets notified</strong> — "We've confirmed this and it's prioritized" or "This is working as designed because [spec link]." Fast, specific, respectful.</li>
+</ol>
+
+<div class="callout">
+  <strong>The NOC agent transforms triage meetings.</strong> By the time humans sit down, every bug has a normalized spec, reproduction attempt, severity proposal, and linked spec. The meeting is 100% prioritization, 0% data entry. Target: &lt;60 seconds of human time per bug before the prioritization step.
+</div>
+
+<h3>Escalation guardrails</h3>
+<p>The NOC agent must hand off to a human immediately for:</p>
+<div class="cols">
+  <div>
+    <ul>
+      <li>Security vulnerabilities</li>
+      <li>Data loss or corruption</li>
+      <li>Payment / billing issues</li>
+    </ul>
+  </div>
+  <div>
+    <ul>
+      <li>Anything touching sev1 components</li>
+      <li>Affecting &gt;N% of users (define N per product)</li>
+      <li>Agent confidence below threshold on severity</li>
+    </ul>
+  </div>
+</div>
+
+<h3>What this replaces</h3>
+<table>
+  <tr><th style="width: 45%">Today</th><th>With NOC agent</th></tr>
+  <tr><td>User writes vague ticket, sits in backlog</td><td>Agent interviews user, builds complete Bug Spec in minutes</td></tr>
+  <tr><td>Engineer spends 30 min triaging each bug</td><td>Engineer spends 60 seconds confirming agent's work</td></tr>
+  <tr><td>Bugs and features on separate boards</td><td>Same graph, same board, bugs linked to the specs they violate</td></tr>
+  <tr><td>Triage meeting = reading tickets aloud</td><td>Triage meeting = making priority calls on pre-investigated issues</td></tr>
+  <tr><td>Reporter hears nothing for days</td><td>Reporter gets specific, cited response within hours</td></tr>
+</table>
+</div>
+
+<!-- ════════════════════ PAGE 7: CODIFICATION ════════════════════ -->
+<div class="page">
+<h2>Codification: how agents learn the process</h2>
+<p>The SDLC only works if agents understand it. Process knowledge is codified in the repo so it's portable, versionable, and agent-agnostic.</p>
+
+<h3>Three-tier architecture</h3>
+<div class="hierarchy">
+<span class="node">.ai/</span><br>
+├── <span class="node">sdlc.md</span> &nbsp;&nbsp;&nbsp;<span class="dim">← shared process (all agents read this)</span><br>
+├── <span class="node">CLAUDE.md</span> <span class="dim">← local agent config (MCP, Linear, Jules orchestration)</span><br>
+└── <span class="node">AGENTS.md</span> <span class="dim">← cloud agent config (VM constraints, PR conventions)</span>
+</div>
+
+<table>
+  <tr><th>File</th><th>Who reads it</th><th>Contains</th></tr>
+  <tr>
+    <td><code>.ai/sdlc.md</code></td>
+    <td>All agents</td>
+    <td>Spec system, work tracker conventions, task lifecycle, boundaries, escalation rules. The portable process definition.</td>
+  </tr>
+  <tr>
+    <td><code>.ai/CLAUDE.md</code></td>
+    <td>Claude Code (or any local agent)</td>
+    <td>MCP integrations, Jules API orchestration, labeling workflow, phase responsibilities, daily summary format.</td>
+  </tr>
+  <tr>
+    <td><code>.ai/AGENTS.md</code></td>
+    <td>Jules (or any cloud agent)</td>
+    <td>VM environment, how to find specs from repo, PR conventions (branch naming, commit format, description template).</td>
+  </tr>
+</table>
+
+<div class="callout">
+  <strong>Agent portability:</strong> if you switch from Claude Code to Gemini CLI, adapt <code>.ai/CLAUDE.md</code> to the new agent's config format. The process in <code>sdlc.md</code> and Jules config in <code>AGENTS.md</code> stay unchanged. The process knowledge is portable — only the wiring changes.
+</div>
+
+<h3>Linear labels: the routing signal</h3>
+<p>During planning, the local agent creates Linear issues and applies a routing label:</p>
+<table>
+  <tr><th>Label</th><th>Meaning</th><th>Routed to</th></tr>
+  <tr><td><code>jules</code></td><td>Self-contained, clear acceptance criteria, no local env needed</td><td>Jules (cloud, async, parallel)</td></tr>
+  <tr><td><code>claude-code</code></td><td>Needs MCP, local env, architecture judgment, debugging</td><td>Claude Code / local agent</td></tr>
+  <tr><td><code>human</code></td><td>Architecture decisions, stakeholder comms, priority calls</td><td>Human</td></tr>
+</table>
+
+<h3>What lives where</h3>
+<table>
+  <tr><th>Artifact</th><th>Location</th><th>Why there</th></tr>
+  <tr><td>Specs, ADRs, bug specs</td><td><code>specs/</code> in repo</td><td>Version with the code they describe</td></tr>
+  <tr><td>Agent process definition</td><td><code>.ai/sdlc.md</code> in repo</td><td>All agents read it; versions with the project</td></tr>
+  <tr><td>Agent-specific config</td><td><code>.ai/CLAUDE.md</code>, <code>.ai/AGENTS.md</code></td><td>Agent wiring; adapt per agent tool</td></tr>
+  <tr><td>Work state (issues, cycles)</td><td>Linear</td><td>Source of truth for "what's in progress"</td></tr>
+  <tr><td>Code + PRs</td><td>GitHub</td><td>Source of truth for implementation</td></tr>
+  <tr><td>Run telemetry</td><td>Linear comments (interim)</td><td>Linked to issues until a dedicated store exists</td></tr>
+</table>
+</div>
+
+<!-- ════════════════════ PAGE 8: PILOT PLAN ════════════════════ -->
+<div class="page">
+<h2>Pilot plan</h2>
+<p>We'll test this on an upcoming major refactoring effort before proposing broader adoption.</p>
+
+<h3>Phase 1 — Setup</h3>
+<ul>
+  <li>Copy <code>.ai/</code> directory into the target repo (sdlc.md, CLAUDE.md, AGENTS.md)</li>
+  <li>Create <code>specs/</code> directory with templates and CI validation</li>
+  <li>Create Linear workspace: initiative + project, labels (<code>jules</code>, <code>claude-code</code>, <code>human</code>)</li>
+  <li>Configure Claude Code with Linear MCP access</li>
+  <li>Generate Jules API key, store as <code>JULES_API_KEY</code></li>
+  <li>Grant Jules access to the repo on GitHub</li>
+  <li>Customize <code>AGENTS.md</code> with project structure and setup commands</li>
+</ul>
+
+<h3>Phase 2 — Write the refactoring spec</h3>
+<ul>
+  <li>Author <code>specs/SPEC-001-[name].md</code> with full frontmatter + body sections</li>
+  <li>Include migration section: current state → target state → strategy → rollback</li>
+  <li>Open a PR for the spec — review with the team</li>
+  <li>On approval: set status to <code>active</code>, create Linear project</li>
+</ul>
+
+<h3>Phase 3 — Plan and execute</h3>
+<ul>
+  <li>Claude Code decomposes spec into Linear issues with routing labels</li>
+  <li><code>jules</code>-labeled tasks dispatched via API — run in parallel in the cloud</li>
+  <li><code>claude-code</code>-labeled tasks implemented locally with full context</li>
+  <li>Claude Code reviews all PRs (its own + Jules's) against the spec</li>
+  <li>Human does final review and merge</li>
+  <li>Run telemetry logged on each Linear issue</li>
+</ul>
+
+<h3>Phase 4 — Evaluate</h3>
+<ul>
+  <li>Did specs-as-root improve clarity vs. tickets?</li>
+  <li>Did the Claude + Jules split reduce cycle time?</li>
+  <li>Was the <code>.ai/</code> codification sufficient for agents to operate independently?</li>
+  <li>How did triage time compare to the old process?</li>
+  <li>What tooling gaps blocked us? What would we change?</li>
+</ul>
+
+<h3>What I'd like feedback on</h3>
+<table>
+  <tr><th style="width:50%">Question</th><th>Context</th></tr>
+  <tr><td>Does the spec-as-root model match how you think about work?</td><td>This is the biggest shift from Jira-think. If it doesn't click, the rest falls apart.</td></tr>
+  <tr><td>Is the human/AI split at each stage right?</td><td>Too much agent autonomy = trust issues. Too little = just Jira with autocomplete.</td></tr>
+  <tr><td>Is the Claude Code + Jules split practical?</td><td>Do the eligibility criteria make sense? Is the handoff too complex?</td></tr>
+  <tr><td>Is the <code>.ai/</code> codification approach sound?</td><td>Agent-agnostic process + agent-specific wiring. Would you structure it differently?</td></tr>
+  <tr><td>Does the NOC agent concept feel practical or over-engineered?</td><td>We could start simpler (manual intake, agent-assisted classification only).</td></tr>
+</table>
+
+<div class="callout" style="margin-top: 0.2in;">
+  <strong>Full documentation</strong> is available in the <code>sdlc/</code> folder: work-graph.md, triage.md, roles.md, tooling.md, agent-orchestration.md, spec-schema.md, and playbook.md. Agent config templates are in <code>.ai/</code>.
+</div>
+
+<p class="small" style="margin-top: 0.3in; text-align: center; color: #94a3b8;">
+  AI-Native SDLC Proposal — Draft for internal review — April 2026
+</p>
+</div>
+
+</body>
+</html>
