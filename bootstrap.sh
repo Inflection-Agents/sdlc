@@ -47,26 +47,22 @@ fi
 
 echo ""
 
-# ── Jules CLI ──
+# ── Jules CLI (optional — falls back to Claude Code if not available) ──
 
-info "Setting up Jules CLI..."
+info "Checking Jules CLI (optional)..."
+
+JULES_AVAILABLE=false
 
 if command -v jules &> /dev/null; then
-  ok "Jules CLI already installed"
-else
-  info "Installing Jules CLI..."
-  npm install -g @google/jules
   ok "Jules CLI installed"
+  JULES_AVAILABLE=true
+else
+  info "Jules CLI not found. To install (optional):"
+  echo "    npm install -g @google/jules && jules login"
+  echo ""
 fi
 
-if [ -z "${JULES_API_KEY:-}" ]; then
-  warn "JULES_API_KEY not set."
-  echo "  1. Go to https://jules.google.com/settings#api"
-  echo "  2. Generate an API key"
-  echo "  3. Add to your shell profile:"
-  echo "     echo 'export JULES_API_KEY=\"your-key\"' >> ~/.zshrc && source ~/.zshrc"
-  echo ""
-else
+if [ -n "${JULES_API_KEY:-}" ]; then
   ok "JULES_API_KEY is set"
   # Verify it works
   HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
@@ -74,9 +70,23 @@ else
     https://julius.googleapis.com/v1alpha/sources 2>/dev/null || echo "000")
   if [ "$HTTP_CODE" = "200" ]; then
     ok "Jules API key is valid"
+    JULES_AVAILABLE=true
   else
     warn "Jules API returned HTTP $HTTP_CODE — key may be invalid"
   fi
+else
+  info "JULES_API_KEY not set. To configure (optional):"
+  echo "    1. Go to https://jules.google.com/settings#api"
+  echo "    2. Generate an API key"
+  echo "    3. echo 'export JULES_API_KEY=\"your-key\"' >> ~/.zshrc && source ~/.zshrc"
+  echo ""
+fi
+
+if [ "$JULES_AVAILABLE" = false ]; then
+  warn "Jules not available — jules-labeled tasks will fall back to Claude Code execution."
+  echo "  The SDLC works fully without Jules. You lose parallel cloud execution but"
+  echo "  the same task files, acceptance criteria, and review process apply."
+  echo ""
 fi
 
 echo ""

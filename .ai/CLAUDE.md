@@ -170,15 +170,25 @@ You have something Jules doesn't: direct dialogue with the user. Use it.
 
 ## Jules orchestration
 
-### Environment setup
-API key stored as `JULES_API_KEY` in your shell environment.
+### Availability check
+
+Before dispatching, check if Jules is available:
+```bash
+# Check CLI
+command -v jules &> /dev/null && echo "Jules CLI available" || echo "Jules CLI not found"
+
+# Check API key (fallback dispatch method)
+[ -n "${JULES_API_KEY:-}" ] && echo "API key set" || echo "No API key"
+```
+
+**If neither is available:** all `jules`-labeled tasks fall back to Claude Code execution. The task files, acceptance criteria, and review process are identical — only the execution model changes (sequential local instead of parallel cloud). See the fallback section below.
 
 ### Dispatching a task to Jules
 
-1. Read the Linear issue labeled `jules`
+1. Read the task file for the `jules`-labeled task
 2. Assemble the task prompt:
    ```
-   ## Task: [title from Linear issue]
+   ## Task: [title from task file]
    
    **Spec:** SPEC-NNN (see specs/SPEC-NNN-name.md in the repo)
    
@@ -189,7 +199,7 @@ API key stored as `JULES_API_KEY` in your shell environment.
    [Paste the relevant spec section — design, constraints]
    
    ## Acceptance criteria
-   [Paste from spec]
+   [Paste from task file]
    - [ ] Given X, when Y, then Z
    
    ## Constraints
@@ -202,7 +212,11 @@ API key stored as `JULES_API_KEY` in your shell environment.
    - Run: [lint command] — no new warnings
    - New tests required: [yes/no]
    ```
-3. Call Jules API:
+3. Dispatch via CLI (preferred):
+   ```bash
+   jules remote new --repo owner/repo --session "assembled task prompt"
+   ```
+   Or via REST API:
    ```bash
    curl -s -X POST \
      -H "X-Goog-Api-Key: $JULES_API_KEY" \
@@ -224,19 +238,30 @@ API key stored as `JULES_API_KEY` in your shell environment.
 
 ### Checking Jules status
 ```bash
-# List all sessions
+# Via CLI
+jules remote list --session
+jules remote status --session SESSION_ID
+
+# Via API
 curl -s -H "X-Goog-Api-Key: $JULES_API_KEY" \
   https://julius.googleapis.com/v1alpha/sessions
-
-# Get activities for a session
-curl -s -H "X-Goog-Api-Key: $JULES_API_KEY" \
-  "https://julius.googleapis.com/v1alpha/sessions/SESSION_ID/activities?pageSize=20"
 ```
 
 ### When Jules fails
-1. Read session activities for error details
+1. Check session status: `jules remote status --session SESSION_ID`
 2. Decide: retry with better prompt, reassign to yourself, or escalate to human
 3. Update the Linear issue with what happened
+
+### Fallback: executing jules-labeled tasks locally
+
+When Jules is not available, execute `jules`-labeled tasks yourself:
+1. Read the task file — it has everything you need (same as what Jules would receive)
+2. Implement locally following `sdlc-code-standards`
+3. Create a branch: `task/TASK-NNN-short-description`
+4. Open a PR with the same format Jules would use
+5. The task file's `agent` field stays `jules` — this records the intended routing. The fallback is a dispatch-time decision.
+
+The only tradeoff is concurrency: Jules runs tasks in parallel; local fallback is sequential. Prioritize tasks by dependency order to minimize idle time.
 
 ## Daily summary
 

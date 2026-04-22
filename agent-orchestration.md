@@ -179,70 +179,20 @@ because Jules may not navigate to it reliably]
 
 ## How Claude Code orchestrates Jules
 
-### Via the REST API
+### Via the CLI (preferred)
 
-Jules exposes a REST API that Claude Code can call directly from your terminal.
+The Jules CLI is the primary way Claude Code dispatches and monitors tasks.
 
 **Setup (one-time):**
-1. Generate an API key at https://jules.google.com/settings#api
-2. Store it locally (e.g., in `.env` or your shell profile as `JULES_API_KEY`)
+```bash
+npm install -g @google/jules
+jules login
+```
 
 **Core operations:**
 
 ```bash
-# List repos Jules has access to
-curl -s -H "X-Goog-Api-Key: $JULES_API_KEY" \
-  https://julius.googleapis.com/v1alpha/sources
-
-# Create a Jules task (session)
-curl -s -X POST \
-  -H "X-Goog-Api-Key: $JULES_API_KEY" \
-  -H "Content-Type: application/json" \
-  https://julius.googleapis.com/v1alpha/sessions \
-  -d '{
-    "prompt": "... task prompt here ...",
-    "sourceContext": {
-      "source": "sources/SOURCE_ID",
-      "githubRepoContext": {
-        "startingBranch": "main"
-      }
-    },
-    "title": "SPEC-001: Add input validation for auth endpoints",
-    "automationMode": "AUTO_CREATE_PR",
-    "requirePlanApproval": false
-  }'
-
-# Check task status
-curl -s -H "X-Goog-Api-Key: $JULES_API_KEY" \
-  https://julius.googleapis.com/v1alpha/sessions
-
-# Get task activities/progress
-curl -s -H "X-Goog-Api-Key: $JULES_API_KEY" \
-  "https://julius.googleapis.com/v1alpha/sessions/SESSION_ID/activities?pageSize=20"
-
-# Send follow-up message to a running task
-curl -s -X POST \
-  -H "X-Goog-Api-Key: $JULES_API_KEY" \
-  -H "Content-Type: application/json" \
-  "https://julius.googleapis.com/v1alpha/sessions/SESSION_ID:sendMessage" \
-  -d '{"prompt": "Also add error handling for the edge case where..."}'
-
-# Approve a plan (if requirePlanApproval was true)
-curl -s -X POST \
-  -H "X-Goog-Api-Key: $JULES_API_KEY" \
-  "https://julius.googleapis.com/v1alpha/sessions/SESSION_ID:approvePlan"
-```
-
-### Via the CLI
-
-```bash
-# Install
-npm install -g @google/jules
-
-# Login
-jules login
-
-# Create a task from your repo directory
+# Create a task — Jules auto-creates a PR when done
 jules remote new --repo owner/repo --session "task prompt here"
 
 # Create multiple parallel tasks
@@ -251,9 +201,68 @@ jules remote new --repo owner/repo --session "task 1" --parallel 3
 # List sessions
 jules remote list --session
 
+# Check status of a specific session
+jules remote status --session SESSION_ID
+
 # Pull results
 jules remote pull --session SESSION_ID
+
+# Send a follow-up message to a running task
+jules remote message --session SESSION_ID "Also add error handling for..."
 ```
+
+### Via the REST API (alternative)
+
+For automation scripts or when the CLI isn't available, Jules also exposes a REST API.
+
+**Setup:** Generate an API key at https://jules.google.com/settings#api, store as `JULES_API_KEY`.
+
+```bash
+# Create a task
+curl -s -X POST \
+  -H "X-Goog-Api-Key: $JULES_API_KEY" \
+  -H "Content-Type: application/json" \
+  https://julius.googleapis.com/v1alpha/sessions \
+  -d '{
+    "prompt": "... task prompt here ...",
+    "sourceContext": {
+      "source": "sources/SOURCE_ID",
+      "githubRepoContext": { "startingBranch": "main" }
+    },
+    "title": "SPEC-001: Add input validation for auth endpoints",
+    "automationMode": "AUTO_CREATE_PR",
+    "requirePlanApproval": false
+  }'
+
+# List sessions
+curl -s -H "X-Goog-Api-Key: $JULES_API_KEY" \
+  https://julius.googleapis.com/v1alpha/sessions
+
+# Get session activities
+curl -s -H "X-Goog-Api-Key: $JULES_API_KEY" \
+  "https://julius.googleapis.com/v1alpha/sessions/SESSION_ID/activities?pageSize=20"
+
+# Send follow-up message
+curl -s -X POST \
+  -H "X-Goog-Api-Key: $JULES_API_KEY" \
+  -H "Content-Type: application/json" \
+  "https://julius.googleapis.com/v1alpha/sessions/SESSION_ID:sendMessage" \
+  -d '{"prompt": "Also add error handling for the edge case where..."}'
+```
+
+### Fallback: Claude Code as executor
+
+**When Jules is not available** (no CLI installed, no API key, or not desired), all `jules`-labeled tasks fall back to Claude Code execution. The SDLC process doesn't change — the same task files, acceptance criteria, and review process apply. The only difference is execution model:
+
+| | With Jules | Fallback (Claude Code) |
+|---|---|---|
+| Execution | Parallel in cloud | Sequential locally |
+| Concurrency | Up to 15 tasks | One at a time |
+| Environment | Clean VM, repo clone | Full local env |
+| Monitoring | Poll session status | Interactive |
+| Output | Auto-created PR | Local branch → PR |
+
+The fallback is automatic: if `jules` CLI is not found and `JULES_API_KEY` is not set, the dispatch skill treats all `jules`-labeled tasks as `claude-code` tasks. Task files don't change — routing is a dispatch-time decision, not a definition-time decision.
 
 ### Orchestration workflow
 
@@ -261,17 +270,21 @@ Claude Code runs the full loop:
 
 ```
 1. Claude Code reads the spec and plan
-2. For each task marked jules-eligible:
-   a. Claude Code assembles the task prompt (spec section + acceptance criteria + constraints)
-   b. Claude Code calls Jules API to create a session with automationMode: AUTO_CREATE_PR
-   c. Claude Code logs the session ID to the Linear issue as a comment
-3. Claude Code monitors progress:
-   a. Polls Jules API for session status (or you check back later)
-   b. When Jules creates a PR, Claude Code reviews it:
-      - Reads the diff (via gh pr diff)
-      - Checks against the spec's acceptance criteria
-      - Flags issues as PR review comments
-4. You do final review and merge
+2. Check: is Jules available? (CLI installed or API key set)
+3. For each task marked jules-eligible:
+   IF Jules available:
+     a. Assemble the task prompt (spec section + acceptance criteria + constraints)
+     b. Dispatch via CLI: jules remote new --repo owner/repo --session "prompt"
+     c. Log the session ID to the Linear issue as a comment
+   IF Jules NOT available (fallback):
+     a. Read the task file directly
+     b. Implement locally following sdlc-code-standards
+     c. Open PR from local branch
+4. Monitor/review:
+   a. Jules: poll session status or check back later
+   b. Fallback: work is already local — review as you go
+   c. When PR arrives/is ready: review against spec acceptance criteria
+5. You do final review and merge
 ```
 
 ## Jules eligibility criteria
@@ -293,7 +306,7 @@ Not every task should go to Jules. Claude Code should assess each task against t
 
 ## Phase-by-phase assignment
 
-| SDLC Phase | Claude Code | Jules |
+| SDLC Phase | Claude Code | Jules (or Claude Code fallback) |
 |------------|-------------|-------|
 | **Spec** | Draft, refine, link ADRs, update frontmatter | — |
 | **Planning** | Decompose spec → tasks, mark jules-eligible, create Linear issues | — |
@@ -303,6 +316,8 @@ Not every task should go to Jules. Claude Code should assess each task against t
 | **Review** | Review Jules PRs against spec, review human PRs | — |
 | **Chores** | — | Dependency updates, lint fixes, boilerplate, doc generation |
 | **Scheduled maintenance** | — | Nightly: dependency audit, TODO cleanup, security scan (Jules scheduled tasks) |
+
+**Without Jules:** Claude Code handles everything in the "Jules" column sequentially. The SDLC process is identical — you lose parallelism, not capability. This makes the framework usable from day one, with Jules as an acceleration layer you add when ready.
 
 ## Scheduled tasks (continuous AI)
 

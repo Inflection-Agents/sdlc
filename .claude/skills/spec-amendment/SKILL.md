@@ -172,9 +172,10 @@ When a spec amendment affects a task that an agent is actively working on:
 - You're the agent. Stop implementation, apply the amendment, adjust your work.
 
 **For Jules tasks:**
-- If the PR doesn't exist yet: send a follow-up message to the Jules session with the updated requirements. Use the Jules API `sendMessage` endpoint.
+- If the PR doesn't exist yet: send a follow-up message to the Jules session with the updated requirements (`jules remote message --session SESSION_ID "..."` or via REST API).
 - If the PR already exists but not merged: add a review comment explaining the spec change and what needs to change in the PR. Request changes.
 - If the task is fundamentally invalidated: cancel the Jules session if possible. Create a replacement task.
+- If Jules is not available (fallback mode): the task is being executed locally by Claude Code — same as handling a Claude Code task.
 
 **For human tasks:**
 - Add a comment on the Linear issue explaining the spec change and its impact on this task.
@@ -320,4 +321,4 @@ Amending means the spec is still fundamentally right — you're adjusting, not r
 | Treating every change as breaking | Classify honestly. Additive changes are lower-friction and don't require rework analysis. |
 | Amending when you should supersede | If >50% of tasks need rework, the spec is fundamentally wrong. Start over. |
 | Forgetting to update `_index.yaml` | The index must always match the task files. New, cancelled, and re-wired tasks all change it. |
-| Not signaling in-progress Jules tasks | Jules won't know the spec changed unless you tell it. Use the API or PR review. |
+| Not signaling in-progress Jules tasks | Jules won't know the spec changed unless you tell it. Use `jules remote message` or PR review comments. In fallback mode, you're the agent — just adjust your work. |

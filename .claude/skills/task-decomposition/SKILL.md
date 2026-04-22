@@ -178,6 +178,8 @@ Apply one routing label per task using these rules:
 
 **Default: `claude-code`.** Better to handle locally with full context than to send to Jules and have it fail.
 
+**Route based on task characteristics, not Jules availability.** Label tasks `jules` if they meet the criteria above, even if Jules isn't currently set up. The label records the task's nature (self-contained, parallelizable). At dispatch time, if Jules isn't available, `jules`-labeled tasks fall back to Claude Code execution automatically. This means routing decisions survive across environments — a task labeled `jules` will use Jules when available and fall back gracefully when not.
+
 **Routing principle (from dispatching-parallel-agents):** One agent per independent problem domain. Group by what is logically related, not by file proximity. If fixing one task might affect another, they should NOT run in parallel — investigate the dependency first.
 
 ### Step 5: Assign task IDs

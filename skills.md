@@ -238,17 +238,22 @@ Three modes:
 **Trigger:** task files exist with `agent: jules` and `status: pending`, "dispatch jules tasks," "fire off the jules work"
 
 **What it does:**
-1. Reads `_index.yaml` to find ready tasks (all dependencies done)
-2. **Verifies upstream contracts** for each ready task: checks that boundary constraints from completed dependencies actually exist in the codebase (schema, exports, columns). If a contract is missing or different, flags it instead of dispatching.
-3. For each ready jules-eligible task:
-   a. Reads the task file
-   b. Assembles the Jules prompt (context + requirements + acceptance criteria + constraints + verification)
-   c. Calls Jules API with `automationMode: AUTO_CREATE_PR`
-   d. Logs session ID on the Linear issue and task file
-4. Reports what was dispatched and estimated completion
-5. Monitors for completion (or tells user to check back)
+1. **Checks Jules availability:** is `jules` CLI installed or `JULES_API_KEY` set?
+2. Reads `_index.yaml` to find ready tasks (all dependencies done)
+3. **Verifies upstream contracts** for each ready task: checks that boundary constraints from completed dependencies actually exist in the codebase (schema, exports, columns). If a contract is missing or different, flags it instead of dispatching.
+4. For each ready jules-eligible task:
+   - **If Jules available:** dispatches via CLI (`jules remote new`), logs session ID on Linear issue and task file
+   - **If Jules NOT available (fallback):** executes locally as a claude-code task — same task file, same acceptance criteria, same review process, just sequential instead of parallel
+5. Reports what was dispatched (or executed locally) and status
+6. Monitors for completion (Jules: poll sessions; fallback: work is local)
 
-**Interacts with:** `task-decomposition` (depends on task files), `sdlc-code-review` (review Jules PRs when they arrive), `spec-amendment` (when upstream contract verification fails)
+**Fallback rules:**
+- The task file's `agent: jules` field stays unchanged — it records intended routing, not actual execution
+- Fallback is automatic and silent: no user intervention needed
+- When Jules becomes available later, remaining `jules`-labeled tasks dispatch normally
+- The only tradeoff is concurrency: Jules runs tasks in parallel, fallback is sequential
+
+**Interacts with:** `task-decomposition` (depends on task files), `sdlc-code-review` (review Jules PRs when they arrive), `spec-amendment` (when upstream contract verification fails), `sdlc-code-standards` (applied during fallback execution)
 
 ### 4. sdlc-code-standards
 
