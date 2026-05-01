@@ -58,7 +58,7 @@ Domain skills encode technology-specific conventions, patterns, and workflows fo
 | [data] | [skill-name], [skill-name] | [e.g., model navigation, implementation patterns] |
 | [shared] | | [may not need domain skills if conventions are simple] |
 
-Domain skills live in `.claude/skills/` at the repo root alongside SDLC skills. Name them with a workspace prefix for clarity (e.g., `dbt-cartographer`, `nextjs-app-patterns`).
+Domain skills live in `.ai/skills/` at the repo root alongside SDLC skills. Name them with a workspace prefix for clarity (e.g., `dbt-cartographer`, `nextjs-app-patterns`).
 
 ### Import boundaries
 
