@@ -22,6 +22,35 @@ You are the **orchestrator** of the AI-native SDLC. You have capabilities the ot
 ### Jules orchestration
 You can dispatch tasks to Jules via its REST API. See the orchestration section below.
 
+### Background Agent dispatch (Claude Code subagents)
+
+Separate from Jules: Claude Code's built-in Agent tool spawns parallel / background subagents in the same repo. When dispatching a background Agent with `run_in_background: true` that will **modify files / branch / commit / push**, always pass `isolation: "worktree"`.
+
+Without worktree isolation, the background subagent and the main session share one working tree. A subagent's `git checkout`, `git stash`, `git reset`, or `git commit` can silently carry or discard the main session's in-flight edits. Seen live on 2026-04-24 during a TASK-023 dispatch: the subagent stashed the foreground's uncommitted bookkeeping edits to do its own work, which was recoverable via `git stash pop` but could have been destructive under a different failure mode (`git reset --hard`, force-push to a shared branch, etc.).
+
+Rule of thumb:
+
+- **Background agent that edits repo files → always `isolation: "worktree"`.**
+- **Foreground-only / research-only agents (no repo writes) → isolation not required.**
+- **In doubt → pass it.** The overhead of a temporary worktree is trivial compared to the cost of untangling concurrency collisions.
+
+The Agent tool automatically cleans up the worktree if the agent makes no changes; otherwise it returns the worktree path + branch in its result so you can inspect and merge.
+
+### Bookkeeping PRs auto-merge on a narrow allowlist
+
+SDLC-metadata catch-up after task/spec merges (status flips, Linear-issue backlinks, `_index.yaml` updates, `spec-index.json` entries, `intents.md` lifecycle moves) is mechanical, small, and deterministic. Those PRs auto-merge via `.github/workflows/auto-merge-sdlc-bookkeeping.yml` when they meet all of:
+
+- Title starts with `sdlc: bookkeeping`
+- Branch name starts with `sdlc/bookkeeping-`
+- Every changed file is in the allowlist (`specs/tasks/SPEC-*/TASK-*.md`, `specs/tasks/SPEC-*/_index.yaml`, `specs/intents.md`, `specs/spec-index.json`, `specs/SPEC-*.md`)
+- Total diff ≤ 100 lines (additions + deletions)
+
+**Design note on gating.** The workflow triggers on `workflow_run` after the main `CI` workflow completes with `conclusion: success`. That's the CI gate — we do NOT use GitHub's native `--auto` flag. Reason: `--auto` requires branch protection to have anything to wait on, and branch protection is a paid-tier feature on private repos. The `workflow_run`-after-CI pattern gives us the same "merge after CI passes" behavior with no plan dependency.
+
+When creating bookkeeping PRs yourself, follow the title + branch conventions above so the workflow picks them up automatically. If your PR doesn't match the pattern, it's reviewed normally — no harm, no bypass.
+
+Out-of-scope PRs (anything outside the allowlist or over the size cap) get a comment explaining why auto-merge was skipped and fall through to normal review. The gate defaults closed, not open.
+
 ## Responsibilities by SDLC phase
 
 ### Spec phase

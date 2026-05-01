@@ -1,75 +1,74 @@
-# Developer onboarding
+# Developer Onboarding — Multi-Agent SDLC
 
 Everything a new developer (or new machine) needs to participate in the AI-native SDLC.
 
-## Prerequisites
+## 1. Prerequisites
 
-- GitHub account with repo access
-- Google account (for Jules)
-- Node.js 18+ (for Jules CLI)
+- **GitHub account** with repo access.
+- **Google account** (for Jules).
+- **Node.js 18+** (for Jules CLI; check the receiving repo's `.nvmrc` / `engines` for any stricter requirement).
 
-## Quick start
+The receiving repo may impose additional toolchain requirements (e.g. `pnpm`, Python via `uv`, language-specific runtimes). Read its `.ai/project.md` and root `README.md` after this onboarding to install them.
 
-Run the bootstrap script from the SDLC directory:
+## 2. Quick start
+
+If the receiving repo provides a bootstrap script (e.g. `pnpm dev:bootstrap`, `./tools/dev/bootstrap.sh`), prefer that — it handles repo-specific env wiring (Supabase users, `.env` files, language toolchains) on top of the SDLC bootstrap below.
+
+Otherwise, run the SDLC's own bootstrap from this directory:
 
 ```bash
 ./sdlc/bootstrap.sh
 ```
 
-This will:
-1. Check prerequisites
-2. Install and configure the Jules CLI
-3. Set up Claude Code MCP servers (Linear)
-4. Create Linear labels if they don't exist
-5. Verify everything works
+This script:
+1. Checks prerequisites
+2. Installs and configures the Jules CLI
+3. Sets up Claude Code MCP servers (Linear)
+4. Creates Linear labels if they don't exist
+5. Verifies everything works
 
-## Manual setup (if you prefer)
+## 3. Configure your AI agents
 
-### 1. Claude Code
+The SDLC is agent-agnostic. You can use Claude Code, Gemini CLI, or both. We recommend having both available.
 
-Install Claude Code if not already installed:
-```bash
-# macOS
-brew install claude-code
-# or
-npm install -g @anthropic-ai/claude-code
-```
+### A. Claude Code (local orchestrator)
 
-### 2. Linear MCP
+1. **Install:** `npm install -g @anthropic-ai/claude-code` (or `brew install claude-code` on macOS).
+2. **Linear MCP:** `claude mcp add linear -- npx @anthropic-ai/linear-mcp-server`. Generate a Linear API key at: Settings → API → Personal API keys.
+3. **Superpowers (recommended):** `/plugin install superpowers@claude-plugins-official` from inside Claude Code. Adds the brainstorming + verification-before-completion behavioral skills.
 
-Add the Linear MCP server to Claude Code:
-```bash
-claude mcp add linear -- npx @anthropic-ai/linear-mcp-server
-```
+### B. Gemini CLI (local orchestrator, optional)
 
-You'll need a Linear API key. Generate one at: Settings → API → Personal API keys.
+1. **Install:** follow the [Gemini CLI installation guide](https://github.com/google/generative-ai-docs).
+2. **Superpowers (recommended):** `gemini install-skill brainstorming verification-before-completion`.
 
-### 3. Jules
+### C. Jules (cloud executor)
 
-Install the Jules CLI:
-```bash
-npm install -g @google/jules
-jules login
-```
+1. **Install:** `npm install -g @google/jules && jules login`
+2. **API key:** generate at <https://jules.google.com/settings#api> and add to your shell profile:
+   ```bash
+   echo 'export JULES_API_KEY="your-key-here"' >> ~/.zshrc
+   source ~/.zshrc
+   ```
+3. **Grant repo access:** GitHub → Settings → Applications → Google Labs Jules → Configure (select the repo).
 
-Generate a Jules API key at https://jules.google.com/settings#api and add to your shell profile:
-```bash
-echo 'export JULES_API_KEY="your-key-here"' >> ~/.zshrc
-source ~/.zshrc
-```
+## 4. Wire skills into your agents
 
-Grant Jules access to your repos:
-1. Go to GitHub → Settings → Applications → Google Labs Jules → Configure
-2. Select the repos Jules should access
+If the repo ships SDLC skills under `.ai/skills/` (the standard location — see `templates/project.md`), point your local agents at them:
 
-### 4. Linear labels
+- **Claude Code** auto-discovers `.claude/skills/` in the repo root. Either symlink (`ln -s ../.ai/skills .claude/skills`) or run the repo's `setup-sdlc.sh` if it provides one.
+- **Gemini CLI** discovers skills via `~/.agents/skills/`. Symlink each repo skill into it.
 
-Create these labels in your Linear workspace (if they don't exist):
+The repo's bootstrap script usually handles this. Restart your agent session after wiring so it reloads the skill index.
+
+## 5. Linear labels
+
+Create these labels in your Linear workspace (if they don't already exist):
 - `jules` — for tasks routed to Jules
-- `claude-code` — for tasks routed to the local agent
+- `claude-code` — for tasks routed to a local orchestrator (Claude Code, Gemini CLI, or equivalent)
 - `human` — for tasks requiring human action
 
-### 5. Verify
+## 6. Verify
 
 ```bash
 # Claude Code can reach Linear
@@ -83,36 +82,41 @@ curl -s -H "X-Goog-Api-Key: $JULES_API_KEY" \
   https://julius.googleapis.com/v1alpha/sources
 ```
 
-## What's in the repo
+## 7. Directory structure
 
 ```
 .ai/
-├── sdlc.md       ← read this first — the process definition
-├── CLAUDE.md     ← how Claude Code operates in this project
-├── AGENTS.md     ← how Jules operates in this project
-└── setup.md      ← you are here
+├── sdlc.md         ← the shared process definition (read this first)
+├── project.md      ← repo structure, commands, code conventions
+├── CLAUDE.md       ← instructions for Claude Code orchestrator
+├── GEMINI.md       ← instructions for Gemini CLI orchestrator (if used)
+├── AGENTS.md       ← instructions for Jules executor
+├── setup.md        ← you are here
+└── skills/         ← shared SDLC + domain skills
 
 specs/
-├── templates/    ← templates for new specs, ADRs, bugs
-├── adrs/         ← architecture decision records
-├── bugs/         ← bug specs
+├── templates/      ← templates for new specs, ADRs, bugs
+├── adrs/           ← architecture decision records
+├── bugs/           ← bug specs
 └── spec-index.json ← auto-generated, agent-readable index
 ```
 
-## Day-to-day workflow
+## 8. Daily workflow
 
-1. **Start a session:** open Claude Code in the repo
-2. **Check work:** Claude Code reads Linear for your assigned tasks
-3. **For your tasks:** implement, test, open PR
-4. **For jules-labeled tasks:** Claude Code dispatches them — you review the PRs when they arrive
-5. **For spec changes:** update the spec in a PR alongside the code change
+1. **Start a session:** `claude` or `gemini`.
+2. **Check work:** the orchestrator reads Linear for your assigned tasks.
+3. **For local tasks:** implement, test, open a PR.
+4. **For `jules`-labeled tasks:** the orchestrator dispatches them — you review the PRs when they arrive.
+5. **For spec changes:** update the spec in a PR alongside the code change.
 
-## Troubleshooting
+## 9. Troubleshooting
 
 | Problem | Fix |
 |---------|-----|
+| Skills not found | Re-run the repo's `setup-sdlc.sh` (or re-symlink) and restart your agent session. |
 | Claude Code can't reach Linear | Check MCP config: `claude mcp list` — is `linear` listed? |
 | Jules API returns 401 | Regenerate API key at jules.google.com/settings#api |
 | Jules can't access repo | Check GitHub → Settings → Applications → Google Labs Jules |
 | CI fails on spec validation | Check frontmatter against schema in `spec-schema.md` |
-| Jules task fails | Read session activities, check if the task needs local context (should be `claude-code` instead) |
+| Jules task fails | Read session activities; check if the task needs local context (should be `claude-code` instead) |
+| Linear labels missing | Ensure `jules`, `claude-code`, and `human` exist in your Linear workspace. |

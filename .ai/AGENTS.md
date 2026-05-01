@@ -82,4 +82,4 @@ When your work is ready:
 
 ## Project structure and setup
 
-See `.ai/project.md` for the full project layout, commands, code conventions, and data architecture. All project-specific details live there — shared between you and Claude Code.
+See `.ai/project.md` for the full project layout, commands, code conventions, and data architecture. All project-specific details live there — shared between you, Claude Code, and Gemini CLI.

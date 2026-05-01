@@ -51,7 +51,7 @@ The work graph lives in Linear. Key conventions:
 | Label | Meaning |
 |-------|---------|
 | `jules` | Task is eligible for Jules (cloud agent). Self-contained, clear acceptance criteria, no local env needed. |
-| `claude-code` | Task requires local agent (Claude Code or equivalent). Needs MCP, local env, architecture judgment, or interactive debugging. |
+| `claude-code` | Task requires a local orchestrator (Claude Code, Gemini CLI, or equivalent). Needs MCP, local env, architecture judgment, or interactive debugging. |
 | `human` | Task requires human. Architecture decisions, stakeholder comms, priority calls. |
 
 ### How tasks get routed
@@ -71,7 +71,7 @@ Spec (one file in specs/)
 
 Specs don't live in agent-specific folders. There is one `specs/` directory. Routing is by label on the Linear issue, not by file location.
 
-The local agent's CLAUDE.md (or equivalent) contains the detailed routing rules — the checklist for deciding which label to apply.
+The local orchestrator's configuration file (`CLAUDE.md` or `GEMINI.md`) contains the detailed routing rules — the checklist for deciding which label to apply.
 
 ### Issue conventions
 
