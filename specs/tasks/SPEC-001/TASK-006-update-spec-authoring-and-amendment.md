@@ -33,7 +33,7 @@ updated: 2026-05-18
 
 ## Requirements
 
-Update `/Users/franklin/_code/sdlc/.claude/skills/spec-authoring/SKILL.md`:
+Update `/Users/franklin/_code/sdlc/.ai/skills/spec-authoring/SKILL.md`:
 
 1. **Add a step to Phase 2** (the formalization phase) that invokes `spec-reviewer` BEFORE the user sign-off gate. Specifically:
    - After the author has written the full spec body but before "USER APPROVES SPEC" gate
@@ -44,7 +44,7 @@ Update `/Users/franklin/_code/sdlc/.claude/skills/spec-authoring/SKILL.md`:
 2. **Reference Owner override format** — link to SPEC-001 Design > Owner override format and show one example of a `spec_review_overrides:` entry.
 3. **Reference review-primitives.md** for the routing policy.
 
-Update `/Users/franklin/_code/sdlc/.claude/skills/spec-amendment/SKILL.md`:
+Update `/Users/franklin/_code/sdlc/.ai/skills/spec-amendment/SKILL.md`:
 
 1. **Add a step after the amendment is drafted** that invokes `spec-reviewer` on the amended spec — the same flow as spec-authoring's Phase 2 invocation.
 2. **Reference Owner override format** for the same reason.

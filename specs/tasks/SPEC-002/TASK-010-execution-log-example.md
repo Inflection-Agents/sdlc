@@ -9,7 +9,7 @@ blocks: []
 linear_issue:
 acceptance_criteria:
   - id: AC-001
-    description: "Given .claude/skills/spec-execution/examples/example-execution.log.jsonl exists, when read as JSONL, then every line is valid JSON parseable independently"
+    description: "Given .ai/skills/spec-execution/examples/example-execution.log.jsonl exists, when read as JSONL, then every line is valid JSON parseable independently"
     status: pending
   - id: AC-002
     description: "Given the file, when read, then it contains events for at least 3 tasks across at least 2 waves, demonstrating dynamic unblocking (e.g., TASK-002 dispatched when TASK-001 done, TASK-003 dispatched when both TASK-001 and TASK-002 done)"
@@ -39,7 +39,7 @@ Per SPEC-002 AC-007, a worked example execution log is required to make the tele
 
 ## Requirements
 
-Create `/Users/franklin/_code/sdlc/.claude/skills/spec-execution/examples/example-execution.log.jsonl`.
+Create `/Users/franklin/_code/sdlc/.ai/skills/spec-execution/examples/example-execution.log.jsonl`.
 
 Construct a plausible fictional execution log for a fictional SPEC-099 with 4 tasks (TASK-201, TASK-202, TASK-203, TASK-204):
 
@@ -69,7 +69,7 @@ Total events: roughly 25-30 lines, each on its own line, each independently vali
 
 ## Verification
 
-- Run `python3 -c "import json; [json.loads(line) for line in open('/Users/franklin/_code/sdlc/.claude/skills/spec-execution/examples/example-execution.log.jsonl')]"` — must succeed with no errors.
+- Run `python3 -c "import json; [json.loads(line) for line in open('/Users/franklin/_code/sdlc/.ai/skills/spec-execution/examples/example-execution.log.jsonl')]"` — must succeed with no errors.
 - Visually confirm event ordering matches the task lifecycles described in Requirements.
 - Verify each of the 7 ACs by inspection.
 - Cross-reference event field names against SPEC-002 Design > Telemetry schema — must match exactly.

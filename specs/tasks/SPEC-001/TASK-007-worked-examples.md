@@ -9,10 +9,10 @@ blocks: []
 linear_issue:
 acceptance_criteria:
   - id: AC-001
-    description: "Given .claude/skills/pr-reviewer/examples/ exists, when read, then it contains a worked example showing a fictional PR with the JSON output from pr-reviewer containing exactly 1 blocker, 1 major, and 2 nits, plus the expected orchestrator action ('fix_loop' per SPEC-001 policy)"
+    description: "Given .ai/skills/pr-reviewer/examples/ exists, when read, then it contains a worked example showing a fictional PR with the JSON output from pr-reviewer containing exactly 1 blocker, 1 major, and 2 nits, plus the expected orchestrator action ('fix_loop' per SPEC-001 policy)"
     status: pending
   - id: AC-002
-    description: "Given .claude/skills/spec-reviewer/examples/ exists, when read, then it contains a worked example showing a fictional draft spec with the JSON output from spec-reviewer containing exactly 1 blocker (untestable AC), 1 major (workspace coverage gap), and 2 nits, plus the expected orchestrator action"
+    description: "Given .ai/skills/spec-reviewer/examples/ exists, when read, then it contains a worked example showing a fictional draft spec with the JSON output from spec-reviewer containing exactly 1 blocker (untestable AC), 1 major (workspace coverage gap), and 2 nits, plus the expected orchestrator action"
     status: pending
   - id: AC-003
     description: "Given both example files, when read, then every finding has a grounded citation that matches the allowed prefixes for the corresponding reviewer (per review-primitives.md grounding rules)"
@@ -33,7 +33,7 @@ Per SPEC-001 AC-007, worked examples are required to make the reviewer contracts
 
 ## Requirements
 
-1. **Create `/Users/franklin/_code/sdlc/.claude/skills/pr-reviewer/examples/example-graded-pr.md`** containing:
+1. **Create `/Users/franklin/_code/sdlc/.ai/skills/pr-reviewer/examples/example-graded-pr.md`** containing:
    - A short prose section describing a fictional PR: imagine a PR against high-gear's dealer-app, ~120 lines, touching `apps/dealer-app/src/components/InventoryList.tsx`, claiming to address TASK-088 AC-003 (a filtering feature).
    - The full JSON output that pr-reviewer would emit:
      - `artifact: "pr"`, `artifact_id: "TASK-088"`, `spec_id: "SPEC-042"`, `pr_number: 142`, `tier: 1`
@@ -42,7 +42,7 @@ Per SPEC-001 AC-007, worked examples are required to make the reviewer contracts
      - `tier_2_dispatch_recommended`: non-empty (e.g., `["domain:nextjs"]` because the diff touches `apps/*/components/**`)
    - A short prose section after the JSON: "Expected orchestrator action per SPEC-001 policy: `fix_loop` (1 blocker). The orchestrator invokes the fix agent with the findings as `previous_output`; on next iteration the reviewer carries forward the 2 nits IF the files they cite are not touched by the fix."
 
-2. **Create `/Users/franklin/_code/sdlc/.claude/skills/spec-reviewer/examples/example-graded-spec.md`** containing:
+2. **Create `/Users/franklin/_code/sdlc/.ai/skills/spec-reviewer/examples/example-graded-spec.md`** containing:
    - A short prose section describing a fictional draft spec: imagine SPEC-099 — a draft for "add metrics export to admin-app" — with one untestable AC ("the dashboard should feel fast"), one missing workspace declaration (touches `shared/` but `workspaces:` is empty), and a few minor wording issues.
    - The full JSON output that spec-reviewer would emit:
      - `artifact: "spec"`, `artifact_id: "SPEC-099"`, `spec_id: "SPEC-099"`, `pr_number: null`, `tier: 1`

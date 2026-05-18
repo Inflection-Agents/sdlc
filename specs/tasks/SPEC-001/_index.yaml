@@ -19,14 +19,14 @@ tasks:
     blocks: [TASK-003, TASK-004, TASK-005, TASK-006, TASK-009]
 
   - id: TASK-003
-    title: "Create .claude/skills/pr-reviewer/SKILL.md"
+    title: "Create .ai/skills/pr-reviewer/SKILL.md"
     agent: jules
     status: pending
     depends_on: [TASK-002]
     blocks: [TASK-005, TASK-007, TASK-009]
 
   - id: TASK-004
-    title: "Create .claude/skills/spec-reviewer/SKILL.md (incl. gap catalog)"
+    title: "Create .ai/skills/spec-reviewer/SKILL.md (incl. gap catalog)"
     agent: jules
     status: pending
     depends_on: [TASK-002]

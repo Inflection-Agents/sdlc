@@ -1,7 +1,7 @@
 ---
 id: TASK-004
 spec: SPEC-001
-title: "Create .claude/skills/spec-reviewer/SKILL.md (incl. gap catalog)"
+title: "Create .ai/skills/spec-reviewer/SKILL.md (incl. gap catalog)"
 status: pending
 agent: jules
 depends_on: [TASK-002]
@@ -9,7 +9,7 @@ blocks: [TASK-006, TASK-007]
 linear_issue:
 acceptance_criteria:
   - id: AC-001
-    description: "Given .claude/skills/spec-reviewer/SKILL.md exists, when read, then the frontmatter has name: spec-reviewer and a description that triggers on spec review requests (end of spec-authoring Phase 2, after spec-amendment, or on-demand)"
+    description: "Given .ai/skills/spec-reviewer/SKILL.md exists, when read, then the frontmatter has name: spec-reviewer and a description that triggers on spec review requests (end of spec-authoring Phase 2, after spec-amendment, or on-demand)"
     status: pending
   - id: AC-002
     description: "Given the file, when read, then it contains the spec-reviewer prompt verbatim from SPEC-001 Appendix C (inputs including upstream_specs and downstream_specs paths, grounding rules, gap catalog, severity reference to review-primitives.md, carry-forward, output, decision-disclaimer)"
@@ -36,7 +36,7 @@ This task creates the skill file that implements the spec-side reviewer defined 
 
 ## Requirements
 
-Create `/Users/franklin/_code/sdlc/.claude/skills/spec-reviewer/SKILL.md`.
+Create `/Users/franklin/_code/sdlc/.ai/skills/spec-reviewer/SKILL.md`.
 
 The file must contain:
 
@@ -65,9 +65,9 @@ The file must contain:
 
 ## Verification
 
-- Read `/Users/franklin/_code/sdlc/.claude/skills/spec-reviewer/SKILL.md` end to end.
+- Read `/Users/franklin/_code/sdlc/.ai/skills/spec-reviewer/SKILL.md` end to end.
 - Verify each AC by inspection.
-- Cross-reference against `/Users/franklin/_code/sdlc/.claude/skills/review-primitives.md` (TASK-002 output) — the citation prefixes must match.
+- Cross-reference against `/Users/franklin/_code/sdlc/.ai/skills/review-primitives.md` (TASK-002 output) — the citation prefixes must match.
 - Cross-reference against `/Users/franklin/_code/sdlc/specs/SPEC-001-tiered-code-review.md` Appendix C — the prompt must match.
 - Confirm the gap catalog does NOT include severity labels per category.
 - No automated test exists for skill content; verification is by inspection.

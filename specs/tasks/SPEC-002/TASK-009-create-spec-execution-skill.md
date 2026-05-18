@@ -1,7 +1,7 @@
 ---
 id: TASK-009
 spec: SPEC-002
-title: "Create .claude/skills/spec-execution/SKILL.md (drives full orchestration loop)"
+title: "Create .ai/skills/spec-execution/SKILL.md (drives full orchestration loop)"
 status: pending
 agent: claude-code
 depends_on: [TASK-002, TASK-003]
@@ -9,7 +9,7 @@ blocks: [TASK-010]
 linear_issue:
 acceptance_criteria:
   - id: AC-001
-    description: "Given .claude/skills/spec-execution/SKILL.md exists, when read, then it documents Phases 1, 2, 3 with the per-task lifecycle per SPEC-002 Design"
+    description: "Given .ai/skills/spec-execution/SKILL.md exists, when read, then it documents Phases 1, 2, 3 with the per-task lifecycle per SPEC-002 Design"
     status: pending
   - id: AC-002
     description: "Given the file, when read, then it specifies the worktree-isolation constraint as a hard rule, citing the 2026-04-24 incident OR a generic justification of the failure mode for the upstream version"
@@ -57,7 +57,7 @@ This task creates the orchestration skill that executes any active spec end-to-e
 
 ## Requirements
 
-Create `/Users/franklin/_code/sdlc/.claude/skills/spec-execution/SKILL.md`.
+Create `/Users/franklin/_code/sdlc/.ai/skills/spec-execution/SKILL.md`.
 
 Structure (following SPEC-002 Appendix A skill skeleton):
 

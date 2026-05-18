@@ -38,7 +38,7 @@ Two motivations, then:
 
 ### In scope
 
-- New skill `.claude/skills/spec-execution/SKILL.md` in upstream sdlc.
+- New skill `.ai/skills/spec-execution/SKILL.md` in upstream sdlc.
 - Wave construction algorithm (topological sort over `depends_on`/`blocks` from task frontmatter), with the wave-integer semantics defined for both static and dynamic-unblocking cases.
 - Per-task lifecycle inside a wave (executor → Tier 0 → Tier 1 → Tier 2 → policy → fix_loop or accept or escalate).
 - Worktree-isolation enforcement for file-editing background agents.
@@ -215,7 +215,7 @@ All tasks done → spec-completion → integration PR feat/spec-NNN → main
 
 ## Acceptance criteria
 
-- [ ] AC-001 — `.claude/skills/spec-execution/SKILL.md` exists and documents Phases 1, 2, 3 with the per-task lifecycle.
+- [ ] AC-001 — `.ai/skills/spec-execution/SKILL.md` exists and documents Phases 1, 2, 3 with the per-task lifecycle.
 - [ ] AC-002 — The skill specifies the worktree-isolation constraint as a hard rule, citing a concrete originating incident (the high-gear stash incident on 2026-04-24 if available in the consumer's incident log; otherwise a generic justification of the failure mode is acceptable for the upstream framework version).
 - [ ] AC-003 — The skill explicitly states: "no LLM reviewer is dispatched while Tier 0 is red." Tier 0 → Tier 1 → Tier 2 sequencing is mandatory. Tier 0 contents are inherited by reference from SPEC-001 Design > PR side > Tier 0 (not duplicated).
 - [ ] AC-004 — Severity routing references SPEC-001's policy by inclusion (not duplication), including the `escalate` action. Cross-skill signal detection uses the citation prefixes defined in SPEC-001 Design > Grounding rules verbatim. Tier 2 specialists are explicitly authorized by SPEC-001 to use the `pr-reviewer` prefixes (including the cross-skill-signal prefixes); SPEC-002 relies on this authorization for aggregated-set signal detection.

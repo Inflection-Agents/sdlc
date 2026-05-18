@@ -39,7 +39,7 @@ The two problems share a primitive: a graded review with grounded findings. Solv
 - New skill `spec-reviewer` in upstream sdlc — graded review of spec drafts and amendments.
 - Update to `sdlc-code-review` skill: consume severity from `pr-reviewer` output and render graded review comments. Old binary-verdict language removed.
 - Update to `spec-authoring` and `spec-amendment` skills: invoke `spec-reviewer` before the user sign-off gate; surface graded findings to the owner.
-- Shared severity spine, grounding rules, JSON output schema, and `previous_output` carry-forward contract documented once in a new file `.claude/skills/review-primitives.md` and referenced from both reviewer skills.
+- Shared severity spine, grounding rules, JSON output schema, and `previous_output` carry-forward contract documented once in a new file `.ai/skills/review-primitives.md` and referenced from both reviewer skills.
 - Orchestrator severity→action policy.
 - Tiered PR review router design: Tier 0 / Tier 1 / Tier 2 dispatch rules, including file-glob-to-specialist mapping. (The router itself ships with SPEC-002 / `spec-execution` port-back; this spec defines the contract and **owns** all future edits to the dispatch rules table.)
 - The owner-override mechanism for spec-side findings (`spec_review_overrides:` section appended to the spec body).
@@ -56,7 +56,7 @@ The two problems share a primitive: a graded review with grounded findings. Solv
 
 ### Shared primitives (apply to both reviewers)
 
-These primitives live in `.claude/skills/review-primitives.md` on implementation; both `pr-reviewer` and `spec-reviewer` reference that file. The content below is the authoritative contract — Appendix C does not redefine severities, only lists the gap categories the spec-reviewer must actively check.
+These primitives live in `.ai/skills/review-primitives.md` on implementation; both `pr-reviewer` and `spec-reviewer` reference that file. The content below is the authoritative contract — Appendix C does not redefine severities, only lists the gap categories the spec-reviewer must actively check.
 
 #### Severity spine
 
@@ -253,17 +253,17 @@ Entries are append-only at first. The `resolved` boolean and its companion field
 
 ### Where each skill lives
 
-- New file: `.claude/skills/review-primitives.md` (shared severity spine + catalogs + grounding rules + output schema + carry-forward contract). Referenced by both reviewer skills.
-- New skill: `.claude/skills/pr-reviewer/SKILL.md` (machine-parseable; PR-side reviewer).
-- New skill: `.claude/skills/spec-reviewer/SKILL.md` (machine-parseable; spec-side reviewer).
-- Updated skill: `.claude/skills/sdlc-code-review/SKILL.md` (human-readable; reads `pr-reviewer` output and renders the graded review comment).
-- Updated skill: `.claude/skills/spec-authoring/SKILL.md` and `.claude/skills/spec-amendment/SKILL.md` (invoke `spec-reviewer` at the sign-off gate; present graded findings to the owner).
+- New file: `.ai/skills/review-primitives.md` (shared severity spine + catalogs + grounding rules + output schema + carry-forward contract). Referenced by both reviewer skills.
+- New skill: `.ai/skills/pr-reviewer/SKILL.md` (machine-parseable; PR-side reviewer).
+- New skill: `.ai/skills/spec-reviewer/SKILL.md` (machine-parseable; spec-side reviewer).
+- Updated skill: `.ai/skills/sdlc-code-review/SKILL.md` (human-readable; reads `pr-reviewer` output and renders the graded review comment).
+- Updated skill: `.ai/skills/spec-authoring/SKILL.md` and `.ai/skills/spec-amendment/SKILL.md` (invoke `spec-reviewer` at the sign-off gate; present graded findings to the owner).
 - Tiered router lives inside `spec-execution` (tracked in SPEC-002).
 - Updated doc: `spec-schema.md` (new optional sections `spec_review_overrides` and `spec_followups`; new top-level subdirectory `specs/baselines/`).
 
 ## Acceptance criteria
 
-- [ ] AC-001 — `.claude/skills/review-primitives.md` exists. It contains the shared severity spine, both artifact-specific consequence catalogs (PR-side and spec-side), the grounding rules table (all three reviewer roles' allowed citation prefixes), the output schema, and the carry-forward contract. Both reviewer skills reference this file rather than redefining the primitives.
+- [ ] AC-001 — `.ai/skills/review-primitives.md` exists. It contains the shared severity spine, both artifact-specific consequence catalogs (PR-side and spec-side), the grounding rules table (all three reviewer roles' allowed citation prefixes), the output schema, and the carry-forward contract. Both reviewer skills reference this file rather than redefining the primitives.
 - [ ] AC-002 — Both reviewers' prompts explicitly forbid inventing requirements. Findings without a grounded citation must not be raised. Each reviewer's allowed citation prefixes are listed in its prompt and match `review-primitives.md` exactly. Tier 2 specialists' prompts state they inherit `pr-reviewer` prefixes verbatim.
 - [ ] AC-003 — `pr-reviewer/SKILL.md` exists, references the shared output schema from `review-primitives.md`, and includes the Tier 2 dispatch rules table (Appendix B). The reviewer evaluates the rules and populates `tier_2_dispatch_recommended`.
 - [ ] AC-004 — `spec-reviewer/SKILL.md` exists, uses the same JSON output schema with `artifact: "spec"`, and applies the spec-side consequence catalog from `review-primitives.md`. The catalog is the single source of truth for spec-side severity; Appendix C lists gap categories without re-specifying severity.
@@ -325,7 +325,7 @@ Entries are append-only at first. The `resolved` boolean and its companion field
 
 ## Appendix A — `pr-reviewer` prompt (draft)
 
-Lives in `.claude/skills/pr-reviewer/SKILL.md` on implementation.
+Lives in `.ai/skills/pr-reviewer/SKILL.md` on implementation.
 
 ```
 You are reviewing a single PR against its task file, its parent spec, and the
@@ -382,7 +382,7 @@ Domain reviewers consume the domain skill listed in `.ai/project.md` for the wor
 
 ## Appendix C — `spec-reviewer` prompt and gap catalog
 
-Lives in `.claude/skills/spec-reviewer/SKILL.md` on implementation. **Severity for each gap category is determined by the spec-side consequence catalog in `review-primitives.md` (Design > Spec-side consequence catalog); this appendix does not re-specify severity.**
+Lives in `.ai/skills/spec-reviewer/SKILL.md` on implementation. **Severity for each gap category is determined by the spec-side consequence catalog in `review-primitives.md` (Design > Spec-side consequence catalog); this appendix does not re-specify severity.**
 
 ```
 You are reviewing a single spec draft (or amendment) against the spec schema,
@@ -394,7 +394,7 @@ outside the JSON envelope.
 INPUTS:
   - spec_file:       path to specs/SPEC-NNN-*.md
   - spec_schema:     path to spec-schema.md
-  - authoring:       path to .claude/skills/spec-authoring/SKILL.md
+  - authoring:       path to .ai/skills/spec-authoring/SKILL.md
   - intent:          (optional) excerpt from specs/intents.md
   - project:         path to .ai/project.md (for workspace coverage checks)
   - adrs:            paths to referenced ADRs and to existing ADRs the spec

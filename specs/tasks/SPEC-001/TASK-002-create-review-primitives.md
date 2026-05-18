@@ -1,7 +1,7 @@
 ---
 id: TASK-002
 spec: SPEC-001
-title: "Create .claude/skills/review-primitives.md (shared severity, grounding, schema, carry-forward, measurement, prompt variants)"
+title: "Create .ai/skills/review-primitives.md (shared severity, grounding, schema, carry-forward, measurement, prompt variants)"
 status: pending
 agent: claude-code
 depends_on: [TASK-001]
@@ -45,7 +45,7 @@ This is the foundational shared-contracts file that both `pr-reviewer` and `spec
 
 ## Requirements
 
-Create `/Users/franklin/_code/sdlc/.claude/skills/review-primitives.md`.
+Create `/Users/franklin/_code/sdlc/.ai/skills/review-primitives.md`.
 
 Structure (mirroring SPEC-001 Design section):
 

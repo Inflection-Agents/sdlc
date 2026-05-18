@@ -33,7 +33,7 @@ updated: 2026-05-18
 
 ## Requirements
 
-Update `/Users/franklin/_code/sdlc/.claude/skills/sdlc-code-review/SKILL.md`:
+Update `/Users/franklin/_code/sdlc/.ai/skills/sdlc-code-review/SKILL.md`:
 
 1. **Remove binary-verdict language** — search for and delete all instances of `approved`, `needs_fix`, "request changes", and similar binary-decision phrasing that present this skill as the decision authority.
 
@@ -68,6 +68,6 @@ Update `/Users/franklin/_code/sdlc/.claude/skills/sdlc-code-review/SKILL.md`:
 
 ## Verification
 
-- Run `grep -E "approved|needs_fix" /Users/franklin/_code/sdlc/.claude/skills/sdlc-code-review/SKILL.md`; confirm no matches in verdict-policy context (if any historical mentions remain, they must be clearly marked as descriptions of the old model that was removed).
+- Run `grep -E "approved|needs_fix" /Users/franklin/_code/sdlc/.ai/skills/sdlc-code-review/SKILL.md`; confirm no matches in verdict-policy context (if any historical mentions remain, they must be clearly marked as descriptions of the old model that was removed).
 - Read the updated skill end to end; verify each AC.
 - Confirm the review comment template includes per-finding severity rendering and the action recommendation.

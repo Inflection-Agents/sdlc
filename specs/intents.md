@@ -44,7 +44,7 @@ The current path from "I want to use this framework" to "I have shipped my first
 3. **Defer all reference material.** The README currently inventories 11 docs. A first-time reader should see three principles (spec is root, agents are assignees, runs are observable) and a single "start here" pointer. Schemas, work-graph, tooling rationale, and skill architecture should be findable but not in the critical path.
 4. **One interactive command, not a checklist.** `npx sdlc init` (or equivalent — name TBD) walks you through choices interactively: which agents (Claude / Jules / Gemini, any combination), which work tracker (Linear / GitHub Issues / none), whether this is a monorepo. Bootstrap.sh became 200 lines because every check is conditional; that complexity should be hidden behind a wizard.
 5. **Verify by doing, not by checking.** The "is it set up?" verification is "run `sdlc demo`, which dispatches a no-op example task end-to-end." If it round-trips, you're set up. If not, the wizard tells you what to fix.
-6. **Adopt high-gear's unified skill-wiring approach.** `tools/dev/setup-sdlc.sh` in high-gear links `.ai/skills/` into both `.claude/skills/` and `~/.agents/skills/` so the same skills work across local agents. Upstream should ship this pattern, not require each consumer to invent it.
+6. **Adopt high-gear's unified skill-wiring approach.** `tools/dev/setup-sdlc.sh` in high-gear links `.ai/skills/` into both `.ai/skills/` and `~/.agents/skills/` so the same skills work across local agents. Upstream should ship this pattern, not require each consumer to invent it.
 
 **Open questions for the spec author:**
 

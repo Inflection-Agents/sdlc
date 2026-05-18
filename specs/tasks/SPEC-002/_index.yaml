@@ -5,7 +5,7 @@ updated: 2026-05-18
 
 tasks:
   - id: TASK-009
-    title: "Create .claude/skills/spec-execution/SKILL.md (drives full orchestration loop)"
+    title: "Create .ai/skills/spec-execution/SKILL.md (drives full orchestration loop)"
     agent: claude-code
     status: pending
     depends_on: [TASK-002, TASK-003]
