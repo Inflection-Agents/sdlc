@@ -117,6 +117,12 @@ These are success criteria from `status: completed` specs that couldn't be verif
 ### `[deferred-verify]` SPEC-001 no regression in defect catch rate
 **Owner:** franklin. **Trigger:** after 2 completed specs in high-gear under the new model. **Method:** track post-merge defect rate per merged PR; compare to baseline derived from SPEC-042-era PRs. Pass: rate ≤ baseline.
 
+### `[deferred-verify]` SPEC-002 runtime telemetry actually logged
+**Owner:** franklin. **Trigger:** first dispatch of new `spec-execution` on a real spec. **Method:** inspect `specs/tasks/SPEC-NNN/_execution.log.jsonl` after one wave; verify event types and field shapes match the worked example at `.ai/skills/spec-execution/examples/example-execution.log.jsonl`. Pass: all dispatched/tier_0/tier_1/routed/merged events present and schema-conformant.
+
+### `[deferred-verify]` SPEC-002 new orchestrator replaces legacy on next high-gear spec
+**Owner:** franklin. **Trigger:** when high-gear's next spec is ready to dispatch. **Method:** confirm the upstream `spec-execution` skill is the invoked orchestrator (not the legacy 4-reviewer fan-out); keep high-gear-local version as `spec-execution-legacy/` for one spec to enable side-by-side comparison per SPEC-001 migration step 6. Pass: new orchestrator drives spec end-to-end with telemetry log written.
+
 ---
 
 ## Cross-cutting captures (not yet bucketed)
