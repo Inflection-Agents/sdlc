@@ -1,0 +1,19 @@
+spec: SPEC-002
+title: "Spec execution orchestration — wave-based loop with tiered review"
+created: 2026-05-18
+updated: 2026-05-18
+
+tasks:
+  - id: TASK-009
+    title: "Create .claude/skills/spec-execution/SKILL.md (drives full orchestration loop)"
+    agent: claude-code
+    status: pending
+    depends_on: [TASK-002, TASK-003]
+    blocks: [TASK-010]
+
+  - id: TASK-010
+    title: "Worked execution-log example in spec-execution/examples/"
+    agent: jules
+    status: pending
+    depends_on: [TASK-009]
+    blocks: []
