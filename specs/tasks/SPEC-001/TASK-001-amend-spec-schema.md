@@ -2,7 +2,7 @@
 id: TASK-001
 spec: SPEC-001
 title: "Amend spec-schema.md for new optional sections and baselines/ subdir"
-status: pending
+status: done
 agent: claude-code
 depends_on: []
 blocks: [TASK-002, TASK-008]
@@ -10,16 +10,16 @@ linear_issue:
 acceptance_criteria:
   - id: AC-001
     description: "Given the amended spec-schema.md, when a reader looks at Body structure, then spec_review_overrides is documented as an optional appended section (placed after Migration) with declared field names (finding_id, reviewer_severity, owner_severity, reason, override_date) and value types"
-    status: pending
+    status: done
   - id: AC-002
     description: "Given the amended spec-schema.md, when a reader looks at Body structure, then spec_followups is documented as an optional appended section (placed after spec_review_overrides) with declared field names (finding_id, source_review, severity, criterion, location, finding, deferred_date, resolved, resolved_date, resolved_by) and value types"
-    status: pending
+    status: done
   - id: AC-003
     description: "Given the amended spec-schema.md, when a reader looks at the Directory layout section, then specs/baselines/ is listed as a new top-level subdirectory under specs/ for per-spec baseline files"
-    status: pending
+    status: done
   - id: AC-004
     description: "Given any spec that does not include the new optional sections, when validated against the amended schema, then validation passes (the amendment is purely additive — existing specs must not break)"
-    status: pending
+    status: done
 created: 2026-05-18
 updated: 2026-05-18
 ---

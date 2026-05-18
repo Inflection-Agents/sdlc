@@ -2,7 +2,7 @@
 id: TASK-008
 spec: SPEC-001
 title: "Capture SPEC-042 baseline metrics into specs/baselines/SPEC-042.md"
-status: pending
+status: done
 agent: human
 depends_on: [TASK-001]
 blocks: []
@@ -10,19 +10,19 @@ linear_issue:
 acceptance_criteria:
   - id: AC-001
     description: "Given specs/baselines/SPEC-042.md exists in the upstream sdlc repo, when read, then it captures the mean fix-loop iterations per PR for SPEC-042's tasks (computed from high-gear's spec-execution log or commit history)"
-    status: pending
+    status: done
   - id: AC-002
     description: "Given the file, when read, then it captures the total count of hot-fix amendment commits per spec for SPEC-042 (commits matching pattern 'SPEC-042: hot-fix' or 'GAP-NNN' in high-gear's git history)"
-    status: pending
+    status: done
   - id: AC-003
     description: "Given the file, when read, then it captures the date range of the SPEC-042 execution and the total task count for context"
-    status: pending
+    status: done
   - id: AC-004
     description: "Given the file, when read, then the methodology used to compute each metric is documented (which command was run against which repo, how edge cases were handled) so the measurement can be reproduced"
-    status: pending
+    status: done
   - id: AC-005
     description: "Given the file, when read, then it explicitly notes the high-gear repo path/commit SHA at the time of capture (frozen snapshot, not a live reference)"
-    status: pending
+    status: done
 created: 2026-05-18
 updated: 2026-05-18
 ---

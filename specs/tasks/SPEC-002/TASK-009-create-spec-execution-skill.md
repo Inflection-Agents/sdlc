@@ -2,7 +2,7 @@
 id: TASK-009
 spec: SPEC-002
 title: "Create .ai/skills/spec-execution/SKILL.md (drives full orchestration loop)"
-status: pending
+status: done
 agent: claude-code
 depends_on: [TASK-002, TASK-003]
 blocks: [TASK-010]
@@ -10,43 +10,43 @@ linear_issue:
 acceptance_criteria:
   - id: AC-001
     description: "Given .ai/skills/spec-execution/SKILL.md exists, when read, then it documents Phases 1, 2, 3 with the per-task lifecycle per SPEC-002 Design"
-    status: pending
+    status: done
   - id: AC-002
     description: "Given the file, when read, then it specifies the worktree-isolation constraint as a hard rule, citing the 2026-04-24 incident OR a generic justification of the failure mode for the upstream version"
-    status: pending
+    status: done
   - id: AC-003
     description: "Given the file, when read, then it explicitly states 'no LLM reviewer is dispatched while Tier 0 is red', and Tier 0 contents are inherited by reference from SPEC-001 Design > PR side > Tier 0 (not duplicated)"
-    status: pending
+    status: done
   - id: AC-004
     description: "Given the file, when read, then severity routing is by inclusion reference to review-primitives.md / SPEC-001 (not duplicated). The escalate action is handled. Cross-skill signal detection uses the citation prefixes verbatim from SPEC-001 Grounding rules (task:scope, spec:ambiguous-ac, spec:contradictory-ac, spec:wrong-design, spec:missing-section)"
-    status: pending
+    status: done
   - id: AC-005
     description: "Given the file, when read, then the fix-loop cap is documented as 3 total fix attempts per task across Tier 0 and Tier 1 combined (shared counter)"
-    status: pending
+    status: done
   - id: AC-006
     description: "Given the file, when read, then all 8 failure escalation triggers from SPEC-002 Design > Failure escalation triggers are documented with their detection points (per-task loop vs. wave-graph build vs. dispatch wrapper vs. watchdog vs. cross-skill signal handler)"
-    status: pending
+    status: done
   - id: AC-007
     description: "Given the file, when read, then the telemetry schema is documented with all 8+1 event types (dispatched, tier_0, tier_1, tier_2, fix_loop_iteration, routed, merged, escalated, spec_amendment_dispatched) and the log file path specs/tasks/SPEC-NNN/_execution.log.jsonl"
-    status: pending
+    status: done
   - id: AC-008
     description: "Given the file, when read, then cross-skill signals are detected on the AGGREGATED Tier 1 + Tier 2 finding set (not Tier 1 alone), with explicit note that SPEC-001's grant of pr-reviewer prefixes to Tier 2 specialists is the enabling condition"
-    status: pending
+    status: done
   - id: AC-009
     description: "Given the file, when read, then agent routing is documented: jules-labeled tasks dispatch via Jules CLI when available; otherwise fall back to local Claude Code per existing CLAUDE.md convention"
-    status: pending
+    status: done
   - id: AC-010
     description: "Given the file, when read, then the integration branch (feat/spec-NNN) and integration PR (to main on spec completion) are documented as the ONLY merge pattern; direct task PRs to main are forbidden"
-    status: pending
+    status: done
   - id: AC-011
     description: "Given the file, when read, then reviewer output schema validation is documented as mandatory before routing (Tier 1 AND every Tier 2 specialist); validation failure escalates"
-    status: pending
+    status: done
   - id: AC-012
     description: "Given the file, when read, then Tier 2 dispatch is documented as iterating tier1.tier_2_dispatch_recommended only — the orchestrator does NOT re-evaluate file globs (file glob evaluation is the reviewer's responsibility per SPEC-001)"
-    status: pending
+    status: done
   - id: AC-013
     description: "Given the file, when read, then the orchestrator handles the escalate action as an explicit pseudocode branch (not a fall-through), with detection point in the per-task routing loop"
-    status: pending
+    status: done
 created: 2026-05-18
 updated: 2026-05-18
 ---

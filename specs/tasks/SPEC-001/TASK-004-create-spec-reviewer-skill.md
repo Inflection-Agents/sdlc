@@ -2,7 +2,7 @@
 id: TASK-004
 spec: SPEC-001
 title: "Create .ai/skills/spec-reviewer/SKILL.md (incl. gap catalog)"
-status: pending
+status: done
 agent: jules
 depends_on: [TASK-002]
 blocks: [TASK-006, TASK-007]
@@ -10,22 +10,22 @@ linear_issue:
 acceptance_criteria:
   - id: AC-001
     description: "Given .ai/skills/spec-reviewer/SKILL.md exists, when read, then the frontmatter has name: spec-reviewer and a description that triggers on spec review requests (end of spec-authoring Phase 2, after spec-amendment, or on-demand)"
-    status: pending
+    status: done
   - id: AC-002
     description: "Given the file, when read, then it contains the spec-reviewer prompt verbatim from SPEC-001 Appendix C (inputs including upstream_specs and downstream_specs paths, grounding rules, gap catalog, severity reference to review-primitives.md, carry-forward, output, decision-disclaimer)"
-    status: pending
+    status: done
   - id: AC-003
     description: "Given the file, when read, then it explicitly lists the allowed citation prefixes (spec-schema:<field|section>; spec-authoring:<section-anchor>; ADR-NNN; intent:<id>; monorepo:workspaces; SPEC-NNN:<section> usable for upstream OR downstream cross-spec contradictions) and matches review-primitives.md exactly"
-    status: pending
+    status: done
   - id: AC-004
     description: "Given the file, when read, then it contains the gap catalog with all 9 categories (workspace-coverage, untestable AC, contradictory AC, missing required section, cross-spec contradiction, missing migration plan, unstated cross-workspace impact, unscoped scope, risk surface omission) WITHOUT re-specifying severity (severity is determined by review-primitives.md's spec-side consequence catalog)"
-    status: pending
+    status: done
   - id: AC-005
     description: "Given the file, when read, then the prompt explicitly forbids inventing requirements ('If you cannot ground a finding, do not raise it.')"
-    status: pending
+    status: done
   - id: AC-006
     description: "Given the file, when read, then it references review-primitives.md for severity ladder, output schema, and carry-forward contract"
-    status: pending
+    status: done
 created: 2026-05-18
 updated: 2026-05-18
 ---

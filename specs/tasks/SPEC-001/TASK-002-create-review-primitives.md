@@ -2,7 +2,7 @@
 id: TASK-002
 spec: SPEC-001
 title: "Create .ai/skills/review-primitives.md (shared severity, grounding, schema, carry-forward, measurement, prompt variants)"
-status: pending
+status: done
 agent: claude-code
 depends_on: [TASK-001]
 blocks: [TASK-003, TASK-004, TASK-005, TASK-006, TASK-009]
@@ -10,31 +10,31 @@ linear_issue:
 acceptance_criteria:
   - id: AC-001
     description: "Given the file exists, when read, then it contains the shared severity spine table (blocker | major | nit | suggestion) with spine definitions verbatim from SPEC-001 Design > Severity spine"
-    status: pending
+    status: done
   - id: AC-002
     description: "Given the file, when read, then it contains the PR-side consequence catalog table matching SPEC-001 Design > Shared primitives > PR-side consequence catalog"
-    status: pending
+    status: done
   - id: AC-003
     description: "Given the file, when read, then it contains the spec-side consequence catalog table matching SPEC-001 Design > Shared primitives > Spec-side consequence catalog (this is the authoritative single source for spec-side severity)"
-    status: pending
+    status: done
   - id: AC-004
     description: "Given the file, when read, then it contains the grounding rules table with three rows (pr-reviewer, Tier 2 PR specialists, spec-reviewer) and allowed citation prefixes for each, matching SPEC-001 Design > Grounding rules"
-    status: pending
+    status: done
   - id: AC-005
     description: "Given the file, when read, then it contains the JSON output schema (pseudo-JSON code block) matching SPEC-001 Design > Output schema, with the artifact discriminator and per-artifact field constraints"
-    status: pending
+    status: done
   - id: AC-006
     description: "Given the file, when read, then it contains the carry-forward contract with both precise definitions (PR-side: location's file does not appear in pr_diff; spec-side: section's text bytes identical) and at least one example each of correct and incorrect behavior"
-    status: pending
+    status: done
   - id: AC-007
     description: "Given the file, when read, then it contains the orchestrator severity→action policy pseudocode (including the escalate guard) matching SPEC-001 Design > Orchestrator severity→action policy verbatim"
-    status: pending
+    status: done
   - id: AC-008
     description: "Given the file, when read, then it contains the AC-010 measurement protocol: two reviewer configurations (default + adversarial OR two different models), ≥10 intersection findings before computing, agreement = matching / intersection"
-    status: pending
+    status: done
   - id: AC-009
     description: "Given the file, when read, then both the default and the adversarial spec-reviewer prompt variants are concretely defined either inline or in a referenced sibling location (prompts/default.md and prompts/adversarial.md). Variants differ in framing (e.g., adversarial grades severities more aggressively and probes harder for cross-spec contradictions)"
-    status: pending
+    status: done
 created: 2026-05-18
 updated: 2026-05-18
 ---

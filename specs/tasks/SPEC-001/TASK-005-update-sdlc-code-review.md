@@ -2,7 +2,7 @@
 id: TASK-005
 spec: SPEC-001
 title: "Update sdlc-code-review/SKILL.md to consume graded pr-reviewer output"
-status: pending
+status: done
 agent: claude-code
 depends_on: [TASK-002, TASK-003]
 blocks: []
@@ -10,19 +10,19 @@ linear_issue:
 acceptance_criteria:
   - id: AC-001
     description: "Given the updated sdlc-code-review/SKILL.md, when read, then all references to a binary 'approved | needs_fix' verdict are removed (not deprecated-in-place; physically deleted from the file)"
-    status: pending
+    status: done
   - id: AC-002
     description: "Given the updated skill, when read, then the human-readable review comment template renders per-finding severity (blocker/major/nit/suggestion) for each finding from pr-reviewer's output"
-    status: pending
+    status: done
   - id: AC-003
     description: "Given the updated skill, when read, then the merge/fix recommendation is derived from the SPEC-001 orchestrator severity→action policy (not freehand): 'fix_loop' if any blocker or major; 'batch_followup_and_accept' if only nits/suggestions; 'accept' if empty; 'escalate' if reviewer-contract violation"
-    status: pending
+    status: done
   - id: AC-004
     description: "Given the updated skill, when read, then it references review-primitives.md for severity definitions and references pr-reviewer/SKILL.md for the JSON contract being consumed"
-    status: pending
+    status: done
   - id: AC-005
     description: "Given a grep for 'approved' or 'needs_fix' in the file, when run, then no matches in policy / verdict context (the strings may appear as historical references in docstrings only, none as the operative verdict)"
-    status: pending
+    status: done
 created: 2026-05-18
 updated: 2026-05-18
 ---

@@ -7,13 +7,13 @@ tasks:
   - id: TASK-009
     title: "Create .ai/skills/spec-execution/SKILL.md (drives full orchestration loop)"
     agent: claude-code
-    status: pending
+    status: done
     depends_on: [TASK-002, TASK-003]
     blocks: [TASK-010]
 
   - id: TASK-010
     title: "Worked execution-log example in spec-execution/examples/"
     agent: jules
-    status: pending
+    status: done
     depends_on: [TASK-009]
     blocks: []

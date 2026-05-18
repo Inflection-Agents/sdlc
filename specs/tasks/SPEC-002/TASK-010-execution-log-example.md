@@ -2,7 +2,7 @@
 id: TASK-010
 spec: SPEC-002
 title: "Worked execution-log example in spec-execution/examples/"
-status: pending
+status: done
 agent: jules
 depends_on: [TASK-009]
 blocks: []
@@ -10,25 +10,25 @@ linear_issue:
 acceptance_criteria:
   - id: AC-001
     description: "Given .ai/skills/spec-execution/examples/example-execution.log.jsonl exists, when read as JSONL, then every line is valid JSON parseable independently"
-    status: pending
+    status: done
   - id: AC-002
     description: "Given the file, when read, then it contains events for at least 3 tasks across at least 2 waves, demonstrating dynamic unblocking (e.g., TASK-002 dispatched when TASK-001 done, TASK-003 dispatched when both TASK-001 and TASK-002 done)"
-    status: pending
+    status: done
   - id: AC-003
     description: "Given the file, when read, then at least one task demonstrates a fix-loop iteration (event 'fix_loop_iteration' with trigger='tier_0' or 'review', followed by a successful re-review)"
-    status: pending
+    status: done
   - id: AC-004
     description: "Given the file, when read, then at least one task demonstrates a Tier 2 specialist dispatch (event 'tier_2' with a specialist name like 'cross_spec' or 'domain:dbt')"
-    status: pending
+    status: done
   - id: AC-005
     description: "Given the file, when read, then the per-spec 'spec_amendment_dispatched' event appears at least once with an amendment_count value"
-    status: pending
+    status: done
   - id: AC-006
     description: "Given the file, when read, then at least one task reaches a terminal 'merged' event with a populated total_wall_ms field, and at least one task reaches an 'escalated' event with a populated reason"
-    status: pending
+    status: done
   - id: AC-007
     description: "Given the file, when read, then every event includes the required fields per SPEC-002 Telemetry schema for that event type"
-    status: pending
+    status: done
 created: 2026-05-18
 updated: 2026-05-18
 ---

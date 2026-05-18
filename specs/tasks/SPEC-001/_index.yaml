@@ -7,55 +7,55 @@ tasks:
   - id: TASK-001
     title: "Amend spec-schema.md for new optional sections and baselines/ subdir"
     agent: claude-code
-    status: pending
+    status: done
     depends_on: []
     blocks: [TASK-002, TASK-008]
 
   - id: TASK-002
     title: "Create review-primitives.md (shared severity spine, catalogs, grounding, schema, carry-forward, measurement protocol, prompt variants)"
     agent: claude-code
-    status: pending
+    status: done
     depends_on: [TASK-001]
     blocks: [TASK-003, TASK-004, TASK-005, TASK-006, TASK-009]
 
   - id: TASK-003
     title: "Create .ai/skills/pr-reviewer/SKILL.md"
     agent: jules
-    status: pending
+    status: done
     depends_on: [TASK-002]
     blocks: [TASK-005, TASK-007, TASK-009]
 
   - id: TASK-004
     title: "Create .ai/skills/spec-reviewer/SKILL.md (incl. gap catalog)"
     agent: jules
-    status: pending
+    status: done
     depends_on: [TASK-002]
     blocks: [TASK-006, TASK-007]
 
   - id: TASK-005
     title: "Update sdlc-code-review/SKILL.md to consume graded pr-reviewer output"
     agent: claude-code
-    status: pending
+    status: done
     depends_on: [TASK-002, TASK-003]
     blocks: []
 
   - id: TASK-006
     title: "Update spec-authoring + spec-amendment skills to invoke spec-reviewer"
     agent: claude-code
-    status: pending
+    status: done
     depends_on: [TASK-002, TASK-004]
     blocks: []
 
   - id: TASK-007
     title: "Worked examples for both reviewers (1 blocker + 1 major + 2 nits each)"
     agent: jules
-    status: pending
+    status: done
     depends_on: [TASK-003, TASK-004]
     blocks: []
 
   - id: TASK-008
     title: "Capture SPEC-042 baseline metrics into specs/baselines/SPEC-042.md"
     agent: human
-    status: pending
+    status: done
     depends_on: [TASK-001]
     blocks: []

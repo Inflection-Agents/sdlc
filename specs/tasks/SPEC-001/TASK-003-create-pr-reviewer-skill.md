@@ -2,7 +2,7 @@
 id: TASK-003
 spec: SPEC-001
 title: "Create .ai/skills/pr-reviewer/SKILL.md"
-status: pending
+status: done
 agent: jules
 depends_on: [TASK-002]
 blocks: [TASK-005, TASK-007, TASK-009]
@@ -10,25 +10,25 @@ linear_issue:
 acceptance_criteria:
   - id: AC-001
     description: "Given .ai/skills/pr-reviewer/SKILL.md exists, when read, then the frontmatter has name: pr-reviewer and a description that triggers on PR review requests"
-    status: pending
+    status: done
   - id: AC-002
     description: "Given the file, when read, then it contains the pr-reviewer prompt verbatim from SPEC-001 Appendix A (inputs, grounding rules, severity, carry-forward, cross-skill signals, output, decision-disclaimer)"
-    status: pending
+    status: done
   - id: AC-003
     description: "Given the file, when read, then it explicitly lists the allowed citation prefixes (AC-NNN; ADR-NNN; sdlc-code-standards:<anchor>; monorepo:boundary; task:blocks:<id>; task:scope; spec:ambiguous-ac; spec:contradictory-ac; spec:wrong-design; spec:missing-section) and matches review-primitives.md exactly"
-    status: pending
+    status: done
   - id: AC-004
     description: "Given the file, when read, then it contains the Tier 2 dispatch rules table verbatim from SPEC-001 Appendix B (six rows: cross_spec×2, adversarial, domain:dbt, domain:nextjs, domain:playwright)"
-    status: pending
+    status: done
   - id: AC-005
     description: "Given the file, when read, then it explicitly states the reviewer evaluates the Tier 2 dispatch rules and populates tier_2_dispatch_recommended in its output (orchestrator does not re-evaluate file globs)"
-    status: pending
+    status: done
   - id: AC-006
     description: "Given the file, when read, then the prompt explicitly forbids inventing requirements ('If you cannot ground a finding, do not raise it.')"
-    status: pending
+    status: done
   - id: AC-007
     description: "Given the file, when read, then it references review-primitives.md for severity ladder, output schema, and carry-forward contract (not duplicating them)"
-    status: pending
+    status: done
 created: 2026-05-18
 updated: 2026-05-18
 ---

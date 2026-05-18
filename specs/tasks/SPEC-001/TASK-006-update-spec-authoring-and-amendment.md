@@ -2,7 +2,7 @@
 id: TASK-006
 spec: SPEC-001
 title: "Update spec-authoring + spec-amendment skills to invoke spec-reviewer"
-status: pending
+status: done
 agent: claude-code
 depends_on: [TASK-002, TASK-004]
 blocks: []
@@ -10,19 +10,19 @@ linear_issue:
 acceptance_criteria:
   - id: AC-001
     description: "Given the updated spec-authoring/SKILL.md, when read, then Phase 2 explicitly invokes spec-reviewer before the user sign-off gate, presents the graded findings to the owner, and loops on fixes until the owner approves OR overrides remaining findings"
-    status: pending
+    status: done
   - id: AC-002
     description: "Given the updated spec-amendment/SKILL.md, when read, then after producing the amended spec, the skill invokes spec-reviewer and presents the graded findings before the owner re-approves the amendment"
-    status: pending
+    status: done
   - id: AC-003
     description: "Given both updated skills, when read, then both reference the Owner override format (Design > Owner override format in SPEC-001) and explain how to write a spec_review_overrides entry"
-    status: pending
+    status: done
   - id: AC-004
     description: "Given both updated skills, when read, then both reference review-primitives.md for the routing policy (blockers/majors → fix_loop; nits/suggestions → spec_followups; empty → accept)"
-    status: pending
+    status: done
   - id: AC-005
     description: "Given the updated spec-authoring/SKILL.md, when read, then the Phase 2 step that previously asked the user to walk through sections manually is augmented (not replaced) with the spec-reviewer invocation — the owner remains the sign-off authority"
-    status: pending
+    status: done
 created: 2026-05-18
 updated: 2026-05-18
 ---

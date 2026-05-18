@@ -2,7 +2,7 @@
 id: TASK-007
 spec: SPEC-001
 title: "Worked examples for both reviewers (1 blocker + 1 major + 2 nits each)"
-status: pending
+status: done
 agent: jules
 depends_on: [TASK-003, TASK-004]
 blocks: []
@@ -10,19 +10,19 @@ linear_issue:
 acceptance_criteria:
   - id: AC-001
     description: "Given .ai/skills/pr-reviewer/examples/ exists, when read, then it contains a worked example showing a fictional PR with the JSON output from pr-reviewer containing exactly 1 blocker, 1 major, and 2 nits, plus the expected orchestrator action ('fix_loop' per SPEC-001 policy)"
-    status: pending
+    status: done
   - id: AC-002
     description: "Given .ai/skills/spec-reviewer/examples/ exists, when read, then it contains a worked example showing a fictional draft spec with the JSON output from spec-reviewer containing exactly 1 blocker (untestable AC), 1 major (workspace coverage gap), and 2 nits, plus the expected orchestrator action"
-    status: pending
+    status: done
   - id: AC-003
     description: "Given both example files, when read, then every finding has a grounded citation that matches the allowed prefixes for the corresponding reviewer (per review-primitives.md grounding rules)"
-    status: pending
+    status: done
   - id: AC-004
     description: "Given the pr-reviewer example, when read, then it includes a populated tier_2_dispatch_recommended field (non-empty) demonstrating how the reviewer would recommend specialist dispatch based on file globs"
-    status: pending
+    status: done
   - id: AC-005
     description: "Given both examples, when read, then they include the full JSON output envelope per the shared schema (artifact, artifact_id, spec_id, pr_number, tier, findings, verification, tier_2_dispatch_recommended)"
-    status: pending
+    status: done
 created: 2026-05-18
 updated: 2026-05-18
 ---
