@@ -98,6 +98,10 @@ How we get there without breaking things.
 ### Rollback plan
 How we undo if it goes wrong.
 
+## spec_review_overrides (optional — see "Optional appended sections" below)
+
+## spec_followups (optional — see "Optional appended sections" below)
+
 ## Changelog (added on first amendment)
 
 ### v2 (YYYY-MM-DD)
@@ -106,6 +110,53 @@ How we undo if it goes wrong.
 ### v1 (YYYY-MM-DD)
 - Initial spec
 ```
+
+### Section ordering
+
+Required sections (Problem → Success criteria → Scope → Design → Acceptance criteria → Risks & constraints) appear in the order above. The optional sections, when present, must appear in this order at the end of the body:
+
+```
+Migration → spec_review_overrides → spec_followups → Changelog → any other appendices
+```
+
+`spec_review_overrides` and `spec_followups` are optional appended sections; specs that omit them remain valid.
+
+### Optional appended sections
+
+Both sections below were introduced by SPEC-001 (graded review for specs and PRs). They are **optional** — schema validation passes whether or not they are present. When present, they must appear in the order declared in "Section ordering" above, after `## Migration` and before `## Changelog`.
+
+#### `## spec_review_overrides` (optional)
+
+Records owner downgrades of `spec-reviewer` findings. Overrides downgrade severity only — they do not silence the finding. Body is a YAML list; each entry has the following fields:
+
+| Field | Required | Type | Notes |
+|-------|----------|------|-------|
+| `finding_id` | yes | string | Matches `id` from the `spec-reviewer` JSON output (e.g., `F-003`). |
+| `reviewer_severity` | yes | enum | One of `blocker | major | nit | suggestion`. The severity originally assigned by `spec-reviewer`. |
+| `owner_severity` | yes | enum | One of `blocker | major | nit | suggestion`. Must be a lower severity than `reviewer_severity` (this section only downgrades). |
+| `reason` | yes | string | Free-form justification, visible in the spec. |
+| `override_date` | yes | ISO date | When the override was recorded. |
+
+Position constraint: appended after `## Migration` and before `## spec_followups` (or before `## Changelog` if `spec_followups` is absent). See `SPEC-001-tiered-code-review.md` → Design > Owner override format for the canonical YAML example.
+
+#### `## spec_followups` (optional)
+
+Records nit and suggestion findings deferred by the orchestrator's `batch_followup_and_accept` action on a spec review. Append-only; closed entries are kept for audit. Body is a YAML list; each entry has the following fields:
+
+| Field | Required | Type | Notes |
+|-------|----------|------|-------|
+| `finding_id` | yes | string | Matches `id` from the `spec-reviewer` JSON output (e.g., `F-007`). |
+| `source_review` | yes | string | Identifier for the review run that produced the finding (e.g., `"spec-reviewer iter-2, 2026-05-18T14:22:00Z"`). |
+| `severity` | yes | enum | One of `nit | suggestion`. `blocker` and `major` are never deferred via this section. |
+| `criterion` | yes | string | The grounded citation from the original finding (e.g., `"spec-authoring:wording"`). |
+| `location` | yes | string | The spec section the finding points at (e.g., `"Success criteria > third bullet"`). |
+| `finding` | yes | string | One sentence describing the finding. |
+| `deferred_date` | yes | ISO date | When the finding was appended here. |
+| `resolved` | yes | boolean | `false` on append; flipped to `true` when a follow-up grooming task closes the item. |
+| `resolved_date` | no | ISO date \| null | Null until resolved; ISO date when resolved. |
+| `resolved_by` | no | string \| null | Null until resolved; commit SHA or task id (e.g., `TASK-NNN`) when resolved. |
+
+Position constraint: appended after `## spec_review_overrides` (or after `## Migration` if `spec_review_overrides` is absent) and before `## Changelog`. See `SPEC-001-tiered-code-review.md` → Design > Spec followups format for the canonical YAML example.
 
 ## ADR schema
 
@@ -146,6 +197,8 @@ specs/
 ├── adrs/
 │   ├── ADR-001-postgres-event-store.md
 │   └── ADR-002-linear-over-jira.md
+├── baselines/
+│   └── SPEC-042.md              # per-spec baseline metric files
 ├── bugs/
 │   ├── BUG-001-login-timeout.md
 │   └── BUG-002-null-ref-dashboard.md
@@ -155,6 +208,13 @@ specs/
 │   └── bug.md
 └── spec-index.json              # auto-generated, agent-readable
 ```
+
+Subdirectories:
+
+- `adrs/` — Architectural Decision Records referenced by specs.
+- `baselines/` — per-spec baseline metric files for success-criteria comparison (e.g., `SPEC-042.md` captures pre-change metrics that the spec's success criteria are measured against). Introduced by SPEC-001.
+- `bugs/` — bug specs (`BUG-NNN-*.md`).
+- `templates/` — copy-and-fill templates for new specs, ADRs, and bugs.
 
 ## Bug spec schema
 
