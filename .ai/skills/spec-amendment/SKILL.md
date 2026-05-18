@@ -263,6 +263,47 @@ Before presenting to the user, verify:
 - [ ] Rework task files follow the same rule: no Constraints section instructs a standards violation.
 - [ ] The amendment doesn't reintroduce dead code, deprecated-zombies, or similar patterns that this project has committed to retiring.
 
+## Step 6c: Run `spec-reviewer` on the amended spec (mandatory for additive and breaking)
+
+After self-review (Step 6b) and BEFORE presenting to the user in Step 7, invoke the `spec-reviewer` skill on the amended spec. This step runs on every additive and breaking amendment, regardless of size — cosmetic changes (Step 3 short-circuit) skip the reviewer.
+
+**Why this step exists.** The reviewer checks the amended spec against the schema, the authoring conventions, the originating intent, ADRs, and upstream/downstream specs for the 9 gap categories enumerated in `spec-reviewer/SKILL.md`. Amendments are exactly where gaps creep in: ACs get edited but not re-checked for testability, scope shifts but Risks & constraints lags, a design tweak silently contradicts a downstream spec's contract. The reviewer makes those failures visible and grounded so the owner can act on them before the amendment lands.
+
+This is the mirror of the `spec-authoring` Phase 2 invocation (Step 10a there). The reviewer's output is informational; the owner remains the sign-off authority.
+
+**Dispatch inputs.** Invoke `spec-reviewer` with:
+
+- `spec_file`: the amended `specs/SPEC-NNN-<short-description>.md` (post-edit).
+- `spec_schema`: `specs/spec-schema.md`.
+- `authoring`: `.ai/skills/spec-authoring/SKILL.md`.
+- `intent`: the intent excerpt the original spec was authored from (still in `specs/intents.md` or its archive).
+- `project`: `.ai/project.md`.
+- `adrs`: every ADR referenced in the amended Design section, plus any ADR newly superseded or affected by this amendment (Step 3b).
+- `upstream_specs`: every spec listed in this spec's `depends_on` (re-read post-amendment; amendments can change `depends_on`).
+- `downstream_specs`: every spec that declares this spec in its `depends_on` (use `specs/spec-index.json`). Downstream contradiction probing matters MORE on amendments than on first-draft specs — a contract that was honored at v1 can break at v2.
+- `previous_output`: if a prior `spec-reviewer` iteration on this spec is available (e.g., from the original `spec-authoring` Phase 2 invocation or a previous amendment), pass it so nit/suggestion findings on unchanged sections carry forward per the contract in `review-primitives.md`. On the first amendment this is `null`.
+- `variant`: omit (defaults to `"default"`).
+
+**Present findings to the owner** alongside the amendment summary in Step 7. Render the JSON output as a graded list: blocker → major → nit → suggestion, with `criterion`, `location`, `finding`, and `suggested_fix`.
+
+**Apply the routing policy.** Severity → action is defined in [`review-primitives.md`](../review-primitives.md) > Orchestrator severity→action policy — do not duplicate it here. In summary: blockers/majors → `fix_loop`; nits/suggestions → `batch_followup_and_accept` (appended to `spec_followups:` per SPEC-001 Design > Spec followups format); empty → `accept`. Loop with the author to fix or with the owner to override until no un-overridden blockers/majors remain; re-invoke the reviewer after edits with the prior output as `previous_output`.
+
+**Owner override format.** When the owner judges a finding's severity is too high — e.g., the reviewer flags a workspace-coverage gap that the amendment explicitly leaves for a follow-up spec — the owner downgrades severity by appending a `spec_review_overrides:` entry to the amended spec body. The section lives after `Migration` and before any other appendix, per SPEC-001 Design > Owner override format. Example entry:
+
+```yaml
+## spec_review_overrides
+
+- finding_id: F-009
+  reviewer_severity: major
+  owner_severity: nit
+  reason: "Workspace coverage for shared/types is intentionally deferred to SPEC-NNN+1; this amendment scopes only the dealer-app surface."
+  override_date: 2026-05-18
+```
+
+**Overrides downgrade severity only — they never silence the finding.** The reviewer's original output is preserved in the spec's review log (per SPEC-002 telemetry). The routing policy reads the *override* severity but the review log shows both. An override that removes a finding from the output, or marks it resolved without addressing it, is a SPEC-001 contract violation.
+
+When the routing policy returns `accept` or `batch_followup_and_accept` (after any overrides), proceed to Step 7. The owner's sign-off in Step 7 remains the authority.
+
 ## Step 7: Review with the user
 
 Present the full picture:
