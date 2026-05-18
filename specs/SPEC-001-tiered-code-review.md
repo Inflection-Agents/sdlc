@@ -1,13 +1,14 @@
 ---
 id: SPEC-001
 title: Graded review for specs and PRs
-status: active
+status: completed
 version: 1
 supersedes:
 initiative: INI-001
 owner: franklin
 created: 2026-05-18
 updated: 2026-05-18
+completed: 2026-05-18
 tags: [review, throughput, pr-reviewer, spec-reviewer, orchestration]
 linear_project:
 ---

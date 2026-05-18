@@ -104,7 +104,25 @@ High-gear's `CLAUDE.md` has more depth around Jules: source ID discovery, fallba
 
 ---
 
+## Deferred verifications from completed specs
+
+These are success criteria from `status: completed` specs that couldn't be verified at closure time (typically because they measure forward-looking outcomes on future specs). Each has an owner, trigger condition, and verification method.
+
+### `[deferred-verify]` SPEC-001 ≥80% inter-reviewer agreement
+**Owner:** franklin. **Trigger:** after the first 3 specs reviewed under the new system have produced ≥10 intersection findings (same `location` across two reviewer configs). **Method:** run `spec-reviewer` twice per spec — default + adversarial variant from `.ai/skills/review-primitives.md` — compute agreement per AC-010 protocol. Pass: ≥80% matching severity on intersection findings.
+
+### `[deferred-verify]` SPEC-001 two metrics improve vs SPEC-042 baseline
+**Owner:** franklin. **Trigger:** after the next high-gear spec executes under the new `spec-execution` orchestrator. **Method:** compare per-task fix-loop iterations and hot-fix commit count against `specs/baselines/SPEC-042.md`. Pass: both metrics ≤ baseline values.
+
+### `[deferred-verify]` SPEC-001 no regression in defect catch rate
+**Owner:** franklin. **Trigger:** after 2 completed specs in high-gear under the new model. **Method:** track post-merge defect rate per merged PR; compare to baseline derived from SPEC-042-era PRs. Pass: rate ≤ baseline.
+
+---
+
 ## Cross-cutting captures (not yet bucketed)
+
+### `[deferred]` Conditional integration-branch strategy
+SPEC-002 currently requires `feat/spec-NNN` as the *only* merge target with direct task PRs to main forbidden (hard rule, AC-010). User surfaced this is overkill for small specs and the bootstrap dispatch itself violated it pragmatically. Proposal: add optional `integration_strategy: branch | direct` to spec frontmatter; when unspecified, orchestrator computes (branch if `breaking` tag, multi-workspace, ≥5 tasks, or any task `blocks:` crosses workspace boundary; else direct). Lands as `spec-amendment` on SPEC-002 + cascade update to spec-execution skill. Why deferred: not blocking, and benefits from being applied to a real next spec to validate the heuristic. **Why:** explicit author control with sensible default; preserves SPEC-002's safety when needed without forcing ceremony on small specs.
 
 ### `[deferred]` Inter-spec dependency tooling
 SPEC-002 declares `depends_on: [SPEC-001]`. Today this is a frontmatter field with no enforcement — nothing prevents SPEC-002 from going `active` before SPEC-001. A small CI check or a `spec-graph` doc could surface dependency violations.
