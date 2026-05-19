@@ -95,7 +95,7 @@ The `evidence:` field appears on each acceptance criterion:
 - **One workspace per task (hard rule).** A task must not touch files in multiple workspaces. Cross-workspace changes are split into separate tasks linked by `depends_on`/`blocks`. No exceptions.
 - A task touching `shared` code must set `verify_workspaces` to include all consuming workspaces
 - A task touching only one app sets `verify_workspaces: [that-app]`
-- Verification commands in the task body should use workspace-scoped commands (e.g., `pnpm --filter @high-gear/dealer-app test`)
+- Verification commands in the task body should use workspace-scoped commands (e.g., `pnpm --filter @your-org/workspace-name test`)
 - Tasks in workspaces that require credentials/database (e.g., dbt) auto-route to `claude-code`
 
 ### Boundary constraints

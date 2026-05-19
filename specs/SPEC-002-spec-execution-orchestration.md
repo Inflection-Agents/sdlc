@@ -18,11 +18,11 @@ depends_on: [SPEC-001]
 
 The upstream SDLC framework describes the artifacts (specs, tasks, ADRs, skills) and the per-skill behaviors (authoring, decomposition, review, completion) but **does not define the execution loop that drives them**. The framework documents say "decompose the spec, dispatch the tasks, review the PRs" but there is no skill that codifies *how* — how waves are constructed from the task dependency graph, how background executors are isolated, when the tester gate fires relative to reviewers, how the fix loop terminates, how the integration PR is assembled, when failure escalates.
 
-High-gear has lived without that gap: it built `spec-execution` as a 23KB skill with a rigid multi-phase loop, and SPEC-042 (23 tasks across 11 waves) proved out the pattern. But the high-gear version was written before SPEC-001 introduced graded review. It bakes in a 4-reviewer always-on fan-out and binary verdict routing, which SPEC-001 now supersedes.
+The reference implementation has lived without that gap: it built `spec-execution` as a 23KB skill with a rigid multi-phase loop, and SPEC-042 (23 tasks across 11 waves) proved out the pattern. But the the reference implementation version was written before SPEC-001 introduced graded review. It bakes in a 4-reviewer always-on fan-out and binary verdict routing, which SPEC-001 now supersedes.
 
 Two motivations, then:
 
-1. **Port the execution loop upstream.** Without it, the upstream framework is incomplete — every consumer would have to invent it again. The high-gear loop has been battle-tested; codifying it upstream is overdue.
+1. **Port the execution loop upstream.** Without it, the upstream framework is incomplete — every consumer would have to invent it again. The the reference implementation loop has been battle-tested; codifying it upstream is overdue.
 2. **Adapt it to consume SPEC-001's graded-review contract.** The orchestrator's job becomes smaller and cleaner: dispatch executor, run Tier 0 in CI, fire Tier 1 reviewer, dispatch Tier 2 specialists per Tier 1's recommendation, apply the shared severity policy. The reviewer skills do the grading and the dispatch-rule evaluation; the orchestrator does the routing only.
 
 ## Success criteria
@@ -33,7 +33,7 @@ Two motivations, then:
 - [ ] The skill consumes SPEC-001's severity policy verbatim — including the `escalate` return path. No bespoke routing logic.
 - [ ] Per-task telemetry is logged (wave assignment, executor duration, Tier 0 outcome, Tier 1 severity distribution, Tier 2 specialists dispatched, fix-loop iterations, final outcome, total wall time). This is the data needed to measure SPEC-001's success metrics.
 - [ ] All failure escalation triggers are detected — some inside the per-task routing loop, others outside it (wave-graph builder, dispatch-time, watchdog, per-spec amendment counter). Each trigger's detection point is anchored to a concrete Phase / step in the spec.
-- [ ] On the next active spec in high-gear, the new orchestrator replaces the existing one after baseline capture per SPEC-001 AC-011.
+- [ ] On the next active spec in the reference implementation, the new orchestrator replaces the existing one after baseline capture per SPEC-001 AC-011.
 
 ## Scope
 
@@ -217,7 +217,7 @@ All tasks done → spec-completion → integration PR feat/spec-NNN → main
 ## Acceptance criteria
 
 - [ ] AC-001 — `.ai/skills/spec-execution/SKILL.md` exists and documents Phases 1, 2, 3 with the per-task lifecycle.
-- [ ] AC-002 — The skill specifies the worktree-isolation constraint as a hard rule, citing a concrete originating incident (the high-gear stash incident on 2026-04-24 if available in the consumer's incident log; otherwise a generic justification of the failure mode is acceptable for the upstream framework version).
+- [ ] AC-002 — The skill specifies the worktree-isolation constraint as a hard rule, citing a concrete originating incident (the the reference implementation stash incident on 2026-04-24 if available in the consumer's incident log; otherwise a generic justification of the failure mode is acceptable for the upstream framework version).
 - [ ] AC-003 — The skill explicitly states: "no LLM reviewer is dispatched while Tier 0 is red." Tier 0 → Tier 1 → Tier 2 sequencing is mandatory. Tier 0 contents are inherited by reference from SPEC-001 Design > PR side > Tier 0 (not duplicated).
 - [ ] AC-004 — Severity routing references SPEC-001's policy by inclusion (not duplication), including the `escalate` action. Cross-skill signal detection uses the citation prefixes defined in SPEC-001 Design > Grounding rules verbatim. Tier 2 specialists are explicitly authorized by SPEC-001 to use the `pr-reviewer` prefixes (including the cross-skill-signal prefixes); SPEC-002 relies on this authorization for aggregated-set signal detection.
 - [ ] AC-005 — The fix loop has a hard cap of 3 total fix attempts per task across Tier 0 and Tier 1 combined. The skill documents the cap, the shared counter, and the escalation it triggers.
@@ -239,7 +239,7 @@ All tasks done → spec-completion → integration PR feat/spec-NNN → main
 - **Tier 0 vs Tier 1 race.** If the executor pushes again before Tier 0 finishes, the reviewer might grade a stale state. Mitigation: the orchestrator gates Tier 1 dispatch on a specific commit SHA from Tier 0; if the SHA changes mid-flight, Tier 1 is re-dispatched.
 - **Reviewer output failure modes.** Tier 1 or Tier 2 crashes, returns malformed JSON, exceeds context, or returns ungrounded `criterion` values. Mitigation: schema-validation step before routing detects these; failure escalates per the trigger table.
 - **Carry-forward invalidation across fix triggers.** A Tier 0 fix substantively changes the diff; the prior Tier 1 review is stale. The pseudocode resets `last_reviewer_output` on Tier 0 fixes for this reason.
-- **High-gear has live waves in flight (SPEC-042).** Cut over only on the next spec.
+- **The reference implementation has live waves in flight (SPEC-042).** Cut over only on the next spec.
 - **Telemetry log as load-bearing.** SPEC-001's success criteria depend on this log being written reliably. Mitigation: append-only JSONL; failures logged separately to stderr but never block the loop.
 - **Background agent failure modes.** Executors can crash, hang, or produce no PR. Mitigation: 4-hour wall-clock escalation catches hangs; crashes generate dispatch-failure escalations.
 
@@ -248,20 +248,20 @@ All tasks done → spec-completion → integration PR feat/spec-NNN → main
 ### Current state
 
 - Upstream sdlc: no `spec-execution` skill.
-- High-gear: 23KB `spec-execution` skill with hard-coded 4-reviewer always-on fan-out and binary verdict routing. Currently driving SPEC-042.
+- The reference implementation: 23KB `spec-execution` skill with hard-coded 4-reviewer always-on fan-out and binary verdict routing. Currently driving SPEC-042.
 
 ### Target state
 
 - Upstream sdlc has `spec-execution` consuming SPEC-001 contracts (including the `escalate` action and Tier 2 grounding-rules inheritance).
-- High-gear adopts the upstream version after baseline capture (per SPEC-001 AC-011); its 4-reviewer fan-out is retired after the side-by-side comparison run from SPEC-001's migration step 6.
+- The reference implementation adopts the upstream version after baseline capture (per SPEC-001 AC-011); its 4-reviewer fan-out is retired after the side-by-side comparison run from SPEC-001's migration step 6.
 
 ### Migration strategy
 
 1. Land SPEC-001 (including its `spec-schema.md` amendment per SPEC-001 AC-013) and its reviewer skills first.
 2. Land SPEC-002 (this spec) and the new `spec-execution` skill upstream.
-3. In high-gear, do **not** swap mid-flight on SPEC-042. Wait for SPEC-042 to complete under the existing orchestrator.
+3. In the reference implementation, do **not** swap mid-flight on SPEC-042. Wait for SPEC-042 to complete under the existing orchestrator.
 4. Capture the SPEC-042 baseline (per SPEC-001 AC-011) into `specs/baselines/SPEC-042.md`.
-5. On the next active spec in high-gear, dispatch via the new upstream `spec-execution`. Keep the high-gear-local version intact as `spec-execution-legacy/` for one spec so a regression can be diagnosed (this is the side-by-side comparison run from SPEC-001's migration step 6).
+5. On the next active spec in the reference implementation, dispatch via the new upstream `spec-execution`. Keep the the reference implementation-local version intact as `spec-execution-legacy/` for one spec so a regression can be diagnosed (this is the side-by-side comparison run from SPEC-001's migration step 6).
 6. After two full specs ship under the new orchestrator, delete `spec-execution-legacy/`.
 7. Measure SPEC-001 success criteria from the telemetry logs.
 
@@ -321,7 +321,7 @@ This is a rigid skill. Every step must be followed. No shortcuts.
 1. **Worktree isolation.** Any background agent that edits repo files runs with
    isolation: "worktree". This rule exists to prevent a concrete failure mode:
    a background subagent operating in the foreground worktree can stash or
-   overwrite uncommitted edits. (High-gear's incident on 2026-04-24 during a
+   overwrite uncommitted edits. (The reference implementation's incident on 2026-04-24 during a
    TASK-023 dispatch is one such case.)
 
 2. **Tier 0 gates review.** No LLM reviewer is dispatched while Tier 0 is red.

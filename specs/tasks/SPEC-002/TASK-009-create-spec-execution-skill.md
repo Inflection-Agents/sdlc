@@ -53,7 +53,7 @@ updated: 2026-05-18
 
 ## Context
 
-This task creates the orchestration skill that executes any active spec end-to-end. It consumes SPEC-001's reviewer contracts (pr-reviewer, severity policy, grounding rules) and replaces high-gear's hard-coded 4-reviewer always-on fan-out with a tiered, graded, contract-driven model. The skill is the runtime that turns specs into shipped code.
+This task creates the orchestration skill that executes any active spec end-to-end. It consumes SPEC-001's reviewer contracts (pr-reviewer, severity policy, grounding rules) and replaces the reference implementation's hard-coded 4-reviewer always-on fan-out with a tiered, graded, contract-driven model. The skill is the runtime that turns specs into shipped code.
 
 ## Requirements
 

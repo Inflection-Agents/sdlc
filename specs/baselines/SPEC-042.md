@@ -1,12 +1,12 @@
 # SPEC-042 baseline
 
 Captured: 2026-05-18
-high-gear snapshot: `601b605532ea1dcdb1cb97d57fae0b6f8210c917`
+the reference implementation snapshot: `601b605532ea1dcdb1cb97d57fae0b6f8210c917`
 upstream sdlc snapshot: `6c1c0d786eae9f384db0dd67d0656b8991267f7f`
 
 ## Context
 
-SPEC-042 in high-gear (pipeline consolidation v3) executed 20 merged task PRs across the dates 2026-05-17 to 2026-05-18 under the legacy 4-reviewer always-on fan-out orchestrator. These metrics establish the baseline against which SPEC-001's success criteria (AC-011 / sixth Success-criteria bullet) are measured on subsequent specs.
+SPEC-042 in the reference implementation (pipeline consolidation v3) executed 20 merged task PRs across the dates 2026-05-17 to 2026-05-18 under the legacy 4-reviewer always-on fan-out orchestrator. These metrics establish the baseline against which SPEC-001's success criteria (AC-011 / sixth Success-criteria bullet) are measured on subsequent specs.
 
 SPEC-042's decomposition declared 22 tasks across 11 waves (TASK-414 through TASK-435). At the time of this snapshot, 20 task PRs had merged (TASK-414, -415, -416, -417, -418, -419, -420, -421, -422, -423, -424, -425, -426, -427, -428, -429, -430, -431, -432, -433). TASK-434/435/436 were not yet merged through the SPEC-042-titled PR set as of the snapshot — TASK-435's work appears in commit `601b6055` on `main` but was not the subject of this PR-level analysis.
 
@@ -25,7 +25,7 @@ Hot-fix amendments were tracked outside the task-PR set as either dedicated `fix
 
 ### Metric 1: Mean fix-loop iterations per PR
 
-**Repo:** `/Users/franklin/_code/high-gear` at commit `601b605532ea1dcdb1cb97d57fae0b6f8210c917`.
+**Repo:** `<consumer-repo-path>` at commit `601b605532ea1dcdb1cb97d57fae0b6f8210c917`.
 
 **Data source:** PR commit counts via `gh pr view <N> --json commits`, run for each task PR.
 
@@ -42,7 +42,7 @@ for pr in 737 739 740 741 742 743 744 745 746 747 748 750 751 752 753 754 755 75
 done
 ```
 
-**Why no `_execution.log.jsonl`:** That telemetry format is specified by SPEC-002 (orchestration) which has not landed in high-gear. SPEC-042 predates the format, so commit history is the only available signal.
+**Why no `_execution.log.jsonl`:** That telemetry format is specified by SPEC-002 (orchestration) which has not landed in the reference implementation. SPEC-042 predates the format, so commit history is the only available signal.
 
 **Heuristics:** Two independent counts were taken and reported as a range.
 
@@ -85,7 +85,7 @@ done
 
 ### Metric 2: Hot-fix amendment commits
 
-**Repo:** `/Users/franklin/_code/high-gear` at commit `601b605532ea1dcdb1cb97d57fae0b6f8210c917`.
+**Repo:** `<consumer-repo-path>` at commit `601b605532ea1dcdb1cb97d57fae0b6f8210c917`.
 
 **Command:**
 
@@ -132,5 +132,5 @@ After dropping the SPEC-021 reference (`d102976e` body mentions GAP-007 in conte
 - **Reporting unit ambiguity:** "Hot-fix amendment commits per spec" can mean either the strict pattern (`SPEC-042: hot-fix`) → **2**, or the broader notion (any commit that fixed a discovered GAP-NNN for this spec, whether dedicated or folded) → **6**. The downstream comparison in SPEC-001 should pick a consistent definition. Recommend using the broader **6** for like-for-like comparisons since future specs may bundle GAP fixes into task PRs rather than break them out.
 - **Sample size is small (n=20 PRs):** The mean fix-loop number is sensitive to a few outliers. PR #747's bookkeeping anomaly alone moved the loose mean by 0.20.
 - **SPEC-042 was still in flight at the time of capture.** TASK-434, TASK-435 (visible on main as commit `601b6055`), and TASK-436 had not yet merged through SPEC-042-titled PRs. A later re-capture once SPEC-042 fully closes would give a more complete picture; record any delta in a follow-up entry rather than mutating this snapshot.
-- **Heuristic limitation:** The "fix" keyword heuristic misses any silent fix-up commits (commits whose subject does not include "fix"). High-gear's commit conventions for SPEC-042 are reasonably disciplined — the `fix R<reviewer-id>` pattern is the dominant marker — so the strict count is plausibly close to ground truth, but it is not provable without manual classification of all 37 commits or telemetry that did not exist.
+- **Heuristic limitation:** The "fix" keyword heuristic misses any silent fix-up commits (commits whose subject does not include "fix"). The reference implementation's commit conventions for SPEC-042 are reasonably disciplined — the `fix R<reviewer-id>` pattern is the dominant marker — so the strict count is plausibly close to ground truth, but it is not provable without manual classification of all 37 commits or telemetry that did not exist.
 - **No SPEC-002 telemetry available** (`_execution.log.jsonl`). SPEC-002 was not deployed at the time SPEC-042 ran. Future spec baselines (post-SPEC-002 landing) should prefer the telemetry-based `fix_loop_iteration` count over this commit-history heuristic for precision.

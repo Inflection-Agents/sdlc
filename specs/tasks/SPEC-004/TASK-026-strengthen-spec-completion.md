@@ -36,7 +36,7 @@ Per SPEC-004 AC-012. The current `spec-completion` skill documents the four veri
       - `Deadline` → `Trigger`
       - `How to check` → `Method`
       
-      Add a note: "Trigger can be a calendar date (e.g., '2026-06-01') OR an observable condition (e.g., 'after next high-gear spec executes')."
+      Add a note: "Trigger can be a calendar date (e.g., '2026-06-01') OR an observable condition (e.g., 'after the next spec executes')."
    
    b. **Add a rigor requirement at the end of Step 5:** "Every measurement-class deferred criterion MUST have all three fields populated: Owner, Trigger, Method. The skill emits a completion-blocking failure (reports verdict: 'Blocked') if any measurement-class criterion is missing any of the three. No deferral without a clear path to verification."
    

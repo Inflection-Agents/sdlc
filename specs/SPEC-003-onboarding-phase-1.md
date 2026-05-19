@@ -47,7 +47,7 @@ This is INI-002 (sdlc-onboarding) territory and was user-flagged as priority. Th
 - Three-doors signposting (greenfield / adopt-into-existing / joining-a-team) as separate entry points — Phase 2.
 - `playbook.md` full rewrite — minor staleness; out of scope for this phase. A small pointer at the top is acceptable but not required.
 - Tier-3 docs (`agent-orchestration.md`, `sync.md`, `tooling.md`, `work-graph.md`, `roles.md`, `triage.md`) — minor staleness; separate cleanup if needed.
-- Migration of high-gear's existing setup. High-gear already uses `setup-sdlc.sh` and symlinks; the bootstrap.sh changes here affect *new* adopters.
+- Migration of the reference implementation's existing setup. The reference implementation already uses `setup-sdlc.sh` and symlinks; the bootstrap.sh changes here affect *new* adopters.
 
 ## Design
 
@@ -128,7 +128,7 @@ Same shape as skills.md:
 - **README simplification risks losing context** for advanced users who want depth. Mitigation: link to `skills.md`, `skill-architecture.md`, `playbook.md` for depth; the trimmed table doesn't remove the docs, it stops front-loading them.
 - **`playbook.md` staleness** is not addressed by this spec. It's noted in scope as out-of-scope; readers will encounter the older phase-based model until a follow-up spec or until INI-002 Phase 2 addresses it.
 - **Bootstrap idempotency** means re-running on a partially-set-up repo must not destroy state. Mitigation: check before creating; do not overwrite existing files.
-- **High-gear's existing setup** uses `setup-sdlc.sh` and symlinks. The bootstrap.sh changes don't affect high-gear. New consumers will use the upstream bootstrap.
+- **The reference implementation's existing setup** uses `setup-sdlc.sh` and symlinks. The bootstrap.sh changes don't affect the reference implementation. New consumers will use the upstream bootstrap.
 
 ## Migration
 

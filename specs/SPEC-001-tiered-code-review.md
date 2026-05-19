@@ -15,7 +15,7 @@ linear_project:
 
 ## Problem
 
-Review under the SDLC framework currently runs at uniform depth for two different artifacts — the spec and the PR — and emits a binary verdict in both cases. This has two consequences that have started to dominate the developer loop on larger specs (SPEC-042 in high-gear: 23 tasks across 11 waves):
+Review under the SDLC framework currently runs at uniform depth for two different artifacts — the spec and the PR — and emits a binary verdict in both cases. This has two consequences that have started to dominate the developer loop on larger specs (SPEC-042 in the reference implementation: 23 tasks across 11 waves):
 
 1. **PR review: wall-clock and decision cost.** A 4-reviewer parallel model reads the full diff regardless of size, scope, or risk, and `pr-reviewer` emits `approved | needs_fix`. Style nits and architectural blockers receive identical routing. There is no severity gradient, so the orchestrator cannot batch low-priority findings into follow-up grooming or auto-merge despite minor notes.
 2. **Spec review: no codified loop, gaps leak downstream.** Owners apply a rigorous code-review-style pass to specs manually, and it has been *critical* — it catches contradictions, untestable acceptance criteria, and workspace-coverage gaps before tasks decompose. But that pass lives in the owner's head; it is not a skill, not a contract, and its findings are not graded. The visible symptom downstream is hot-fix amendment commits (`SPEC-042: hot-fix GAP-008`, `hot-fix GAP-011`) — gaps that *could* have been caught at spec-review time but weren't, surfacing as PRs that have to be undone or amended mid-wave.
@@ -29,14 +29,14 @@ The two problems share a primitive: a graded review with grounded findings. Solv
 - [ ] An orchestrator policy maps `(severity, count)` tuples to one of: `fix_loop | batch_followup_and_accept | accept | escalate`. The policy is invocable from `spec-execution` (PR side) and from `spec-authoring` (spec side) without ambiguity.
 - [ ] PR review: the always-on 4-reviewer fan-out is replaced by a tiered router (Tier 0 mechanical, Tier 1 always, Tier 2 file-glob-dispatched specialists). At least one specialist (cross-spec / boundary) is dispatched by rule.
 - [ ] Spec review: `spec-reviewer` runs automatically at the end of `spec-authoring` Phase 2 (and after every `spec-amendment`), emits graded findings, and presents them to the owner before the sign-off gate.
-- [ ] On the next active spec in high-gear, **two** metrics improve vs. a baseline captured from SPEC-042 (see AC-011): (a) mean fix-loop iterations per PR; (b) count of hot-fix amendment commits per spec. The amendment-count metric is the spec-review payoff signal.
+- [ ] On the next active spec in the reference implementation, **two** metrics improve vs. a baseline captured from SPEC-042 (see AC-011): (a) mean fix-loop iterations per PR; (b) count of hot-fix amendment commits per spec. The amendment-count metric is the spec-review payoff signal.
 - [ ] No regression in real defect catch rate: post-merge defect rate per merged PR over the next two completed specs stays ≤ current baseline.
 
 ## Scope
 
 ### In scope
 
-- New skill `pr-reviewer` in upstream sdlc, ported from high-gear and extended with severity grading.
+- New skill `pr-reviewer` in upstream sdlc, ported from the reference implementation and extended with severity grading.
 - New skill `spec-reviewer` in upstream sdlc — graded review of spec drafts and amendments.
 - Update to `sdlc-code-review` skill: consume severity from `pr-reviewer` output and render graded review comments. Old binary-verdict language removed.
 - Update to `spec-authoring` and `spec-amendment` skills: invoke `spec-reviewer` before the user sign-off gate; surface graded findings to the owner.
@@ -274,7 +274,7 @@ Entries are append-only at first. The `resolved` boolean and its companion field
 - [ ] AC-008 — The carry-forward contract is specified in `review-primitives.md` with the two precise definitions (PR-side file-in-diff; spec-side section-text-identical) and at least one example of correct and one of incorrect behavior.
 - [ ] AC-009 — `spec-reviewer` includes a gap catalog (Appendix C) listing the categories the reviewer must actively check (workspace-coverage, untestable AC, contradictory AC, missing section, cross-spec contradiction, missing migration plan, unstated cross-workspace impact, unscoped scope, risk surface omission). The catalog does not re-specify severity — it references the spec-side consequence catalog in `review-primitives.md`.
 - [ ] AC-010 — The 80%-agreement success criterion is measured by the following protocol, codified in the skill: on the first 3 specs reviewed under this system, dispatch `spec-reviewer` twice with two genuinely different reviewer configurations — at minimum, the default prompt and an adversarial-bias prompt variant defined alongside it in `review-primitives.md`; preferably, two different model providers if available. For each finding present in both outputs at the same `location`, count as agreement when severities match; agreement = matching / total intersection findings; sample size threshold = ≥10 intersection findings before computing. Temperature-only variation does not satisfy this AC.
-- [ ] AC-011 — Before the next active spec in high-gear is dispatched, SPEC-042's baseline values for `mean fix-loop iterations per PR` and `count of hot-fix amendment commits per spec` are captured into `specs/baselines/SPEC-042.md` (a new subdirectory declared via AC-013). The success comparison reads from that file.
+- [ ] AC-011 — Before the next active spec in the reference implementation is dispatched, SPEC-042's baseline values for `mean fix-loop iterations per PR` and `count of hot-fix amendment commits per spec` are captured into `specs/baselines/SPEC-042.md` (a new subdirectory declared via AC-013). The success comparison reads from that file.
 - [ ] AC-012 — Citation prefix `task:scope` and the four `spec:*` prefixes used by SPEC-002's cross-skill signals are listed in the `pr-reviewer` allowed citation prefixes (Design > Grounding rules) and in the `pr-reviewer` skill prompt. Tier 2 specialists inherit these prefixes per the grounding rules table.
 - [ ] AC-013 — `spec-schema.md` is amended to declare two new optional in-spec sections (`spec_review_overrides` placed after `Migration`; `spec_followups` placed after `spec_review_overrides`) and one new top-level subdirectory under `specs/` (`specs/baselines/` for per-spec baseline files). The schema entries specify field names, ordering constraint, and value types for each section. Migration plan covers the schema change explicitly.
 - [ ] AC-014 — The default and adversarial prompt variants required by AC-010 are both concretely defined in `review-primitives.md` (or in a `prompts/` sibling folder referenced from it), so AC-010's measurement protocol is reproducible without further design work.
@@ -286,7 +286,7 @@ Entries are append-only at first. The `resolved` boolean and its companion field
 - **Owner override is a back-door.** A spec owner who overrides every blocker to nit defeats the system. Mitigation: overrides are visible in-spec, audit-able, and the original reviewer severity is preserved in the spec's review log.
 - **Specialist scoping misses cross-cutting PR issues.** A PR that touches only `apps/dealer-app/components/` will not trigger the cross-spec reviewer even if it changes a contract via type-system inference. Mitigation: any task that lists `blocks:` in its frontmatter always triggers the boundary reviewer regardless of file globs.
 - **Caching could mask regressions.** A nit carried forward might become a major in the context of new code. Mitigation: blocker and major findings are always re-evaluated; nits/suggestions only carry forward if their locations are unaffected per the precise definitions.
-- **Breaking output-contract change.** AC-005 removes the old binary-verdict format outright. Any existing consumer (high-gear orchestrator, CI scripts, agent prompts referencing the old shape) will break. Mitigation: SPEC-002's migration keeps the old orchestrator's reviewer behind a flag for one spec; before removing, audit consumers by grep for `"approved"` / `"needs_fix"` literals in `.ai/`, `.claude/`, and `.github/workflows/`.
+- **Breaking output-contract change.** AC-005 removes the old binary-verdict format outright. Any existing consumer (the reference implementation orchestrator, CI scripts, agent prompts referencing the old shape) will break. Mitigation: SPEC-002's migration keeps the old orchestrator's reviewer behind a flag for one spec; before removing, audit consumers by grep for `"approved"` / `"needs_fix"` literals in `.ai/`, `.claude/`, and `.github/workflows/`.
 - **Schema amendment couples this spec to spec-schema.md.** AC-013 changes a foundational doc; any CI validation against the old schema will fail until the amendment lands. Mitigation: land the schema amendment first in the migration sequence; the new sections are optional so existing specs do not break.
 - **Port-back ordering dependency.** This spec assumes `spec-execution` (SPEC-002) is also ported back. If SPEC-002 lags, the PR side of SPEC-001 is incomplete in practice. Spec-reviewer can land independently; it only depends on existing `spec-authoring` and `spec-amendment` skills.
 - **No infrastructure for measuring success.** Three success criteria require manual counting for the first two specs. Acceptable for v1; revisit if the pattern proves out.
@@ -297,7 +297,7 @@ Entries are append-only at first. The `resolved` boolean and its companion field
 
 - Single `sdlc-code-review` skill in upstream sdlc, binary PR verdict.
 - Spec review happens manually by the owner during `spec-authoring` Phase 2; no skill, no JSON contract, no graded findings.
-- High-gear has both `sdlc-code-review` and `pr-reviewer` (binary), with a 4-reviewer always-on fan-out implemented in `spec-execution`.
+- The reference implementation has both `sdlc-code-review` and `pr-reviewer` (binary), with a 4-reviewer always-on fan-out implemented in `spec-execution`.
 - `spec-schema.md` does not declare `spec_review_overrides`, `spec_followups`, or `specs/baselines/`.
 
 ### Target state
@@ -305,14 +305,14 @@ Entries are append-only at first. The `resolved` boolean and its companion field
 - Upstream sdlc has `pr-reviewer` (graded), `spec-reviewer` (graded), `review-primitives.md` (shared contracts), and an updated `sdlc-code-review` that consumes the PR-side output.
 - `spec-authoring` and `spec-amendment` invoke `spec-reviewer` at the sign-off gates.
 - `spec-schema.md` declares the new optional sections and subdirectory.
-- High-gear adopts both, replacing the always-on 4-reviewer fan-out on the PR side and replacing manual spec review on the spec side.
+- The reference implementation adopts both, replacing the always-on 4-reviewer fan-out on the PR side and replacing manual spec review on the spec side.
 
 ### Migration strategy
 
 1. **First:** land the `spec-schema.md` amendment (AC-013). The new sections are optional, so existing specs validate unchanged. This unblocks every subsequent step that introduces the new sections.
 2. Land `review-primitives.md` and the two reviewer skills in upstream sdlc. `spec-reviewer` can land independently of `spec-execution` (SPEC-002).
 3. Land the orchestrator policy (in SPEC-002, the `spec-execution` port-back) for PR side. For spec side, the policy lives in `spec-authoring`/`spec-amendment` and ships with this spec.
-4. In high-gear, adopt `spec-reviewer` first — no orchestration dependency. Run it on the next spec drafted.
+4. In the reference implementation, adopt `spec-reviewer` first — no orchestration dependency. Run it on the next spec drafted.
 5. Capture the SPEC-042 baseline (AC-011) into `specs/baselines/SPEC-042.md` before any swap on the PR side.
 6. Swap PR-side: replace existing `pr-reviewer` with the upstream version on the next active spec (not mid-flight on SPEC-042). Keep the legacy reviewer + 4-reviewer fan-out behind a feature flag for one spec to allow side-by-side comparison.
 7. After two specs ship under the new policy, measure success criteria from telemetry and revisit thresholds.

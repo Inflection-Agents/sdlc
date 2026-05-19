@@ -1,6 +1,6 @@
 ---
 id: SPEC-004
-title: Artifact completeness ports from high-gear
+title: Artifact completeness ports from the reference implementation
 status: completed
 version: 1
 supersedes:
@@ -14,14 +14,14 @@ linear_project:
 
 ## Problem
 
-Four artifact-shape improvements exist in high-gear that strengthen the upstream framework's audit trail, gap tracking, completion rigor, and monorepo safety. Each is individually small (port-level work), but they cluster around a single theme: **making spec/task artifacts auditable end-to-end so that "AC passed" is non-repudiable and "spec complete" is verifiable**.
+Four artifact-shape improvements exist in the reference implementation that strengthen the upstream framework's audit trail, gap tracking, completion rigor, and monorepo safety. Each is individually small (port-level work), but they cluster around a single theme: **making spec/task artifacts auditable end-to-end so that "AC passed" is non-repudiable and "spec complete" is verifiable**.
 
 The four ports:
 
-1. **`evidence:` field on task acceptance criteria** — high-gear task files include per-AC proof (test output, dbt run output, diff analysis). Upstream task schema has no such field.
-2. **Spec gap capture pattern** — high-gear has a lightweight `GAP-NNN`-style convention for mid-flight discoveries that don't warrant full `spec-amendment`. Upstream has no formalized "gap" artifact.
-3. **Strengthen `spec-completion` skill** — high-gear's version formalizes the verification-type taxonomy (task-covered, integration, measurement, manual) and the deferred-verifications table (owner, trigger, method). The upstream version is close but informal.
-4. **Workspace enforcement in `sdlc-code-review`** — `workspaces` / `verify_workspaces` task fields exist in upstream schema but `sdlc-code-review` treats them as advisory; high-gear enforces them.
+1. **`evidence:` field on task acceptance criteria** — the reference implementation task files include per-AC proof (test output, dbt run output, diff analysis). Upstream task schema has no such field.
+2. **Spec gap capture pattern** — the reference implementation has a lightweight `GAP-NNN`-style convention for mid-flight discoveries that don't warrant full `spec-amendment`. Upstream has no formalized "gap" artifact.
+3. **Strengthen `spec-completion` skill** — the reference implementation's version formalizes the verification-type taxonomy (task-covered, integration, measurement, manual) and the deferred-verifications table (owner, trigger, method). The upstream version is close but informal.
+4. **Workspace enforcement in `sdlc-code-review`** — `workspaces` / `verify_workspaces` task fields exist in upstream schema but `sdlc-code-review` treats them as advisory; the reference implementation enforces them.
 
 Bundling these four into one spec avoids spec sprawl. Each port becomes its own task; the spec is the coordination layer.
 
@@ -128,7 +128,7 @@ back_ported_to: SPEC-NNN-vN | SPEC-NNN-v1.1 | null   # for resolution: clarifica
 
 The current `spec-completion/SKILL.md` already documents the four verification types (Step 2) and a deferred-verifications table (columns: Criterion, Owner, Deadline, How to check). This spec's delta is precision, not addition:
 
-**Column rename for consistency with this framework's vocabulary:** `Deadline` → `Trigger` (a trigger can be a date OR an observable condition like "after next high-gear spec executes"), `How to check` → `Method`.
+**Column rename for consistency with this framework's vocabulary:** `Deadline` → `Trigger` (a trigger can be a date OR an observable condition like "after the next spec executes"), `How to check` → `Method`.
 
 **Rigor requirement (new):** every measurement-class deferred criterion must have all three fields populated. The skill emits a completion-blocking failure if any measurement-class criterion is missing owner, trigger, or method. This was implicitly enforced when closing SPEC-001/SPEC-002 but is now codified.
 

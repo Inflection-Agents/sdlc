@@ -34,7 +34,7 @@ Per SPEC-001 AC-007, worked examples are required to make the reviewer contracts
 ## Requirements
 
 1. **Create `/Users/franklin/_code/sdlc/.ai/skills/pr-reviewer/examples/example-graded-pr.md`** containing:
-   - A short prose section describing a fictional PR: imagine a PR against high-gear's dealer-app, ~120 lines, touching `apps/dealer-app/src/components/InventoryList.tsx`, claiming to address TASK-088 AC-003 (a filtering feature).
+   - A short prose section describing a fictional PR: imagine a PR against the reference implementation's dealer-app, ~120 lines, touching `apps/dealer-app/src/components/InventoryList.tsx`, claiming to address TASK-088 AC-003 (a filtering feature).
    - The full JSON output that pr-reviewer would emit:
      - `artifact: "pr"`, `artifact_id: "TASK-088"`, `spec_id: "SPEC-042"`, `pr_number: 142`, `tier: 1`
      - Exactly 4 findings: 1 blocker (citing AC-NNN — feature doesn't actually filter; broken), 1 major (citing sdlc-code-standards:dry — duplicates existing helper), 2 nits (citing sdlc-code-standards:naming and similar)

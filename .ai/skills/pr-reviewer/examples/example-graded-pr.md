@@ -4,7 +4,7 @@ This is a fictional but representative worked example showing the JSON envelope 
 
 ## Fictional PR under review
 
-**Repo:** `Inflection-Agents/high-gear`
+**Repo:** `example-org/example-repo`
 **PR #142:** "Add status filter to InventoryList"
 **Branch:** `task/TASK-088-inventory-status-filter`
 **Spec:** `SPEC-042` — Dealer-app inventory triage UX

@@ -10,14 +10,14 @@ This framework dogfoods itself — improvements to the SDLC ship as specs in thi
 
 ### sdlc-throughput
 
-Tightening the developer loop without losing the rigor that catches real defects. Source of pain: high-gear's downstream use revealed that uniform-depth review (4 always-on reviewers, binary verdict) was high-signal but too slow, and that the most expensive defects (spec gaps) were the ones leaking from spec time into PR time as hot-fix amendments.
+Tightening the developer loop without losing the rigor that catches real defects. Source of pain: the reference implementation's downstream use revealed that uniform-depth review (4 always-on reviewers, binary verdict) was high-signal but too slow, and that the most expensive defects (spec gaps) were the ones leaking from spec time into PR time as hot-fix amendments.
 
 | ID | Title | Status | Initiative | Depends on |
 |---|---|---|---|---|
 | [SPEC-001](SPEC-001-tiered-code-review.md) | Graded review for specs and PRs | completed | INI-001 | — |
 | [SPEC-002](SPEC-002-spec-execution-orchestration.md) | Spec execution orchestration — wave-based loop with tiered review | completed | INI-001 | SPEC-001 |
 | [SPEC-003](SPEC-003-onboarding-phase-1.md) | Onboarding simplification — Phase 1 (docs + bootstrap fix) | active | INI-002 | — |
-| [SPEC-004](SPEC-004-artifact-completeness-ports.md) | Artifact completeness ports from high-gear | active | INI-003 | — |
+| [SPEC-004](SPEC-004-artifact-completeness-ports.md) | Artifact completeness ports from the reference implementation | active | INI-003 | — |
 | [SPEC-005](SPEC-005-conditional-integration-branch.md) | Conditional integration-branch strategy for spec-execution | active | INI-001 | SPEC-002 |
 
 ## Reading order for a fresh contributor
@@ -25,13 +25,13 @@ Tightening the developer loop without losing the rigor that catches real defects
 1. **SPEC-001 first.** Defines the primitives — severity ladder, grounding rules, shared JSON envelope, carry-forward semantics, and two reviewer skills (`pr-reviewer`, `spec-reviewer`). Independent landing: `spec-reviewer` can ship without any orchestration change.
 2. **SPEC-002 second.** Defines the loop that consumes those primitives — wave-based parallel execution, worktree isolation, Tier 0 CI gating, severity-driven routing, fix loop with cap, integration PR. The orchestrator is deliberately dumb; it routes signals defined in SPEC-001.
 
-Together they replace high-gear's hard-coded 4-reviewer always-on fan-out with a tiered, graded, contract-driven model.
+Together they replace the reference implementation's hard-coded 4-reviewer always-on fan-out with a tiered, graded, contract-driven model.
 
 ## Sequencing notes
 
 - **SPEC-001 ships before SPEC-002.** SPEC-002 consumes SPEC-001's reviewer contracts and severity policy by reference. Landing SPEC-002 against an undefined SPEC-001 would force the orchestrator to inline-define contracts that should live in the reviewers.
 - **`spec-reviewer` is the recommended first deliverable.** Of the four skills introduced across both specs (`pr-reviewer`, `spec-reviewer`, updated `sdlc-code-review`, new `spec-execution`), `spec-reviewer` has no orchestration dependency. It can be invoked by the existing `spec-authoring` and `spec-amendment` skills today, against the next drafted spec. That gives the cleanest read on whether codifying the manual spec-review pass actually catches what the owner catches today, plus anything currently being missed.
-- **Cut over to the new `spec-execution` only on a fresh spec.** Mid-flight swap (e.g., during high-gear's SPEC-042) is not supported. Wait for the in-flight spec to complete, then dispatch the next spec via the new orchestrator with the legacy version kept as `spec-execution-legacy/` for one spec as a side-by-side baseline.
+- **Cut over to the new `spec-execution` only on a fresh spec.** Mid-flight swap (e.g., during the reference implementation's SPEC-042) is not supported. Wait for the in-flight spec to complete, then dispatch the next spec via the new orchestrator with the legacy version kept as `spec-execution-legacy/` for one spec as a side-by-side baseline.
 
 ## Out-of-scope follow-ups (named, not yet specced)
 

@@ -39,7 +39,7 @@ skill's behavior.
    with `isolation: "worktree"`. This rule exists to prevent a concrete
    failure mode: a background subagent operating in the foreground worktree
    can stash, reset, or overwrite the main session's uncommitted edits.
-   High-gear's 2026-04-24 incident during a TASK-023 dispatch is one such
+   A 2026-04-24 incident during a TASK-023 dispatch is one such
    case — a background subagent ran `git stash` to clear the working tree
    for its own work, which was recoverable via `git stash pop` but could
    have been destructive under a different failure mode (`git reset --hard`,

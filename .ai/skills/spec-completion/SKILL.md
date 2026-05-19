@@ -125,7 +125,7 @@ Success criterion 3: "p99 auth latency < 200ms"
 Deferred criteria don't block completion, but they must have:
 - A clear measurement plan
 - An owner responsible for checking
-- A trigger (a calendar date such as "2026-06-01" OR an observable condition such as "after next high-gear spec executes")
+- A trigger (a calendar date such as "2026-06-01" OR an observable condition such as "after the next spec executes")
 - A dashboard or tool to check against
 
 **Rigor requirement:** Every measurement-class deferred criterion MUST have all three fields populated: Owner, Trigger, Method. The skill emits a completion-blocking failure (reports verdict: "Blocked") if any measurement-class criterion is missing any of the three. No deferral without a clear path to verification.

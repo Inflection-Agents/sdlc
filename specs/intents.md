@@ -13,7 +13,7 @@ Raw and triaged ideas for the SDLC framework's evolution. Specs in `specs/SPEC-N
 
 ## Initiative: sdlc-throughput
 
-Reduce the friction in the spec → implementation → review → merge loop without losing the rigor that catches real defects. Originates from observed pain in high-gear's SPEC-042 execution: 4-reviewer always-on PR fan-out, binary verdicts, hot-fix amendment commits indicating spec gaps leaking to PR time.
+Reduce the friction in the spec → implementation → review → merge loop without losing the rigor that catches real defects. Originates from observed pain in the reference implementation's SPEC-042 execution: 4-reviewer always-on PR fan-out, binary verdicts, hot-fix amendment commits indicating spec gaps leaking to PR time.
 
 ### `[active]` Graded review for specs and PRs → [SPEC-001](SPEC-001-tiered-code-review.md)
 Severity ladder, grounding rules, shared JSON envelope, two reviewer skills (`pr-reviewer`, `spec-reviewer`), orchestrator severity→action policy, tiered PR review router.
@@ -34,7 +34,7 @@ SPEC-002 defines per-task JSONL telemetry; a tool that rolls multiple specs' log
 
 ## Initiative: sdlc-onboarding `[NEW — user-flagged priority]`
 
-The current path from "I want to use this framework" to "I have shipped my first spec" requires reading ≥11 docs, manually filling in `.ai/project.md`, customizing `.ai/CLAUDE.md`, ensuring Linear labels exist, and then deriving the first-spec workflow from the playbook. `bootstrap.sh` does file scaffolding but stops short of getting you to a working spec. High-gear's `setup.md` is more opinionated and uses a unified `setup-sdlc.sh` to wire skills into both Claude and Gemini, but it's project-specific. The upstream onboarding should be at least as clean.
+The current path from "I want to use this framework" to "I have shipped my first spec" requires reading ≥11 docs, manually filling in `.ai/project.md`, customizing `.ai/CLAUDE.md`, ensuring Linear labels exist, and then deriving the first-spec workflow from the playbook. `bootstrap.sh` does file scaffolding but stops short of getting you to a working spec. The reference implementation's `setup.md` is more opinionated and uses a unified `setup-sdlc.sh` to wire skills into both Claude and Gemini, but it's project-specific. The upstream onboarding should be at least as clean.
 
 ### `[active]` Significantly simplify getting started → SPEC-003 (Phase 1) drafted
 Phase 1 (docs refresh + bootstrap.sh fix + skill wiring) drafted as [SPEC-003](SPEC-003-onboarding-phase-1.md). Phase 2 (`sdlc init` wizard, three-doors framing, "working spec in 10 minutes" experience) is captured below and deferred until Phase 1 ships.
@@ -47,7 +47,7 @@ Phase 1 (docs refresh + bootstrap.sh fix + skill wiring) drafted as [SPEC-003](S
 3. **Defer all reference material.** The README currently inventories 11 docs. A first-time reader should see three principles (spec is root, agents are assignees, runs are observable) and a single "start here" pointer. Schemas, work-graph, tooling rationale, and skill architecture should be findable but not in the critical path.
 4. **One interactive command, not a checklist.** `npx sdlc init` (or equivalent — name TBD) walks you through choices interactively: which agents (Claude / Jules / Gemini, any combination), which work tracker (Linear / GitHub Issues / none), whether this is a monorepo. Bootstrap.sh became 200 lines because every check is conditional; that complexity should be hidden behind a wizard.
 5. **Verify by doing, not by checking.** The "is it set up?" verification is "run `sdlc demo`, which dispatches a no-op example task end-to-end." If it round-trips, you're set up. If not, the wizard tells you what to fix.
-6. **Adopt high-gear's unified skill-wiring approach.** `tools/dev/setup-sdlc.sh` in high-gear links `.ai/skills/` into both `.ai/skills/` and `~/.agents/skills/` so the same skills work across local agents. Upstream should ship this pattern, not require each consumer to invent it.
+6. **Adopt the reference implementation's unified skill-wiring approach.** `tools/dev/setup-sdlc.sh` in the reference implementation links `.ai/skills/` into both `.ai/skills/` and `~/.agents/skills/` so the same skills work across local agents. Upstream should ship this pattern, not require each consumer to invent it.
 
 **Open questions for the spec author:**
 
@@ -58,54 +58,54 @@ Phase 1 (docs refresh + bootstrap.sh fix + skill wiring) drafted as [SPEC-003](S
 
 **Out of scope for this initiative:** redesigning the SDLC process itself. This is about lowering the barrier to *adopting* the framework as it stands (with SPEC-001 / SPEC-002 improvements in flight).
 
-**Why now:** The user has lived through onboarding twice (initial sdlc setup, then high-gear adoption) and identified it as a blocker. Without simplification, the framework's reach is limited to repos the owner sets up personally.
+**Why now:** The user has lived through onboarding twice (initial sdlc setup, then the reference implementation adoption) and identified it as a blocker. Without simplification, the framework's reach is limited to repos the owner sets up personally.
 
 ---
 
 ## Initiative: sdlc-artifact-completeness
 
-Port high-gear's artifact-shape improvements upstream. These are small individually but compound — each one removes a class of ambiguity from spec/task interpretation.
+Port the reference implementation's artifact-shape improvements upstream. These are small individually but compound — each one removes a class of ambiguity from spec/task interpretation.
 
 **Status: completed as [SPEC-004](SPEC-004-artifact-completeness-ports.md) (2026-05-19).** The next four entries are the constituent ports SPEC-004 delivered.
 
 ### `[completed]` `evidence:` field on acceptance criteria → SPEC-004
-High-gear task files include an `evidence:` field per AC populated by the executor with the actual proof (test output, dbt run, diff analysis). Upstream task schema has no such field. The result is "AC passed" claims that can't be audited. Port to upstream task schema; require population before PR review.
+The reference implementation task files include an `evidence:` field per AC populated by the executor with the actual proof (test output, dbt run, diff analysis). Upstream task schema has no such field. The result is "AC passed" claims that can't be audited. Port to upstream task schema; require population before PR review.
 
 ### `[backlog]` `spec_followups:` section convention
 Referenced in SPEC-001's `batch_followup_and_accept` routing path. Defines where nit findings get logged when they don't block merge. Conventions: append to the spec or a sibling file, format, when grooming tasks get created from accumulated followups. Small spec; can ship with or after SPEC-001.
 
 ### `[completed]` Spec gap capture pattern (GAP-NNN) → SPEC-004
-High-gear has `SPEC-029-SUPERVISION.md` and `hot-fix GAP-008`-style commits, indicating a convention for tracking gaps discovered mid-execution. Upstream has no formalized "gap" artifact distinct from amendments. Decide: are gaps a sub-class of amendment, a sibling artifact, or just a tagging convention on amendment commits?
+The reference implementation has `SPEC-029-SUPERVISION.md` and `hot-fix GAP-008`-style commits, indicating a convention for tracking gaps discovered mid-execution. Upstream has no formalized "gap" artifact distinct from amendments. Decide: are gaps a sub-class of amendment, a sibling artifact, or just a tagging convention on amendment commits?
 
 ### `[completed]` Strengthen `spec-completion` skill → SPEC-004
-Skill exists upstream but high-gear's version is more rigorous — it explicitly verifies success criteria (not just task completion), checks integration, measurement, and manual validation. Port the depth.
+Skill exists upstream but the reference implementation's version is more rigorous — it explicitly verifies success criteria (not just task completion), checks integration, measurement, and manual validation. Port the depth.
 
 ### `[completed]` Skill-level enforcement of `workspaces` / `verify_workspaces` → SPEC-004
-These fields exist in upstream task/spec schema but the upstream `sdlc-code-review` skill mentions them as "if set, check"; in high-gear, they're enforced (a PR that breaks a workspace not in `verify_workspaces` is a finding). Tighten upstream skills to enforce.
+These fields exist in upstream task/spec schema but the upstream `sdlc-code-review` skill mentions them as "if set, check"; in the reference implementation, they're enforced (a PR that breaks a workspace not in `verify_workspaces` is a finding). Tighten upstream skills to enforce.
 
 ### `[deferred]` `DESIGN.md` and `figma_frame:` task fields
-High-gear has `.ai/DESIGN.md` (Figma frame mapping) and `figma_frame:` URL on tasks that need design verification. Optional pattern — only relevant when the consumer has a design surface. Port as an *optional* convention so it doesn't add ceremony for consumers without designs.
+The reference implementation has `.ai/DESIGN.md` (Figma frame mapping) and `figma_frame:` URL on tasks that need design verification. Optional pattern — only relevant when the consumer has a design surface. Port as an *optional* convention so it doesn't add ceremony for consumers without designs.
 
 ---
 
 ## Initiative: sdlc-multi-agent
 
-High-gear runs Claude Code, Jules, and Gemini side-by-side; upstream framework was built around Claude + Jules. The patterns for keeping multiple agents coherent need to port back.
+The reference implementation runs Claude Code, Jules, and Gemini side-by-side; upstream framework was built around Claude + Jules. The patterns for keeping multiple agents coherent need to port back.
 
 ### `[backlog]` Three role-specific entry points with consistent shape
-High-gear has `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` with prescriptive role framing ("You are the orchestrator", "You are a task executor"). Upstream has the first two but no consistent template. Decide: do we ship `GEMINI.md` upstream, or do we ship a single agent-entry-point template that the consumer instantiates per agent?
+The reference implementation has `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` with prescriptive role framing ("You are the orchestrator", "You are a task executor"). Upstream has the first two but no consistent template. Decide: do we ship `GEMINI.md` upstream, or do we ship a single agent-entry-point template that the consumer instantiates per agent?
 
 ### `[backlog]` Worktree isolation rule as a standalone doc
 Referenced in SPEC-002 with the 2026-04-24 stash-incident justification. Belongs as a top-level rule (e.g., in `agent-orchestration.md` or a sibling doc) so consumers find it without reading SPEC-002. Small; can ship with the SPEC-002 work.
 
 ### `[backlog]` `.ai/project.md` workspace dependency graph + change propagation pattern
-High-gear's `project.md` ballooned to 406 lines and includes a workspace dependency graph and explicit "when X changes, also verify Y" propagation rules. Upstream `templates/project.md` is generic. Port as an *optional* monorepo extension — single-app consumers don't need it.
+The reference implementation's `project.md` ballooned to 406 lines and includes a workspace dependency graph and explicit "when X changes, also verify Y" propagation rules. Upstream `templates/project.md` is generic. Port as an *optional* monorepo extension — single-app consumers don't need it.
 
 ### `[backlog]` Auto-merge bookkeeping workflow template
-High-gear has `.github/workflows/auto-merge-sdlc-bookkeeping.yml` that auto-merges status flips, index updates, and spec-index entries (PRs titled `sdlc: bookkeeping`, capped at 100 lines, gated on CI). Ship upstream as a reference template under `templates/ci/` or similar.
+The reference implementation has `.github/workflows/auto-merge-sdlc-bookkeeping.yml` that auto-merges status flips, index updates, and spec-index entries (PRs titled `sdlc: bookkeeping`, capped at 100 lines, gated on CI). Ship upstream as a reference template under `templates/ci/` or similar.
 
 ### `[deferred]` Deeper Jules orchestration patterns
-High-gear's `CLAUDE.md` has more depth around Jules: source ID discovery, fallback flow when Jules unavailable, MCP wiring for Jules. Upstream version is solid but high-gear has lived experience. Port the lessons (not the full file) into upstream `.ai/CLAUDE.md`.
+The reference implementation's `CLAUDE.md` has more depth around Jules: source ID discovery, fallback flow when Jules unavailable, MCP wiring for Jules. Upstream version is solid but the reference implementation has lived experience. Port the lessons (not the full file) into upstream `.ai/CLAUDE.md`.
 
 ---
 
@@ -117,10 +117,10 @@ These are success criteria from `status: completed` specs that couldn't be verif
 **Owner:** franklin. **Trigger:** after the first 3 specs reviewed under the new system have produced ≥10 intersection findings (same `location` across two reviewer configs). **Method:** run `spec-reviewer` twice per spec — default + adversarial variant from `.ai/skills/review-primitives.md` — compute agreement per AC-010 protocol. Pass: ≥80% matching severity on intersection findings.
 
 ### `[deferred-verify]` SPEC-001 two metrics improve vs SPEC-042 baseline
-**Owner:** franklin. **Trigger:** after the next high-gear spec executes under the new `spec-execution` orchestrator. **Method:** compare per-task fix-loop iterations and hot-fix commit count against `specs/baselines/SPEC-042.md`. Pass: both metrics ≤ baseline values.
+**Owner:** franklin. **Trigger:** after the next the reference implementation spec executes under the new `spec-execution` orchestrator. **Method:** compare per-task fix-loop iterations and hot-fix commit count against `specs/baselines/SPEC-042.md`. Pass: both metrics ≤ baseline values.
 
 ### `[deferred-verify]` SPEC-001 no regression in defect catch rate
-**Owner:** franklin. **Trigger:** after 2 completed specs in high-gear under the new model. **Method:** track post-merge defect rate per merged PR; compare to baseline derived from SPEC-042-era PRs. Pass: rate ≤ baseline.
+**Owner:** franklin. **Trigger:** after 2 completed specs in the reference implementation under the new model. **Method:** track post-merge defect rate per merged PR; compare to baseline derived from SPEC-042-era PRs. Pass: rate ≤ baseline.
 
 ### `[deferred-verify]` SPEC-002 runtime telemetry actually logged
 **Owner:** franklin. **Trigger:** first dispatch of new `spec-execution` on a real spec. **Method:** inspect `specs/tasks/SPEC-NNN/_execution.log.jsonl` after one wave; verify event types and field shapes match the worked example at `.ai/skills/spec-execution/examples/example-execution.log.jsonl`. Pass: all dispatched/tier_0/tier_1/routed/merged events present and schema-conformant.
@@ -128,8 +128,8 @@ These are success criteria from `status: completed` specs that couldn't be verif
 ### `[deferred-verify]` SPEC-004 first task under updated framework has populated evidence on all ACs
 **Owner:** franklin. **Trigger:** first task PR opened under the updated framework (after SPEC-004 merges to main 2026-05-19). **Method:** inspect the task PR to confirm every AC has a non-empty `evidence:` field populated by the implementing agent at PR review time. Pass: all ACs have populated evidence; Tier 0 gate does not block the PR.
 
-### `[deferred-verify]` SPEC-002 new orchestrator replaces legacy on next high-gear spec
-**Owner:** franklin. **Trigger:** when high-gear's next spec is ready to dispatch. **Method:** confirm the upstream `spec-execution` skill is the invoked orchestrator (not the legacy 4-reviewer fan-out); keep high-gear-local version as `spec-execution-legacy/` for one spec to enable side-by-side comparison per SPEC-001 migration step 6. Pass: new orchestrator drives spec end-to-end with telemetry log written.
+### `[deferred-verify]` SPEC-002 new orchestrator replaces legacy on next the reference implementation spec
+**Owner:** franklin. **Trigger:** when the reference implementation's next spec is ready to dispatch. **Method:** confirm the upstream `spec-execution` skill is the invoked orchestrator (not the legacy 4-reviewer fan-out); keep the reference implementation-local version as `spec-execution-legacy/` for one spec to enable side-by-side comparison per SPEC-001 migration step 6. Pass: new orchestrator drives spec end-to-end with telemetry log written.
 
 ---
 
@@ -148,7 +148,7 @@ SPEC-002 declares `depends_on: [SPEC-001]`. Today this is a frontmatter field wi
 Current `templates/spec.md` is the shape both SPEC-001 and SPEC-002 used. After the first dogfood pass through `spec-reviewer` (once it exists), the template itself may need adjustments. Defer until then.
 
 ### `[deferred]` Skill discoverability index
-The framework now has ≥8 process skills and (in high-gear) ≥11 domain skills. A flat list in `skills.md` works at this size but won't at 30+. Consider an index by trigger keyword, by SDLC phase, or by artifact type.
+The framework now has ≥8 process skills and (in the reference implementation) ≥11 domain skills. A flat list in `skills.md` works at this size but won't at 30+. Consider an index by trigger keyword, by SDLC phase, or by artifact type.
 
 ### `[deferred]` "Migrating to the SDLC" guide for existing repos
 The onboarding initiative covers greenfield + joining-an-existing-team. A *migration* guide — how to introduce specs into a repo with existing tickets, history, and conventions — is its own piece of work. Capture once onboarding lands.
