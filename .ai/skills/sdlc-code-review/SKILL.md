@@ -85,11 +85,11 @@ Check:
 
 Enforce the following checks — these are blockers, not advisories:
 
-- **`monorepo:workspace-scope`** (blocker) — PR modifies files outside the declared `workspace` field in the task frontmatter. Every modified file path must fall within the workspace's root directory as defined in `.ai/project.md`.
-- **`monorepo:verify-coverage`** (blocker) — PR fails tests in any workspace listed in `verify_workspaces`. Run ALL workspaces in `verify_workspaces`, not just the primary.
-- **`monorepo:boundary`** (blocker) — Import-graph violation: a file in workspace A imports from workspace B against the dependency graph in `.ai/project.md`. Distinct from file-touch violations (`monorepo:workspace-scope`) — this is about import semantics, not file location.
+- **`monorepo:workspace-scope`** — PR modifies files outside the declared `workspace` field in the task frontmatter. Every modified file path must fall within the workspace's root directory as defined in `.ai/project.md`.
+- **`monorepo:verify-coverage`** — PR fails tests in any workspace listed in `verify_workspaces`. Run ALL workspaces in `verify_workspaces`, not just the primary.
+- **`monorepo:boundary`** — Import-graph violation: a file in workspace A imports from workspace B against the dependency graph in `.ai/project.md`. Distinct from file-touch violations (`monorepo:workspace-scope`) — this is about import semantics, not file location.
 
-Three non-overlapping prefixes. Use the matching prefix when raising the finding.
+Three non-overlapping prefixes, all blockers (severity assigned in SPEC-004 AC-006). Use the matching prefix when raising the finding.
 
 **Boundary task check:** If this task produces output that a downstream task consumes (check `blocks` in the task file):
 - Does the implementation match the boundary constraints specified in the task? (column names, types, export signatures)
