@@ -686,7 +686,7 @@ the Phase / step named in the column.
 
 Per-task events are appended to
 `specs/tasks/SPEC-NNN/_execution.log.jsonl`. The file is JSONL — one
-event per line, append-only, restart-safe by construction. Three events are
+event per line, append-only, restart-safe by construction. Four events are
 **per-spec** (not per-task): `integration_strategy_resolved` (fired once
 at Phase 1 step 1a, before any task dispatch), `spec_amendment_dispatched`
 (fired at the amendment hand-off), `gap_dispatched` and `gap_resolved`
