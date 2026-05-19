@@ -19,11 +19,17 @@ Intent arrives ("I want to build X", "we need to fix Y", brain dump)
   │
   ├─ /spec-completion        ← verify success criteria and close out a finished spec
   │
-  ├─ /jules-dispatch         ← route and fire jules-eligible tasks
+  ├─ /spec-execution         ← drive an active spec end-to-end: wave dispatch, review, integration
   │
   ├─ /sdlc-code-standards    ← coding principles (DRY, YAGNI, etc.) applied during implementation
   │
   ├─ /sdlc-code-review       ← review PRs against spec + acceptance criteria + standards
+  │
+  ├─ /pr-reviewer            ← emit graded JSON findings (blocker/major/nit/suggestion) for a PR
+  │
+  ├─ review-primitives       ← shared severity spine, output schema, carry-forward (doc, not a /skill)
+  │
+  ├─ /spec-reviewer          ← emit graded JSON findings for a draft spec or amendment
   │
   ├─ /bug-triage              ← NOC agent workflow: intake → normalize → reproduce → classify
   │
@@ -50,8 +56,8 @@ Skills form three layers. See [skill-architecture.md](skill-architecture.md) for
 
 ```
 Layer 3: Behavioral (Superpowers)     ~/.claude/skills/        personal
-Layer 2: SDLC Process                 .claude/skills/          project (repo root)
-Layer 1: Domain                       .claude/skills/          project (repo root)
+Layer 2: SDLC Process                 .ai/skills/              project (repo root)
+Layer 1: Domain                       .ai/skills/              project (repo root)
 ```
 
 All three are active simultaneously. They compose, not conflict:
@@ -63,16 +69,19 @@ All three are active simultaneously. They compose, not conflict:
 
 ```
 your-repo/
-├── .claude/skills/             ← ALL project skills at root (travel with the repo)
+├── .ai/skills/                 ← ALL project skills (canonical location; travel with the repo)
 │   │
 │   │  # SDLC process skills (Layer 2)
 │   ├── spec-authoring/SKILL.md
 │   ├── task-decomposition/SKILL.md
 │   ├── sdlc-code-standards/SKILL.md
 │   ├── sdlc-code-review/SKILL.md
-│   ├── jules-dispatch/SKILL.md     (to be created)
-│   ├── bug-triage/SKILL.md         (to be created)
-│   ├── sdlc-status/SKILL.md        (to be created)
+│   ├── spec-execution/SKILL.md
+│   ├── pr-reviewer/SKILL.md
+│   ├── spec-reviewer/SKILL.md
+│   ├── review-primitives.md        ← shared primitives doc (not a /skill)
+│   ├── bug-triage/SKILL.md
+│   ├── sdlc-status/SKILL.md
 │   │
 │   │  # Domain skills (Layer 1) — prefixed by workspace/technology
 │   ├── dbt-cartographer/SKILL.md
@@ -80,6 +89,8 @@ your-repo/
 │   ├── nextjs-app-patterns/SKILL.md
 │   └── shared-package-patterns/SKILL.md
 │
+├── .claude/skills/             ← symlink → .ai/skills/ (created by bootstrap.sh so Claude Code
+│                                   can discover skills from its expected location)
 ├── .ai/                        ← agent config (process definition)
 │   └── project.md              ← maps workspaces → domain skills
 ├── specs/                      ← specs, tasks, ADRs, bugs
@@ -94,7 +105,9 @@ your-repo/
 └── ...
 ```
 
-**Why all at root?** Claude Code loads skills from `.claude/skills/` relative to the working directory. In a monorepo, you work from root. Skills in `dbt/.claude/skills/` are invisible from root. Root placement means everything is always visible — naming convention (`dbt-*`, `nextjs-*`) signals the scope.
+**Why all at root?** Claude Code discovers project skills via `.claude/skills/` relative to the working directory — that path is kept as a symlink to `.ai/skills/` so Claude Code's discovery mechanism works without duplicating files. In a monorepo, you work from root. Skills in `dbt/.ai/skills/` are invisible from root without the root-level symlink. Root placement means everything is always visible — naming convention (`dbt-*`, `nextjs-*`) signals the scope.
+
+The canonical skill files live in `.ai/skills/`. The `.claude/skills/` directory is a symlink to `.ai/skills/`, created by `bootstrap.sh`, so that Claude Code discovers skills from its expected path without duplicating content.
 
 Claude Code loads both personal and project skills. Project skills override personal skills if names collide.
 
@@ -116,8 +129,8 @@ This is declarative — adding a new domain skill just requires creating the SKI
 
 ### What's personal vs. project
 
-| Personal (`~/.claude/skills/`) | Project (`.claude/skills/` in repo) |
-|-------------------------------|-------------------------------------|
+| Personal (`~/.claude/skills/`) | Project (`.ai/skills/` in repo) |
+|-------------------------------|----------------------------------|
 | Superpowers (behavioral discipline) | SDLC process skills |
 | Your personal workflow skills | Domain skills for this project's workspaces |
 | Anything not project-specific | Anything a new team member needs |
@@ -287,14 +300,53 @@ Three modes:
    - Does it pass?
 6. Checks coding standards (DRY, YAGNI, TDD, naming, error handling)
 7. Checks for regressions (does the diff break anything outside the task scope?)
-8. Produces a review with: criteria checklist, standards compliance, concerns, verdict
+8. Produces a review with: criteria checklist, standards compliance, concerns, and a routing action
 
-**Verdicts:**
-- **Approve:** All criteria met, standards followed, no concerns
-- **Request changes:** Specific issues with specific fixes
-- **Escalate:** Architectural concern, spec ambiguity, or scope creep that needs human judgment
+Per-finding severity (blocker/major/nit/suggestion) is rendered in the review comment. The merge/fix recommendation is derived from the SPEC-001 orchestrator severity→action policy (consumes pr-reviewer's JSON output).
 
-**Interacts with:** `requesting-code-review` (extends it with spec-awareness), `sdlc-code-standards` (applies standards during review)
+**Verdicts:** The review routes to one of four actions per the SPEC-001 policy: `fix_loop` (blockers or majors present — author must address and resubmit), `batch_followup_and_accept` (only nits or suggestions — PR merges and a grooming task captures the follow-ups), `accept` (no findings — PR merges immediately), or `escalate` (ungrounded criterion prefix detected, indicating a contract violation or unrecognized cross-skill signal requiring human judgment).
+
+**Interacts with:** `requesting-code-review` (extends it with spec-awareness), `sdlc-code-standards` (applies standards during review), `pr-reviewer` (structured JSON source for findings and routing), `review-primitives` (severity spine and orchestrator policy)
+
+### 5b. review-primitives (shared primitives doc)
+
+**Trigger:** consumed automatically by `pr-reviewer` and `spec-reviewer` at dispatch time; also read by `spec-execution` to load the orchestrator severity→action policy at runtime. Not a skill invoked directly.
+
+**What it is:** The single source of truth for the four-level severity spine (blocker/major/nit/suggestion), the PR-side and spec-side consequence catalogs, grounding rules (allowed citation prefixes per reviewer role), the shared JSON output schema, carry-forward semantics across review iterations, the orchestrator severity→action policy pseudocode, and the two prompt variants (default and adversarial) required by the AC-010 measurement protocol. Both reviewer skills (`pr-reviewer` and `spec-reviewer`) MUST reference this file rather than redefining these contracts; drift is a SPEC-001 contract violation.
+
+**Key rule:** This is a document, not a `/skill` directory — it lives at `.ai/skills/review-primitives.md` directly. It is content-equivalent to SPEC-001 Design > Shared primitives + Orchestrator severity→action policy; SPEC-001 remains the spec of record; this file is the operational contract the skills load at runtime.
+
+**Interacts with:** `pr-reviewer` (severity catalog, output schema, carry-forward, policy), `spec-reviewer` (same), `spec-execution` (policy pseudocode loaded at orchestrator runtime)
+
+### 5c. pr-reviewer
+
+**Trigger:** invoked by `spec-execution` after Tier 0 CI gates pass for a task PR; also invocable on demand ("review PR #NNN"). Emits machine-parseable JSON, not freehand prose.
+
+**What it does:** Grades a single PR against its task file, parent spec, and applicable ADRs using the PR-side consequence catalog from `review-primitives.md`. Evaluates Tier 2 dispatch rules (cross_spec, adversarial, domain:dbt, domain:nextjs, domain:playwright) and populates `tier_2_dispatch_recommended` in its output. Supports carry-forward of `nit` and `suggestion` findings across fix iterations when the finding's file is absent from the new diff. Emits the shared JSON envelope with `artifact: "pr"`, `tier: 1`, a populated `verification` object, and `tier_2_dispatch_recommended`.
+
+**Key rule:** This skill grades; it does not decide. The `spec-execution` orchestrator routes based on the severity→action policy in `review-primitives.md`. A finding without a grounded citation prefix (per the allowed list in `review-primitives.md` > Grounding rules) is not raised.
+
+**Interacts with:** `review-primitives` (severity catalog, schema, policy — single source of truth), `spec-execution` (orchestrator that dispatches and routes on output), `sdlc-code-review` (human-readable rendering of these findings is produced there)
+
+### 5d. spec-reviewer
+
+**Trigger:** invoked automatically at the end of `spec-authoring` Phase 2 (before user sign-off), after every `spec-amendment`, and on demand ("review SPEC-NNN"). Accepts a `variant` parameter (`"default"` or `"adversarial"`); defaults to `"default"`.
+
+**What it does:** Grades a draft spec or amendment against the spec schema, authoring conventions, the originating intent, referenced ADRs, and cross-spec contracts (both upstream `depends_on` and downstream specs that declare `depends_on` on this spec). Actively checks 9 gap categories: workspace-coverage gap, untestable AC, contradictory AC, missing required section, cross-spec contradiction, missing migration plan, unstated cross-workspace impact, unscoped scope, and risk surface omission. Emits the shared JSON envelope with `artifact: "spec"`, `tier: 1`, `verification: null`, `tier_2_dispatch_recommended: []`. The adversarial variant additionally emits a `coverage_summary` field (required for the SPEC-001 AC-010 ≥80%-agreement measurement).
+
+**Key rule:** The spec owner remains the sign-off authority; this skill produces grounded findings, not approval decisions. Severity for each gap category is determined by the spec-side consequence catalog in `review-primitives.md`, not redefined here.
+
+**Interacts with:** `spec-authoring` (invoked at Phase 2 sign-off gate), `spec-amendment` (invoked after every amendment), `review-primitives` (severity catalog, output schema, carry-forward, prompt variants), `spec-execution` (orchestrator handles spec-amendment cross-skill signals based on this reviewer's output)
+
+### 5e. spec-execution
+
+**Trigger:** "execute SPEC-NNN," "run this spec end-to-end," or when an active spec needs to be driven from task dispatch through integration PR. The spec must have `status: active`.
+
+**What it does:** Drives an active spec end-to-end in three phases. Phase 1 initializes: verifies spec status, creates the `feat/spec-NNN` integration branch, builds the wave graph (topological sort of task dependencies), detects cycles, initializes the telemetry log (`_execution.log.jsonl`), starts the wall-clock watchdog (4-hour per-task limit), and materializes the spec-amendment counter from the log. Phase 2 runs the wave loop: dispatches executors dynamically as `depends_on` are satisfied (Jules via CLI or claude-code subagents with mandatory `isolation: "worktree"`), gates LLM review on Tier 0 CI green, dispatches `pr-reviewer` (Tier 1) then Tier 2 specialists in parallel, validates reviewer output schema, detects cross-skill signals (task:scope → task-decomposition replan; spec:* → spec-amendment up to cap of 2), applies the SPEC-001 severity→action policy, and routes each task to `fix_loop` / `batch_followup_and_accept` / `accept` / `escalate`. Phase 3 opens the integration PR to `main` and invokes `spec-completion`.
+
+**Key rules:** This is a rigid skill — every step must be followed. Hard constraints: worktree isolation for all claude-code background agents; Tier 0 before any LLM review; fix-loop cap of 3 per task (shared across Tier 0 and Tier 1); task PRs merge only to `feat/spec-NNN`, never `main`; reviewer output schema validated before routing; spec-amendment cap of 2 per spec (log-derived, restart-safe).
+
+**Interacts with:** `pr-reviewer` (Tier 1 reviewer dispatched per task), `spec-reviewer` (invoked via spec-amendment cross-skill signal), `review-primitives` (policy pseudocode loaded at runtime), `spec-completion` (invoked in Phase 3 after all tasks done), `task-decomposition` (replan signal), `spec-amendment` (spec-signal handler)
 
 ### 6. bug-triage
 
