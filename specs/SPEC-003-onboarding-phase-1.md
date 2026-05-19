@@ -35,7 +35,7 @@ This is INI-002 (sdlc-onboarding) territory and was user-flagged as priority. Th
 
 - `bootstrap.sh` rewrite: source from `.ai/skills/`, create `.claude/skills/` as a symlink to `.ai/skills/` (with cross-platform fallback to copy on Windows), create `specs/baselines/`, copy `templates/initiatives.md` to `specs/initiatives.md` if missing.
 - New file: `templates/initiatives.md` (the template).
-- `README.md` refresh: skills table, docs table trimmed to exactly 6 essential pointers (per AC-007), "what's the current state" pointer to SPEC-001/SPEC-002, mention of `specs/` directory as the framework's own dogfooding.
+- `README.md` refresh: skills table, docs table trimmed to **exactly 6 essential pointers** (per AC-007: `spec-schema.md`, `task-schema.md`, `playbook.md`, `skills.md`, `skill-architecture.md`, `specs/_index.md`), "what's the current state" pointer to SPEC-001/SPEC-002, mention of `specs/` directory as the framework's own dogfooding.
 - `skills.md` refresh: add `review-primitives.md`, `pr-reviewer`, `spec-reviewer`, `spec-execution`; fix all `.claude/skills/` references to `.ai/skills/`; update `sdlc-code-review` entry to graded model.
 - `skill-architecture.md` refresh: same skill additions in Layer 2 list and inventory table; fix all path references.
 - `.ai/setup.md` refresh: directory structure section + daily workflow note acknowledging the new model.
