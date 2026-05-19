@@ -1,7 +1,7 @@
 ---
 id: SPEC-004
 title: Artifact completeness ports from high-gear
-status: draft
+status: active
 version: 1
 supersedes:
 initiative: INI-003

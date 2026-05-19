@@ -1,7 +1,7 @@
 ---
 id: SPEC-005
 title: Conditional integration-branch strategy for spec-execution
-status: draft
+status: active
 version: 1
 supersedes:
 initiative: INI-001

@@ -16,9 +16,9 @@ Tightening the developer loop without losing the rigor that catches real defects
 |---|---|---|---|---|
 | [SPEC-001](SPEC-001-tiered-code-review.md) | Graded review for specs and PRs | completed | INI-001 | — |
 | [SPEC-002](SPEC-002-spec-execution-orchestration.md) | Spec execution orchestration — wave-based loop with tiered review | completed | INI-001 | SPEC-001 |
-| [SPEC-003](SPEC-003-onboarding-phase-1.md) | Onboarding simplification — Phase 1 (docs + bootstrap fix) | draft | INI-002 | — |
-| [SPEC-004](SPEC-004-artifact-completeness-ports.md) | Artifact completeness ports from high-gear | draft | INI-003 | — |
-| [SPEC-005](SPEC-005-conditional-integration-branch.md) | Conditional integration-branch strategy for spec-execution | draft | INI-001 | SPEC-002 |
+| [SPEC-003](SPEC-003-onboarding-phase-1.md) | Onboarding simplification — Phase 1 (docs + bootstrap fix) | active | INI-002 | — |
+| [SPEC-004](SPEC-004-artifact-completeness-ports.md) | Artifact completeness ports from high-gear | active | INI-003 | — |
+| [SPEC-005](SPEC-005-conditional-integration-branch.md) | Conditional integration-branch strategy for spec-execution | active | INI-001 | SPEC-002 |
 
 ## Reading order for a fresh contributor
 

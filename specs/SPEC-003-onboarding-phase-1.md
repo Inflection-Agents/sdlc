@@ -1,7 +1,7 @@
 ---
 id: SPEC-003
 title: Onboarding simplification — Phase 1 (docs + bootstrap fix)
-status: draft
+status: active
 version: 1
 supersedes:
 initiative: INI-002
