@@ -79,7 +79,7 @@ New initiatives are added by editing this file as part of the spec that introduc
 
 ### `README.md` refresh
 
-- **Docs table:** trim to 5-6 essential pointers (`spec-schema.md`, `task-schema.md`, `playbook.md`, `skills.md`, `skill-architecture.md`, plus the `specs/` dogfooded backlog). Reference but don't enumerate the agent config (`agent-orchestration.md`, `sync.md`, etc.) — those are deeper material.
+- **Docs table:** trim to exactly 6 essential pointers (`spec-schema.md`, `task-schema.md`, `playbook.md`, `skills.md`, `skill-architecture.md`, `specs/_index.md`). Reference but don't enumerate the agent config (`agent-orchestration.md`, `sync.md`, etc.) — those are deeper material.
 - **New "Current state" section:** explicit "this framework is dogfooded — see `specs/SPEC-001-*.md` for graded review primitives and `specs/SPEC-002-*.md` for the orchestration model." Pointer to `specs/intents.md` for the live backlog.
 - **`.ai/` directory table:** add `skills/` subdirectory.
 - **Onboarding section:** unchanged in shape, but the `./bootstrap.sh` command now works correctly (per the rewrite above).
