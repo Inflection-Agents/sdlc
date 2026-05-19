@@ -12,10 +12,13 @@ This framework dogfoods itself — improvements to the SDLC ship as specs in thi
 
 Tightening the developer loop without losing the rigor that catches real defects. Source of pain: high-gear's downstream use revealed that uniform-depth review (4 always-on reviewers, binary verdict) was high-signal but too slow, and that the most expensive defects (spec gaps) were the ones leaking from spec time into PR time as hot-fix amendments.
 
-| ID | Title | Status | Depends on |
-|---|---|---|---|
-| [SPEC-001](SPEC-001-tiered-code-review.md) | Graded review for specs and PRs | draft | — |
-| [SPEC-002](SPEC-002-spec-execution-orchestration.md) | Spec execution orchestration — wave-based loop with tiered review | draft | SPEC-001 |
+| ID | Title | Status | Initiative | Depends on |
+|---|---|---|---|---|
+| [SPEC-001](SPEC-001-tiered-code-review.md) | Graded review for specs and PRs | completed | INI-001 | — |
+| [SPEC-002](SPEC-002-spec-execution-orchestration.md) | Spec execution orchestration — wave-based loop with tiered review | completed | INI-001 | SPEC-001 |
+| [SPEC-003](SPEC-003-onboarding-phase-1.md) | Onboarding simplification — Phase 1 (docs + bootstrap fix) | draft | INI-002 | — |
+| [SPEC-004](SPEC-004-artifact-completeness-ports.md) | Artifact completeness ports from high-gear | draft | INI-003 | — |
+| [SPEC-005](SPEC-005-conditional-integration-branch.md) | Conditional integration-branch strategy for spec-execution | draft | INI-001 | SPEC-002 |
 
 ## Reading order for a fresh contributor
 
