@@ -140,16 +140,121 @@ skill's behavior.
 
 ### Phase 1 — Initialize
 
-Phase 1 runs once per spec execution. The seven steps must run in order.
+Phase 1 runs once per spec execution. The eight steps must run in order.
 
 1. **Verify spec is `status: active`.** Read the spec frontmatter; refuse
    to start if `status != "active"`. A spec in `draft` is not ready for
    decomposition; a spec in `done` does not need re-execution; a spec in
    `archived` is closed. Only `active` specs are dispatchable.
 
-2. **Create integration branch.** Create `feat/spec-NNN` off `main`. This
-   is the merge target for every task PR (per Hard constraint 5). Push the
-   branch to the remote so task PRs can target it.
+1a. **Resolve integration strategy.** Immediately after verifying the spec
+    is active, determine whether this execution uses a `branch` or `direct`
+    integration strategy. This step produces the `integration_strategy` and
+    `integration_strategy_source` values that govern Phase 2 target routing
+    and Phase 3 flow selection.
+
+    **AC-009 sidecar check (before resolution).** Before invoking the
+    resolver, check for a sidecar file at
+    `specs/tasks/SPEC-NNN/_expected_strategy`. If the file exists, read its
+    single-line content (`branch` or `direct`) and store it as
+    `expected_strategy`. Do NOT delete the sidecar yet — deletion happens
+    after the comparison is recorded (see below).
+
+    **Resolution algorithm (canonical source):**
+
+    ```python
+    def resolve_integration_strategy(spec):
+        # 1. Explicit field wins.
+        if spec.frontmatter.get("integration_strategy") in ("branch", "direct"):
+            return spec.frontmatter["integration_strategy"], "explicit"
+
+        # 2. Heuristic fallback.
+        task_count = len(spec.tasks)
+        workspaces = spec.frontmatter.get("workspaces") or []
+        tags = spec.frontmatter.get("tags") or []
+        cross_workspace_blocks = any_cross_workspace_blocks(spec.tasks)
+
+        if ("breaking" in tags
+            or len(workspaces) > 1
+            or task_count >= 5
+            or cross_workspace_blocks):
+            return "branch", "heuristic"
+        return "direct", "heuristic"
+
+    def any_cross_workspace_blocks(tasks):
+        """True iff some task T has a non-empty blocks entry pointing at task U
+        such that T.workspace != U.workspace AND both fields are non-empty.
+        If either workspace is missing on T or U, that pair does NOT count."""
+        by_id = {t.id: t for t in tasks}
+        for t in tasks:
+            if not t.workspace:
+                continue
+            for u_id in (t.blocks or []):
+                u = by_id.get(u_id)
+                if u and u.workspace and u.workspace != t.workspace:
+                    return True
+        return False
+    ```
+
+    **Why these signals:**
+    - `breaking` tag → explicit author signal that partial deploy would harm
+      consumers.
+    - `len(workspaces) > 1` → multi-workspace spec needs coordinated landing.
+    - `task_count >= 5` → bookkeeping overhead of a feature branch amortizes
+      when there are ≥5 PRs.
+    - `cross_workspace_blocks` → producer-consumer contract crosses workspaces;
+      verify the contract in one place before merging to main.
+
+    **Worked examples (4+1 cases):**
+
+    - **Case A — `breaking` tag → `branch` (heuristic).**
+      Spec: `tags: [breaking, auth-refactor]`, 3 tasks, 1 workspace, no
+      cross-workspace blocks. Signal: `"breaking" in tags`. Resolved:
+      `strategy="branch"`, `source="heuristic"`.
+
+    - **Case B — multi-workspace → `branch` (heuristic).**
+      Spec: `tags: []`, 2 tasks, `workspaces: [api, web]`, no cross-workspace
+      blocks. Signal: `len(workspaces) > 1`. Resolved:
+      `strategy="branch"`, `source="heuristic"`.
+
+    - **Case C — 5+ tasks → `branch` (heuristic).**
+      Spec: `tags: []`, 6 tasks, 1 workspace, no cross-workspace blocks.
+      Signal: `task_count >= 5`. Resolved:
+      `strategy="branch"`, `source="heuristic"`.
+
+    - **Case D — cross-workspace blocks → `branch` (heuristic).**
+      Spec: `tags: []`, 4 tasks, 2 workspaces. TASK-A (`workspace: api`)
+      blocks TASK-B (`workspace: web`). Signal: `cross_workspace_blocks=True`.
+      Resolved: `strategy="branch"`, `source="heuristic"`.
+
+    - **Case E — none of the above → `direct` (heuristic).**
+      Spec: `tags: [docs-update]`, 2 tasks, 1 workspace, no cross-workspace
+      blocks. All four signals false. Resolved:
+      `strategy="direct"`, `source="heuristic"`.
+
+    **Emit `integration_strategy_resolved` telemetry event** immediately after
+    resolution, before any branch creation (see Telemetry below for the
+    full field schema).
+
+    **AC-009 sidecar comparison (after resolution).** If `expected_strategy`
+    was read from the sidecar: compare it to the resolved `strategy`. Record
+    the result (match/mismatch + both values) to the spec-completion
+    deferred-verifications table per SPEC-004 Design > 3, with:
+    - Owner: spec owner
+    - Trigger: first spec executed under updated orchestrator
+    - Method: read sidecar → read `integration_strategy_resolved.strategy`
+      from `_execution.log.jsonl` → compare
+
+    After recording the comparison, delete the sidecar in a follow-up commit
+    on the spec's integration branch (or `main` in direct mode). The sidecar
+    is outside `spec-schema.md`'s frontmatter validation surface and requires
+    no schema change.
+
+2. **Create integration branch (branch mode only).** If
+   `integration_strategy == "branch"`: create `feat/spec-NNN` off `main`
+   and push the branch to the remote so task PRs can target it.
+   If `integration_strategy == "direct"`: skip this step — no integration
+   branch is created; task PRs target `main` directly.
 
 3. **Build the wave graph.** Topologically sort tasks by their
    `depends_on` / `blocks` frontmatter. Assign each task a **wave integer**
@@ -207,6 +312,20 @@ are dispatched dynamically: any task whose `depends_on` are all `done` is
 eligible for immediate dispatch. The wave integer from Phase 1 step 3 is
 recorded but does not gate dispatch.
 
+**`target_branch` variable.** The resolved integration strategy from Phase
+1 step 1a determines where task PRs are merged:
+
+```python
+if integration_strategy == "branch":
+    target_branch = "feat/" + spec.id   # e.g. "feat/SPEC-099"
+else:  # integration_strategy == "direct"
+    target_branch = "main"
+```
+
+Every `merge_task_pr` call in the per-task routing loop uses
+`target=target_branch` (see Appendix B). This is the canonical identifier —
+prose and pseudocode use this name; there is no synonym.
+
 For each eligible task:
 
 #### 1. Dispatch executor
@@ -235,8 +354,9 @@ For each eligible task:
     and the task's `depends_on:` references)
   - Applicable domain skill names (read from `.ai/project.md` per the
     workspace declared in the task's frontmatter)
-  - Integration branch name (`feat/spec-NNN`) — task PRs MUST target
-    this branch, not `main`
+  - Target branch (`target_branch` from Phase 2 preamble above) — task
+    PRs MUST target this branch. In `branch` mode this is `feat/spec-NNN`;
+    in `direct` mode this is `main`.
 
 - **Log the dispatch.** Append a `dispatched` telemetry event including
   the static `wave` integer from Phase 1 step 3, the `agent` value, and
@@ -260,7 +380,7 @@ discrepancy, **Appendix B is canonical**.
 ASCII flow:
 
 ```
-executor produces PR against feat/spec-NNN
+executor produces PR against target_branch (feat/spec-NNN in branch mode; main in direct mode)
      ↓
 Tier 0 (per SPEC-001 Design > PR side > Tier 0 — mechanical gates)
      ↓
@@ -302,9 +422,9 @@ Tier 0 (per SPEC-001 Design > PR side > Tier 0 — mechanical gates)
 
 Prose summary of the per-task lifecycle:
 
-- The executor produces a PR against `feat/spec-NNN`. The orchestrator
-  watches for the PR open event (or polls the executor's status until a
-  PR exists).
+- The executor produces a PR against `target_branch` (`feat/spec-NNN` in
+  `branch` mode; `main` in `direct` mode). The orchestrator watches for
+  the PR open event (or polls the executor's status until a PR exists).
 - **Tier 0 runs first** — CI mechanical gates per SPEC-001. On red, a
   fix agent is dispatched, the **shared** fix counter (across Tier 0
   and Tier 1) is incremented, and `last_reviewer_output` is reset to
@@ -348,7 +468,7 @@ Prose summary of the per-task lifecycle:
 
 #### 3. Mark task `done`
 
-When a task PR merges to `feat/spec-NNN` via the `accept` or
+When a task PR merges to `target_branch` via the `accept` or
 `batch_followup_and_accept` action, the task is marked `done` in
 `specs/tasks/SPEC-NNN/_index.yaml`. Re-evaluate eligible tasks; any task
 whose `depends_on` are now all `done` becomes eligible for immediate
@@ -361,6 +481,12 @@ to Phase 3.
 
 ### Phase 3 — Integration
 
+Phase 3 behavior is conditional on the `integration_strategy` resolved in
+Phase 1 step 1a. The trigger ("all tasks terminal") is the same in both
+modes; only the post-trigger actions differ.
+
+#### Branch mode (existing behavior)
+
 1. **Open integration PR.** When all tasks are terminal, open the
    integration PR: `feat/spec-NNN → main`. The PR description summarizes
    the spec, lists the merged task PRs in dependency order, and links
@@ -369,11 +495,64 @@ to Phase 3.
 2. **Invoke `spec-completion`.** Hand off to the `spec-completion` skill,
    which verifies the spec's acceptance criteria are met end-to-end and
    moves the spec to `status: done` (or back to `active` with follow-up
-   tasks if completion verification fails).
+   tasks if completion verification fails). `spec-completion` runs only if
+   at least one task is `done`; if all tasks are `cancelled`, skip
+   `spec-completion` and proceed directly to archiving.
 
 3. **Archive the execution log.** On integration PR merge, archive
    `specs/tasks/SPEC-NNN/_execution.log.jsonl` alongside the spec for
    later metric extraction (per SPEC-001 success criteria measurement).
+
+#### Direct mode (new behavior)
+
+1. **Detect all-tasks-terminal.** When all tasks reach a terminal state
+   (`done` or `cancelled`) — the same trigger Phase 2 step 4 already
+   defines — the orchestrator enters the direct-mode completion flow.
+
+2. **Conditional `spec-completion`.** Check task outcomes:
+   - If **at least one task is `done`**: invoke `spec-completion` against
+     the current `main` HEAD as the comparison baseline (no integration PR
+     exists). `spec-completion` verifies the spec's acceptance criteria
+     end-to-end and returns `accept` or re-opens with follow-up tasks.
+   - If **all tasks are `cancelled`**: skip `spec-completion` entirely,
+     mirroring `branch` mode's all-cancelled behavior — no integration PR
+     to open, no completion verification to run.
+
+3. **Archive the execution log.** After `spec-completion` returns `accept`
+   (or owner sign-off) — or after skipping in the all-cancelled case —
+   append a sentinel comment line to `specs/tasks/SPEC-NNN/_execution.log.jsonl`:
+
+   ```
+   # spec_completed: <iso8601>
+   ```
+
+   Lines starting with `#` are JSONL convention for human-readable markers;
+   JSONL parsers ignore them. This sentinel is NOT a new telemetry event —
+   the live telemetry schema stays at 10 event types. No integration PR
+   merge event is available in direct mode; the sentinel comment is the
+   archive trigger.
+
+#### Rollback semantics
+
+In-flight orchestrator processes (those dispatched before a revert of this
+skill to its pre-SPEC-005 state) are **unaffected by the revert** — they
+hold the pre-revert skill version in memory and continue under it until
+their wave loop terminates naturally. The revert only affects orchestrator
+processes started after the revert lands.
+
+For in-flight specs executing in `direct` mode at revert time: their task
+PRs continue merging to `main` until all tasks reach terminal state under
+the pre-revert behavior they were dispatched with.
+
+Newly-started orchestrator processes (post-revert) that encounter a spec
+with `integration_strategy: direct` in frontmatter will fail at Phase 1
+step 1a with an unrecognized-field error — because the reverted skill does
+not recognize the `integration_strategy` frontmatter field. The recovery
+path is to simultaneously revert `spec-schema.md` to strip the field
+declaration, so future spec drafts do not include it. The worked example
+log fixture (`.ai/skills/spec-execution/examples/example-execution.log.jsonl`)
+is also reverted (the `integration_strategy_resolved` event removed) so it
+stays consistent with the reverted schema.
 
 ## Cross-skill signals
 
@@ -445,12 +624,16 @@ the Phase / step named in the column.
 
 Per-task events are appended to
 `specs/tasks/SPEC-NNN/_execution.log.jsonl`. The file is JSONL — one
-event per line, append-only, restart-safe by construction. The
-`spec_amendment_dispatched` event is **per-spec**, not per-task — it
-records the amendment-counter state for the cap check (per Hard
-constraint 7 and Phase 1 step 7).
+event per line, append-only, restart-safe by construction. Two events are
+**per-spec** (not per-task): `integration_strategy_resolved` (fired once
+at Phase 1 step 1a, before any task dispatch) and
+`spec_amendment_dispatched` (fired at the amendment hand-off).
+
+The live telemetry schema has **10 event types** (SPEC-002's body documents
+9; SPEC-005 added the 10th via the "extend live artifacts" pattern):
 
 ```json
+{"ts": "<iso8601>", "spec": "SPEC-NNN", "event": "integration_strategy_resolved", "strategy": "branch|direct", "source": "explicit|heuristic", "signals": {"breaking_tag": <bool>, "multi_workspace": <bool>, "task_count_gte_5": <bool>, "cross_workspace_blocks": <bool>}}
 {"ts": "<iso8601>", "task": "TASK-NNN", "wave": <int>, "event": "dispatched", "agent": "claude-code|jules", "worktree": "<path>|null"}
 {"ts": "<iso8601>", "task": "TASK-NNN", "event": "tier_0", "outcome": "pass|fail", "commands": [...], "duration_ms": <int>, "fingerprint": "<hash>"}
 {"ts": "<iso8601>", "task": "TASK-NNN", "event": "tier_1", "blockers": <int>, "majors": <int>, "nits": <int>, "suggestions": <int>, "tier_2_recommended": [...], "duration_ms": <int>}
@@ -461,6 +644,11 @@ constraint 7 and Phase 1 step 7).
 {"ts": "<iso8601>", "task": "TASK-NNN", "event": "escalated", "reason": "<trigger>"}
 {"ts": "<iso8601>", "spec": "SPEC-NNN", "event": "spec_amendment_dispatched", "amendment_count": <int>}
 ```
+
+Note: there is no `spec_completed` event. In `direct` mode, the archive
+sentinel is a JSONL comment line (`# spec_completed: <iso8601>`) appended
+to the log, not a structured event. This keeps the live schema at exactly
+10 event types.
 
 Field notes:
 
@@ -485,6 +673,16 @@ Field notes:
   log on every orchestrator entry per Phase 1 step 7, so this field's
   value is also the count of `spec_amendment_dispatched` events in the
   log after this event is appended.
+- `strategy` (integration_strategy_resolved) is `"branch"` or `"direct"` —
+  the resolved strategy that governs Phase 2 and Phase 3 behavior.
+- `source` (integration_strategy_resolved) is `"explicit"` when the
+  `integration_strategy` frontmatter field was set, or `"heuristic"` when
+  the resolver fell through to the heuristic.
+- `signals` (integration_strategy_resolved) records the four boolean
+  heuristic inputs evaluated during resolution — useful for auditing why the
+  heuristic chose as it did. All four are populated regardless of `source`;
+  in the `explicit` path they describe the spec's state even though they
+  did not drive the decision.
 
 ## References to SPEC-001
 
@@ -530,7 +728,9 @@ In-loop triggers are visible here; out-of-loop triggers fire in Phase 1
 (Phase 2 step 1), or the cross-skill signal handler (Phase 2 step 2).
 
 ```python
-def route_task(task, pr, spec):
+def route_task(task, pr, spec, target_branch):
+    # target_branch is resolved in Phase 2 preamble:
+    #   "feat/" + spec.id  (branch mode)  OR  "main"  (direct mode)
     fix_count = 0                       # per-task TOTAL across Tier 0 + Tier 1
     last_reviewer_output = None         # carry-forward state
     tier_0_fingerprints = []
@@ -608,11 +808,11 @@ def route_task(task, pr, spec):
         if action == "batch_followup_and_accept":
             append_to_grooming(spec,
                                [f for f in all_findings if f.severity == "nit"])
-            merge_task_pr(pr, target=f"feat/{spec.id}")
+            merge_task_pr(pr, target=target_branch)
             log("merged", pr=pr.number); return
 
         if action == "accept":
-            merge_task_pr(pr, target=f"feat/{spec.id}")
+            merge_task_pr(pr, target=target_branch)
             log("merged", pr=pr.number); return
 
         if action == "escalate":

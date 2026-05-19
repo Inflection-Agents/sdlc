@@ -1,3 +1,4 @@
+{"ts": "2026-06-01T08:59:58Z", "spec": "SPEC-099", "event": "integration_strategy_resolved", "strategy": "branch", "source": "heuristic", "signals": {"breaking_tag": false, "multi_workspace": false, "task_count_gte_5": true, "cross_workspace_blocks": false}}
 {"ts": "2026-06-01T09:00:00Z", "task": "TASK-201", "wave": 0, "event": "dispatched", "agent": "claude-code", "worktree": "/Users/franklin/_code/sdlc/.claude/worktrees/agent-201abc"}
 {"ts": "2026-06-01T09:00:01Z", "task": "TASK-202", "wave": 0, "event": "dispatched", "agent": "claude-code", "worktree": "/Users/franklin/_code/sdlc/.claude/worktrees/agent-202def"}
 {"ts": "2026-06-01T09:08:42Z", "task": "TASK-201", "event": "tier_0", "outcome": "fail", "commands": ["pnpm lint", "pnpm typecheck", "pnpm test --filter @repo/auth"], "duration_ms": 47213, "fingerprint": "sha256:a1b2c3d4e5f60718293a4b5c6d7e8f9012345678abcdef0123456789abcdef01"}
