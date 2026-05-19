@@ -293,6 +293,7 @@ All tasks done → spec-completion → integration PR feat/spec-NNN → main
   - Per-spec gap rate-limit: max 5 open gaps per spec at any time. When the limit is exceeded, the orchestrator REWRITES the finding's criterion from `spec:gap` to `spec:wrong-design` at handoff time and falls through to the amendment-counter path — no new prefix introduced.
   - Two new telemetry event types added to the live `spec-execution/SKILL.md` schema: `gap_dispatched` (at gap-capture handoff, with open_count) and `gap_resolved` (at GAP file status flip). The live schema grows by 2 event types.
 - See SPEC-004 for the full design.
+
 ## Appendix A — Skill skeleton (draft)
 
 ```
