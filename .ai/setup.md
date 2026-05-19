@@ -95,6 +95,12 @@ curl -s -H "X-Goog-Api-Key: $JULES_API_KEY" \
 └── skills/         ← shared SDLC + domain skills
 
 specs/
+├── baselines/      ← per-spec baseline metric files; new in SPEC-001
+├── intents.md      ← raw backlog
+├── initiatives.md  ← initiative registry
+├── _index.md       ← spec listing
+├── SPEC-NNN-*.md   ← the actual spec files
+├── tasks/          ← per-spec task decomposition
 ├── templates/      ← templates for new specs, ADRs, bugs
 ├── adrs/           ← architecture decision records
 ├── bugs/           ← bug specs
@@ -108,6 +114,7 @@ specs/
 3. **For local tasks:** implement, test, open a PR.
 4. **For `jules`-labeled tasks:** the orchestrator dispatches them — you review the PRs when they arrive.
 5. **For spec changes:** update the spec in a PR alongside the code change.
+6. Spec authoring and amendment invoke `spec-reviewer` (graded JSON output); PR review consumes `pr-reviewer` (graded JSON); both drive routing via the SPEC-001 severity→action policy. See `specs/SPEC-001-*.md` for the model.
 
 ## 9. Troubleshooting
 
