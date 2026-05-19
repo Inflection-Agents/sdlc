@@ -135,6 +135,9 @@ These are success criteria from `status: completed` specs that couldn't be verif
 ### `[active]` Conditional integration-branch strategy → SPEC-005
 SPEC-002 currently requires `feat/spec-NNN` as the *only* merge target with direct task PRs to main forbidden (hard rule, AC-010). User surfaced this is overkill for small specs and the bootstrap dispatch itself violated it pragmatically. Proposal: add optional `integration_strategy: branch | direct` to spec frontmatter; when unspecified, orchestrator computes (branch if `breaking` tag, multi-workspace, ≥5 tasks, or any task `blocks:` crosses workspace boundary; else direct). Lands as `spec-amendment` on SPEC-002 + cascade update to spec-execution skill. Why deferred: not blocking, and benefits from being applied to a real next spec to validate the heuristic. **Why:** explicit author control with sensible default; preserves SPEC-002's safety when needed without forcing ceremony on small specs.
 
+### `[deferred]` Formalize completed-spec extension pattern in spec-schema
+SPEC-004 introduced the "extend live artifacts + Changelog v1.1 annotation on completed specs" pattern as a pragmatic workaround for `spec-schema`'s lack of a `completed → amendable` transition. A future spec should formalize this as either (a) a first-class status (e.g., `completed-extending`), (b) an explicit transition with documented semantics, or (c) a `Changelog`-only contract that spec-schema explicitly allows on completed specs. Defer until 2-3 more completed-spec extensions accumulate so the formalization is informed by real usage.
+
 ### `[deferred]` Inter-spec dependency tooling
 SPEC-002 declares `depends_on: [SPEC-001]`. Today this is a frontmatter field with no enforcement — nothing prevents SPEC-002 from going `active` before SPEC-001. A small CI check or a `spec-graph` doc could surface dependency violations.
 
