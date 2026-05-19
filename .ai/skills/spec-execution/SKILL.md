@@ -91,8 +91,8 @@ skill's behavior.
 
 5. **Merge target is determined by the resolved integration strategy.** In
    `branch` mode: task PRs merge to `feat/spec-NNN`; the integration PR
-   (`feat/spec-NNN` → `main`) is opened once in Phase 3 after
-   `spec-completion` has run. In `direct` mode: task PRs merge to `main`
+   (`feat/spec-NNN` → `main`) is opened once in Phase 3, before
+   `spec-completion` runs (Phase 3 steps 1→2→3 in order). In `direct` mode: task PRs merge to `main`
    directly and no integration PR is created. Unauthorized target deviations
    — a task PR targeting `main` in `branch` mode, or targeting a feature
    branch in `direct` mode — are refused by the orchestrator (the strategy
