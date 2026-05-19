@@ -52,16 +52,37 @@ acceptance_criteria:
   - id: AC-001
     description: "Middleware extracts JWT from Authorization header"
     status: pending | pass | fail
+    evidence: |
+      The implementing agent populates this with concrete proof. Examples:
+      dbt task → relevant `dbt run` output; code task → test command output;
+      manual verification → describe what was checked and how.
   - id: AC-002
     description: "Invalid tokens return 401 with error body"
     status: pending | pass | fail
+    evidence: ""
   - id: AC-003
     description: "Expired tokens return 401 with 'token_expired' code"
     status: pending | pass | fail
+    evidence: ""
 created: 2026-04-22
 updated: 2026-04-22
 ---
 ```
+
+### Evidence field rules
+
+The `evidence:` field appears on each acceptance criterion:
+
+| State | Meaning |
+|-------|---------|
+| Field absent or empty string | Not populated (Tier 0: PR review blocked) |
+| Field present with non-empty content | Populated (Tier 0 passes; Tier 1 grades quality) |
+
+**Rules:**
+- `evidence:` is **optional at task creation** — the decomposing agent omits it or leaves it empty.
+- `evidence:` **MUST be populated before PR review enters.** The implementing agent fills it with concrete proof: test output, command results, or a description of what was manually verified.
+- Tier 0 presence check and Tier 1 content quality grading are defined in SPEC-001 and SPEC-004. The `pr-reviewer` raises `task:evidence-missing` (major) if content is absent or clearly insufficient.
+- Existing task files without `evidence:` remain valid — the field is additive only.
 
 ### Monorepo fields
 

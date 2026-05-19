@@ -13,6 +13,14 @@ acceptance_criteria:
   - id: AC-001
     description: ""
     status: pending
+    evidence: |
+      npm test -- --grep auth-middleware
+      PASS  tests/middleware/auth.test.ts
+        auth middleware
+          ✓ extracts JWT from Authorization header (12 ms)
+          ✓ rejects missing header with 401 (4 ms)
+          ✓ rejects expired token with token_expired code (3 ms)
+      Tests: 3 passed, 0 failed
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
 ---
