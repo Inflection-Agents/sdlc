@@ -31,7 +31,7 @@ These checks are mechanical presence checks only; they run before Tier 1 grading
 
 ## PR-side consequence catalog
 
-Authoritative for PR reviews. The `pr-reviewer` skill (Tier 1) and all Tier 2 PR specialists grade against this catalog. A finding without a matching consequence row is not raised. New consequence rows and citation prefixes are added either via spec-amendment on SPEC-001 (while SPEC-001 is in an amendable state) OR via a subsequent spec that extends the live artifact and adds a Changelog v1.1 annotation to SPEC-001 (the extension pattern; see SPEC-004 for the originating use).
+Authoritative for PR reviews. The `pr-reviewer` skill (Tier 1) and all Tier 2 PR specialists grade against this catalog. A finding without a matching consequence row is not raised. New consequence rows and citation prefixes are added either via `spec-amendment` on SPEC-001 (while SPEC-001 is in an amendable state) OR via a subsequent spec that extends the live artifact and adds a Changelog v1.1 annotation to SPEC-001 (the extension pattern; see SPEC-004 for the originating use).
 
 | Severity | PR-side consequences |
 |---|---|
@@ -61,7 +61,7 @@ Every finding MUST cite its source in the `criterion` field of the output schema
 
 | Reviewer role | Allowed citation prefixes |
 |---|---|
-| `pr-reviewer` (Tier 1) | `AC-NNN`; `ADR-NNN`; `sdlc-code-standards:<section-anchor>`; `monorepo:boundary`; `task:blocks:<id>`; `task:scope`; `spec:ambiguous-ac` / `spec:contradictory-ac` / `spec:wrong-design` / `spec:missing-section` (cross-skill signals — see SPEC-002); `task:evidence-missing` (Tier 1 major when AC evidence is populated but insufficient); `spec:gap` (cross-skill signal routing to gap-capture per SPEC-004 Design > 2); `monorepo:workspace-scope` (blocker: PR touches files outside declared workspace); `monorepo:verify-coverage` (blocker: PR fails tests in any verify_workspaces) |
+| `pr-reviewer` (Tier 1) | `AC-NNN`; `ADR-NNN`; `sdlc-code-standards:<section-anchor>`; `monorepo:boundary` (blocker: import-graph violation — a file in workspace A imports from workspace B against the dependency graph in `.ai/project.md`; distinct from file-touch violations which use `monorepo:workspace-scope`); `task:blocks:<id>`; `task:scope`; `spec:ambiguous-ac` / `spec:contradictory-ac` / `spec:wrong-design` / `spec:missing-section` (cross-skill signals — see SPEC-002); `task:evidence-missing` (Tier 1 major when AC evidence is populated but insufficient); `spec:gap` (blocker: cross-skill signal routing to gap-capture per SPEC-004 Design > 2; a reviewer raising `spec:gap` MUST assign severity blocker so the gap-capture handler intercepts it); `monorepo:workspace-scope` (blocker: PR touches files outside declared workspace); `monorepo:verify-coverage` (blocker: PR fails tests in any verify_workspaces) |
 | Tier 2 PR specialists (`cross_spec`, `adversarial`, `domain:dbt`, etc.) | Inherits the `pr-reviewer` prefixes verbatim. Specialists may not invent new prefixes. |
 | `spec-reviewer` | `spec-schema:<field\|section>`; `spec-authoring:<section-anchor>` (anchor refers to a heading slug in `spec-authoring/SKILL.md`); `ADR-NNN`; `intent:<id>` (from `specs/intents.md`); `monorepo:workspaces`; `SPEC-NNN:<section>` — usable for cross-spec contradictions in either direction: (a) when this spec's `depends_on` references another spec, or (b) when another spec declares `depends_on` on this spec (the reviewer is supplied with both upstream and downstream spec paths in inputs) |
 
