@@ -1,75 +1,75 @@
 spec: SPEC-004
 title: "Artifact completeness ports from high-gear"
 created: 2026-05-18
-updated: 2026-05-18
+updated: 2026-05-19
 
 tasks:
   - id: TASK-021
     title: "task-schema.md + templates/task.md — add evidence: field per AC"
     agent: claude-code
-    status: pending
+    status: done
     depends_on: []
     blocks: [TASK-025]
 
   - id: TASK-022
     title: "Extend review-primitives.md — Tier 0 evidence gate, 4 new pr-reviewer prefixes, extension-pattern authorization"
     agent: claude-code
-    status: pending
+    status: done
     depends_on: []
     blocks: [TASK-024, TASK-028, TASK-029, TASK-030]
 
   - id: TASK-023
     title: "templates/gap.md + spec-schema.md gaps/ directory + GAP CI validation"
     agent: claude-code
-    status: pending
+    status: done
     depends_on: []
     blocks: [TASK-027, TASK-028, TASK-030]
 
   - id: TASK-024
     title: "Update sdlc-code-review skill — workspace enforcement + evidence quality grading"
     agent: claude-code
-    status: pending
+    status: done
     depends_on: [TASK-022]
     blocks: []
 
   - id: TASK-025
     title: "Update task-decomposition skill — evidence field guidance"
     agent: jules
-    status: pending
+    status: done
     depends_on: [TASK-021]
     blocks: []
 
   - id: TASK-026
     title: "Strengthen spec-completion skill — column rename, rigor, completion-report template"
     agent: claude-code
-    status: pending
+    status: done
     depends_on: []
     blocks: []
 
   - id: TASK-027
     title: "Update spec-amendment skill — gap-or-amendment decision + clarification back-port step"
     agent: claude-code
-    status: pending
+    status: done
     depends_on: [TASK-023]
     blocks: []
 
   - id: TASK-028
     title: "Extend spec-execution skill — gap-capture handler, rate-limit, gap_dispatched/gap_resolved events"
     agent: claude-code
-    status: pending
+    status: done
     depends_on: [TASK-022, TASK-023]
     blocks: [TASK-030]
 
   - id: TASK-029
     title: "Tier 0 evidence-presence synthetic test"
     agent: claude-code
-    status: pending
+    status: done
     depends_on: [TASK-022]
     blocks: []
 
   - id: TASK-030
     title: "Add Changelog v1.1 annotations to SPEC-001 and SPEC-002"
     agent: jules
-    status: pending
+    status: done
     depends_on: [TASK-022, TASK-023, TASK-028]
     blocks: []

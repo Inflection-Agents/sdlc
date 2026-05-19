@@ -12,16 +12,18 @@ acceptance_criteria:
     description: "Given .ai/skills/spec-amendment/SKILL.md, when read, then it includes a 'Gap or amendment?' decision section near the top, using the enumerated rule table from SPEC-004 Design > 2 (NOT a heuristic — bright-line rules). The table covers word-level AC clarification, design workaround without AC change, missing ADR cross-link, version-bump changes, scope/AC/design semantic changes (SPEC-004 AC-010)"
     status: pass
     evidence: |
-      grep -c "Gap or amendment" .ai/skills/spec-amendment/SKILL.md -> 1
-      Section inserted after overview (line 26), before Step 1.
-      Table has 5 bright-line rows matching SPEC-004 Design > 2 verbatim.
+      grep -c "Gap or amendment" .ai/skills/spec-amendment/SKILL.md → 1
+      Section inserted after overview block (line ~23), before Step 1 (Identify the trigger).
+      Table has 5 rows: AC clarification, design workaround, missing ADR cross-link, version-bump, scope/AC/design semantic changes.
+      Verbatim match to SPEC-004 Design > 2 decision table.
   - id: AC-002
     description: "Given the skill, when read, then it includes a new step (after the amendment is produced): 'Scan open `clarification` gaps for the parent spec; incorporate any that are still applicable; set their `back_ported_to: SPEC-NNN-v<new-version>` (or SPEC-NNN-v1.1 for the Changelog-annotation pattern per the extension rule) and `status: resolved`.' (SPEC-004 AC-010)"
     status: pass
     evidence: |
-      grep -c "back_ported_to" .ai/skills/spec-amendment/SKILL.md -> 1
-      Step inserted before Step 7, scoped to status:open + resolution:clarification.
-      Includes back_ported_to, v1.1 pattern for completed specs, resolved_date/by fields.
+      grep -c "back_ported_to" .ai/skills/spec-amendment/SKILL.md → 1
+      Back-port step inserted before Step 7 (Review with user), after spec-reviewer phase.
+      Includes: scope filter (status: open, resolution: clarification), back_ported_to field,
+      v1.1 pattern for completed parent specs, resolved_date/resolved_by, commit message citation.
 created: 2026-05-18
 updated: 2026-05-19
 ---

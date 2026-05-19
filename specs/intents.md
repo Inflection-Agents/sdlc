@@ -66,21 +66,21 @@ Phase 1 (docs refresh + bootstrap.sh fix + skill wiring) drafted as [SPEC-003](S
 
 Port high-gear's artifact-shape improvements upstream. These are small individually but compound — each one removes a class of ambiguity from spec/task interpretation.
 
-**Status: bundled into [SPEC-004](SPEC-004-artifact-completeness-ports.md) as active.** The next four entries are the constituent ports that SPEC-004 delivers as one decomposed bundle.
+**Status: completed as [SPEC-004](SPEC-004-artifact-completeness-ports.md) (2026-05-19).** The next four entries are the constituent ports SPEC-004 delivered.
 
-### `[active]` `evidence:` field on acceptance criteria → SPEC-004
+### `[completed]` `evidence:` field on acceptance criteria → SPEC-004
 High-gear task files include an `evidence:` field per AC populated by the executor with the actual proof (test output, dbt run, diff analysis). Upstream task schema has no such field. The result is "AC passed" claims that can't be audited. Port to upstream task schema; require population before PR review.
 
 ### `[backlog]` `spec_followups:` section convention
 Referenced in SPEC-001's `batch_followup_and_accept` routing path. Defines where nit findings get logged when they don't block merge. Conventions: append to the spec or a sibling file, format, when grooming tasks get created from accumulated followups. Small spec; can ship with or after SPEC-001.
 
-### `[active]` Spec gap capture pattern (GAP-NNN) → SPEC-004
+### `[completed]` Spec gap capture pattern (GAP-NNN) → SPEC-004
 High-gear has `SPEC-029-SUPERVISION.md` and `hot-fix GAP-008`-style commits, indicating a convention for tracking gaps discovered mid-execution. Upstream has no formalized "gap" artifact distinct from amendments. Decide: are gaps a sub-class of amendment, a sibling artifact, or just a tagging convention on amendment commits?
 
-### `[active]` Strengthen `spec-completion` skill → SPEC-004
+### `[completed]` Strengthen `spec-completion` skill → SPEC-004
 Skill exists upstream but high-gear's version is more rigorous — it explicitly verifies success criteria (not just task completion), checks integration, measurement, and manual validation. Port the depth.
 
-### `[active]` Skill-level enforcement of `workspaces` / `verify_workspaces` → SPEC-004
+### `[completed]` Skill-level enforcement of `workspaces` / `verify_workspaces` → SPEC-004
 These fields exist in upstream task/spec schema but the upstream `sdlc-code-review` skill mentions them as "if set, check"; in high-gear, they're enforced (a PR that breaks a workspace not in `verify_workspaces` is a finding). Tighten upstream skills to enforce.
 
 ### `[deferred]` `DESIGN.md` and `figma_frame:` task fields
@@ -124,6 +124,9 @@ These are success criteria from `status: completed` specs that couldn't be verif
 
 ### `[deferred-verify]` SPEC-002 runtime telemetry actually logged
 **Owner:** franklin. **Trigger:** first dispatch of new `spec-execution` on a real spec. **Method:** inspect `specs/tasks/SPEC-NNN/_execution.log.jsonl` after one wave; verify event types and field shapes match the worked example at `.ai/skills/spec-execution/examples/example-execution.log.jsonl`. Pass: all dispatched/tier_0/tier_1/routed/merged events present and schema-conformant.
+
+### `[deferred-verify]` SPEC-004 first task under updated framework has populated evidence on all ACs
+**Owner:** franklin. **Trigger:** first task PR opened under the updated framework (after SPEC-004 merges to main 2026-05-19). **Method:** inspect the task PR to confirm every AC has a non-empty `evidence:` field populated by the implementing agent at PR review time. Pass: all ACs have populated evidence; Tier 0 gate does not block the PR.
 
 ### `[deferred-verify]` SPEC-002 new orchestrator replaces legacy on next high-gear spec
 **Owner:** franklin. **Trigger:** when high-gear's next spec is ready to dispatch. **Method:** confirm the upstream `spec-execution` skill is the invoked orchestrator (not the legacy 4-reviewer fan-out); keep high-gear-local version as `spec-execution-legacy/` for one spec to enable side-by-side comparison per SPEC-001 migration step 6. Pass: new orchestrator drives spec end-to-end with telemetry log written.
