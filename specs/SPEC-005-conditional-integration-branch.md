@@ -1,13 +1,13 @@
 ---
 id: SPEC-005
 title: Conditional integration-branch strategy for spec-execution
-status: active
+status: completed
 version: 1
 supersedes:
 initiative: INI-001
 owner: franklin
 created: 2026-05-18
-updated: 2026-05-18
+updated: 2026-05-19
 tags: [integration-branch, orchestration, conditional, extends-spec-002]
 integration_strategy: branch
 linear_project:

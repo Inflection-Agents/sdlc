@@ -1,0 +1,23 @@
+{"ts":"2026-05-19T14:56:15Z","task":"TASK-018","wave":0,"event":"dispatched","agent":"claude-code","worktree":null}
+{"ts":"2026-05-19T15:48:51Z","task":"TASK-018","event":"tier_1","blockers":0,"majors":0,"nits":0,"suggestions":0,"tier_2_recommended":[],"duration_ms":73454}
+{"ts":"2026-05-19T15:48:51Z","task":"TASK-018","event":"routed","action":"accept"}
+{"ts":"2026-05-19T15:48:51Z","task":"TASK-018","event":"merged","pr":17,"total_wall_ms":0}
+{"ts":"2026-05-19T16:15:30Z","task":"TASK-019","wave":1,"event":"dispatched","agent":"claude-code","worktree":null}
+{"ts":"2026-05-19T16:53:08Z","task":"TASK-019","event":"fix_loop_iteration","iteration":1,"trigger":"review"}
+{"ts":"2026-05-19T16:55:35Z","task":"TASK-019","event":"tier_1","blockers":0,"majors":0,"nits":0,"suggestions":0,"tier_2_recommended":["cross_spec","adversarial"],"duration_ms":119387}
+{"ts":"2026-05-19T17:01:14Z","task":"TASK-019","event":"tier_2","specialist":"cross_spec","blockers":0,"majors":1,"nits":0,"duration_ms":278441}
+{"ts":"2026-05-19T17:02:33Z","task":"TASK-019","event":"tier_2","specialist":"adversarial","blockers":1,"majors":3,"nits":0,"duration_ms":322674}
+{"ts":"2026-05-19T17:02:33Z","task":"TASK-019","event":"routed","action":"fix_loop"}
+{"ts":"2026-05-19T17:02:33Z","task":"TASK-019","event":"fix_loop_iteration","iteration":2,"trigger":"review"}
+{"ts":"2026-05-19T17:09:11Z","task":"TASK-019","event":"tier_1","blockers":0,"majors":0,"nits":0,"suggestions":0,"tier_2_recommended":["adversarial"],"duration_ms":216351}
+{"ts":"2026-05-19T17:12:51Z","task":"TASK-019","event":"tier_2","specialist":"adversarial","blockers":0,"majors":1,"nits":1,"duration_ms":158328}
+{"ts":"2026-05-19T17:12:51Z","task":"TASK-019","event":"routed","action":"fix_loop"}
+{"ts":"2026-05-19T17:12:51Z","task":"TASK-019","event":"fix_loop_iteration","iteration":3,"trigger":"review"}
+{"ts":"2026-05-19T17:18:10Z","task":"TASK-019","event":"tier_1","blockers":0,"majors":0,"nits":0,"suggestions":0,"tier_2_recommended":[],"duration_ms":196307}
+{"ts":"2026-05-19T17:18:10Z","task":"TASK-019","event":"routed","action":"accept"}
+{"ts":"2026-05-19T17:18:37Z","task":"TASK-019","event":"merged","pr":22,"total_wall_ms":0}
+{"ts":"2026-05-19T17:20:10Z","task":"TASK-020","wave":2,"event":"dispatched","agent":"claude-code","worktree":null}
+{"ts":"2026-05-19T17:22:10Z","task":"TASK-020","event":"tier_1","blockers":0,"majors":0,"nits":0,"suggestions":0,"tier_2_recommended":[],"duration_ms":86016}
+{"ts":"2026-05-19T17:22:10Z","task":"TASK-020","event":"routed","action":"accept"}
+{"ts":"2026-05-19T17:22:27Z","task":"TASK-020","event":"merged","pr":23,"total_wall_ms":0}
+# spec_completed: 2026-05-19T18:09:28Z

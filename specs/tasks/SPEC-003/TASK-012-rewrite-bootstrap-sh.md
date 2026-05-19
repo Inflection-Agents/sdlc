@@ -81,3 +81,10 @@ Rewrite `/Users/franklin/_code/sdlc/bootstrap.sh`. The script must:
 - Run on a fresh clone in a temp dir: `cd /tmp && git clone https://github.com/Inflection-Agents/sdlc test-bootstrap && cd test-bootstrap && ./bootstrap.sh && [ -L .claude/skills ] && for n in create-domain-skill intent-triage pr-reviewer sdlc-code-review sdlc-code-standards spec-amendment spec-authoring spec-completion spec-execution spec-reviewer task-decomposition; do [ -f .claude/skills/$n/SKILL.md ] || echo "MISSING: $n"; done && [ -f .claude/skills/review-primitives.md ] || echo "MISSING: review-primitives.md"`
 - Run a second time on the same repo to verify idempotency (no errors, no changes).
 - Construct synthetic collision tests for AC-006 (byte-match + divergent variants) — TASK-017 covers this end-to-end.
+
+## Followups (batch_followup_and_accept — 2026-05-19)
+
+Deferred nits from pr-reviewer fix-loop iter-1 re-review:
+
+- **F-002:** A file with divergent content (same name, different hash) is reported twice in the `comm` divergent/missing blocks — once as "divergent" via `comm -23` and once as "missing" via `comm -13`, because `comm` operates on full `<hash> <filename>` strings. Add a comment above the `comm -13` block clarifying this behavior, or restructure to deduplicate by filename. (bootstrap.sh ~line 268)
+- **F-A4:** PR #21 body's acceptance-criteria table labels the collision-handling row "AC-006" but it maps to SPEC-003 AC-013. No code impact; update PR description if re-opened or note in TASK-017 context.

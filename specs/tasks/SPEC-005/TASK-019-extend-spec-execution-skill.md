@@ -77,6 +77,15 @@ Edit `/Users/franklin/_code/sdlc/.ai/skills/spec-execution/SKILL.md`:
 - The skill is the canonical source of the resolution algorithm. SPEC-005 design text references this skill once it's updated. Do not duplicate the heuristic in spec-schema or anywhere else.
 - The Appendix B pseudocode update must be byte-consistent with the prose in Phase 2 — same drift class the SPEC-001/002 review loop caught.
 - The integration_strategy_resolved event is per-spec (not per-task) — fired once at Phase 1.
+
+## Followups (batch_followup_and_accept — 2026-05-19, integration PR #24 review)
+
+Deferred nits from the PR #24 Tier 1 / Tier 2 review cycles:
+
+- **F-001 (nit):** `specs/SPEC-005-conditional-integration-branch.md` Design > Changelog annotation template still carries placeholder date `2026-05-XX` on the `v1.1` heading. The live `SPEC-002` Changelog correctly reads `2026-05-19`. Update the design template on a follow-up pass to match.
+- **F-002 (nit):** `specs/SPEC-002-spec-execution-orchestration.md` Appendix B header still reads "Authoritative orchestrator decision logic" and hardcodes `target=f"feat/{spec.id}"` without the `target_branch` variable. Since SKILL.md Appendix B is now canonical, the "Authoritative" label in the historical spec body is misleading. A clarifying parenthetical in the SPEC-002 Changelog (e.g., "SKILL.md Appendix B is now the live-canonical pseudocode") would resolve this without touching the spec body.
+- **F-003 (nit):** SKILL.md HC5 runs on without a line break after the branch-mode clause (`...in order). In direct mode...`), creating visual density. No behavioral impact; cosmetic break would improve readability.
+- **F-004 (suggestion):** SKILL.md Phase 3 Branch mode step 2 does not explicitly call out the all-cancelled skip (only prose says "at least one task is done"). Making the all-cancelled case explicit with a parenthetical — mirroring the direct-mode step — would improve symmetry.
 - Sidecar files (`_expected_strategy`) are outside spec-schema's frontmatter validation surface — no schema change for them.
 - All edits are additive to the existing skill — Phase 1/2/3 keep their existing content; this task ADDS to them.
 
