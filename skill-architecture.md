@@ -15,16 +15,18 @@ How behavioral discipline, SDLC process, and domain expertise compose into a coh
 │  Always active. Global discipline. Personal.        │
 ├─────────────────────────────────────────────────────┤
 │  Layer 2: SDLC Process                              │
-│  .claude/skills/ (repo root)                        │
+│  .ai/skills/ (repo root)                            │
 │                                                     │
 │  spec-authoring, task-decomposition,                │
 │  sdlc-code-standards, sdlc-code-review,             │
+│  review-primitives, pr-reviewer,                    │
+│  spec-reviewer, spec-execution,                     │
 │  jules-dispatch, bug-triage, sdlc-status            │
 │                                                     │
 │  Active during SDLC phases. Travel with repo.       │
 ├─────────────────────────────────────────────────────┤
 │  Layer 1: Domain                                    │
-│  .claude/skills/ (repo root, workspace-prefixed)    │
+│  .ai/skills/ (repo root, workspace-prefixed)        │
 │                                                     │
 │  dbt-cartographer, dbt-craftsman,                   │
 │  nextjs-app-patterns, shared-package-patterns...    │
@@ -52,9 +54,9 @@ All three layers are active simultaneously. They don't conflict because they ans
 ### The wiring
 
 ```
-Task file                    .ai/project.md               .claude/skills/
+Task file                    .ai/project.md               .ai/skills/
 ┌──────────────┐            ┌──────────────────┐          ┌──────────────────┐
-│ workspace:   │───────────▶│ Workspace skills │─���───────▶│ dbt-craftsman/   │
+│ workspace:   │───────────▶│ Workspace skills │─────────▶│ dbt-craftsman/   │
 │   dbt        │            │                  │          │   SKILL.md       │
 │              │            │ dbt:             │          │                  │
 │ agent:       │            │   dbt-cartographer│         │ dbt-cartographer/│
@@ -72,15 +74,19 @@ the SDLC process.
 
 ## Where skills physically live
 
-**All skills at the repo root: `.claude/skills/`**
+**All skills at the repo root: `.ai/skills/`**
 
 ```
-.claude/skills/
+.ai/skills/                          ← canonical location (source of truth)
   # SDLC process (Layer 2) — prefixed sdlc- or named for the phase
   sdlc-code-standards/SKILL.md
   sdlc-code-review/SKILL.md
   spec-authoring/SKILL.md
   task-decomposition/SKILL.md
+  pr-reviewer/SKILL.md
+  spec-reviewer/SKILL.md
+  spec-execution/SKILL.md
+  review-primitives.md               ← shared primitives doc (not a /skill)
 
   # Domain: dbt (Layer 1) — prefixed with workspace/technology
   dbt-cartographer/SKILL.md
@@ -91,13 +97,17 @@ the SDLC process.
 
   # Domain: shared package (Layer 1)
   shared-package-patterns/SKILL.md
+
+.claude/skills/ → .ai/skills/        ← symlink created by bootstrap.sh
 ```
+
+**The `.claude/skills/` symlink.** Claude Code discovers skills by looking for `.claude/skills/` relative to the working directory. The canonical files live in `.ai/skills/` alongside the rest of the agent config (project.md, sdlc.md). `bootstrap.sh` creates `.claude/skills/` as a symlink pointing to `.ai/skills/`, so Claude Code finds them automatically without duplicating content. Running `git clone` gives you the `.ai/skills/` directory; running `bootstrap.sh` wires the symlink. The symlink is gitignored — only `.ai/skills/` is committed.
 
 **Why root, not nested in workspaces?**
 
 Claude Code loads skills from `.claude/skills/` relative to the working directory. In a monorepo, you typically work from the root. Skills in `dbt/.claude/skills/` are invisible from the root. Putting everything at root means:
 - All skills are always visible
-- No symlink gymnastics
+- No symlink gymnastics within the workspace tree
 - `git clone` gives you everything
 - Naming convention (`dbt-*`, `nextjs-*`) makes the workspace association clear
 
@@ -182,7 +192,7 @@ Use the `create-domain-skill` skill. It walks through the full process and ensur
 
 The short version — creating a domain skill touches:
 
-1. `.claude/skills/[workspace]-[name]/SKILL.md` — the skill itself
+1. `.ai/skills/[workspace]-[name]/SKILL.md` — the skill itself
 2. `.ai/project.md` → Workspace skills table — the wiring that SDLC skills use to find it
 3. `.ai/project.md` → Workspace interfaces — add/update if the skill reveals boundary contracts
 4. `.ai/project.md` → Change propagation patterns — add/update if cross-workspace patterns exist
@@ -217,6 +227,10 @@ It does NOT need to:
 | `spec-completion` | SDLC Process | Verify success criteria and close specs |
 | `sdlc-code-standards` | SDLC Process | Implementation |
 | `sdlc-code-review` | SDLC Process | Review |
+| `review-primitives` | SDLC Process | Shared severity spine + output schema for reviewers |
+| `pr-reviewer` | SDLC Process | Machine-parseable PR review (JSON findings) |
+| `spec-reviewer` | SDLC Process | Machine-parseable spec review (JSON findings) |
+| `spec-execution` | SDLC Process | End-to-end spec execution: wave dispatch + integration |
 | `jules-dispatch` | SDLC Process | Task routing |
 | `bug-triage` | SDLC Process | Defect handling |
 | `create-domain-skill` | SDLC Process | Onboarding new workspaces |
