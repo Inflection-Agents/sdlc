@@ -10,21 +10,26 @@ A practical framework for running agile software development with AI agents as f
 4. **Views are projections.** Boards, timelines, dashboards are queries over the work graph — not the schema itself.
 5. **Bugs are spec violations.** Not a parallel system — a signal that reality disagrees with a prior spec.
 
+## Current state
+
+This framework is dogfooded on itself. The `specs/` directory is the live backlog:
+
+- [`specs/SPEC-001-tiered-code-review.md`](specs/SPEC-001-tiered-code-review.md) — graded review primitives (blocker / major / nit / suggestion) and the PR merge policy
+- [`specs/SPEC-002-spec-execution-orchestration.md`](specs/SPEC-002-spec-execution-orchestration.md) — wave-based task execution and the Claude Code + Jules orchestration model
+- [`specs/intents.md`](specs/intents.md) — live backlog of incoming intents before they become specs
+
+See [`specs/_index.md`](specs/_index.md) for the full spec index.
+
 ## Documents
 
 | Doc | Purpose |
 |-----|---------|
 | [Spec Schema](spec-schema.md) | Spec, ADR, and bug spec formats, frontmatter schema, validation |
 | [Task Schema](task-schema.md) | Task files, dependency graph, agent dispatch |
-| [Sync](sync.md) | Repo ↔ Linear sync: ownership model, sync rules, phased mechanism |
-| [Agent Orchestration](agent-orchestration.md) | Claude Code + Jules: division of labor, API integration |
-| [Work Graph](work-graph.md) | Data model — node types, edges, events |
-| [Triage](triage.md) | Bug/defect lifecycle from signal to fix |
-| [Roles](roles.md) | Human vs AI responsibilities at each stage |
-| [Tooling](tooling.md) | Current stack choices and rationale |
 | [Playbook](playbook.md) | How to run this on a real project |
 | [Skill Architecture](skill-architecture.md) | Three-layer skill model: behavioral + SDLC process + domain |
 | [Skills](skills.md) | Skill map, implementation order, relationship to .ai/ config |
+| [Spec Index](specs/_index.md) | The framework's own dogfooded backlog |
 
 ## Agent config (`.ai/` directory)
 
@@ -37,6 +42,7 @@ The SDLC is codified in `.ai/` so agents understand the process. Copy into each 
 | `.ai/CLAUDE.md` | Claude Code (or any local agent) | MCP access, Jules orchestration, labeling workflow |
 | `.ai/AGENTS.md` | Jules (or any cloud agent) | VM constraints, how to read specs from repo, PR conventions |
 | `.ai/setup.md` | Humans | Onboarding guide: prerequisites, install steps, verification, troubleshooting |
+| `.ai/skills/` | Claude Code (via `.claude/skills/` symlink) | SDLC + domain skills sourced from this framework; `bootstrap.sh` creates `.claude/skills/` as a symlink here |
 
 To switch local agents (e.g., Claude Code → Gemini CLI): adapt `.ai/CLAUDE.md` to the new agent's config format. The process in `sdlc.md` stays the same.
 
@@ -63,7 +69,7 @@ After running, fill in `.ai/project.md` (repo structure, commands, conventions) 
 ## Distribution strategy
 
 - **Pilot (now):** copy `.ai/` into each repo manually or via `bootstrap.sh`
-- **Scale:** if the SDLC process stabilizes and you have many repos, build a lightweight `sdlc init` CLI that scaffolds everything and prompts for project-specific values
+- **Scale:** if the SDLC process stabilizes and you have many repos, build a lightweight `sdlc init` CLI that scaffolds everything and prompts for project-specific values — longer-term wizard work is tracked under INI-002 (sdlc-onboarding); this Phase 1 spec fixes what's actively broken
 - **Don't use git submodules** — the sync tax isn't worth it for 3 small files that rarely change
 
 ## Current Stack
