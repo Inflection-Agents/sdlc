@@ -286,6 +286,13 @@ All tasks done → spec-completion → integration PR feat/spec-NNN → main
 - AC-010 of this spec (mandating `feat/spec-NNN` as the ONLY merge pattern) is superseded in the live behavior by SPEC-005's conditional resolution. AC-010's wording in this spec body is preserved as historical record.
 - See SPEC-005 for the rationale, heuristic, and full design.
 
+
+### v1.2 (2026-05-19) — extensions via SPEC-004
+- SPEC-004 added the following without modifying this spec's contracts:
+  - `spec-execution/SKILL.md` Phase 2 cross-skill handler extension: `criterion == "spec:gap"` blocker findings route to a new gap-capture handler (creates GAP-NNN-*.md from `templates/gap.md`, does NOT increment the per-spec amendment counter).
+  - Per-spec gap rate-limit: max 5 open gaps per spec at any time. When the limit is exceeded, the orchestrator REWRITES the finding's criterion from `spec:gap` to `spec:wrong-design` at handoff time and falls through to the amendment-counter path — no new prefix introduced.
+  - Two new telemetry event types added to the live `spec-execution/SKILL.md` schema: `gap_dispatched` (at gap-capture handoff, with open_count) and `gap_resolved` (at GAP file status flip). The live schema grows by 2 event types.
+- See SPEC-004 for the full design.
 ## Appendix A — Skill skeleton (draft)
 
 ```

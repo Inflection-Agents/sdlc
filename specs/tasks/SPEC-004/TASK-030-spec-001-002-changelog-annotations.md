@@ -2,7 +2,7 @@
 id: TASK-030
 spec: SPEC-004
 title: "Add Changelog v1.1 annotations to SPEC-001 and SPEC-002"
-status: pending
+status: done
 agent: jules
 depends_on: [TASK-022, TASK-023, TASK-028]
 blocks: []
@@ -10,14 +10,20 @@ linear_issue:
 acceptance_criteria:
   - id: AC-001
     description: "Given specs/SPEC-001-tiered-code-review.md, when read, then it has a `## Changelog` section appended (after Migration > Rollback plan, before any appendices). Frontmatter `status: completed`, `version: 1`, and the spec body above the Changelog are UNCHANGED. The v1.1 entry enumerates: (a) four new pr-reviewer prefixes (`task:evidence-missing`, `spec:gap`, `monorepo:workspace-scope`, `monorepo:verify-coverage`) and their scoping (pr-reviewer + Tier 2 specialists only); (b) new Tier 0 mechanical gate (evidence presence); (c) amendment to the 'New consequence rows...via spec-amendment' rule in review-primitives.md authorizing the extension pattern; (d) semantic narrowing of `monorepo:boundary` to import-graph violations only. (SPEC-004 AC-013)"
-    status: pending
-    evidence:
+    status: pass
+    evidence: |
+      SPEC-001: Changelog section added after Rollback plan (line 327), before Appendix A.
+      v1 (initial) + v1.1 (SPEC-004 extensions): 4 prefixes, Tier 0 gate, extension-pattern authorization, monorepo:boundary narrowing.
+      git diff shows +13 lines, 0 deletions, only in Changelog area.
   - id: AC-002
     description: "Given specs/SPEC-002-spec-execution-orchestration.md, when read, then it has a `## Changelog` section appended. (If SPEC-005 also lands its v1.1 annotation, this task appends a v1.2 entry instead; otherwise v1.1.) The entry enumerates: (a) spec-execution Phase 2 cross-skill handler extension routing `spec:gap` to gap-capture (does NOT increment amendment counter); (b) per-spec gap rate-limit (max 5 open) and its `spec:wrong-design` escalation path via criterion-rewrite at handoff; (c) two new telemetry event types added to the live spec-execution schema: `gap_dispatched` and `gap_resolved`. Frontmatter and body above Changelog UNCHANGED. (SPEC-004 AC-013)"
-    status: pending
-    evidence:
+    status: pass
+    evidence: |
+      SPEC-002: v1.2 entry appended to existing Changelog (v1 + v1.1 from SPEC-005 already present).
+      v1.2 enumerates: spec:gap gap-capture handler, 5-gap rate-limit + spec:wrong-design rewrite, gap_dispatched/gap_resolved events (schema grows +2 types).
+      git diff shows +7 lines, 0 deletions, only in Changelog area.
 created: 2026-05-18
-updated: 2026-05-18
+updated: 2026-05-19
 ---
 
 ## Context
