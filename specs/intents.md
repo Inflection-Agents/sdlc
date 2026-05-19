@@ -36,7 +36,10 @@ SPEC-002 defines per-task JSONL telemetry; a tool that rolls multiple specs' log
 
 The current path from "I want to use this framework" to "I have shipped my first spec" requires reading ≥11 docs, manually filling in `.ai/project.md`, customizing `.ai/CLAUDE.md`, ensuring Linear labels exist, and then deriving the first-spec workflow from the playbook. `bootstrap.sh` does file scaffolding but stops short of getting you to a working spec. High-gear's `setup.md` is more opinionated and uses a unified `setup-sdlc.sh` to wire skills into both Claude and Gemini, but it's project-specific. The upstream onboarding should be at least as clean.
 
-### `[next]` Significantly simplify getting started
+### `[active]` Significantly simplify getting started → SPEC-003 (Phase 1) drafted
+Phase 1 (docs refresh + bootstrap.sh fix + skill wiring) drafted as [SPEC-003](SPEC-003-onboarding-phase-1.md). Phase 2 (`sdlc init` wizard, three-doors framing, "working spec in 10 minutes" experience) is captured below and deferred until Phase 1 ships.
+
+### `[next]` Significantly simplify getting started — Phase 2
 **Principles to design against:**
 
 1. **Working first spec in 10 minutes, not files scaffolded in 10 minutes.** Current bootstrap leaves you with empty directories and a "next steps" checklist of five items. Target: by the end of onboarding, you've authored a tiny throwaway spec, decomposed it into a task, and round-tripped it through the loop. *That* is "set up."
@@ -63,19 +66,21 @@ The current path from "I want to use this framework" to "I have shipped my first
 
 Port high-gear's artifact-shape improvements upstream. These are small individually but compound — each one removes a class of ambiguity from spec/task interpretation.
 
-### `[backlog]` `evidence:` field on acceptance criteria
+**Status: bundled into [SPEC-004](SPEC-004-artifact-completeness-ports.md) as active.** The next four entries are the constituent ports that SPEC-004 delivers as one decomposed bundle.
+
+### `[active]` `evidence:` field on acceptance criteria → SPEC-004
 High-gear task files include an `evidence:` field per AC populated by the executor with the actual proof (test output, dbt run, diff analysis). Upstream task schema has no such field. The result is "AC passed" claims that can't be audited. Port to upstream task schema; require population before PR review.
 
 ### `[backlog]` `spec_followups:` section convention
 Referenced in SPEC-001's `batch_followup_and_accept` routing path. Defines where nit findings get logged when they don't block merge. Conventions: append to the spec or a sibling file, format, when grooming tasks get created from accumulated followups. Small spec; can ship with or after SPEC-001.
 
-### `[backlog]` Spec gap capture pattern (GAP-NNN)
+### `[active]` Spec gap capture pattern (GAP-NNN) → SPEC-004
 High-gear has `SPEC-029-SUPERVISION.md` and `hot-fix GAP-008`-style commits, indicating a convention for tracking gaps discovered mid-execution. Upstream has no formalized "gap" artifact distinct from amendments. Decide: are gaps a sub-class of amendment, a sibling artifact, or just a tagging convention on amendment commits?
 
-### `[backlog]` Strengthen `spec-completion` skill
+### `[active]` Strengthen `spec-completion` skill → SPEC-004
 Skill exists upstream but high-gear's version is more rigorous — it explicitly verifies success criteria (not just task completion), checks integration, measurement, and manual validation. Port the depth.
 
-### `[backlog]` Skill-level enforcement of `workspaces` / `verify_workspaces`
+### `[active]` Skill-level enforcement of `workspaces` / `verify_workspaces` → SPEC-004
 These fields exist in upstream task/spec schema but the upstream `sdlc-code-review` skill mentions them as "if set, check"; in high-gear, they're enforced (a PR that breaks a workspace not in `verify_workspaces` is a finding). Tighten upstream skills to enforce.
 
 ### `[deferred]` `DESIGN.md` and `figma_frame:` task fields
@@ -127,8 +132,11 @@ These are success criteria from `status: completed` specs that couldn't be verif
 
 ## Cross-cutting captures (not yet bucketed)
 
-### `[deferred]` Conditional integration-branch strategy
+### `[active]` Conditional integration-branch strategy → SPEC-005
 SPEC-002 currently requires `feat/spec-NNN` as the *only* merge target with direct task PRs to main forbidden (hard rule, AC-010). User surfaced this is overkill for small specs and the bootstrap dispatch itself violated it pragmatically. Proposal: add optional `integration_strategy: branch | direct` to spec frontmatter; when unspecified, orchestrator computes (branch if `breaking` tag, multi-workspace, ≥5 tasks, or any task `blocks:` crosses workspace boundary; else direct). Lands as `spec-amendment` on SPEC-002 + cascade update to spec-execution skill. Why deferred: not blocking, and benefits from being applied to a real next spec to validate the heuristic. **Why:** explicit author control with sensible default; preserves SPEC-002's safety when needed without forcing ceremony on small specs.
+
+### `[deferred]` Formalize completed-spec extension pattern in spec-schema
+SPEC-004 introduced the "extend live artifacts + Changelog v1.1 annotation on completed specs" pattern as a pragmatic workaround for `spec-schema`'s lack of a `completed → amendable` transition. A future spec should formalize this as either (a) a first-class status (e.g., `completed-extending`), (b) an explicit transition with documented semantics, or (c) a `Changelog`-only contract that spec-schema explicitly allows on completed specs. Defer until 2-3 more completed-spec extensions accumulate so the formalization is informed by real usage.
 
 ### `[deferred]` Inter-spec dependency tooling
 SPEC-002 declares `depends_on: [SPEC-001]`. Today this is a frontmatter field with no enforcement — nothing prevents SPEC-002 from going `active` before SPEC-001. A small CI check or a `spec-graph` doc could surface dependency violations.
