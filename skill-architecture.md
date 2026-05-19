@@ -72,15 +72,23 @@ the SDLC process.
 
 ## Where skills physically live
 
-**All skills at the repo root: `.claude/skills/`**
+**Skills live in `.ai/skills/`; `.claude/skills` is a symlink to it.**
 
 ```
-.claude/skills/
-  # SDLC process (Layer 2) — prefixed sdlc- or named for the phase
-  sdlc-code-standards/SKILL.md
-  sdlc-code-review/SKILL.md
+.ai/skills/               ← single source of truth for all SDLC skills
+  # SDLC process (Layer 2)
+  intent-triage/SKILL.md
   spec-authoring/SKILL.md
+  spec-reviewer/SKILL.md
   task-decomposition/SKILL.md
+  spec-execution/SKILL.md
+  spec-amendment/SKILL.md
+  spec-completion/SKILL.md
+  pr-reviewer/SKILL.md
+  sdlc-code-review/SKILL.md
+  sdlc-code-standards/SKILL.md
+  create-domain-skill/SKILL.md
+  review-primitives.md      ← shared review contracts (not a skill)
 
   # Domain: dbt (Layer 1) — prefixed with workspace/technology
   dbt-cartographer/SKILL.md
@@ -89,15 +97,13 @@ the SDLC process.
   # Domain: Next.js apps (Layer 1)
   nextjs-app-patterns/SKILL.md
 
-  # Domain: shared package (Layer 1)
-  shared-package-patterns/SKILL.md
+.claude/skills → ../.ai/skills    ← symlink; Claude Code loads from here
 ```
 
-**Why root, not nested in workspaces?**
+**Why `.ai/skills/` is authoritative, not `.claude/skills/`.** Claude Code loads skills from `.claude/skills/` relative to the working directory. We want `.ai/` to own all agent configuration (skills, CLAUDE.md, sdlc.md, project.md) as a coherent unit. The `.claude/skills` symlink is how Claude Code finds them without duplicating the files.
 
-Claude Code loads skills from `.claude/skills/` relative to the working directory. In a monorepo, you typically work from the root. Skills in `dbt/.claude/skills/` are invisible from the root. Putting everything at root means:
-- All skills are always visible
-- No symlink gymnastics
+**Why root, not nested in workspaces?** In a monorepo, you typically work from the root. Skills in `dbt/.claude/skills/` are invisible from the root. All skills at root means:
+- All skills are always visible regardless of cwd
 - `git clone` gives you everything
 - Naming convention (`dbt-*`, `nextjs-*`) makes the workspace association clear
 
@@ -212,13 +218,14 @@ It does NOT need to:
 | `systematic-debugging` | Behavioral | Bug investigation |
 | `intent-triage` | SDLC Process | Intent capture and prioritization |
 | `spec-authoring` | SDLC Process | Brainstorming + spec creation |
+| `spec-reviewer` | SDLC Process | Spec quality gate (graded JSON findings) |
 | `task-decomposition` | SDLC Process | Planning |
+| `spec-execution` | SDLC Process | End-to-end spec execution: waves, review, fix-loop, merge |
 | `spec-amendment` | SDLC Process | Spec changes mid-flight |
 | `spec-completion` | SDLC Process | Verify success criteria and close specs |
+| `pr-reviewer` | SDLC Process | PR quality gate (graded JSON findings, machine-parseable) |
 | `sdlc-code-standards` | SDLC Process | Implementation |
-| `sdlc-code-review` | SDLC Process | Review |
-| `jules-dispatch` | SDLC Process | Task routing |
-| `bug-triage` | SDLC Process | Defect handling |
+| `sdlc-code-review` | SDLC Process | PR review: renders pr-reviewer findings as human-readable comment |
 | `create-domain-skill` | SDLC Process | Onboarding new workspaces |
 | `dbt-cartographer` | Domain | dbt planning |
 | `dbt-craftsman` | Domain | dbt implementation |

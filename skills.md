@@ -1,10 +1,10 @@
 # SDLC Skills
 
-Skills are how agents learn to follow the SDLC process at the right moment. They plug into the existing superpowers skill system (using-superpowers, writing-plans, executing-plans, etc.) and add SDLC-specific workflows.
+Skills are how agents learn to follow the SDLC process at the right moment. They plug into Claude Code's skill system and add SDLC-specific workflows.
 
 ## Skill map
 
-The SDLC has distinct phases. Each phase needs a skill that tells the agent exactly what to do.
+The SDLC has distinct phases. Each phase has a skill that tells the agent exactly what to do.
 
 ```
 Intent arrives ("I want to build X", "we need to fix Y", brain dump)
@@ -12,24 +12,21 @@ Intent arrives ("I want to build X", "we need to fix Y", brain dump)
   ├─ /intent-triage          ← capture, organize, prioritize raw intents (ENTRY POINT)
   │
   ├─ /spec-authoring         ← brainstorm + formalize one intent into a structured spec
+  │    └─ /spec-reviewer     ← review draft spec for quality (auto-invoked by spec-authoring)
   │
   ├─ /task-decomposition     ← break a spec into a dependency graph of tasks
+  │
+  ├─ /spec-execution         ← execute a spec end-to-end: waves, review, fix-loop, merge
+  │    ├─ /pr-reviewer       ← review a PR: emit graded JSON findings (machine-parseable)
+  │    └─ /sdlc-code-review  ← render pr-reviewer findings as a human-readable review comment
   │
   ├─ /spec-amendment         ← amend a spec when reality pushes back mid-flight
   │
   ├─ /spec-completion        ← verify success criteria and close out a finished spec
   │
-  ├─ /jules-dispatch         ← route and fire jules-eligible tasks
-  │
   ├─ /sdlc-code-standards    ← coding principles (DRY, YAGNI, etc.) applied during implementation
   │
-  ├─ /sdlc-code-review       ← review PRs against spec + acceptance criteria + standards
-  │
-  ├─ /bug-triage              ← NOC agent workflow: intake → normalize → reproduce → classify
-  │
-  ├─ /sdlc-status             ← report on spec/task/cycle progress across repo + Linear
-  │
-  └─ /create-domain-skill     ← onboard a new workspace: create skill + wire all references
+  └─ /create-domain-skill    ← onboard a new workspace: create skill + wire all references
 ```
 
 ## How they relate to existing skills
@@ -38,11 +35,9 @@ Intent arrives ("I want to build X", "we need to fix Y", brain dump)
 |----------------|------------|-------------|
 | `brainstorming` | `spec-authoring` (Phase 1) | Existing skill does generic design exploration. SDLC skill absorbs the discipline (hard gates, one question at a time, propose approaches) and adds SDLC-specific outputs: workspace scoping, ADR identification, acceptance criteria. |
 | `writing-plans` | `spec-authoring` (Phase 2) + `task-decomposition` | Existing skill writes generic plans. SDLC skills produce structured specs + task files with frontmatter, dependency graphs, and Linear integration. |
-| `executing-plans` | `jules-dispatch` | Existing skill executes locally in batches. SDLC skill dispatches to Jules for parallel cloud execution. |
+| `executing-plans` | `spec-execution` | Existing skill executes locally in batches. SDLC skill drives the full spec lifecycle: wave-based dispatch, tiered review, fix-loop, integration PR. |
 | `requesting-code-review` | `sdlc-code-review` | Existing skill does generic review. SDLC skill reviews against spec acceptance criteria, ADR constraints, and coding standards. |
-| `systematic-debugging` | `bug-triage` | Existing skill debugs locally. SDLC skill runs the full triage pipeline: Linear intake → bug spec → reproduction → classification. |
-| `test-driven-development` | `sdlc-code-standards` | TDD is one standard among many. SDLC skill bundles TDD with DRY, YAGNI, and project-specific conventions. |
-| `writing-skills` + `skill-creator` | `create-domain-skill` | Existing skills handle how to write good skills (TDD for docs, eval workflows). SDLC skill adds the wiring: project.md updates, workspace mapping, interface documentation. |
+| `writing-skills` + `skill-creator` | `create-domain-skill` | Existing skills handle how to write good skills. SDLC skill adds the wiring: project.md updates, workspace mapping, interface documentation. |
 
 ## Three-layer skill model
 
@@ -63,40 +58,35 @@ All three are active simultaneously. They compose, not conflict:
 
 ```
 your-repo/
-├── .claude/skills/             ← ALL project skills at root (travel with the repo)
-│   │
-│   │  # SDLC process skills (Layer 2)
+├── .ai/skills/             ← ALL SDLC skills live here (single source of truth)
+│   ├── intent-triage/SKILL.md
 │   ├── spec-authoring/SKILL.md
+│   ├── spec-reviewer/SKILL.md
 │   ├── task-decomposition/SKILL.md
-│   ├── sdlc-code-standards/SKILL.md
+│   ├── spec-execution/SKILL.md
+│   ├── spec-amendment/SKILL.md
+│   ├── spec-completion/SKILL.md
+│   ├── pr-reviewer/SKILL.md
 │   ├── sdlc-code-review/SKILL.md
-│   ├── jules-dispatch/SKILL.md     (to be created)
-│   ├── bug-triage/SKILL.md         (to be created)
-│   ├── sdlc-status/SKILL.md        (to be created)
-│   │
-│   │  # Domain skills (Layer 1) — prefixed by workspace/technology
+│   ├── sdlc-code-standards/SKILL.md
+│   ├── create-domain-skill/SKILL.md
+│   └── review-primitives.md          ← shared review contracts (not a skill)
+│
+├── .claude/skills → ../.ai/skills    ← symlink; Claude Code loads from here
+│
+│   # Domain skills (Layer 1) — add to .ai/skills/ prefixed by workspace/technology
 │   ├── dbt-cartographer/SKILL.md
-│   ├── dbt-craftsman/SKILL.md
-│   ├── nextjs-app-patterns/SKILL.md
-│   └── shared-package-patterns/SKILL.md
+│   └── nextjs-app-patterns/SKILL.md
 │
 ├── .ai/                        ← agent config (process definition)
 │   └── project.md              ← maps workspaces → domain skills
-├── specs/                      ← specs, tasks, ADRs, bugs
+├── specs/                      ← specs, tasks, ADRs, bugs, gaps
 └── src/                        ← code
-
-~/.claude/skills/               ← personal skills (Layer 3, stay on your machine)
-├── brainstorming/              ← superpowers
-├── test-driven-development/
-├── verification-before-completion/
-├── morning-brief/              ← personal
-├── trading-dashboard/
-└── ...
 ```
 
-**Why all at root?** Claude Code loads skills from `.claude/skills/` relative to the working directory. In a monorepo, you work from root. Skills in `dbt/.claude/skills/` are invisible from root. Root placement means everything is always visible — naming convention (`dbt-*`, `nextjs-*`) signals the scope.
+**Why `.ai/skills/` is authoritative.** All skill files live in `.ai/skills/`. `.claude/skills` is a symlink to it. Claude Code loads from `.claude/skills/`; by making it a symlink both paths point to the same content and there is no duplication.
 
-Claude Code loads both personal and project skills. Project skills override personal skills if names collide.
+**Personal superpowers** stay at `~/.claude/skills/`. They're behavioral discipline that applies to all projects, not project-specific process. Install once per machine.
 
 ### How SDLC skills find domain skills
 
@@ -106,21 +96,13 @@ The task file's `workspace` field is the link:
 2. `.ai/project.md` maps `dbt` → domain skills: `dbt-cartographer`, `dbt-craftsman`
 3. SDLC skills (code-standards, code-review, task-decomposition) read this mapping and apply domain conventions alongside SDLC process
 
-This is declarative — adding a new domain skill just requires creating the SKILL.md and adding it to the workspace-skills table in project.md.
+This is declarative — adding a new domain skill requires only creating the SKILL.md and adding it to the workspace-skills table in `project.md`.
 
 ### Portability
 
-- **New team member clones repo** → gets all skills automatically. Claude Code picks them up.
-- **Jules** doesn't use Claude Code skills directly, but it reads `.ai/AGENTS.md` and the task files, which encode the same principles.
-- **Switching to Gemini CLI** → the skills are markdown. Adapt the SKILL.md format to Gemini's skill convention. The content (process, checklists, standards) stays the same.
-
-### What's personal vs. project
-
-| Personal (`~/.claude/skills/`) | Project (`.claude/skills/` in repo) |
-|-------------------------------|-------------------------------------|
-| Superpowers (behavioral discipline) | SDLC process skills |
-| Your personal workflow skills | Domain skills for this project's workspaces |
-| Anything not project-specific | Anything a new team member needs |
+- **New team member clones repo** → gets all skills automatically. Claude Code picks them up via the `.claude/skills` symlink.
+- **Jules** doesn't use Claude Code skills directly, but reads `.ai/AGENTS.md` and task files, which encode the same principles.
+- **Switching to another agent** → the skills are markdown. Adapt the SKILL.md format to the new agent's convention. The content (process, checklists, standards) stays the same.
 
 ## Skill details
 
@@ -156,19 +138,30 @@ Three modes:
 **Phase 2 — Formalization** (structured, reviewable):
 7. Write the structured spec with correct frontmatter and all required sections
 8. Create ADRs for non-obvious design decisions
-9. Self-review for gaps, contradictions, untestable criteria
-10. **GATE: User approves the spec**
-11. Open a PR, after approval: set status to `active`, create Linear project
+9. Invoke `spec-reviewer` — automated quality gate before the user sees a draft
+10. Self-review for gaps, contradictions, untestable criteria
+11. **GATE: User approves the spec**
+12. Open a PR, after approval: set status to `active`, create Linear project
 
-**Interacts with:** `brainstorming` (behavioral discipline for the conversation), `writing-plans` (no-placeholder discipline for the spec), domain skills (technology-specific constraints)
+**Interacts with:** `brainstorming` (behavioral discipline for the conversation), `spec-reviewer` (auto-invoked at the sign-off gate), domain skills (technology-specific constraints)
+
+### 1a. spec-reviewer
+
+**Trigger:** Auto-invoked by `spec-authoring` at the spec sign-off gate and by `spec-amendment` after every amendment. Also invocable on demand: "review this spec," "check SPEC-NNN for gaps."
+
+**What it does:** Grades a draft spec against the schema, authoring conventions, originating intent, ADRs, and cross-spec contracts. Emits the shared JSON envelope from `review-primitives.md` with severity-graded findings (blocker / major / nit / suggestion). The orchestrator routes based on findings — blockers and majors trigger a fix loop; nits/suggestions produce `batch_followup_and_accept`.
+
+**Output is machine-parseable JSON** consumed by the routing policy, not freehand prose. Human-readable rendering happens in the surrounding skill (spec-authoring or spec-amendment).
+
+**Interacts with:** `spec-authoring` (invoked at Phase 2 gate), `spec-amendment` (invoked after every amendment), `review-primitives.md` (severity spine, grounding rules, output schema — do not redefine there)
 
 ### 2. task-decomposition
 
-**Trigger:** spec has status `active` and no task files exist yet, "decompose this spec," "break this down." Also triggers in **re-planning mode** when existing tasks need restructuring: "this task is too big," "split this," "we need a prerequisite task," "merge these tasks."
+**Trigger:** spec has status `active` and no task files exist yet, "decompose this spec," "break this down." Also triggers in **re-planning mode**: "this task is too big," "split this," "we need a prerequisite task," "merge these tasks."
 
 **What it does (initial decomposition):**
 1. Reads the spec (design, acceptance criteria, constraints, risks)
-2. Breaks into independently-implementable tasks
+2. Breaks into independently-implementable tasks with `evidence:` fields on every AC
 3. Builds the dependency graph
 4. Applies routing labels (jules / claude-code / human) using eligibility rules
 5. Produces task files with frontmatter + body + `_index.yaml`
@@ -184,85 +177,100 @@ Three modes:
 
 **Key rules:**
 - Each task maps to one or a few acceptance criteria
+- `evidence:` field is created empty on every AC — the implementing agent fills it before PR review
 - Dependencies are explicit and minimal (maximize parallelism)
 - Jules-eligible tasks have everything in the task file (no assumed context)
 - Tasks are small enough for a single PR
-- Re-planning: if acceptance criteria or design changed, use spec-amendment instead
 
-**Interacts with:** `spec-authoring` (runs after spec is approved), `jules-dispatch` (runs before dispatch), `spec-amendment` (when re-planning is needed)
+**Interacts with:** `spec-authoring` (runs after spec is approved), `spec-execution` (runs before execution), `spec-amendment` (when re-planning is needed)
 
-### 2b. spec-amendment
+### 2a. spec-amendment
 
 **Trigger:** implementation reveals the spec is wrong, user changes requirements mid-flight, code review finds a design flaw, external dependency shifts
+
+**Gap or amendment first.** Before running this skill, check whether the change is small enough to be a gap (`specs/gaps/GAP-NNN-*.md`) rather than a full amendment. See the decision table in `spec-amendment/SKILL.md`.
 
 **What it does:**
 1. Classifies the change: cosmetic (no version bump), additive (new scope), or breaking (changed design/criteria)
 2. For additive/breaking: bumps spec version, writes changelog entry
 3. Runs task impact analysis across all tasks in the graph
 4. Updates pending tasks, signals in-progress agents, creates rework tasks for completed work that's now invalid
-5. Cancels obsolete tasks, creates new tasks for added scope
-6. Updates `_index.yaml` dependency graph
-7. Gets user approval, commits everything together, updates Linear
+5. Scans open `clarification` gaps for the parent spec — incorporates them and sets `back_ported_to`
+6. Gets user approval, commits everything together, updates Linear
 
-**Key rules:**
-- No implementation against a known-wrong spec — stop and amend
-- No breaking changes without user approval
-- No silent task invalidation — every affected task is explicitly handled
-- When >50% of tasks need rework, supersede the spec instead of amending
+**Interacts with:** `spec-authoring` (amendment is the backward path), `task-decomposition` (may trigger partial re-decomposition), `spec-execution` (signals in-progress tasks)
 
-**Interacts with:** `spec-authoring` (amendment is the backward path; authoring is the forward path), `task-decomposition` (may trigger partial re-decomposition), `jules-dispatch` (signals in-progress Jules tasks)
-
-### 2c. spec-completion
+### 2b. spec-completion
 
 **Trigger:** all tasks for a spec are done or cancelled, "is this spec finished?", "close out SPEC-NNN," "what shipped?"
 
 **What it does:**
 1. Checks that all tasks in the graph are `done` or `cancelled` (with documented reasons)
 2. Maps each success criterion to a verification type: task-covered, integration, measurement, or manual
-3. Verifies task-covered criteria by tracing to passing acceptance criteria
+3. Verifies task-covered criteria by tracing to passing acceptance criteria (checks `evidence:` fields)
 4. Runs integration verification (e2e tests, cross-task validation)
-5. Handles measurement criteria: verify now or defer to production with owner + deadline
-6. Builds a completion report with evidence for each criterion
+5. Handles measurement criteria: verify now or defer with owner + trigger condition + method
+6. Produces a `templates/completion-report.md`-shaped report with evidence for each criterion
 7. Gets user sign-off, then sets spec to `completed`, updates Linear
 
 **Key rules:**
 - Merged PRs are not the finish line — verified success criteria are
-- Deferred-to-production criteria must have an owner, deadline, and dashboard
-- Cancelled tasks need documented reasons (amendment, scope reduction)
+- Deferred-to-production criteria must have an owner, trigger condition (date OR observable event), and method
+- No deferral without all three fields populated
 - User makes the final call
 
-**Interacts with:** `spec-authoring` (bookend — authoring opens, completion closes), `spec-amendment` (if completion reveals the spec needs changes, amend first), `sdlc-status` (completion data feeds status reporting)
+**Interacts with:** `spec-authoring` (bookend — authoring opens, completion closes), `spec-amendment` (if completion reveals the spec needs changes, amend first)
 
-### 3. jules-dispatch
+### 3. spec-execution
 
-**Trigger:** task files exist with `agent: jules` and `status: pending`, "dispatch jules tasks," "fire off the jules work"
+**Trigger:** an active spec has tasks decomposed and is ready to execute, "execute SPEC-NNN," "run the spec," "dispatch the tasks"
 
-**What it does:**
-1. **Checks Jules availability:** is `jules` CLI installed or `JULES_API_KEY` set?
-2. Reads `_index.yaml` to find ready tasks (all dependencies done)
-3. **Verifies upstream contracts** for each ready task: checks that boundary constraints from completed dependencies actually exist in the codebase (schema, exports, columns). If a contract is missing or different, flags it instead of dispatching.
-4. For each ready jules-eligible task:
-   - **If Jules available:** dispatches via CLI (`jules remote new`), logs session ID on Linear issue and task file
-   - **If Jules NOT available (fallback):** executes locally as a claude-code task — same task file, same acceptance criteria, same review process, just sequential instead of parallel
-5. Reports what was dispatched (or executed locally) and status
-6. Monitors for completion (Jules: poll sessions; fallback: work is local)
+**What it does:** Drives the full execution loop:
+1. Resolves integration strategy: `branch` (integration PR to main) or `direct` (task PRs straight to main), based on spec signals or explicit frontmatter
+2. Builds the wave graph from `_index.yaml` task dependencies
+3. Dispatches each wave of tasks in parallel (worktree-isolated background agents)
+4. Gates on Tier 0 CI (every AC has non-empty `evidence:` field)
+5. Dispatches `pr-reviewer` (Tier 1) and Tier 2 specialists per SPEC-001 contracts
+6. Routes by severity: `accept`, `batch_followup_and_accept`, `fix_loop` (capped), `escalate`
+7. Handles cross-skill signals: `task:scope` → task-decomposition re-plan; `spec:gap` → gap-capture (creates `GAP-NNN-*.md`); `spec:*` → spec-amendment (amendment counter, cap at 2)
+8. In `branch` mode: merges task PRs to `feat/spec-NNN`, then opens integration PR to `main`
+9. Invokes `spec-completion` after all tasks are merged
 
-**Fallback rules:**
-- The task file's `agent: jules` field stays unchanged — it records intended routing, not actual execution
-- Fallback is automatic and silent: no user intervention needed
-- When Jules becomes available later, remaining `jules`-labeled tasks dispatch normally
-- The only tradeoff is concurrency: Jules runs tasks in parallel, fallback is sequential
+**Writes telemetry** to `specs/tasks/SPEC-NNN/_execution.log.jsonl` — one JSONL event per action, append-only, restart-safe.
 
-**Interacts with:** `task-decomposition` (depends on task files), `sdlc-code-review` (review Jules PRs when they arrive), `spec-amendment` (when upstream contract verification fails), `sdlc-code-standards` (applied during fallback execution)
+**Interacts with:** `pr-reviewer` (Tier 1 grading), `sdlc-code-review` (human-readable rendering), `task-decomposition` (re-plan on `task:scope`), `spec-amendment` (on `spec:*` signals), `spec-completion` (final gate)
 
-### 4. sdlc-code-standards
+### 4. pr-reviewer
+
+**Trigger:** Auto-invoked by `spec-execution` at the Tier 1 review step. Also invocable on demand: "review PR #NNN," "grade this PR."
+
+**What it does:** Reviews a single PR against its task file, parent spec, and applicable ADRs. Emits the shared JSON envelope from `review-primitives.md` with severity-graded findings.
+
+**Output is machine-parseable JSON** — not freehand prose. `sdlc-code-review` renders these findings into a human-readable review comment. This skill grades; `sdlc-code-review` renders.
+
+**Citation prefixes** (what the reviewer can cite as the source of a finding):
+- `AC-NNN` — acceptance criterion not met
+- `ADR-NNN` — ADR constraint violated
+- `sdlc-code-standards:<section>` — coding standards violation
+- `monorepo:boundary` — import-graph violation
+- `monorepo:workspace-scope` — files outside declared workspace
+- `monorepo:verify-coverage` — tests fail in a `verify_workspaces` member
+- `task:blocks:<id>` — boundary contract with a downstream task broken
+- `task:scope` — PR is too large or touches wrong files
+- `task:evidence-missing` — AC evidence present but insufficient
+- `spec:gap` — spec ambiguity that warrants a GAP file (not a full amendment)
+- `spec:ambiguous-ac` / `spec:contradictory-ac` / `spec:wrong-design` / `spec:missing-section` — cross-skill signals
+
+**Interacts with:** `review-primitives.md` (severity spine, output schema, grounding rules), `sdlc-code-review` (renders its output), `spec-execution` (orchestrator that dispatches it)
+
+### 5. sdlc-code-standards
 
 **Trigger:** during any implementation work — writing code, reviewing code, opening PRs
 
 **What it encodes:**
 - **DRY:** Don't repeat yourself. Extract shared logic. But don't abstract prematurely — three instances before extracting.
 - **YAGNI:** Don't build what you don't need. No speculative features, no "might need this later." If the spec doesn't ask for it, don't build it.
-- **TDD:** Write the failing test first. Red → Green → Refactor. References existing `test-driven-development` skill.
+- **TDD:** Write the failing test first. Red → Green → Refactor.
 - **Single responsibility:** Each function/module does one thing. If you can't name it clearly, it's doing too much.
 - **Explicit over implicit:** Name things clearly. Avoid magic numbers. Make dependencies visible.
 - **Error handling at boundaries:** Validate at system edges (user input, API calls). Trust internal code.
@@ -272,92 +280,73 @@ Three modes:
 
 **This is a rigid skill** — follow exactly, don't adapt away discipline.
 
-### 5. sdlc-code-review
+### 6. sdlc-code-review
 
-**Trigger:** PR is ready for review (yours, Jules's, or a teammate's), "review this PR," PR arrives from Jules
+**Trigger:** PR is ready for review (yours, an agent's, or a teammate's), "review this PR," PR arrives from an executor agent
 
 **What it does:**
 1. Reads the PR diff
 2. Finds the linked spec and task (from PR title `SPEC-NNN` / `TASK-NNN`)
 3. Reads the task file for acceptance criteria
 4. Reads linked ADRs for constraints
-5. Checks each acceptance criterion:
-   - Is it addressed in the diff?
-   - Is there a test for it?
-   - Does it pass?
-6. Checks coding standards (DRY, YAGNI, TDD, naming, error handling)
-7. Checks for regressions (does the diff break anything outside the task scope?)
-8. Produces a review with: criteria checklist, standards compliance, concerns, verdict
+5. Checks each acceptance criterion and its `evidence:` field (Tier 0: presence; Tier 1: quality)
+6. Enforces monorepo workspace scope and verify_workspaces coverage
+7. Consumes graded findings from `pr-reviewer` (JSON) and renders them as a human-readable review comment
+8. Derives the policy action from `review-primitives.md` (not freehand): `accept`, `batch_followup_and_accept`, `fix_loop`, or `escalate`
+9. Checks for spec completion if this was the last task
 
-**Verdicts:**
-- **Approve:** All criteria met, standards followed, no concerns
-- **Request changes:** Specific issues with specific fixes
-- **Escalate:** Architectural concern, spec ambiguity, or scope creep that needs human judgment
+**This skill renders; `pr-reviewer` grades.** Don't emit severity verdicts freehand — consume the JSON and apply the policy.
 
-**Interacts with:** `requesting-code-review` (extends it with spec-awareness), `sdlc-code-standards` (applies standards during review)
+**Interacts with:** `pr-reviewer` (consumes its graded output), `review-primitives.md` (policy and severity definitions), `sdlc-code-standards` (applied during review)
 
-### 6. bug-triage
+### 7. create-domain-skill
 
-**Trigger:** new `bug`-labeled issue in Linear, "triage this bug," "check for new bugs"
+**Trigger:** new workspace onboarded, "create a domain skill for X," "add dbt skills to this repo"
 
-**What it does:**
-1. Reads new `bug`-labeled Linear issues
-2. For each:
-   a. Reads the issue description
-   b. Asks clarifying questions (as Linear comments) if needed
-   c. Searches repo for related specs, recent deploys, similar bugs
-   d. Attempts reproduction locally
-   e. Creates bug spec file in `specs/bugs/`
-   f. Updates Linear issue with structured data + `needs-confirmation` label
-3. Summarizes what was triaged and what needs human confirmation
+**What it does:** Walks through creating a domain skill and wiring all references. Touching:
+1. `.ai/skills/[workspace]-[name]/SKILL.md` — the skill itself
+2. `.ai/project.md` → Workspace skills table — the wiring SDLC skills use to find it
+3. `.ai/project.md` → Workspace interfaces — boundary contracts
+4. `.ai/project.md` → Change propagation patterns — cross-workspace patterns
+5. `.ai/project.md` → Agent eligibility — what's now jules-eligible
+6. `.ai/project.md` → Per-workspace conventions — conventions that differ from defaults
 
-**Escalation rules are hard-coded:** security, data loss, payments → immediate human handoff.
-
-**Interacts with:** `systematic-debugging` (for reproduction), `task-decomposition` (after confirmation, creates fix tasks)
-
-### 7. sdlc-status
-
-**Trigger:** "what's the status," "where are we," "give me a summary," start of session
-
-**What it does:**
-1. Reads `spec-index.json` for active specs
-2. For each active spec, reads `_index.yaml` for task status
-3. Queries Linear for live status updates
-4. Produces a summary: specs in progress, tasks done/in-progress/blocked, Jules tasks dispatched, bugs in triage
-5. Flags: stale tasks, blocked work, specs with no tasks yet
-6. **Flags specs ready for completion:** if all tasks are `done`/`cancelled` but spec is still `active`, flag it: "SPEC-NNN has all tasks done — run spec-completion to verify success criteria and close it out."
-7. **Flags workspace collisions:** if two or more active specs have tasks (pending or in-progress) in the same workspace, flag it: "SPEC-NNN and SPEC-MMM both have active tasks in [workspace] — risk of merge conflicts or behavioral conflicts."
+Missing any of these means the skill exists but is disconnected from the SDLC process.
 
 ## Implementation order
 
-Build these in order of immediate value for the refactoring effort:
+Skills to build when adopting this framework, in order of immediate value:
 
-1. **sdlc-code-standards** — needed for every implementation task. Quick to write, high daily impact.
-2. **spec-authoring** — needed first in the lifecycle. You're about to write a spec for the refactor.
-3. **task-decomposition** — needed right after the spec. Produces the task files.
-4. **spec-amendment** — needed once implementation starts and reality pushes back.
-5. **spec-completion** — needed once the first spec's tasks are all done.
-6. **sdlc-code-review** — needed once PRs start flowing.
-7. **jules-dispatch** — needed once jules-eligible tasks exist.
-8. **bug-triage** — needed when bugs surface during the refactor.
-9. **sdlc-status** — quality-of-life, build when you want dashboards.
+1. **sdlc-code-standards** — needed for every implementation task.
+2. **spec-authoring** — needed first in the lifecycle.
+3. **task-decomposition** — needed right after the spec.
+4. **spec-execution** — drives the full execution loop; the operational core.
+5. **pr-reviewer** + **sdlc-code-review** — needed once PRs flow.
+6. **spec-reviewer** — quality gate on specs.
+7. **spec-amendment** — needed once implementation starts and reality pushes back.
+8. **spec-completion** — needed once the first spec's tasks are all done.
+9. **create-domain-skill** — needed when adding new workspaces.
+
+All SDLC process skills are already implemented in `.ai/skills/`.
 
 ## Relationship to .ai/ config
 
-Skills are the "how" — they encode specific workflows Claude Code follows.
+Skills are the "how" — they encode specific workflows agents follow.
 `.ai/sdlc.md` is the "what" — it defines the process any agent follows.
 `.ai/project.md` is the "where" — it maps workspaces to domain skills and conventions.
 
 ```
-.ai/sdlc.md      → "Tasks have frontmatter with acceptance criteria"
-SDLC skill        → "Here's exactly how to decompose a spec into task files step by step"
+.ai/sdlc.md          → "Tasks have frontmatter with acceptance criteria and evidence fields"
+task-decomposition    → "Here's exactly how to decompose a spec into task files step by step"
 
-.ai/CLAUDE.md     → "Review all PRs against the spec"
-SDLC skill        → "Here's the exact checklist: read diff, find spec, check each criterion..."
+.ai/CLAUDE.md         → "Review all PRs against the spec"
+sdlc-code-review      → "Here's the exact checklist: read diff, find spec, check each criterion..."
 
-.ai/project.md    → "dbt workspace uses dbt-cartographer and dbt-craftsman"
-Domain skill      → "Here's how to write dbt models: CTE ordering, naming, macros..."
+.ai/project.md        → "dbt workspace uses dbt-cartographer and dbt-craftsman"
+Domain skill          → "Here's how to write dbt models: CTE ordering, naming, macros..."
 ```
+
+**Jules orchestration** (dispatching tasks to Jules cloud agents) is documented in `.ai/CLAUDE.md`, not a separate skill. The orchestrator (Claude Code) handles dispatch; the task files carry everything Jules needs to implement.
 
 ## Relationship to domain skills
 
