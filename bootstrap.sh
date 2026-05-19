@@ -198,16 +198,18 @@ _fallback_copy() {
 
 # Try to create the symlink; fall back to copy on failure.
 _install_skills_symlink() {
-  # Detect symlink support via a temp-file probe
-  local tmp_target tmp_link symlink_ok
-  tmp_target=$(mktemp)
-  tmp_link="${tmp_target}.link"
+  # Detect symlink support by probing the TARGET filesystem (not $TMPDIR, which
+  # may be on a different, symlink-capable volume from the repo — e.g. a repo
+  # on exFAT while $TMPDIR is on APFS).
+  local tmp_probe symlink_ok
+  mkdir -p "$(dirname "$SKILLS_LINK")"
+  tmp_probe="$(dirname "$SKILLS_LINK")/.symlink_probe_$$"
   symlink_ok=true
 
-  if ! ln -s "$tmp_target" "$tmp_link" 2>/dev/null; then
+  if ! ln -s /dev/null "$tmp_probe" 2>/dev/null; then
     symlink_ok=false
   fi
-  rm -f "$tmp_target" "$tmp_link"
+  rm -f "$tmp_probe"
 
   if [ "$symlink_ok" = false ]; then
     _fallback_copy "filesystem does not support symbolic links"
@@ -242,6 +244,11 @@ elif [ -d "$SKILLS_LINK" ]; then
   manifest_ai=$(_manifest "$REPO_ROOT/.ai/skills")
   manifest_claude=$(_manifest "$SKILLS_LINK")
 
+  if [ -z "$manifest_ai" ] || [ -z "$manifest_claude" ]; then
+    fail "manifest computation failed — refusing to modify .claude/skills/"
+    exit 1
+  fi
+
   if [ "$manifest_ai" = "$manifest_claude" ]; then
     info "Byte-identical contents — removing directory and replacing with symlink..."
     rm -rf "$SKILLS_LINK"
@@ -258,11 +265,15 @@ elif [ -d "$SKILLS_LINK" ]; then
     # Files in .claude/skills that differ from .ai/skills (by hash)
     comm -23 \
       <(echo "$manifest_claude" | sort) \
-      <(echo "$manifest_ai"    | sort) | awk '{print "  divergent (in .claude/skills): " $2}' >&2
+      <(echo "$manifest_ai"    | sort) | while IFS= read -r _line; do
+        echo "  divergent (in .claude/skills): ${_line#* }" >&2
+      done
     # Files present in .ai/skills but absent from .claude/skills
     comm -13 \
       <(echo "$manifest_claude" | sort) \
-      <(echo "$manifest_ai"    | sort) | awk '{print "  missing from .claude/skills: " $2}' >&2
+      <(echo "$manifest_ai"    | sort) | while IFS= read -r _line; do
+        echo "  missing from .claude/skills: ${_line#* }" >&2
+      done
     echo "" >&2
     echo "Resolve manually: delete .claude/skills/ if safe to do so, then re-run bootstrap." >&2
     exit 1

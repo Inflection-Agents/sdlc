@@ -56,7 +56,7 @@ The SDLC is agent-agnostic. You can use Claude Code, Gemini CLI, or both. We rec
 
 If the repo ships SDLC skills under `.ai/skills/` (the standard location — see `templates/project.md`), point your local agents at them:
 
-- **Claude Code** auto-discovers `.claude/skills/` in the repo root. Either symlink (`ln -s ../.ai/skills .claude/skills`) or run the repo's `setup-sdlc.sh` if it provides one.
+- **Claude Code** auto-discovers `.claude/skills/` in the repo root. Either run `./bootstrap.sh` (which handles this automatically) or symlink manually: `ln -s ../.ai/skills .claude/skills`.
 - **Gemini CLI** discovers skills via `~/.agents/skills/`. Symlink each repo skill into it.
 
 The repo's bootstrap script usually handles this. Restart your agent session after wiring so it reloads the skill index.
@@ -113,7 +113,7 @@ specs/
 
 | Problem | Fix |
 |---------|-----|
-| Skills not found | Re-run the repo's `setup-sdlc.sh` (or re-symlink) and restart your agent session. |
+| Skills not found | Re-run `./bootstrap.sh` (or re-symlink manually) and restart your agent session. |
 | Claude Code can't reach Linear | Check MCP config: `claude mcp list` — is `linear` listed? |
 | Jules API returns 401 | Regenerate API key at jules.google.com/settings#api |
 | Jules can't access repo | Check GitHub → Settings → Applications → Google Labs Jules |
