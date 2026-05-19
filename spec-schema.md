@@ -259,10 +259,11 @@ status: open | resolved | wontfix
 owner: <github-handle>
 created: YYYY-MM-DD
 discovered_in: TASK-NNN | PR-NNN | review:<spec-reviewer-run-id>
-resolution: clarification | workaround | deferred
-resolved_date: YYYY-MM-DD | null
-resolved_by: <commit-SHA> | TASK-NNN | null
-back_ported_to: SPEC-NNN-vN | SPEC-NNN-v1.1 | null
+resolution: clarification | workaround | deferred  # default: clarification for open gaps
+# Fields below are null while the gap is open; populate on resolution
+resolved_date: null
+resolved_by: null
+back_ported_to: null
 ---
 ```
 
