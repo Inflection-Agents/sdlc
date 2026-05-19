@@ -204,10 +204,14 @@ specs/
 ├── bugs/
 │   ├── BUG-001-login-timeout.md
 │   └── BUG-002-null-ref-dashboard.md
+├── gaps/
+│   ├── GAP-001-auth-edge-case.md
+│   └── GAP-002-pipeline-schema-ambiguity.md
 ├── templates/
 │   ├── spec.md
 │   ├── adr.md
-│   └── bug.md
+│   ├── bug.md
+│   └── gap.md
 └── spec-index.json              # auto-generated, agent-readable
 ```
 
@@ -216,7 +220,8 @@ Subdirectories:
 - `adrs/` — Architectural Decision Records referenced by specs.
 - `baselines/` — per-spec baseline metric files for success-criteria comparison (e.g., `SPEC-042.md` captures pre-change metrics that the spec's success criteria are measured against). Introduced by SPEC-001.
 - `bugs/` — bug specs (`BUG-NNN-*.md`).
-- `templates/` — copy-and-fill templates for new specs, ADRs, and bugs.
+- `gaps/` — gap artifacts (`GAP-NNN-*.md`). Each file records a specification gap discovered during implementation, its resolution, and downstream impact. Introduced by SPEC-004.
+- `templates/` — copy-and-fill templates for new specs, ADRs, bugs, and gaps.
 
 ## Bug spec schema
 
@@ -241,6 +246,60 @@ confidence: high | medium | low
 
 Bug body sections: Observed, Expected, Repro steps, Environment, Evidence, Linked artifacts.
 
+## GAP schema
+
+Gap artifacts capture specification gaps discovered during implementation — ambiguities, missing decisions, or incorrect assumptions — and track their resolution. Each gap is a file under `specs/gaps/`.
+
+```yaml
+---
+id: GAP-NNN
+spec: SPEC-NNN
+title: "<one-line gap description>"
+status: open | resolved | wontfix
+owner: <github-handle>
+created: YYYY-MM-DD
+discovered_in: TASK-NNN | PR-NNN | review:<spec-reviewer-run-id>
+resolution: clarification | workaround | deferred
+resolved_date: YYYY-MM-DD | null
+resolved_by: <commit-SHA> | TASK-NNN | null
+back_ported_to: SPEC-NNN-vN | SPEC-NNN-v1.1 | null
+---
+```
+
+### GAP field rules
+
+| Field | Required | Mutable | Type | Notes |
+|-------|----------|---------|------|-------|
+| `id` | yes | no | string | Format: `GAP-NNN`. Immutable after creation. |
+| `spec` | yes | no | string | Format: `SPEC-NNN`. The spec this gap was found in. |
+| `title` | yes | yes | string | One-line description of the gap. |
+| `status` | yes | yes | enum | `open` \| `resolved` \| `wontfix`. |
+| `owner` | yes | yes | string | GitHub handle of the person responsible for resolving the gap. |
+| `created` | yes | no | date | ISO date (`YYYY-MM-DD`). When the gap was first recorded. |
+| `discovered_in` | yes | no | typed union | One of: `TASK-NNN`, `PR-NNN`, or `review:<spec-reviewer-run-id>`. Where the gap surfaced. |
+| `resolution` | yes | yes | enum | `clarification` \| `workaround` \| `deferred`. How the gap is being handled. |
+| `resolved_date` | yes | yes | date \| null | ISO date when resolved; `null` while open. |
+| `resolved_by` | yes | yes | string \| null | Commit SHA or `TASK-NNN` that closed the gap; `null` while open. |
+| `back_ported_to` | yes | yes | string \| null | If a clarification was back-ported to the spec (e.g., `SPEC-NNN-vN` or `SPEC-NNN-v1.1`); `null` otherwise. |
+
+### GAP body sections
+
+Gap files follow this section order. All three sections must be present:
+
+```markdown
+## Gap
+
+(What was unclear, missing, or wrong. Reference the spec section if applicable.)
+
+## Resolution
+
+(How the gap was handled. If `clarification`: paragraph to back-port to the spec or a future amendment. If `workaround`: what was done and why acceptable. If `deferred`: capture as an intent for later.)
+
+## Impact
+
+(What downstream tasks or specs are affected, if any.)
+```
+
 ## spec-index.json
 
 Auto-generated on every PR that touches `specs/`. Agents read this instead of scanning the directory.
@@ -257,7 +316,15 @@ Auto-generated on every PR that touches `specs/`. Agents read this instead of sc
       "initiative": "INI-003",
       "tags": ["auth", "security"],
       "acceptance_criteria_count": 5,
-      "acceptance_criteria_done": 3
+      "acceptance_criteria_done": 3,
+      "gaps": [
+        {
+          "id": "GAP-001",
+          "status": "resolved",
+          "resolution": "clarification",
+          "created": "2026-04-25"
+        }
+      ]
     }
   ],
   "adrs": [
@@ -278,9 +345,33 @@ Auto-generated on every PR that touches `specs/`. Agents read this instead of sc
       "violates": "SPEC-001",
       "path": "specs/bugs/BUG-001-login-timeout.md"
     }
+  ],
+  "gaps": [
+    {
+      "id": "GAP-001",
+      "title": "Auth edge case unspecified",
+      "status": "resolved",
+      "resolution": "clarification",
+      "created": "2026-04-25",
+      "spec": "SPEC-001",
+      "path": "specs/gaps/GAP-001-auth-edge-case.md"
+    }
   ]
 }
 ```
+
+### gaps array
+
+Each per-spec entry gains a `gaps: []` array. Each gap entry in the array contains at minimum:
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | string | `GAP-NNN` — links to the full gap artifact in `specs/gaps/`. |
+| `status` | enum | `open \| resolved \| wontfix`. |
+| `resolution` | enum | `clarification \| workaround \| deferred`. |
+| `created` | date | ISO date. When the gap was recorded. |
+
+A top-level `gaps: []` array is also emitted, parallel to `specs`, `adrs`, and `bugs`, with the full summary for each gap artifact.
 
 ## Validation
 
@@ -293,6 +384,17 @@ A CI check runs on every PR that touches `specs/`:
 5. **Index regenerated** — `spec-index.json` is up to date
 
 This can be a simple script (Node, Python, or shell + yq) run in CI. No external service needed.
+
+### GAP validation (extended)
+
+When a PR touches any file under `specs/gaps/`, the CI validator is extended to also validate GAP frontmatter. The validator **fails closed** on any of:
+
+- **Missing required field** — any of the 11 fields absent from frontmatter.
+- **Invalid enum value** — `status` not in `{open, resolved, wontfix}`; `resolution` not in `{clarification, workaround, deferred}`.
+- **Malformed `discovered_in`** — value does not match `TASK-NNN`, `PR-NNN`, or `review:<id>`.
+- **Malformed `back_ported_to`** — value does not match `SPEC-NNN-vN`, `SPEC-NNN-v1.1`, or `null`.
+
+The GAP validator is additive — existing specs, tasks, and baselines validation is unchanged. The actual validator script update is a separate infrastructure task (declared here as a contract; out of scope for this schema change).
 
 ## How agents use specs
 
