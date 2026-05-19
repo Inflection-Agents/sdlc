@@ -3,7 +3,7 @@ id: TASK-029
 spec: SPEC-004
 title: "Tier 0 evidence-presence synthetic test"
 status: pending
-agent: jules
+agent: claude-code
 depends_on: [TASK-022]
 blocks: []
 linear_issue:

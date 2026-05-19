@@ -9,7 +9,7 @@ tasks:
     agent: claude-code
     status: pending
     depends_on: []
-    blocks: [TASK-025, TASK-031]
+    blocks: [TASK-025]
 
   - id: TASK-022
     title: "Extend review-primitives.md — Tier 0 evidence gate, 4 new pr-reviewer prefixes, extension-pattern authorization"
@@ -62,7 +62,7 @@ tasks:
 
   - id: TASK-029
     title: "Tier 0 evidence-presence synthetic test"
-    agent: jules
+    agent: claude-code
     status: pending
     depends_on: [TASK-022]
     blocks: []

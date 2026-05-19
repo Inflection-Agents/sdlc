@@ -5,7 +5,7 @@ title: "task-schema.md + templates/task.md — add evidence: field per AC"
 status: pending
 agent: claude-code
 depends_on: []
-blocks: [TASK-025, TASK-031]
+blocks: [TASK-025]
 linear_issue:
 acceptance_criteria:
   - id: AC-001
