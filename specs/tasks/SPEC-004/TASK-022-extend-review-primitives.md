@@ -5,7 +5,7 @@ title: "Extend review-primitives.md — Tier 0 evidence gate, 4 new pr-reviewer 
 status: pending
 agent: claude-code
 depends_on: []
-blocks: [TASK-024, TASK-028, TASK-030]
+blocks: [TASK-024, TASK-028, TASK-029, TASK-030]
 linear_issue:
 acceptance_criteria:
   - id: AC-001

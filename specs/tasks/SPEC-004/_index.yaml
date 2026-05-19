@@ -16,14 +16,14 @@ tasks:
     agent: claude-code
     status: pending
     depends_on: []
-    blocks: [TASK-024, TASK-028, TASK-030]
+    blocks: [TASK-024, TASK-028, TASK-029, TASK-030]
 
   - id: TASK-023
     title: "templates/gap.md + spec-schema.md gaps/ directory + GAP CI validation"
     agent: claude-code
     status: pending
     depends_on: []
-    blocks: [TASK-027, TASK-028]
+    blocks: [TASK-027, TASK-028, TASK-030]
 
   - id: TASK-024
     title: "Update sdlc-code-review skill — workspace enforcement + evidence quality grading"

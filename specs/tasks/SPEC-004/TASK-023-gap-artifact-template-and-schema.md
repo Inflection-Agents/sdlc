@@ -5,7 +5,7 @@ title: "templates/gap.md + spec-schema.md gaps/ directory + GAP CI validation"
 status: pending
 agent: claude-code
 depends_on: []
-blocks: [TASK-027, TASK-028]
+blocks: [TASK-027, TASK-028, TASK-030]
 linear_issue:
 acceptance_criteria:
   - id: AC-001
