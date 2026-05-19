@@ -82,9 +82,14 @@ Check:
 - Does it touch files the task constraints said not to touch?
 
 **Monorepo scope check (if `workspace` is set in the task):**
-- Does the PR only touch files in the declared workspace? (Hard rule: one workspace per task)
-- If it touches shared/upstream code, does the task's `verify_workspaces` include all consumers?
-- Does the PR violate import boundaries from `.ai/project.md`? (e.g., app importing from another app, shared importing from an app)
+
+Enforce the following checks — these are blockers, not advisories:
+
+- **`monorepo:workspace-scope`** (blocker) — PR modifies files outside the declared `workspace` field in the task frontmatter. Every modified file path must fall within the workspace's root directory as defined in `.ai/project.md`.
+- **`monorepo:verify-coverage`** (blocker) — PR fails tests in any workspace listed in `verify_workspaces`. Run ALL workspaces in `verify_workspaces`, not just the primary.
+- **`monorepo:boundary`** (blocker) — Import-graph violation: a file in workspace A imports from workspace B against the dependency graph in `.ai/project.md`. Distinct from file-touch violations (`monorepo:workspace-scope`) — this is about import semantics, not file location.
+
+Three non-overlapping prefixes. Use the matching prefix when raising the finding.
 
 **Boundary task check:** If this task produces output that a downstream task consumes (check `blocks` in the task file):
 - Does the implementation match the boundary constraints specified in the task? (column names, types, export signatures)
@@ -118,6 +123,23 @@ When this happens: don't just push the PR back into `fix_loop` and stop. Use `ta
 - "Tests should pass" without running them is not acceptable.
 
 **Monorepo verification:** Run tests for ALL workspaces listed in `verify_workspaces`, not just the primary workspace. A PR that passes `dealer-app` tests but breaks `admin-app` (because shared code changed) is not passing.
+
+### Step 8b: Evidence content quality check
+
+For each acceptance criterion in the task file, read the `evidence:` field:
+
+- If `evidence:` is present but content is insufficient — e.g., "tests passed" with no output excerpt, "verified" with no proof, a one-word claim with nothing to inspect — raise a `task:evidence-missing` **major** finding. Include a one-sentence explanation of what is missing.
+
+**Insufficient evidence examples:**
+- `evidence: "tests passed"` — no output excerpt
+- `evidence: "verified manually"` — no screenshot, log, or artifact
+- `evidence: "done"` — no proof of any kind
+
+**Sufficient evidence examples:**
+- `evidence: "npm test -- --grep 'AC-001': 3 passing (42ms)"` — includes command + output excerpt
+- `evidence: "grep output: <paste>"` — includes the actual artifact
+
+Note: `evidence:` presence (empty vs populated) is a Tier 0 CI gate (per SPEC-004 / `review-primitives.md`). This step grades **content quality** on populated fields — it is a Tier 1 concern.
 
 ### Step 9: Consume graded findings from pr-reviewer
 
