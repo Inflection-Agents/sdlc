@@ -88,13 +88,14 @@ skill's behavior.
    after three attempts, the situation requires human design judgment, not
    another mechanical fix.
 
-5. **Integration branch is the only merge target.** Task PRs merge to
-   `feat/spec-NNN`. Direct task PRs to `main` are forbidden — the
-   orchestrator refuses to merge a task PR whose target is `main`, and the
-   integration PR (also `feat/spec-NNN` → `main`) is opened only once, in
-   Phase 3, after `spec-completion` has run. This pattern keeps `main`
-   clean and gives the spec owner a single integration PR to review
-   end-to-end rather than N task PRs to reconstruct mentally.
+5. **Merge target is determined by the resolved integration strategy.** In
+   `branch` mode: task PRs merge to `feat/spec-NNN`; the integration PR
+   (`feat/spec-NNN` → `main`) is opened once in Phase 3 after
+   `spec-completion` has run. In `direct` mode: task PRs merge to `main`
+   directly and no integration PR is created. Unauthorized target deviations
+   — a task PR targeting `main` in `branch` mode, or targeting a feature
+   branch in `direct` mode — are refused by the orchestrator. The resolved
+   `integration_strategy` (Phase 1 step 1a) determines which rule applies.
 
 6. **Reviewer output schema validation.** Before routing on any reviewer
    output, validate the output against the SPEC-001 contract. Validation
@@ -156,9 +157,10 @@ Phase 1 runs once per spec execution. The eight steps must run in order.
     **AC-009 sidecar check (before resolution).** Before invoking the
     resolver, check for a sidecar file at
     `specs/tasks/SPEC-NNN/_expected_strategy`. If the file exists, read its
-    single-line content (`branch` or `direct`) and store it as
-    `expected_strategy`. Do NOT delete the sidecar yet — deletion happens
-    after the comparison is recorded (see below).
+    single-line content, strip leading/trailing whitespace (including
+    trailing newlines from editor-created files), and store as
+    `expected_strategy` (`branch` or `direct`). Do NOT delete the sidecar
+    yet — deletion happens after the comparison is recorded (see below).
 
     **Resolution algorithm (canonical source):**
 
@@ -548,11 +550,19 @@ Newly-started orchestrator processes (post-revert) that encounter a spec
 with `integration_strategy: direct` in frontmatter will fail at Phase 1
 step 1a with an unrecognized-field error — because the reverted skill does
 not recognize the `integration_strategy` frontmatter field. The recovery
-path is to simultaneously revert `spec-schema.md` to strip the field
-declaration, so future spec drafts do not include it. The worked example
-log fixture (`.ai/skills/spec-execution/examples/example-execution.log.jsonl`)
-is also reverted (the `integration_strategy_resolved` event removed) so it
-stays consistent with the reverted schema.
+path requires two actions:
+
+1. Simultaneously revert `spec-schema.md` to strip the field declaration,
+   so future spec drafts do not include it.
+2. For each existing spec file that already carries `integration_strategy:`
+   in its frontmatter, remove that field in a follow-up commit before
+   starting a new orchestrator for that spec. Locate affected specs with:
+   `grep -rl "^integration_strategy:" specs/`
+
+The worked example log fixture
+(`.ai/skills/spec-execution/examples/example-execution.log.jsonl`) is also
+reverted (the `integration_strategy_resolved` event removed) so it stays
+consistent with the reverted schema.
 
 ## Cross-skill signals
 
@@ -678,9 +688,14 @@ Field notes:
 - `source` (integration_strategy_resolved) is `"explicit"` when the
   `integration_strategy` frontmatter field was set, or `"heuristic"` when
   the resolver fell through to the heuristic.
-- `signals` (integration_strategy_resolved) records the four boolean
-  heuristic inputs evaluated during resolution — useful for auditing why the
-  heuristic chose as it did. All four are populated regardless of `source`;
+- `signals` (integration_strategy_resolved) records the four heuristic
+  signal inputs evaluated during resolution — useful for auditing why the
+  heuristic chose as it did. `breaking_tag` and `cross_workspace_blocks`
+  are booleans; `workspace_count` and `task_count` are integers
+  representing raw counts that the heuristic threshold-tests. `workspace_count`
+  is `len(spec.frontmatter.get("workspaces") or [])` — the count of workspace
+  names in the spec-level frontmatter array, not the count of unique workspace
+  values across task files. All four are populated regardless of `source`;
   in the `explicit` path they describe the spec's state even though they
   did not drive the decision.
 
