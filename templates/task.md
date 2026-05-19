@@ -21,6 +21,10 @@ acceptance_criteria:
           ✓ rejects missing header with 401 (4 ms)
           ✓ rejects expired token with token_expired code (3 ms)
       Tests: 3 passed, 0 failed
+  - id: AC-002
+    description: ""
+    status: pending
+    evidence: ""
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
 ---
