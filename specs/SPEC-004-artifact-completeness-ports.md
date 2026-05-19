@@ -1,13 +1,13 @@
 ---
 id: SPEC-004
 title: Artifact completeness ports from high-gear
-status: active
+status: completed
 version: 1
 supersedes:
 initiative: INI-003
 owner: franklin
 created: 2026-05-18
-updated: 2026-05-18
+updated: 2026-05-19
 tags: [evidence, gap-capture, spec-completion, workspace-enforcement, port-back]
 linear_project:
 ---
