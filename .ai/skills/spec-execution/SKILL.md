@@ -415,6 +415,11 @@ Tier 0 (per SPEC-001 Design > PR side > Tier 0 — mechanical gates)
                 detect cross-skill signals on the AGGREGATED set:
                   - any blocker with criterion == "task:scope"
                     → task-decomposition re-plan (return)
+                  - any blocker with criterion == "spec:gap"  ← checked first
+                    → if open_count < 5: create GAP file, emit gap_dispatched,
+                      continue (task not blocked)
+                    → if open_count >= 5: rewrite criterion to spec:wrong-design,
+                      fall through to spec:* branch
                   - any blocker with criterion starting "spec:"
                     → check log-derived spec_amendment_count; if next count
                       > 2, escalate; else log spec_amendment_dispatched and
@@ -540,9 +545,10 @@ modes; only the post-trigger actions differ.
 
    Lines starting with `#` are JSONL convention for human-readable markers;
    JSONL parsers ignore them. This sentinel is NOT a new telemetry event —
-   the live telemetry schema stays at 10 event types. No integration PR
-   merge event is available in direct mode; the sentinel comment is the
-   archive trigger.
+   the live telemetry schema stays at 12 event types (10 from SPEC-002/
+   SPEC-005, plus `gap_dispatched` and `gap_resolved` added by SPEC-004).
+   No integration PR merge event is available in direct mode; the sentinel
+   comment is the archive trigger.
 
 #### Rollback semantics
 
@@ -594,6 +600,39 @@ citation).
   `task-decomposition` produces revised task files, the orchestrator
   resumes — the revised task is re-dispatched as a fresh executor run.
 
+- **Gap-capture signal.** Any aggregated finding with `severity: blocker`
+  AND `criterion == "spec:gap"`. This branch fires **before** the generic
+  `spec:*` branch below — order matters.
+
+  `invoke_gap_capture` semantics:
+  1. Derive `open_count` from the execution log:
+     ```
+     open_count(spec) = count(gap_dispatched events for spec)
+                      - count(gap_resolved events for spec)
+     ```
+     This is the same log-derived pattern as the per-spec amendment
+     counter. Derived at handoff time on every orchestrator entry (fresh
+     start or resume after restart).
+  2. If `open_count < 5`:
+     - Create a `GAP-NNN-*.md` file under `specs/gaps/` from
+       `templates/gap.md` (see that template for the frontmatter shape;
+       do not duplicate it here).
+     - Populate frontmatter: auto-increment id, spec from context, title
+       from finding text, `status: open`, owner from spec's owner field,
+       `created: today`, `discovered_in: TASK-NNN` (current task),
+       `resolution: clarification` (default), remaining fields null.
+     - Emit `gap_dispatched` telemetry event (see Telemetry below).
+     - **Continue execution** — the task PR is not blocked by this finding.
+       The `spec:gap` blocker is consumed here and does not fall through
+       to the severity policy.
+  3. If `open_count >= 5`:
+     - Rewrite the finding's `criterion` from `spec:gap` to
+       `spec:wrong-design` **at orchestrator handoff time** — the
+       reviewer's originally emitted criterion is unchanged in the log;
+       only the orchestrator's routing decision differs.
+     - Fall through to the `spec:*` branch below, which routes through
+       the amendment counter natively.
+
 - **Spec-amendment signal.** Any aggregated finding with
   `severity: blocker` AND `criterion` starting with `"spec:"` — one of:
   - `spec:ambiguous-ac`
@@ -605,7 +644,9 @@ citation).
   rules (the `pr-reviewer` row) and the `pr-reviewer` skill's prompt. Any
   prefix outside this set that starts with `spec:` is a contract
   violation and routes to `escalate` via the severity policy guard, not
-  via this branch.
+  via this branch. (`spec:gap` is handled by the gap-capture branch above
+  and does not reach this branch unless the open_count cap is exceeded and
+  the criterion has been rewritten to `spec:wrong-design`.)
 
   On detection, the orchestrator derives the current
   `spec_amendment_count` from the execution log (per Phase 1 step 7),
@@ -645,13 +686,15 @@ the Phase / step named in the column.
 
 Per-task events are appended to
 `specs/tasks/SPEC-NNN/_execution.log.jsonl`. The file is JSONL — one
-event per line, append-only, restart-safe by construction. Two events are
+event per line, append-only, restart-safe by construction. Four events are
 **per-spec** (not per-task): `integration_strategy_resolved` (fired once
-at Phase 1 step 1a, before any task dispatch) and
-`spec_amendment_dispatched` (fired at the amendment hand-off).
+at Phase 1 step 1a, before any task dispatch), `spec_amendment_dispatched`
+(fired at the amendment hand-off), `gap_dispatched` and `gap_resolved`
+(fired by the gap-capture handler and the gap-monitor respectively).
 
-The live telemetry schema has **10 event types** (SPEC-002's body documents
-9; SPEC-005 added the 10th via the "extend live artifacts" pattern):
+The live telemetry schema has **12 event types** (SPEC-002's body documents
+9; SPEC-005 added the 10th; SPEC-004 adds the 11th and 12th via the "extend
+live artifacts" pattern):
 
 ```json
 {"ts": "<iso8601>", "spec": "SPEC-NNN", "event": "integration_strategy_resolved", "strategy": "branch|direct", "source": "explicit|heuristic", "signals": {"breaking_tag": <bool>, "workspace_count": <int>, "task_count": <int>, "cross_workspace_blocks": <bool>}}
@@ -664,7 +707,18 @@ The live telemetry schema has **10 event types** (SPEC-002's body documents
 {"ts": "<iso8601>", "task": "TASK-NNN", "event": "merged", "pr": <int>, "total_wall_ms": <int>}
 {"ts": "<iso8601>", "task": "TASK-NNN", "event": "escalated", "reason": "<trigger>"}
 {"ts": "<iso8601>", "spec": "SPEC-NNN", "event": "spec_amendment_dispatched", "amendment_count": <int>}
+{"ts": "<iso8601>", "spec": "SPEC-NNN", "event": "gap_dispatched", "gap_id": "GAP-NNN", "open_count": <int>, "originating_finding_id": "F-NNN"}
+{"ts": "<iso8601>", "spec": "SPEC-NNN", "event": "gap_resolved", "gap_id": "GAP-NNN", "open_count": <int>}
 ```
+
+`gap_dispatched` and `gap_resolved` are **per-spec** events (like
+`integration_strategy_resolved` and `spec_amendment_dispatched`). For
+`gap_dispatched`, `open_count` is the post-increment value — the number
+of open gaps for this spec after this gap is created. For `gap_resolved`,
+`open_count` is the post-decrement value — the number of open gaps after
+this resolution. The orchestrator monitors `specs/gaps/` for status
+transitions to `resolved` or `wontfix` and emits `gap_resolved`; the
+actual GAP file update is a human or another skill's responsibility.
 
 Note: there is no `spec_completed` event. In `direct` mode, the archive
 sentinel is a JSONL comment line (`# spec_completed: <iso8601>`) appended
@@ -709,6 +763,17 @@ Field notes:
   values across task files. All four are populated regardless of `source`;
   in the `explicit` path they describe the spec's state even though they
   did not drive the decision.
+- `open_count` (gap_dispatched) is the post-increment count of open gaps for
+  the spec, derived as `count(gap_dispatched) - count(gap_resolved)` across
+  all prior events in the log for this spec, after appending this event. This
+  is the same log-derived pattern as `amendment_count`.
+- `originating_finding_id` (gap_dispatched) is the `id` field of the
+  `spec:gap` finding that triggered this gap capture, taken from the reviewer
+  output envelope. Used to trace from the execution log back to the review
+  that surfaced the gap.
+- `open_count` (gap_resolved) is the post-decrement value — the number of
+  open gaps remaining after this resolution. Derived the same way:
+  `count(gap_dispatched) - count(gap_resolved)` including this event.
 
 ## References to SPEC-001
 
@@ -804,6 +869,38 @@ def route_task(task, pr, spec, target_branch):
                if f.severity == "blocker"):
             invoke_task_decomposition_replan(task, findings=all_findings)
             return
+
+        # Gap-capture branch — fires BEFORE the generic spec:* branch.
+        # spec:gap blockers are a lighter alternative to spec-amendment.
+        if any(f.criterion == "spec:gap" for f in all_findings
+               if f.severity == "blocker"):
+            # Derive open_count from the execution log at handoff time
+            # (same log-derived pattern as the per-spec amendment counter).
+            open_count = (count_log_events(spec, "gap_dispatched")
+                          - count_log_events(spec, "gap_resolved"))
+            gap_finding = next(f for f in all_findings
+                               if f.severity == "blocker"
+                               and f.criterion == "spec:gap")
+
+            if open_count < 5:
+                # Create GAP file from templates/gap.md; populate frontmatter
+                # per gap-capture handler semantics in Cross-skill signals above.
+                gap_id = create_gap_file(spec, gap_finding, task)
+                log("gap_dispatched", spec=spec.id, gap_id=gap_id,
+                    open_count=open_count + 1,
+                    originating_finding_id=gap_finding.id)
+                # Continue execution — task PR is not blocked by this finding.
+                # Remove the gap finding from all_findings so it is not re-routed.
+                all_findings = [f for f in all_findings
+                                if not (f.severity == "blocker"
+                                        and f.criterion == "spec:gap")]
+                # Fall through to severity policy with remaining findings.
+            else:
+                # Rate-limit exceeded: rewrite criterion at orchestrator
+                # handoff time. The reviewer's originally emitted criterion
+                # is unchanged in the log; only the routing decision differs.
+                gap_finding.criterion = "spec:wrong-design"
+                # Fall through to spec:* branch below with rewritten criterion.
 
         if any(f.criterion.startswith("spec:") for f in all_findings
                if f.severity == "blocker"):

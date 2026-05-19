@@ -2,7 +2,7 @@
 id: TASK-029
 spec: SPEC-004
 title: "Tier 0 evidence-presence synthetic test"
-status: pending
+status: done
 agent: claude-code
 depends_on: [TASK-022]
 blocks: []
@@ -10,10 +10,16 @@ linear_issue:
 acceptance_criteria:
   - id: AC-001
     description: "Given a synthetic test fixture (a task file with one AC whose `evidence:` field is empty or missing), when the Tier 0 CI check defined by SPEC-004's review-primitives.md extension runs, then it fails closed with the AC id named in stderr and no LLM reviewer is dispatched. The test fixture and CI log are recorded as the spec-completion evidence (SPEC-004 AC-014)"
-    status: pending
-    evidence:
+    status: pass
+    evidence: |
+      Fixture: .ai/skills/review-primitives/examples/test-fixtures/empty-evidence-task.md
+      Script: .ai/skills/review-primitives/examples/test-fixtures/test-tier0-evidence-presence.sh
+      Run: bash test-tier0-evidence-presence.sh empty-evidence-task.md
+      stderr: "Tier 0 FAIL: empty evidence in AC-001"
+      exit code: 1 ✓
+      Fix applied: null guard (ac.get('evidence') or '').strip() handles YAML null for bare evidence: key
 created: 2026-05-18
-updated: 2026-05-18
+updated: 2026-05-19
 ---
 
 ## Context

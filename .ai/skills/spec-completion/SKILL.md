@@ -119,14 +119,16 @@ Success criterion 3: "p99 auth latency < 200ms"
   → Requires production traffic. Cannot verify in staging.
   → Deferred: monitor after deploy. Dashboard: [link]
   → Verification owner: franklin
-  → Deadline: 1 week post-deploy
+  → Trigger: 1 week post-deploy
 ```
 
 Deferred criteria don't block completion, but they must have:
 - A clear measurement plan
 - An owner responsible for checking
-- A deadline
+- A trigger (a calendar date such as "2026-06-01" OR an observable condition such as "after next high-gear spec executes")
 - A dashboard or tool to check against
+
+**Rigor requirement:** Every measurement-class deferred criterion MUST have all three fields populated: Owner, Trigger, Method. The skill emits a completion-blocking failure (reports verdict: "Blocked") if any measurement-class criterion is missing any of the three. No deferral without a clear path to verification.
 
 ## Step 6: Handle manual criteria
 
@@ -154,12 +156,14 @@ Assemble everything into a completion report:
 | 4 | No regression in existing endpoints | Integration | Full suite: 347/347 passed | verified |
 
 ### Deferred verifications
-| Criterion | Owner | Deadline | How to check |
-|-----------|-------|----------|-------------|
+| Criterion | Owner | Trigger | Method |
+|-----------|-------|---------|--------|
 | p99 latency < 200ms | franklin | YYYY-MM-DD | Grafana dashboard: [link] |
 
 ### Verdict: [Ready to complete / Blocked / Needs discussion]
 ```
+
+The completion report shape is defined in `templates/completion-report.md` (canonical). The skill produces this template at completion time.
 
 ## Step 8: Get user sign-off
 
@@ -222,6 +226,6 @@ A spec with waived criteria is still `completed` — the decision to waive is it
 | Marking complete because all PRs merged | PRs merged ≠ success criteria met. Verify each criterion. |
 | Skipping integration verification | Individual task tests don't prove the pieces work together. Run integration checks. |
 | Deferring everything to production | Only measurement criteria should be deferred. Task-covered and integration criteria can be verified now. |
-| No deferred verification plan | "We'll check in prod" without an owner, deadline, and dashboard is not a plan. |
+| No deferred verification plan | "We'll check in prod" without an owner, trigger, and method is not a plan. |
 | Completing a spec with cancelled tasks and no explanation | Every cancelled task needs a documented reason (amendment, scope reduction, superseded). |
 | Forgetting to update Linear | The spec, spec-index, and Linear project must all reflect completion. |

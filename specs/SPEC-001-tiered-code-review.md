@@ -324,6 +324,19 @@ Entries are append-only at first. The `resolved` boolean and its companion field
 
 ---
 
+## Changelog
+
+### v1 (2026-05-18) — initial
+- Initial spec, completed 2026-05-18.
+
+### v1.1 (2026-05-19) — extensions via SPEC-004
+- SPEC-004 added the following without modifying this spec's contracts:
+  - Four new citation prefixes in live `review-primitives.md`, scoped to pr-reviewer (Tier 1) and Tier 2 PR specialists (NOT spec-reviewer): `task:evidence-missing`, `spec:gap`, `monorepo:workspace-scope`, `monorepo:verify-coverage`.
+  - New Tier 0 mechanical gate: every AC has a non-empty `evidence:` field (presence check only; content quality graded at Tier 1 via `task:evidence-missing`).
+  - Amendment to the "New consequence rows are added via spec-amendment on SPEC-001" rule in `review-primitives.md`, now authorizing two paths: (a) spec-amendment while SPEC-001 is amendable, OR (b) a subsequent spec that extends the live artifact and adds a Changelog v1.1 annotation (the extension pattern; this entry is the originating use).
+  - Semantic narrowing of `monorepo:boundary` to import-graph violations only (per `.ai/project.md` workspace dependency rules). The new `monorepo:workspace-scope` and `monorepo:verify-coverage` prefixes carve out the file-touch and test-failure cases respectively.
+- See SPEC-004 for the full design and rationale.
+
 ## Appendix A — `pr-reviewer` prompt (draft)
 
 Lives in `.ai/skills/pr-reviewer/SKILL.md` on implementation.

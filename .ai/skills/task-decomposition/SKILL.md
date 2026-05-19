@@ -210,9 +210,11 @@ acceptance_criteria:
   - id: AC-NNN
     description: "Given X, when Y, then Z"
     status: pending
+    evidence:    # left empty by decomposer; populated by implementing agent before PR review (per SPEC-004)
   - id: AC-NNN
     description: "Given A, when B, then C"
     status: pending
+    evidence:    # left empty by decomposer; populated by implementing agent before PR review (per SPEC-004)
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
 ---
@@ -238,6 +240,8 @@ updated: YYYY-MM-DD
 - Run: `[lint command]`
 - New tests required: yes/no, location
 ```
+
+The `evidence:` field is created empty (or omitted) at decomposition time — the decomposing agent doesn't know the proof yet. It is the implementing agent's responsibility to populate before opening the PR for review. Tier 0 CI gates on presence; Tier 1 review grades quality. See SPEC-004.
 
 **No placeholders in task files.** Every field must have actual content. If you don't know a verification command, investigate and find the right one.
 
