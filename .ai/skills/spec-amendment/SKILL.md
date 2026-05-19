@@ -23,6 +23,22 @@ Spec amendment is normal, not failure. Every non-trivial spec will be amended at
 
 ---
 
+## Gap or amendment?
+
+Before invoking spec-amendment, decide whether the change is small enough to be a gap (lighter weight, no version bump) or substantive enough to require an amendment.
+
+| Change type | Path |
+|---|---|
+| Word-level AC clarification preserving semantics (e.g., wording tighten without changing what passes/fails) | gap-capture (use `templates/gap.md`; do not run this skill) |
+| Design-section workaround that does not affect any AC's pass/fail | gap-capture |
+| Cross-link to an ADR that should have been cited but wasn't (no design change) | gap-capture |
+| Any change that would bump the spec version (per `spec-schema.md` version rules) | **spec-amendment** (this skill) |
+| Any change to In/Out scope, AC pass/fail conditions, or design semantics | **spec-amendment** |
+
+If the change qualifies as a gap, create a GAP-NNN-*.md file under `specs/gaps/` (template at `templates/gap.md`) and stop. Otherwise continue with the amendment process below. See SPEC-004 for the originating design.
+
+---
+
 ## Step 1: Identify the trigger
 
 Something prompted this amendment. Name it clearly:
@@ -303,6 +319,14 @@ This is the mirror of the `spec-authoring` Phase 2 invocation (Step 10a there). 
 **Overrides downgrade severity only — they never silence the finding.** The reviewer's original output is preserved in the spec's review log (per SPEC-002 telemetry). The routing policy reads the *override* severity but the review log shows both. An override that removes a finding from the output, or marks it resolved without addressing it, is a SPEC-001 contract violation.
 
 When the routing policy returns `accept` or `batch_followup_and_accept` (after any overrides), proceed to Step 7. The owner's sign-off in Step 7 remains the authority.
+
+### Back-port open clarification gaps
+
+Scan open `clarification` gaps for the parent spec (files in `specs/gaps/` where `spec: SPEC-NNN` and `status: open` and `resolution: clarification`). For each:
+- If the gap's resolution is still applicable to the new amendment, incorporate it into the amendment text.
+- Set the gap's `back_ported_to: SPEC-NNN-v<new-version>` (use `SPEC-NNN-v1.1` if the parent spec is `status: completed` and uses the Changelog-annotation extension pattern from SPEC-004).
+- Set the gap's `status: resolved` and `resolved_date: <today>` and `resolved_by: <amendment commit SHA or this task's id>` in the gap file.
+- List the back-ported gaps in the amendment's commit message (e.g., `closes GAP-001, GAP-002`).
 
 ## Step 7: Review with the user
 

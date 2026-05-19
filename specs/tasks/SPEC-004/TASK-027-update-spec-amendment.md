@@ -2,7 +2,7 @@
 id: TASK-027
 spec: SPEC-004
 title: "Update spec-amendment skill — gap-or-amendment decision + clarification back-port step"
-status: pending
+status: done
 agent: claude-code
 depends_on: [TASK-023]
 blocks: []
@@ -10,14 +10,20 @@ linear_issue:
 acceptance_criteria:
   - id: AC-001
     description: "Given .ai/skills/spec-amendment/SKILL.md, when read, then it includes a 'Gap or amendment?' decision section near the top, using the enumerated rule table from SPEC-004 Design > 2 (NOT a heuristic — bright-line rules). The table covers word-level AC clarification, design workaround without AC change, missing ADR cross-link, version-bump changes, scope/AC/design semantic changes (SPEC-004 AC-010)"
-    status: pending
-    evidence:
+    status: pass
+    evidence: |
+      grep -c "Gap or amendment" .ai/skills/spec-amendment/SKILL.md -> 1
+      Section inserted after overview (line 26), before Step 1.
+      Table has 5 bright-line rows matching SPEC-004 Design > 2 verbatim.
   - id: AC-002
     description: "Given the skill, when read, then it includes a new step (after the amendment is produced): 'Scan open `clarification` gaps for the parent spec; incorporate any that are still applicable; set their `back_ported_to: SPEC-NNN-v<new-version>` (or SPEC-NNN-v1.1 for the Changelog-annotation pattern per the extension rule) and `status: resolved`.' (SPEC-004 AC-010)"
-    status: pending
-    evidence:
+    status: pass
+    evidence: |
+      grep -c "back_ported_to" .ai/skills/spec-amendment/SKILL.md -> 1
+      Step inserted before Step 7, scoped to status:open + resolution:clarification.
+      Includes back_ported_to, v1.1 pattern for completed specs, resolved_date/by fields.
 created: 2026-05-18
-updated: 2026-05-18
+updated: 2026-05-19
 ---
 
 ## Context
