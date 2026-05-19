@@ -10,9 +10,10 @@ description: Use when an active spec needs to be executed end-to-end — drives 
 Execute an active spec end-to-end. Build the wave graph from task dependencies,
 dispatch executors in parallel (worktree-isolated), gate review on Tier 0 green
 (contents per SPEC-001), dispatch tiered reviewers per SPEC-001, route by
-severity (including the `escalate` action), fix-loop with cap, merge task PRs to
-an integration branch, invoke `spec-completion`, open an integration PR to
-`main`.
+severity (including the `escalate` action), fix-loop with cap, then merge task
+PRs per the resolved integration strategy: to an integration branch in `branch`
+mode (followed by spec-completion and an integration PR to `main`), or directly
+to `main` in `direct` mode (followed by spec-completion with no integration PR).
 
 This is a rigid skill. Every step must be followed. No shortcuts.
 
@@ -94,8 +95,10 @@ skill's behavior.
    `spec-completion` has run. In `direct` mode: task PRs merge to `main`
    directly and no integration PR is created. Unauthorized target deviations
    — a task PR targeting `main` in `branch` mode, or targeting a feature
-   branch in `direct` mode — are refused by the orchestrator. The resolved
-   `integration_strategy` (Phase 1 step 1a) determines which rule applies.
+   branch in `direct` mode — are refused by the orchestrator (the strategy
+   is resolved in Phase 1 step 1a before any executor is dispatched, so the
+   rule is always known at merge time). The resolved `integration_strategy`
+   (Phase 1 step 1a) determines which rule applies.
 
 6. **Reviewer output schema validation.** Before routing on any reviewer
    output, validate the output against the SPEC-001 contract. Validation
