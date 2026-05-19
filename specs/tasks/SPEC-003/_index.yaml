@@ -1,0 +1,54 @@
+spec: SPEC-003
+title: "Onboarding simplification — Phase 1 (docs + bootstrap fix)"
+created: 2026-05-18
+updated: 2026-05-18
+
+tasks:
+  - id: TASK-011
+    title: "Create templates/initiatives.md"
+    agent: jules
+    status: pending
+    depends_on: []
+    blocks: [TASK-012]
+
+  - id: TASK-012
+    title: "Rewrite bootstrap.sh — canonical .ai/skills source, symlink target, baselines/initiatives setup, validation"
+    agent: claude-code
+    status: pending
+    depends_on: [TASK-011]
+    blocks: [TASK-017]
+
+  - id: TASK-013
+    title: "Refresh README.md — docs table to exactly 6, current-state pointer, .ai/skills/ subdirectory"
+    agent: claude-code
+    status: pending
+    depends_on: []
+    blocks: []
+
+  - id: TASK-014
+    title: "Refresh skills.md — add 4 new entries; .claude/skills/ → .ai/skills/ path migration; sdlc-code-review graded model"
+    agent: claude-code
+    status: pending
+    depends_on: []
+    blocks: []
+
+  - id: TASK-015
+    title: "Refresh skill-architecture.md — Layer 2 + Skill inventory additions; path migration"
+    agent: claude-code
+    status: pending
+    depends_on: []
+    blocks: []
+
+  - id: TASK-016
+    title: "Refresh .ai/setup.md — directory structure + daily workflow graded-review note"
+    agent: jules
+    status: pending
+    depends_on: []
+    blocks: []
+
+  - id: TASK-017
+    title: "Integration walkthrough verification on fresh clone (AC-012 + AC-013)"
+    agent: human
+    status: pending
+    depends_on: [TASK-012]
+    blocks: []
