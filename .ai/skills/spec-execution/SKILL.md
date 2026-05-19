@@ -633,7 +633,7 @@ The live telemetry schema has **10 event types** (SPEC-002's body documents
 9; SPEC-005 added the 10th via the "extend live artifacts" pattern):
 
 ```json
-{"ts": "<iso8601>", "spec": "SPEC-NNN", "event": "integration_strategy_resolved", "strategy": "branch|direct", "source": "explicit|heuristic", "signals": {"breaking_tag": <bool>, "multi_workspace": <bool>, "task_count_gte_5": <bool>, "cross_workspace_blocks": <bool>}}
+{"ts": "<iso8601>", "spec": "SPEC-NNN", "event": "integration_strategy_resolved", "strategy": "branch|direct", "source": "explicit|heuristic", "signals": {"breaking_tag": <bool>, "workspace_count": <int>, "task_count": <int>, "cross_workspace_blocks": <bool>}}
 {"ts": "<iso8601>", "task": "TASK-NNN", "wave": <int>, "event": "dispatched", "agent": "claude-code|jules", "worktree": "<path>|null"}
 {"ts": "<iso8601>", "task": "TASK-NNN", "event": "tier_0", "outcome": "pass|fail", "commands": [...], "duration_ms": <int>, "fingerprint": "<hash>"}
 {"ts": "<iso8601>", "task": "TASK-NNN", "event": "tier_1", "blockers": <int>, "majors": <int>, "nits": <int>, "suggestions": <int>, "tier_2_recommended": [...], "duration_ms": <int>}
