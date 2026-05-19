@@ -169,9 +169,15 @@ Phase 1 runs once per spec execution. The eight steps must run in order.
 
     ```python
     def resolve_integration_strategy(spec):
+        # 0. Guard: reject unrecognized values before they silently fall to heuristic.
+        raw = spec.frontmatter.get("integration_strategy")
+        if raw is not None and raw not in ("branch", "direct"):
+            escalate(spec, "invalid_frontmatter_field")
+            return  # execution halts; no telemetry event emitted
+
         # 1. Explicit field wins.
-        if spec.frontmatter.get("integration_strategy") in ("branch", "direct"):
-            return spec.frontmatter["integration_strategy"], "explicit"
+        if raw in ("branch", "direct"):
+            return raw, "explicit"
 
         # 2. Heuristic fallback.
         task_count = len(spec.tasks)
@@ -613,11 +619,12 @@ citation).
 ## Failure escalation
 
 Every escalation writes a structured `escalated` telemetry event to the
-execution log and notifies the spec owner. The eight triggers below
+execution log and notifies the spec owner. The nine triggers below
 cover the full envelope of orchestrator failure modes:
 
 | Trigger | Detected where | Notes |
 |---|---|---|
+| `integration_strategy` frontmatter field present with unrecognized value (not `branch`, `direct`, or absent) | Phase 1 step 1a, before heuristic fallback | Prevents silent degradation to heuristic when author typos a value |
 | Fix-loop counter > 3 for any task | Per-task routing loop (Appendix B) | Per-task TOTAL — Tier 0 and Tier 1 fixes share the counter |
 | Tier 0 fails 3 times with the same error fingerprint | Per-task routing loop (Appendix B) | Fingerprint = hash of first 500 chars of failure output |
 | Tier 1 or Tier 2 returns malformed JSON or ungrounded findings | Per-task routing loop, schema-validation step | SPEC-001 contract violation |

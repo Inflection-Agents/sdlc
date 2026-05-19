@@ -9,6 +9,7 @@ owner: franklin
 created: 2026-05-18
 updated: 2026-05-18
 tags: [integration-branch, orchestration, conditional, extends-spec-002]
+integration_strategy: branch
 linear_project:
 depends_on: [SPEC-002]
 ---
