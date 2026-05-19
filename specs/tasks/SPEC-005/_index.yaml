@@ -7,20 +7,20 @@ tasks:
   - id: TASK-018
     title: "Amend spec-schema.md — add optional integration_strategy field"
     agent: claude-code
-    status: pending
+    status: done
     depends_on: []
     blocks: [TASK-019]
 
   - id: TASK-019
     title: "Extend spec-execution skill — Phase 1 resolve step, Phase 2/3 conditional flows, telemetry event"
     agent: claude-code
-    status: pending
+    status: done
     depends_on: [TASK-018]
     blocks: [TASK-020]
 
   - id: TASK-020
     title: "Add Changelog v1.1 annotation to SPEC-002"
     agent: jules
-    status: pending
+    status: done
     depends_on: [TASK-019]
     blocks: []
