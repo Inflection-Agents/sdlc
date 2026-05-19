@@ -1,13 +1,14 @@
 ---
 id: SPEC-002
 title: Spec execution orchestration — wave-based loop with tiered review
-status: active
+status: completed
 version: 1
 supersedes:
 initiative: INI-001
 owner: franklin
 created: 2026-05-18
 updated: 2026-05-18
+completed: 2026-05-18
 tags: [orchestration, spec-execution, waves, reviewer-router, worktrees]
 linear_project:
 depends_on: [SPEC-001]
