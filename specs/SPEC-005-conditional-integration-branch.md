@@ -9,6 +9,7 @@ owner: franklin
 created: 2026-05-18
 updated: 2026-05-18
 tags: [integration-branch, orchestration, conditional, extends-spec-002]
+integration_strategy: branch
 linear_project:
 depends_on: [SPEC-002]
 ---
@@ -68,9 +69,15 @@ The orchestrator resolves the strategy at Phase 1 step 1 (right after verifying 
 
 ```python
 def resolve_integration_strategy(spec):
+    # 0. Guard: reject unrecognized values before they silently fall to heuristic.
+    raw = spec.frontmatter.get("integration_strategy")
+    if raw is not None and raw not in ("branch", "direct"):
+        escalate(spec, "invalid_frontmatter_field")
+        return  # execution halts; no telemetry event emitted
+
     # 1. Explicit field wins.
-    if spec.frontmatter.get("integration_strategy") in ("branch", "direct"):
-        return spec.frontmatter["integration_strategy"], "explicit"
+    if raw in ("branch", "direct"):
+        return raw, "explicit"
 
     # 2. Heuristic fallback.
     task_count = len(spec.tasks)
@@ -134,8 +141,8 @@ The worked example log fixture at `.ai/skills/spec-execution/examples/example-ex
 
 The orchestrator monitors task PRs in `direct` mode the same way it monitors them in `branch` mode (the task-status flip from `in-progress` to `done` is the same event in both modes). The only difference is the post-`done` trigger:
 
-- `branch` mode: when all tasks reach `done`, open integration PR.
-- `direct` mode: when all tasks reach `done`, invoke `spec-completion` directly (no PR to open).
+- `branch` mode: when all tasks reach a terminal state (`done` or `cancelled`), open integration PR (if ≥1 task is `done`; skip if all `cancelled`).
+- `direct` mode: when all tasks reach a terminal state (`done` or `cancelled`), invoke `spec-completion` directly if ≥1 task is `done`; skip if all `cancelled` (no PR to open either way).
 
 This is documented in `spec-execution/SKILL.md` Phase 3 as two branches off the same trigger ("all tasks terminal").
 

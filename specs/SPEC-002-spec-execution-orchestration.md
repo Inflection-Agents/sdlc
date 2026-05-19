@@ -273,6 +273,19 @@ All tasks done → spec-completion → integration PR feat/spec-NNN → main
 
 ---
 
+## Changelog
+
+### v1 (2026-05-18) — initial
+- Initial spec, completed 2026-05-18.
+
+### v1.1 (2026-05-19) — extensions via SPEC-005
+- SPEC-005 added the following without modifying this spec's contracts:
+  - Conditional integration-branch strategy in spec-execution: optional `integration_strategy: branch | direct` frontmatter field on specs with a heuristic fallback (branch if `breaking` tag, multi-workspace, ≥5 tasks, or any task `blocks:` crosses workspace boundary; else direct).
+  - `integration_strategy_resolved` event added to the live `spec-execution/SKILL.md` telemetry schema (the live schema now has 10 event types; this spec body documents 9 as historical record).
+  - Live direct-mode Phase 3 sequence: spec-completion invoked on all-tasks-terminal (if ≥1 task done; skipped if all cancelled); execution log archived by appending sentinel comment `# spec_completed: <iso8601>` (not a new event type).
+- AC-010 of this spec (mandating `feat/spec-NNN` as the ONLY merge pattern) is superseded in the live behavior by SPEC-005's conditional resolution. AC-010's wording in this spec body is preserved as historical record.
+- See SPEC-005 for the rationale, heuristic, and full design.
+
 ## Appendix A — Skill skeleton (draft)
 
 ```

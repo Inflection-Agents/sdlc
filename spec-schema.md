@@ -20,6 +20,7 @@ supersedes: SPEC-000            # optional, previous version's id
 initiative: INI-003             # links to Linear initiative
 owner: franklin                 # human who owns intent
 workspaces: [dealer-app, shared] # which workspace members this spec affects (monorepo)
+integration_strategy: branch | direct  # optional
 created: 2026-04-22
 updated: 2026-04-22
 tags: [auth, security]          # free-form, used for search/grouping
@@ -41,6 +42,7 @@ linear_project: PRJ-XYZ         # Linear project id, for bidirectional linking
 | `created` | yes | no | ISO date. |
 | `updated` | yes | yes | ISO date. Updated on every material change. |
 | `workspaces` | no | yes | Array of workspace names from `.ai/project.md`. Omit for single-app repos. Informs task decomposition scope. |
+| `integration_strategy` | no | yes | Optional. Allowed values: `branch` \| `direct`. When set to `branch`, spec-execution uses the feat/spec-NNN integration branch pattern. When set to `direct`, spec-execution merges task PRs directly to main. When unset, spec-execution computes the strategy from spec properties via a documented heuristic (see spec-execution skill Phase 1 resolution step). Schema validation rejects any value other than `branch` or `direct`. See SPEC-005 for design. |
 | `tags` | no | yes | Array of strings. |
 | `linear_project` | no | yes | Set when the Linear project is created. |
 
