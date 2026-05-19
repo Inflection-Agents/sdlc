@@ -105,7 +105,7 @@ your-repo/
 └── ...
 ```
 
-**Why all at root?** Claude Code loads skills from `.claude/skills/` relative to the working directory. In a monorepo, you work from root. Skills in `dbt/.claude/skills/` are invisible from root. Root placement means everything is always visible — naming convention (`dbt-*`, `nextjs-*`) signals the scope.
+**Why all at root?** Claude Code discovers project skills via `.claude/skills/` relative to the working directory — that path is kept as a symlink to `.ai/skills/` so Claude Code's discovery mechanism works without duplicating files. In a monorepo, you work from root. Skills in `dbt/.ai/skills/` are invisible from root without the root-level symlink. Root placement means everything is always visible — naming convention (`dbt-*`, `nextjs-*`) signals the scope.
 
 The canonical skill files live in `.ai/skills/`. The `.claude/skills/` directory is a symlink to `.ai/skills/`, created by `bootstrap.sh`, so that Claude Code discovers skills from its expected path without duplicating content.
 
