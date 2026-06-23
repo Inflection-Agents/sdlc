@@ -27,7 +27,7 @@ Creating a domain skill touches these files:
 | `.ai/project.md` → Workspace skills | Map the skill to its workspace |
 | `.ai/project.md` → Workspace interfaces | Add/update if the skill reveals boundary contracts |
 | `.ai/project.md` → Change propagation patterns | Add/update if the skill introduces cross-workspace patterns |
-| `.ai/project.md` → Agent eligibility | Update if the skill changes what's jules-eligible for this workspace |
+| `.ai/project.md` → Agent eligibility | Update if the skill changes how this workspace's tasks route (unattended `claude-code` vs. deferred to `human`) |
 | `.ai/project.md` → Per-workspace conventions | Add/update if conventions differ from the default |
 
 Missing any of these means the skill exists but SDLC process skills won't find it, apply it, or decompose tasks correctly for its workspace.
@@ -180,12 +180,12 @@ Skip this step if existing patterns already cover the relevant flows.
 
 ### Step 9: Update project.md — Agent eligibility
 
-If the new skill changes what's jules-eligible for this workspace (e.g., the skill reveals that tasks need database access), update the agent eligibility table:
+If the new skill changes how this workspace's tasks should route (e.g., the skill reveals that tasks need database access and can't run unattended), update the agent eligibility table:
 
 ```markdown
-| Workspace | Jules eligible? | Notes |
-|-----------|----------------|-------|
-| [workspace] | No | Requires database credentials (per [skill-name]) |
+| Workspace | Routing | Notes |
+|-----------|---------|-------|
+| [workspace] | human (deferred) | Requires database credentials (per [skill-name]) |
 ```
 
 ### Step 10: Update project.md — Per-workspace conventions

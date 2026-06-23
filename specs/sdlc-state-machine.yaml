@@ -1,0 +1,164 @@
+# SDLC state machine — the single source of truth for the AI-native SDLC's phases,
+# entry triggers, exit conditions, transitions, and per-workspace domain-skill routing.
+#
+# This file is the ONE authoritative definition of the process shape. The human-readable
+# phase narrative in `.ai/sdlc.md`, each phase skill's `## Handoff` footer, and the
+# UserPromptSubmit hook's classifier table are generated and/or validated FROM this file
+# (see scripts/sdlc/gen-handoffs.mjs and scripts/sdlc/validate-state-machine.mjs). Do not
+# restate phase/trigger information elsewhere — change it here and let the consumers re-derive.
+#
+# THE SHAPE — judgment up front, deterministic execution behind:
+#
+#   intent-triage → spec-authoring → task-decomposition │ spec-execution → review → spec-completion
+#     (human+LLM)     (human+LLM)       (human+LLM)      │  (DETERMINISTIC)   (LLM)    (human+LLM)
+#           ── JUDGMENT PHASES: collaborative, gated ──  │  ── AUTONOMOUS ENGINE ──
+#
+# Scarce human attention belongs in the judgment phases, where quality is cheapest to assure.
+# Once the spec + task graph are signed off, spec-execution runs deterministically and autonomously.
+#
+# Stable downstream contract (do not rename without coordinating the hooks + scripts):
+#   phases[].{id, entry_triggers, preconditions, owner_skill, exit_condition, next_phase, next_trigger}
+#   top-level `domain_routing`  — workspace -> ordered list of domain skills
+#   top-level `exempt`          — non-phase SDLC skills not registered as a phase or domain skill
+#
+# `_index.yaml` `phase:` block schema (the shared phase-memory contract consumed by the
+# Stop/SubagentStop + UserPromptSubmit hooks). Each spec's `specs/tasks/SPEC-NNN/_index.yaml` may carry:
+#
+#   phase:
+#     current: review                  # a phases[].id value, or `none` when no phase is active
+#     next_action: spec-completion     # the current phase's next_phase (a phases[].id), or `none`
+#     next_trigger: 'close out SPEC-NNN'  # the current phase's next_trigger string
+#     exit_condition_met: false        # set true by the owner_skill at phase exit; read by stop-handoff
+#     updated: 2026-06-22              # ISO-8601 date the block was last written (on phase exit)
+#
+# The `phase:` block is additive and optional: existing `_index.yaml` files without it stay
+# valid. owner_skills read it on entry (to confirm the phase) and write it on exit (to advance).
+
+version: 1
+
+phases:
+    - id: intent-triage
+      entry_triggers:
+          - 'I want to'
+          - 'we need to'
+          - 'we should'
+          - 'brain dump'
+          - 'review the intent backlog'
+          - 'prioritize the backlog'
+      preconditions:
+          - 'one or more raw intents to capture or an existing intent backlog to review'
+      owner_skill: intent-triage
+      exit_condition: 'an intent is captured/prioritized in specs/intents.md and selected to spec out'
+      next_phase: spec-authoring
+      next_trigger: 'spec out intent #N'
+
+    - id: spec-authoring
+      entry_triggers:
+          - 'I want to build'
+          - 'we need to refactor'
+          - 'spec out'
+          - 'new feature'
+          - 'new initiative'
+      preconditions:
+          - 'intent exists or owner confirms none is needed'
+      owner_skill: spec-authoring
+      exit_condition: 'spec status flips draft -> active (after spec-reviewer sign-off and owner approval)'
+      next_phase: task-decomposition
+      next_trigger: 'decompose SPEC-NNN'
+
+    - id: task-decomposition
+      entry_triggers:
+          - 'decompose this spec'
+          - 'break this down'
+          - 'this task is too big'
+          - 'split this task'
+          - 'we need another task before X'
+          - 'merge these tasks'
+          - 're-route this task'
+      preconditions:
+          - 'spec has status active'
+      owner_skill: task-decomposition
+      exit_condition: 'AI-coherent tasks + _index.yaml dependency graph exist with touches/routing declared'
+      next_phase: spec-execution
+      next_trigger: 'execute SPEC-NNN'
+
+    - id: spec-execution
+      entry_triggers:
+          - 'execute this spec'
+          - 'execute SPEC-NNN'
+          - 'run the spec'
+          - 'start the execution loop'
+          - 'dispatch the tasks'
+      preconditions:
+          - 'spec has status active and decomposed tasks with a dependency graph exist'
+      owner_skill: spec-execution
+      exit_condition: 'all tasks merged into the integration branch and the integration PR (feat/spec-NNN -> main) is open'
+      next_phase: review
+      next_trigger: 'review the PRs for SPEC-NNN'
+
+    - id: review
+      entry_triggers:
+          - 'review the PR'
+          - 'review this PR'
+          - 'grade the PR'
+          - 'review the PRs for SPEC-NNN'
+      preconditions:
+          - 'one or more PRs exist and the author is not the reviewer'
+      owner_skill: pr-reviewer
+      exit_condition: 'every PR carries a graded verdict and accepted PRs are merged'
+      next_phase: spec-completion
+      next_trigger: 'close out SPEC-NNN'
+
+    - id: spec-completion
+      entry_triggers:
+          - 'is this spec finished'
+          - 'all tasks are merged'
+          - 'verify the spec'
+          - 'close out SPEC-NNN'
+      preconditions:
+          - 'all tasks for the spec are done or nearly done'
+      owner_skill: spec-completion
+      exit_condition: 'spec success criteria verified end-to-end and spec status set to a terminal state'
+      next_phase: none
+      next_trigger: none
+
+    - id: spec-amendment
+      entry_triggers:
+          - 'the spec assumed X but it is actually Y'
+          - 'we need to add scope'
+          - 'this acceptance criterion is untestable'
+          - 'the design does not work'
+          - 'the requirements changed'
+      preconditions:
+          - 'an active spec is found to be wrong, incomplete, or in need of change mid-flight'
+          - 'a spec is amendable IFF its status is active or draft — every other status (done, superseded, deprecated, cancelled) is CLOSED and immutable; route a change to a closed spec to a new spec (spec-authoring) or a bug spec under specs/bugs/ instead'
+      owner_skill: spec-amendment
+      exit_condition: 'spec is amended (version bumped) and spec-reviewer re-signs off'
+      next_phase: task-decomposition
+      next_trigger: 'decompose SPEC-NNN'
+
+# Per-workspace domain-skill routing, sourced read-only from the `.ai/project.md` Workspace
+# skills table. Workspace work routes through these skills in order (plan -> execute). This file
+# does not change which skills a workspace has — that remains a separate change. The entries below
+# are ILLUSTRATIVE for a polyglot monorepo; replace them with this repo's real workspaces, or
+# delete the block entirely for a single-app repo.
+domain_routing:
+    # data:
+    #     - <data-domain-skill>
+    # web-app:
+    #     - <frontend-domain-skill>
+    # shared:
+    #     - <shared-package-domain-skill>
+    {}
+
+# Non-phase SDLC skills that are intentionally NOT a phase owner_skill or a domain skill.
+# Listing a skill here records that it is exempt from the per-phase `## Handoff` footer contract.
+# Reviewers invoked BY a phase (spec-reviewer, pr-reviewer specialists), reference docs, and
+# authoring helpers live here. (pr-reviewer IS the `review` phase owner_skill, so it is NOT exempt.)
+exempt:
+    - spec-reviewer
+    - pr-reviewer        # note: also the `review` phase owner; listed for discoverability only
+    - sdlc-code-standards
+    - sdlc-code-review
+    - create-domain-skill
+    - review-primitives

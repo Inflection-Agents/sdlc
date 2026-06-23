@@ -229,3 +229,26 @@ A spec with waived criteria is still `completed` — the decision to waive is it
 | No deferred verification plan | "We'll check in prod" without an owner, trigger, and method is not a plan. |
 | Completing a spec with cancelled tasks and no explanation | Every cancelled task needs a documented reason (amendment, scope reduction, superseded). |
 | Forgetting to update Linear | The spec, spec-index, and Linear project must all reflect completion. |
+
+<!-- sdlc:handoff:start -->
+<!-- GENERATED from specs/sdlc-state-machine.yaml by scripts/sdlc/gen-handoffs.mjs — do not edit between markers; re-run the generator. -->
+
+## Handoff
+
+This phase is **spec-completion** in the SDLC state machine (`specs/sdlc-state-machine.yaml`, the single source of truth). The fields below are generated from that file — do not hand-edit them here.
+
+**Entry triggers:**
+
+- is this spec finished
+- all tasks are merged
+- verify the spec
+- close out SPEC-NNN
+
+**Preconditions:**
+
+- all tasks for the spec are done or nearly done
+
+**Exit condition:** spec success criteria verified end-to-end and spec status set to a terminal state
+
+**Next step:** `none` (terminal phase — no next phase)
+<!-- sdlc:handoff:end -->

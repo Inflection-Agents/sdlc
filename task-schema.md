@@ -4,7 +4,7 @@ Tasks are the unit of execution in the AI-native SDLC. They bridge the gap betwe
 
 ## The problem this solves
 
-1. **Jules can't access Linear.** It needs to know: what's my task, what are the acceptance criteria, what are my dependencies, what's the broader plan.
+1. **An executor needs a self-contained brief.** The agent dispatched to a task must know — from the repo alone — what its task is, its acceptance criteria, its dependencies, and the broader plan. The task file is that brief.
 2. **Tasks have dependencies.** Task B can't start until Task A is done. This must be encoded somewhere both agents and CI can read it.
 3. **Plans are worth versioning.** The decomposition of a spec into tasks is a decision. It should be reviewable in a PR, not hidden inside Linear issue creation.
 4. **Linear is for status, the repo is for definition.** Linear tracks "is this done?" The repo tracks "what is this and how does it fit?"
@@ -24,10 +24,10 @@ Spec (intent)
        │    └─ TASK-004-update-api-docs.md
        │
        └─ Linear issues                ← mirrored for human visibility (status)
-            ├─ SPEC-001: Add auth middleware    [jules]
-            ├─ SPEC-001: Write auth tests       [jules]
+            ├─ SPEC-001: Add auth middleware    [claude-code]
+            ├─ SPEC-001: Write auth tests       [claude-code]
             ├─ SPEC-001: Add login endpoint     [claude-code]
-            └─ SPEC-001: Update API docs        [jules]
+            └─ SPEC-001: Update API docs        [claude-code]
 ```
 
 **The repo is the source of truth for task definition.** Linear is the source of truth for task status. Both reference the same task IDs.
@@ -42,8 +42,13 @@ id: TASK-001
 spec: SPEC-001
 title: "Add auth middleware"
 status: pending | in-progress | done | blocked | cancelled
-agent: jules | claude-code | human
-workspace: dealer-app               # primary workspace this task targets (monorepo)
+agent: claude-code | human          # routing; the deterministic engine treats `human` as deferred
+workspace: dealer-app               # primary workspace this task targets (one workspace per task)
+touches:                            # file globs this task may modify — REQUIRED for executable tasks
+  - src/middleware/**
+  - src/auth/jwt.ts
+risk: low                           # low | medium | high — author hint; raises review tier
+tier: standard                      # express | standard | fortified — review-intensity HINT
 verify_workspaces: [dealer-app]     # workspaces whose tests must pass (monorepo)
 depends_on: []                      # list of TASK-NNN ids that must complete first
 blocks: [TASK-003]                  # list of TASK-NNN ids this blocks
@@ -68,6 +73,50 @@ created: 2026-04-22
 updated: 2026-04-22
 ---
 ```
+
+### Task sizing: AI-coherent granularity (NOT human-reviewable PRs)
+
+A task is **one coherent unit of AI execution** — sized to what a single executor agent can
+implement, self-verify, and get reviewed in one coherent session, against a **bounded, explicitly
+declared set of files** (`touches`). Size is governed by *coherence*, not line count.
+
+This replaces the old "≈ one PR ≈ ~300 lines" rule. That rule existed so a **human** could review
+the diff. In the AI-native SDLC the reviewer of record for code is an **LLM multi-lens panel**, not
+a human (humans gate the inputs upstream and merge the final integration PR). PR size is therefore
+irrelevant; what matters is that the task's instructions are complete and its `touches` are bounded.
+A task that creates a whole design-token layer (6+ files) is ONE task because it is one coherent thing.
+
+**Split a task only when:**
+- it would span more than one workspace (one workspace per task — hard rule), OR
+- it contains independently-dispatchable sub-units with no shared in-flight state, OR
+- its `touches` set is so broad that review lenses can no longer be attributed to it.
+
+**Do NOT split** because of line count, or because "a human couldn't review this PR."
+
+### Execution fields: `touches`, `risk`, `tier`
+
+| Field | Required | Notes |
+|-------|----------|-------|
+| `touches` | yes (executable tasks) | Flat list of file globs this task may modify. The single most important field: it bounds the task, drives review-lens routing (`review-constraints.yaml`), and makes "a merge conflict means the decomposition's file-scoping was wrong" a hard guarantee. `human`-routed tasks may omit it. |
+| `risk` | no | `low \| medium \| high`. Author's complexity hint. `high` forces the `fortified` review tier. |
+| `tier` | no | `express \| standard \| fortified`. Review-intensity HINT. The deterministic engine's `tier()` + the constraints registry resolve the ACTUAL tier — a task whose `touches` trip a registry **blocker** is `fortified` regardless of the hint; a declared-`low`-risk, well-scoped task that trips nothing may be `express` (base lenses only). |
+
+**Rules:**
+- `touches` must stay within the task's single workspace.
+- The deterministic engine (`.claude/workflows/execute-spec.js`) refuses to run a task with no
+  `touches` (the typed-contract gate), so omitting it on an executable task is a hard error.
+- `risk`/`tier` are additive and optional — older task files without them stay valid (`tier`
+  defaults to `standard`, `risk` is treated as unset).
+
+### Routing field (`agent`)
+
+`agent` is the canonical routing field (`claude-code | human`). The deterministic engine reads
+`routing || agent` and treats `human` as **deferred** (skipped by the engine, surfaced for a human);
+`claude-code` is the engine's worktree-isolated local executor. Route a task to `human` only when it
+genuinely requires a human decision (architecture direction, a priority/tradeoff call, a
+security-sensitive sign-off); everything else is `claude-code`. The framework is executor-agnostic in
+principle — a different executor backend could be plugged into the engine — but ships with a single
+local executor.
 
 ### Evidence field rules
 
@@ -159,19 +208,34 @@ title: "User authentication flow"
 created: 2026-04-22
 updated: 2026-04-22
 
+# Phase-memory block (additive, optional) — the shared contract the SDLC hooks read/write.
+# owner_skills confirm the phase on entry and advance it on exit. See specs/sdlc-state-machine.yaml.
+phase:
+  current: task-decomposition        # a phases[].id from the state machine, or `none`
+  next_action: spec-execution        # the current phase's next_phase
+  next_trigger: "execute SPEC-001"   # the current phase's next_trigger
+  exit_condition_met: false          # set true by the owner_skill at phase exit (read by stop-handoff)
+  updated: 2026-04-22
+
 tasks:
   - id: TASK-001
     title: "Add auth middleware"
-    agent: jules
+    agent: claude-code
     workspace: dealer-app
+    touches: [src/middleware/**, src/auth/jwt.ts]
+    risk: low
+    tier: standard
     status: pending
     depends_on: []
     blocks: [TASK-003]
 
   - id: TASK-002
     title: "Write auth tests"
-    agent: jules
+    agent: claude-code
     workspace: dealer-app
+    touches: [tests/middleware/**]
+    risk: low
+    tier: standard
     status: pending
     depends_on: []
     blocks: [TASK-003]
@@ -180,23 +244,39 @@ tasks:
     title: "Add login endpoint"
     agent: claude-code
     workspace: dealer-app
+    touches: [src/routes/auth/**]
+    risk: medium
+    tier: standard
     status: pending
     depends_on: [TASK-001, TASK-002]
     blocks: [TASK-004]
 
   - id: TASK-004
     title: "Update API docs"
-    agent: jules
+    agent: claude-code
     workspace: dealer-app
+    touches: [docs/api/**]
+    risk: low
+    tier: express
     status: pending
     depends_on: [TASK-003]
     blocks: []
 
-# Execution order (computed from graph):
-# Parallel:    TASK-001, TASK-002 (no deps)
-# Sequential:  TASK-003 (after 001 + 002)
-# Sequential:  TASK-004 (after 003)
+# Waves (computed from the graph by the engine; shown here for review):
+#   w0: TASK-001, TASK-002 (no deps — run in parallel)
+#   w1: TASK-003 (after 001 + 002)
+#   w2: TASK-004 (after 003)
 ```
+
+### Phase-memory block
+
+The optional top-level `phase:` block makes the SDLC **resumable and self-advancing**. Each phase's
+owner_skill reads it on entry (to confirm which phase the spec is in) and writes it on exit (setting
+`exit_condition_met: true` and advancing `current`/`next_action`/`next_trigger`). The Stop /
+SubagentStop handoff hook reads it to surface the next phase's trigger to the operator. The block is
+additive — `_index.yaml` files without it stay valid, and single-session repos can ignore it. The
+allowed `current`/`next_action` values and the `next_trigger` strings are defined once in
+`specs/sdlc-state-machine.yaml`; do not invent new ones here.
 
 ## Directory structure (updated)
 
@@ -234,31 +314,23 @@ Claude Code reads the spec and produces:
 
 This is reviewable. The team can say "TASK-003 is too big, split it" or "TASK-001 and TASK-002 can be one task" before any work starts.
 
-### 2. Dispatch (Claude Code)
+### 2. Dispatch (the deterministic engine)
 
-Claude Code reads `_index.yaml` to determine which tasks are ready (no unfinished dependencies):
+The `spec-execution` engine reads `_index.yaml`, builds the wave graph, and dispatches every ready task automatically — you do not hand-dispatch one at a time:
 
 ```
-Ready = tasks where all depends_on tasks have status: done
+Ready = tasks where all depends_on tasks are accepted/done
 ```
 
-For `jules`-labeled ready tasks:
-- Read the task file
-- Assemble the Jules prompt from the task body (context, requirements, constraints, verification)
-- Call Jules API
-- Log session ID on the task file and Linear issue
-
-For `claude-code`-labeled ready tasks:
-- Read the task file
-- Implement directly
+For each ready `claude-code` task, the engine spawns a worktree-isolated local executor that reads the task file and implements it within the declared `touches`. `human`-routed tasks are deferred (surfaced for a human; they block integration until resolved). See the `spec-execution` skill.
 
 ### 3. Completion
 
-When a task is done:
-1. Agent updates the task file: `status: done`, acceptance criteria statuses
-2. Claude Code updates the Linear issue status
-3. Claude Code re-reads `_index.yaml` to find newly-unblocked tasks
-4. Dispatch the next wave
+When a task's PR is accepted by the LLM review panel:
+1. The engine merges the task branch into the integration branch and sets `status: done` in `_index.yaml` and the task file (same commit)
+2. Linear issue status is updated
+3. The engine re-evaluates `_index.yaml` for newly-unblocked tasks
+4. The next wave runs
 
 ### 4. Re-planning
 
@@ -284,23 +356,17 @@ Two paths depending on what's wrong:
 **Status flows from Linear → repo** (Linear is the live system).
 **Definition flows from repo → Linear** (repo is the structured source).
 
-## How Jules uses task files and Linear
+## How an executor uses task files
 
-Jules has access to both the repo and Linear (via MCP). It uses both:
+The executor dispatched to a task works from the repo — the task file is its complete, self-contained brief:
 
-**From the repo:**
-1. Reads its task file (`specs/tasks/SPEC-NNN/TASK-NNN-*.md`) for definition, acceptance criteria, constraints
+1. Reads its task file (`specs/tasks/SPEC-NNN/TASK-NNN-*.md`) for definition, acceptance criteria, `touches`, and constraints
 2. Reads `_index.yaml` to understand dependencies and where the task fits in the graph
 3. Reads the parent spec for broader context
 4. Reads linked ADRs for design constraints
+5. Stays within the declared `touches`, opens a PR to the integration branch, and populates each acceptance criterion's `evidence:` before review
 
-**From Linear (via MCP):**
-1. Reads the corresponding Linear issue for comments, discussion, and live context from the team
-2. Checks dependency status — are blocking tasks actually done in Linear?
-3. Updates its own issue status (in-progress → done)
-4. Logs its run summary as a comment on the issue
-
-Both agents have the same view of the work. The repo owns the structured definition; Linear owns the live status and discussion.
+The repo owns the structured definition; Linear owns the live status and discussion. (The orchestrator, which has MCP access, mirrors task status to Linear — the executor itself need not.)
 
 ## How CI uses task files
 

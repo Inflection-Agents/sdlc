@@ -125,15 +125,16 @@ Signs the spec is the problem:
 
 Sometimes the spec is fine but the task you're working on is wrong — too big, missing a prerequisite, or scoped incorrectly. If you're implementing and realize the task itself needs restructuring (but the spec's requirements are correct):
 
-1. **Flag it.** Note specifically what's wrong: "this task needs splitting," "there's a missing prerequisite task," "this should be routed to claude-code, not jules."
+1. **Flag it.** Note specifically what's wrong: "this task is not coherent — it spans two workspaces," "there's a missing prerequisite task," "this should be deferred to a human, not run by claude-code."
 2. **Use `task-decomposition` re-planning mode.** It handles splitting, merging, adding, cancelling, and re-routing tasks while keeping `_index.yaml` and Linear in sync.
-3. **Don't silently expand scope.** If the task is too big, split it — don't just implement a bigger PR than planned.
+3. **Don't silently expand scope.** If the work doesn't fit the task's declared `touches`, re-plan — don't quietly grow the change beyond its bounded file set.
 
-Signs the task breakdown is the problem (but the spec is fine):
-- The task will clearly exceed ~300 lines / one PR
+Signs the task breakdown is the problem (but the spec is fine) — note these are about *coherence and scope*, not diff size:
+- The work doesn't fit within the task's declared `touches`, or would need to cross into another workspace
+- The task turns out to bundle two independent concerns that should be separate AI-coherent tasks
 - You need to build something first that no existing task covers
-- Two tasks you're working on in parallel keep conflicting
-- The task is trivially small and should be merged with another
+- Two tasks you're working on in parallel keep conflicting (their `touches` overlap)
+- The task is a trivial fragment that should be merged into the coherent whole it belongs to
 
 ## Verify upstream contracts before implementing
 
@@ -152,7 +153,7 @@ For each dependency listed in your task's `depends_on`:
 
 This takes 2 minutes and prevents hours of rework from building on a contract that doesn't exist.
 
-**For Jules tasks:** The jules-dispatch skill should verify upstream contracts before dispatching. If the contract isn't there, don't dispatch — the task will fail or produce wrong code.
+**For any executor (local or cloud):** verify the upstream contract before implementing. The deterministic engine dispatches against the task file's declared `touches` and boundary constraints; if the promised contract isn't actually in the codebase, stop and flag it rather than building on a contract that doesn't exist.
 
 ## Red Flags — STOP
 

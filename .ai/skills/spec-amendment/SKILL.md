@@ -184,16 +184,13 @@ Build the impact table:
 
 When a spec amendment affects a task that an agent is actively working on:
 
-**For Claude Code tasks:**
-- You're the agent. Stop implementation, apply the amendment, adjust your work.
-
-**For Jules tasks:**
-- If the PR doesn't exist yet: send a follow-up message to the Jules session with the updated requirements (`jules remote message --session SESSION_ID "..."` or via REST API).
+**For executor (`claude-code`) tasks:**
+- If the executor hasn't started or no PR exists yet: stop the in-flight executor and re-dispatch the task with the updated requirements.
 - If the PR already exists but not merged: add a review comment explaining the spec change and what needs to change in the PR. Request changes.
-- If the task is fundamentally invalidated: cancel the Jules session if possible. Create a replacement task.
-- If Jules is not available (fallback mode): the task is being executed locally by Claude Code — same as handling a Claude Code task.
+- If the task is fundamentally invalidated: stop the executor and create a replacement task.
+- If you're implementing the task by hand: stop implementation, apply the amendment, adjust your work.
 
-**For human tasks:**
+**For `human` tasks:**
 - Add a comment on the Linear issue explaining the spec change and its impact on this task.
 
 ## Step 6: Update the task graph
@@ -290,7 +287,7 @@ This is the mirror of the `spec-authoring` Phase 2 invocation (Step 10a there). 
 **Dispatch inputs.** Invoke `spec-reviewer` with:
 
 - `spec_file`: the amended `specs/SPEC-NNN-<short-description>.md` (post-edit).
-- `spec_schema`: `specs/spec-schema.md`.
+- `spec_schema`: `spec-schema.md`.
 - `authoring`: `.ai/skills/spec-authoring/SKILL.md`.
 - `intent`: the intent excerpt the original spec was authored from (still in `specs/intents.md` or its archive).
 - `project`: `.ai/project.md`.
@@ -394,4 +391,29 @@ Amending means the spec is still fundamentally right — you're adjusting, not r
 | Treating every change as breaking | Classify honestly. Additive changes are lower-friction and don't require rework analysis. |
 | Amending when you should supersede | If >50% of tasks need rework, the spec is fundamentally wrong. Start over. |
 | Forgetting to update `_index.yaml` | The index must always match the task files. New, cancelled, and re-wired tasks all change it. |
-| Not signaling in-progress Jules tasks | Jules won't know the spec changed unless you tell it. Use `jules remote message` or PR review comments. In fallback mode, you're the agent — just adjust your work. |
+| Not signaling in-progress executor tasks | An in-flight executor won't know the spec changed unless you stop and re-dispatch it, or leave PR review comments. If you're implementing by hand, just adjust your work. |
+
+<!-- sdlc:handoff:start -->
+<!-- GENERATED from specs/sdlc-state-machine.yaml by scripts/sdlc/gen-handoffs.mjs — do not edit between markers; re-run the generator. -->
+
+## Handoff
+
+This phase is **spec-amendment** in the SDLC state machine (`specs/sdlc-state-machine.yaml`, the single source of truth). The fields below are generated from that file — do not hand-edit them here.
+
+**Entry triggers:**
+
+- the spec assumed X but it is actually Y
+- we need to add scope
+- this acceptance criterion is untestable
+- the design does not work
+- the requirements changed
+
+**Preconditions:**
+
+- an active spec is found to be wrong, incomplete, or in need of change mid-flight
+- a spec is amendable IFF its status is active or draft — every other status (done, superseded, deprecated, cancelled) is CLOSED and immutable; route a change to a closed spec to a new spec (spec-authoring) or a bug spec under specs/bugs/ instead
+
+**Exit condition:** spec is amended (version bumped) and spec-reviewer re-signs off
+
+**Next step:** `task-decomposition` — trigger: "decompose SPEC-NNN"
+<!-- sdlc:handoff:end -->

@@ -62,9 +62,9 @@ No automation. The agents are the sync layer.
 - Reads Linear for status updates → updates task files if needed
 - Reviews PRs → updates Linear issue with results
 
-**Jules (cloud agent):**
+**The engine's executor (local worktree agent):**
 - Reads task files from repo for definition
-- Reads/updates Linear issues via MCP for status and discussion
+- Updates Linear issue status as tasks move through the execution loop
 - Commits task file status updates in the same PR as implementation
 
 **Human:**

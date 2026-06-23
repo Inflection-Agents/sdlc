@@ -2,28 +2,51 @@
 
 Skills are how agents learn to follow the SDLC process at the right moment. They plug into Claude Code's skill system and add SDLC-specific workflows.
 
+## The three-phase grouping
+
+The SDLC splits into **judgment up front, deterministic execution behind** (see `.ai/sdlc.md` → "The phase model"). The skills group along that split:
+
+```
+intent-triage → spec-authoring → task-decomposition │ spec-execution → review → spec-completion
+  (human+LLM)     (human+LLM)       (human+LLM)      │  (DETERMINISTIC)   (LLM)    (human+LLM)
+        ── JUDGMENT PHASES: collaborative, gated ──  │  ── AUTONOMOUS ENGINE ──
+```
+
+| Group | Skills | Reviewer of record |
+|---|---|---|
+| **Judgment** (human + LLM, gated) | `intent-triage`, `spec-authoring` (+`spec-reviewer`), `task-decomposition` | humans, at hard sign-off gates |
+| **Deterministic execution** (autonomous) | `spec-execution` (the engine) | — runs without human attention |
+| **Review + completion** (LLM panel; human merges) | `pr-reviewer`, `sdlc-code-review`, `spec-completion`, `spec-amendment` | LLM multi-lens panel; humans merge the integration PR |
+
+`sdlc-code-standards` and `create-domain-skill` are cross-cutting (standards apply during all implementation; create-domain-skill onboards new workspaces).
+
 ## Skill map
 
-The SDLC has distinct phases. Each phase has a skill that tells the agent exactly what to do.
+Each phase has a skill that tells the agent exactly what to do.
 
 ```
 Intent arrives ("I want to build X", "we need to fix Y", brain dump)
   │
+  ── JUDGMENT (human + LLM, collaborative, gated) ────────────────────────────
   ├─ /intent-triage          ← capture, organize, prioritize raw intents (ENTRY POINT)
   │
   ├─ /spec-authoring         ← brainstorm + formalize one intent into a structured spec
   │    └─ /spec-reviewer     ← review draft spec for quality (auto-invoked by spec-authoring)
   │
-  ├─ /task-decomposition     ← break a spec into a dependency graph of tasks
+  ├─ /task-decomposition     ← break a spec into an AI-coherent dependency graph of tasks
   │
-  ├─ /spec-execution         ← execute a spec end-to-end: waves, review, fix-loop, merge
-  │    ├─ /pr-reviewer       ← review a PR: emit graded JSON findings (machine-parseable)
+  ── DETERMINISTIC EXECUTION (autonomous engine) ─────────────────────────────
+  ├─ /spec-execution         ← THE engine: waves, Tier-0 gate, routed review, fix-loop, merge
+  │    │                        reference impl: .claude/workflows/execute-spec.js
+  │    ├─ /pr-reviewer       ← LLM lens: emit graded JSON findings (machine-parseable)
   │    └─ /sdlc-code-review  ← render pr-reviewer findings as a human-readable review comment
   │
-  ├─ /spec-amendment         ← amend a spec when reality pushes back mid-flight
+  ── REVIEW + COMPLETION (LLM panel; human merges) ───────────────────────────
+  ├─ /spec-amendment         ← amend a spec when reality pushes back mid-flight (engine escalates here)
   │
   ├─ /spec-completion        ← verify success criteria and close out a finished spec
   │
+  ── CROSS-CUTTING ───────────────────────────────────────────────────────────
   ├─ /sdlc-code-standards    ← coding principles (DRY, YAGNI, etc.) applied during implementation
   │
   └─ /create-domain-skill    ← onboard a new workspace: create skill + wire all references
@@ -44,10 +67,12 @@ Intent arrives ("I want to build X", "we need to fix Y", brain dump)
 Skills form three layers. See [skill-architecture.md](skill-architecture.md) for the full design.
 
 ```
-Layer 3: Behavioral (Superpowers)     ~/.claude/skills/        personal
-Layer 2: SDLC Process                 .claude/skills/          project (repo root)
-Layer 1: Domain                       .claude/skills/          project (repo root)
+Layer 3: Behavioral (Superpowers)     ~/.claude/skills/                personal
+Layer 2: SDLC Process                 .ai/skills/ (.claude/skills → it) project (repo root)
+Layer 1: Domain                       .ai/skills/ (.claude/skills → it) project (repo root)
 ```
+
+(`.claude/skills` is a symlink to `.ai/skills/` — the single source of truth. Claude Code loads from the symlink; both paths point to the same content.)
 
 All three are active simultaneously. They compose, not conflict:
 - **Behavioral** answers: how should I approach any task? (TDD, verification, no sycophancy)
@@ -70,9 +95,16 @@ your-repo/
 │   ├── sdlc-code-review/SKILL.md
 │   ├── sdlc-code-standards/SKILL.md
 │   ├── create-domain-skill/SKILL.md
-│   └── review-primitives.md          ← shared review contracts (not a skill)
+│   ├── review-primitives.md          ← review contract: severity spine, policy (not a skill)
+│   ├── review-constraints.yaml       ← lens/constraint registry keyed on `touches` (not a skill)
+│   └── review-envelope.schema.json   ← the one reviewer-output schema (not a skill)
 │
 ├── .claude/skills → ../.ai/skills    ← symlink; Claude Code loads from here
+│
+├── .claude/workflows/execute-spec.js ← reference deterministic execution engine
+├── .claude/hooks/                    ← advisory SDLC hooks (.mjs)
+├── specs/sdlc-state-machine.yaml     ← single source of truth for phases + transitions
+├── scripts/sdlc/                     ← validators (state machine, phase memory) + gen-handoffs
 │
 │   # Domain skills (Layer 1) — add to .ai/skills/ prefixed by workspace/technology
 │   ├── dbt-cartographer/SKILL.md
@@ -101,7 +133,7 @@ This is declarative — adding a new domain skill requires only creating the SKI
 ### Portability
 
 - **New team member clones repo** → gets all skills automatically. Claude Code picks them up via the `.claude/skills` symlink.
-- **Jules** doesn't use Claude Code skills directly, but reads `.ai/AGENTS.md` and task files, which encode the same principles.
+- **The engine's executor** reads `.ai/AGENTS.md` (the generic executor brief) and task files, which encode the same principles.
 - **Switching to another agent** → the skills are markdown. Adapt the SKILL.md format to the new agent's convention. The content (process, checklists, standards) stays the same.
 
 ## Skill details
@@ -161,9 +193,9 @@ Three modes:
 
 **What it does (initial decomposition):**
 1. Reads the spec (design, acceptance criteria, constraints, risks)
-2. Breaks into independently-implementable tasks with `evidence:` fields on every AC
+2. Breaks into AI-coherent, independently-implementable tasks with `touches`/`risk`/`tier` + `evidence:` fields on every AC
 3. Builds the dependency graph
-4. Applies routing labels (jules / claude-code / human) using eligibility rules
+4. Applies routing labels (claude-code / human) using eligibility rules
 5. Produces task files with frontmatter + body + `_index.yaml`
 6. Opens a PR for the task decomposition
 7. After approval: creates Linear issues from task files
@@ -177,10 +209,12 @@ Three modes:
 
 **Key rules:**
 - Each task maps to one or a few acceptance criteria
+- **A task is one coherent unit of AI execution — sized by coherence and bounded `touches`, NOT by line count or "small enough for a human-reviewable PR."** The reviewer of record is an LLM multi-lens panel. A coherent 800-line token layer is one task.
+- Every executable task declares a non-empty `touches` set (file globs it may modify), bounded to one workspace; parallel tasks must have non-overlapping `touches`
+- `risk` and `tier` are set on every executable task (tier is a hint; the engine resolves the real tier)
 - `evidence:` field is created empty on every AC — the implementing agent fills it before PR review
 - Dependencies are explicit and minimal (maximize parallelism)
-- Jules-eligible tasks have everything in the task file (no assumed context)
-- Tasks are small enough for a single PR
+- Every executable task has everything in the task file (no assumed context)
 
 **Interacts with:** `spec-authoring` (runs after spec is approved), `spec-execution` (runs before execution), `spec-amendment` (when re-planning is needed)
 
@@ -223,22 +257,24 @@ Three modes:
 
 ### 3. spec-execution
 
-**Trigger:** an active spec has tasks decomposed and is ready to execute, "execute SPEC-NNN," "run the spec," "dispatch the tasks"
+**Trigger:** an active spec has tasks decomposed and is ready to execute, "execute SPEC-NNN," "run the spec"
+
+**This is THE deterministic execution engine — the autonomous half of the SDLC.** It is operationally implemented by a reference **Workflow script** at `.claude/workflows/execute-spec.js` (`Workflow({ name: 'execute-spec', args: { spec: 'SPEC-NNN' } })`); on other runtimes the same algorithm runs by hand. **Pure-core / effects-at-the-edges:** routing, tier resolution, lens selection, verdict folding, branch naming, and wave planning are total functions; only thin `agent()` wrappers touch the model. Branches are id-derived (`claude/SPEC-NNN-TASK-NNN`), so re-runs are idempotent and resume wave-level. The orchestrator **invokes** the engine rather than hand-dispatching tasks.
 
 **What it does:** Drives the full execution loop:
-1. Resolves integration strategy: `branch` (integration PR to main) or `direct` (task PRs straight to main), based on spec signals or explicit frontmatter
-2. Builds the wave graph from `_index.yaml` task dependencies
-3. Dispatches each wave of tasks in parallel (worktree-isolated background agents)
-4. Gates on Tier 0 CI (every AC has non-empty `evidence:` field)
-5. Dispatches `pr-reviewer` (Tier 1) and Tier 2 specialists per SPEC-001 contracts
-6. Routes by severity: `accept`, `batch_followup_and_accept`, `fix_loop` (capped), `escalate`
-7. Handles cross-skill signals: `task:scope` → task-decomposition re-plan; `spec:gap` → gap-capture (creates `GAP-NNN-*.md`); `spec:*` → spec-amendment (amendment counter, cap at 2)
-8. In `branch` mode: merges task PRs to `feat/spec-NNN`, then opens integration PR to `main`
-9. Invokes `spec-completion` after all tasks are merged
+1. Resolves integration strategy: `branch` (integration PR to main) or `direct` (task PRs straight to main), from explicit frontmatter or a heuristic
+2. Builds the wave graph from `_index.yaml` task dependencies; validates each task's typed contract (non-empty `touches`, valid routing/risk/tier)
+3. Dispatches each wave of tasks in parallel (one worktree-isolated executor per task)
+4. Gates on a cheap, attributable **Tier-0** (lint/typecheck/unit tests for the workspace) before any reviewer runs — a red PR goes to a fix agent, not a reviewer
+5. Dispatches a **routed multi-lens review**: lenses = `baseLenses(workspace) ∪` constraints whose `when` matches the task's `touches` (from `review-constraints.yaml`); validates each envelope against `review-envelope.schema.json`
+6. Routes by severity per `review-primitives.md`: `accept`, `batch_followup_and_accept`, `fix_loop` (cap 3/task), `escalate`
+7. Escalates cross-skill signals back into a judgment phase: `task:scope` blocker → task-decomposition re-plan; `spec:gap` → gap-capture; `spec:*` blocker → spec-amendment (cap 2)
+8. In `branch` mode: merges accepted task branches into `feat/SPEC-NNN`, runs the expensive integration verification (captured as EVIDENCE), then opens the integration PR to `main` — **a human merges; the engine never does**
+9. Hands off to `spec-completion` after all tasks are merged
 
-**Writes telemetry** to `specs/tasks/SPEC-NNN/_execution.log.jsonl` — one JSONL event per action, append-only, restart-safe.
+**Writes telemetry** (where the runtime has a filesystem) to `specs/tasks/SPEC-NNN/_execution.log.jsonl` — one JSONL event per action, append-only, restart-safe.
 
-**Interacts with:** `pr-reviewer` (Tier 1 grading), `sdlc-code-review` (human-readable rendering), `task-decomposition` (re-plan on `task:scope`), `spec-amendment` (on `spec:*` signals), `spec-completion` (final gate)
+**Interacts with:** `pr-reviewer` (LLM lens grading), `sdlc-code-review` (human-readable rendering), `task-decomposition` (re-plan on `task:scope`), `spec-amendment` (on `spec:*` signals), `spec-completion` (final gate). **Contracts:** `review-primitives.md`, `review-constraints.yaml`, `review-envelope.schema.json`, `specs/sdlc-state-machine.yaml`.
 
 ### 4. pr-reviewer
 
@@ -308,7 +344,7 @@ Three modes:
 2. `.ai/project.md` → Workspace skills table — the wiring SDLC skills use to find it
 3. `.ai/project.md` → Workspace interfaces — boundary contracts
 4. `.ai/project.md` → Change propagation patterns — cross-workspace patterns
-5. `.ai/project.md` → Agent eligibility — what's now jules-eligible
+5. `.ai/project.md` → Agent eligibility — what's now agent-executable
 6. `.ai/project.md` → Per-workspace conventions — conventions that differ from defaults
 
 Missing any of these means the skill exists but is disconnected from the SDLC process.
@@ -346,7 +382,9 @@ sdlc-code-review      → "Here's the exact checklist: read diff, find spec, che
 Domain skill          → "Here's how to write dbt models: CTE ordering, naming, macros..."
 ```
 
-**Jules orchestration** (dispatching tasks to Jules cloud agents) is documented in `.ai/CLAUDE.md`, not a separate skill. The orchestrator (Claude Code) handles dispatch; the task files carry everything Jules needs to implement.
+**There is no dispatch skill.** Dispatch is not an orchestration model an agent improvises — the `spec-execution` engine dispatches a worktree-isolated local executor per task. The generic executor brief is `.ai/AGENTS.md`; the orchestrator config and engine-invocation are in `.ai/CLAUDE.md`. The task files carry everything any executor needs (`touches`, ACs, constraints).
+
+**The execution engine + spine.** `spec-execution` is implemented by the reference Workflow `.claude/workflows/execute-spec.js`, sitting on the spine: the state machine (`specs/sdlc-state-machine.yaml`, the single source of truth for phases/transitions consumed by the advisory `.claude/hooks/`), the `phase:` memory block in each `_index.yaml`, and the review contracts (`review-primitives.md`, `review-constraints.yaml`, `review-envelope.schema.json`). Validators live in `scripts/sdlc/`.
 
 ## Relationship to domain skills
 

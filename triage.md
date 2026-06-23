@@ -214,7 +214,7 @@ Once prioritized, the bug needs to become executable work:
    ├── TASK-NNN-implement-fix.md
    └── TASK-NNN-add-regression-guard.md
    ```
-2. Agent applies routing labels (`jules` or `claude-code`) based on eligibility rules
+2. Agent applies routing labels (`claude-code` or `human`) based on eligibility rules
 3. Agent creates corresponding Linear issues linked to the bug issue
 4. Fix proceeds through normal task execution flow
 

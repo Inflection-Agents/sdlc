@@ -42,11 +42,13 @@ Changes to a workspace require testing all its downstream consumers.
 
 ### Agent eligibility by workspace
 
-| Workspace | Jules eligible? | Notes |
-|-----------|----------------|-------|
+Whether the engine's executor can run a task in this workspace unattended, or it must be deferred to a human (`agent: human`). Workspaces needing credentials, a live DB, or interactive judgment stay human-run.
+
+| Workspace | Agent-executable? | Notes |
+|-----------|-------------------|-------|
 | [app-name] | Yes | Self-contained, testable |
 | [shared] | Yes (with caution) | Changes require verifying all consumers |
-| [dbt/data] | No | Requires database credentials, env vars |
+| [dbt/data] | No (`human`) | Requires database credentials, env vars |
 
 ### Workspace skills
 

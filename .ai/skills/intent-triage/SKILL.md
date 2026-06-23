@@ -13,6 +13,18 @@ The first stage of the SDLC. Before specs, before brainstorming — capture raw 
 
 **This is an adaptive skill.** Capture should be frictionless. Don't over-structure. The user is thinking out loud — your job is to catch everything and help them decide what to work on first.
 
+### The front of the SDLC — where teams collaborate
+
+Intent-triage is the **first judgment phase**, and the most multi-team one. Intents arrive from many
+people — the product owner/PM, an eng lead, domain experts, support, stakeholders. This is where
+scarce human attention is cheapest and most valuable: a well-captured, well-prioritized intent costs
+minutes here and saves a wrong spec, a wrong decomposition, and a wrong execution run downstream.
+
+So: capture *who* raised each intent (the optional `Raised by` field) and, in prioritize mode, make
+the tradeoff conversation an explicit collaboration — surface dependencies and conflicts across
+teams, and let the people who own the impact decide the order. You are organizing a shared backlog,
+not just a personal one.
+
 ## The intents file
 
 Intents live in `specs/intents.md` at the repo root. This is the backlog of raw ideas — the intake buffer before specs exist.
@@ -104,6 +116,7 @@ Raw ideas and directions. Each becomes a spec when ready.
 |-------|----------|-------|
 | `#` | yes | Simple incrementing number. Not a formal ID — just for reference in conversation. |
 | `Intent` | yes | One sentence. What the user said, in their words. Don't rewrite or formalize. |
+| `Raised by` | no | Who raised it (person/team). Useful on a shared, multi-team backlog so the right people are in the prioritization and spec conversations. |
 | `Workspaces` | no | Which workspaces this likely touches. Rough guess is fine — spec-authoring will refine. |
 | `Status` | yes | `captured` → `ready` → `in-progress` → `done` |
 | `Spec` | no | Set when spec-authoring produces a spec from this intent. |
@@ -155,4 +168,29 @@ intent-triage                    spec-authoring
 
 Intent-triage owns the backlog. Spec-authoring owns the deep dive. The handoff is explicit: "Starting spec-authoring for intent #N."
 
-When spec-authoring produces a spec, intent-triage updates the intent: status → `done`, spec → `SPEC-NNN`.
+When spec-authoring produces a spec, intent-triage updates the intent: status → `done`, spec → `SPEC-NNN`. On hand-off, set the selected intent's status to `in-progress` ("Starting spec-authoring for intent #N"); the canonical handoff fields are in the generated `## Handoff` footer below.
+
+<!-- sdlc:handoff:start -->
+<!-- GENERATED from specs/sdlc-state-machine.yaml by scripts/sdlc/gen-handoffs.mjs — do not edit between markers; re-run the generator. -->
+
+## Handoff
+
+This phase is **intent-triage** in the SDLC state machine (`specs/sdlc-state-machine.yaml`, the single source of truth). The fields below are generated from that file — do not hand-edit them here.
+
+**Entry triggers:**
+
+- I want to
+- we need to
+- we should
+- brain dump
+- review the intent backlog
+- prioritize the backlog
+
+**Preconditions:**
+
+- one or more raw intents to capture or an existing intent backlog to review
+
+**Exit condition:** an intent is captured/prioritized in specs/intents.md and selected to spec out
+
+**Next step:** `spec-authoring` — trigger: "spec out intent #N"
+<!-- sdlc:handoff:end -->

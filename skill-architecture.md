@@ -15,16 +15,18 @@ How behavioral discipline, SDLC process, and domain expertise compose into a coh
 │  Always active. Global discipline. Personal.        │
 ├─────────────────────────────────────────────────────┤
 │  Layer 2: SDLC Process                              │
-│  .claude/skills/ (repo root)                        │
+│  .ai/skills/  (.claude/skills → it)                 │
 │                                                     │
-│  spec-authoring, task-decomposition,                │
-│  sdlc-code-standards, sdlc-code-review,             │
-│  jules-dispatch, bug-triage, sdlc-status            │
+│  intent-triage, spec-authoring, spec-reviewer,      │
+│  task-decomposition, spec-execution, pr-reviewer,   │
+│  sdlc-code-review, sdlc-code-standards,             │
+│  spec-amendment, spec-completion,                   │
+│  create-domain-skill                                │
 │                                                     │
 │  Active during SDLC phases. Travel with repo.       │
 ├─────────────────────────────────────────────────────┤
 │  Layer 1: Domain                                    │
-│  .claude/skills/ (repo root, workspace-prefixed)    │
+│  .ai/skills/  (.claude/skills → it, workspace-pref.) │
 │                                                     │
 │  dbt-cartographer, dbt-craftsman,                   │
 │  nextjs-app-patterns, shared-package-patterns...    │
@@ -40,6 +42,30 @@ Each layer has a different job:
 | Behavioral | How should I approach any task? | Write failing test first. Verify before claiming done. No sycophancy. |
 | SDLC Process | What lifecycle phase am I in and what's the process? | Spec → decompose → route → implement → review. Check acceptance criteria. |
 | Domain | What are the rules for THIS technology/workspace? | dbt: CTE ordering, naming, macros. Next.js: App Router, Server Components. |
+
+## The execution engine and the spine
+
+The three skill layers describe *knowledge* agents apply. Underneath the SDLC-process layer sits the **deterministic execution engine** and the **spine** that carries it — the machinery that turns a signed-off task graph into merged code without further human attention.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  JUDGMENT (human + LLM)          │  DETERMINISTIC EXECUTION (engine)  │
+│  intent-triage → spec-authoring  │  spec-execution                    │
+│   → task-decomposition           │   = .claude/workflows/execute-spec.js │
+│  (Layer-2 skills, gated)         │   (pure-core fns + thin agent() edges)│
+└─────────────────────────────────────────────────────────────────────┘
+                          rides on the SPINE:
+  specs/sdlc-state-machine.yaml   ← single source of truth: phases, triggers, transitions
+  _index.yaml `phase:` block      ← per-spec phase memory (read on entry, written on exit)
+  .claude/hooks/*.mjs             ← advisory: classify prompt, handoff at phase exit, guard edits/review
+  .ai/skills/review-primitives.md │ review-constraints.yaml │ review-envelope.schema.json
+                                   ← review contracts: severity spine, lens registry, output schema
+  scripts/sdlc/*.mjs              ← validators (state machine, phase memory) + gen-handoffs
+```
+
+- **The engine is agent-agnostic.** One generic executor; specialization is *data* on the task (`touches`, `risk`, `tier`, routing, workspace constraints). `spec-execution` invokes the engine rather than hand-dispatching tasks.
+- **Reviewer of record is the LLM multi-lens panel** (`pr-reviewer` grades → `sdlc-code-review` renders), gated on a green Tier-0 and routed by `review-primitives.md`. Humans gate the judgment-phase inputs and merge the integration PR; they are not the per-PR reviewers.
+- **The state machine is authoritative.** The `.ai/sdlc.md` phase narrative and each skill's `## Handoff` footer are generated/validated from `specs/sdlc-state-machine.yaml` — don't restate phase info in the skills.
 
 ## How they compose
 
@@ -88,7 +114,9 @@ the SDLC process.
   sdlc-code-review/SKILL.md
   sdlc-code-standards/SKILL.md
   create-domain-skill/SKILL.md
-  review-primitives.md      ← shared review contracts (not a skill)
+  review-primitives.md      ← review contract: severity spine, policy (not a skill)
+  review-constraints.yaml   ← lens/constraint registry keyed on `touches` (not a skill)
+  review-envelope.schema.json ← the one reviewer-output schema (not a skill)
 
   # Domain: dbt (Layer 1) — prefixed with workspace/technology
   dbt-cartographer/SKILL.md
@@ -153,7 +181,7 @@ The SDLC provides the lifecycle wrapper (spec, task, review). The domain skills 
 
 This enables:
 - Independent testing per workspace
-- Clear agent routing (dbt → claude-code, app → possibly jules)
+- Clear agent routing (dbt → human, app → claude-code)
 - Parallel execution of non-dependent consumer tasks
 - Clean PRs that reviewers can evaluate against one domain's conventions
 
@@ -188,11 +216,11 @@ Use the `create-domain-skill` skill. It walks through the full process and ensur
 
 The short version — creating a domain skill touches:
 
-1. `.claude/skills/[workspace]-[name]/SKILL.md` — the skill itself
+1. `.ai/skills/[workspace]-[name]/SKILL.md` — the skill itself (`.claude/skills` is a symlink to `.ai/skills/`)
 2. `.ai/project.md` → Workspace skills table — the wiring that SDLC skills use to find it
 3. `.ai/project.md` → Workspace interfaces — add/update if the skill reveals boundary contracts
 4. `.ai/project.md` → Change propagation patterns — add/update if cross-workspace patterns exist
-5. `.ai/project.md` → Agent eligibility — update if the skill changes what's jules-eligible
+5. `.ai/project.md` → Agent eligibility — update if the skill changes what's agent-executable
 6. `.ai/project.md` → Per-workspace conventions — add if conventions differ from default
 
 Missing any of these means the skill exists but is disconnected from the SDLC process.
@@ -231,3 +259,5 @@ It does NOT need to:
 | `dbt-craftsman` | Domain | dbt implementation |
 | `nextjs-app-patterns` | Domain | Next.js app workspaces |
 | `shared-package-patterns` | Domain | Shared library |
+
+Not skills (but part of the system): `.claude/workflows/execute-spec.js` (the deterministic execution engine `spec-execution` invokes), `specs/sdlc-state-machine.yaml` (the spine's source of truth), `.claude/hooks/*.mjs` (advisory phase hooks), and the review contracts (`review-primitives.md`, `review-constraints.yaml`, `review-envelope.schema.json`).

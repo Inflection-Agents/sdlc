@@ -39,6 +39,8 @@ These are non-negotiable. The entire SDLC depends on them.
 
 This phase is conversational. You and the user are thinking partners. The output is NOT the spec — it's alignment on what the spec will say.
 
+**Collaborate with the right people.** Spec-authoring is a judgment phase, and often a multi-team one. This is where scarce human attention belongs — getting the problem, the approach, and the acceptance criteria right is cheap here and ruinous to get wrong downstream, because the deterministic execution engine will faithfully build whatever the spec says. If the intent touches more than one team or workspace (check the intent's `Raised by` and `Workspaces`), pull the relevant owner, eng lead, or domain expert into the brainstorming and the Step 10 walkthrough. The spec is a shared contract, not a private draft. The whole point of front-loading human effort is that **humans give great instructions; they do not give great code reviews** — so invest the collaboration here.
+
 ### Step 1: Capture the intent
 
 The user arrives with something — could be a sentence, a paragraph, a rant, a screenshot, a link. Your job is to understand what they actually want, which may not be what they literally said.
@@ -279,7 +281,7 @@ After Step 10 produces a draft the owner is broadly comfortable with, and BEFORE
 **Dispatch inputs.** Invoke `spec-reviewer` with the following inputs (all paths are concrete; do not invent them):
 
 - `spec_file`: `specs/SPEC-NNN-<short-description>.md` — the draft just written.
-- `spec_schema`: `specs/spec-schema.md` — for required-section and frontmatter checks.
+- `spec_schema`: `spec-schema.md` — for required-section and frontmatter checks.
 - `authoring`: `.ai/skills/spec-authoring/SKILL.md` — this skill, for `spec-authoring:<anchor>` citations.
 - `intent`: the relevant excerpt from `specs/intents.md` (the intent this spec formalizes). If invoked outside the intent-triage handoff, the owner provides the intent excerpt or confirms there is none.
 - `project`: `.ai/project.md` — for workspace coverage checks.
@@ -366,7 +368,7 @@ When the routing policy returns `accept` or `batch_followup_and_accept` (after a
    review                        ← sdlc-code-review
 ```
 
-Two human gates in this skill: design approval (end of Phase 1) and spec approval (end of Phase 2). Nothing moves forward without explicit user sign-off.
+Two human gates in this skill: design approval (end of Phase 1) and spec approval (end of Phase 2). Nothing moves forward without explicit user sign-off. On exit (spec flips `draft` → `active`), hand off to `task-decomposition`; the canonical handoff fields are in the generated `## Handoff` footer below.
 
 ## Common mistakes
 
@@ -383,3 +385,27 @@ Two human gates in this skill: design approval (end of Phase 1) and spec approva
 | Jumping to implementation before approval | Two hard gates: design approval AND spec approval. Both must pass. |
 | Batching 10 questions at once | One at a time. Prefer multiple choice. Have a conversation, not an interrogation. |
 | Losing Phase 1 agreements in Phase 2 | Self-review checks for this. Every brainstorming agreement should appear in the spec. |
+
+<!-- sdlc:handoff:start -->
+<!-- GENERATED from specs/sdlc-state-machine.yaml by scripts/sdlc/gen-handoffs.mjs — do not edit between markers; re-run the generator. -->
+
+## Handoff
+
+This phase is **spec-authoring** in the SDLC state machine (`specs/sdlc-state-machine.yaml`, the single source of truth). The fields below are generated from that file — do not hand-edit them here.
+
+**Entry triggers:**
+
+- I want to build
+- we need to refactor
+- spec out
+- new feature
+- new initiative
+
+**Preconditions:**
+
+- intent exists or owner confirms none is needed
+
+**Exit condition:** spec status flips draft -> active (after spec-reviewer sign-off and owner approval)
+
+**Next step:** `task-decomposition` — trigger: "decompose SPEC-NNN"
+<!-- sdlc:handoff:end -->

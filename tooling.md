@@ -8,7 +8,10 @@ Current and target tooling architecture for the AI-native SDLC.
 | ----------- | ---------------------------------------- | ----------------------------------------------------------- | --------------------------- |
 | Intent/spec | Confluence (separate, weakly linked)     | Schema-enforced markdown in repo with CI validation         | Schema-enforced markdown in repo |
 | Work graph  | Jira (over-flexible, custom fields)      | Event-sourced graph with typed edges                        | Linear (issues + relations) |
-| Execution   | Humans only                              | Agents as first-class assignees with run telemetry          | Claude Code (local) + Jules (cloud, parallel) via REST API |
+| Process spine | Tribal knowledge / wiki                | Executable state machine + phase memory + enforcement hooks | `specs/sdlc-state-machine.yaml` + per-spec `phase:` block + `.claude/hooks/` (Node) |
+| Orchestration | Humans assign + chase                   | Deterministic engine (pure-core/effects-at-edges)           | `execute-spec` Workflow script (`.claude/workflows/execute-spec.js`) |
+| Execution   | Humans only                              | Agents as first-class assignees with run telemetry          | Worktree-isolated local executors dispatched **by the engine** (parallel per wave) |
+| Review      | Human PR review                          | LLM multi-lens panel, routed by change surface              | Routed reviewers (lenses from `review-constraints.yaml`); human merges integration PR |
 | CI/CD       | Jenkins/Actions                          | Same, plus eval pipelines                                   | GitHub Actions              |
 | Reporting   | Jira dashboards (story points, velocity) | Graph queries (cost/feature, defect/spec, agent throughput) | Linear insights + manual    |
 
@@ -51,6 +54,30 @@ Linear's MCP server enables agents to:
 - Follow issue relations
 
 Claude Code connects to Linear via MCP, making the agent a direct participant in the work graph rather than operating through a human proxy.
+
+## Execution engine (decided)
+
+`spec-execution` is a **deterministic Workflow engine**, not an agent improvising — reference implementation at [`.claude/workflows/execute-spec.js`](.claude/workflows/execute-spec.js).
+
+- **Pure-core / effects-at-the-edges:** routing, tier resolution, lens selection, verdict folding, branch naming, and wave planning are total functions; only thin `agent()` wrappers touch a model. The run is reproducible and auditable.
+- **Idempotent, id-derived branches** (`claude/SPEC-NNN-TASK-NNN`, integration `feat/SPEC-NNN`) → re-runs reuse the same branch/PR; resume is wave-level.
+- **Executors are interchangeable workers behind it:** the engine dispatches one worktree-isolated local executor per task. The engine is agent-agnostic — specialization is data on the task, not a named backend.
+- **Runtime requirement:** Node.js (also runs the reference hooks).
+
+## Review layer (decided)
+
+The reviewer of record for code is an **LLM multi-lens panel**, not a human.
+
+- **Routed by change surface:** lenses = `baseLenses(workspace) ∪ {constraints in [`review-constraints.yaml`](.ai/skills/review-constraints.yaml) whose `when` matches the task's `touches`}`. Matched constraint severity resolves the review tier.
+- **One reviewer-output schema:** [`review-envelope.schema.json`](.ai/skills/review-envelope.schema.json) (severity blocker/major/nit/suggestion, altitude, grounded criteria). The engine validates every envelope before routing on it; malformed/abstained → escalate.
+- **Contract:** [`review-primitives.md`](.ai/skills/review-primitives.md) — severity spine, grounding rules, severity→action policy.
+- **Tier-0 first:** cheap per-workspace lint/typecheck/unit gate runs before any reviewer is dispatched (the largest token-cost optimization). Humans gate the inputs and merge the integration PR.
+
+## Process spine (decided)
+
+- **State machine:** [`specs/sdlc-state-machine.yaml`](specs/sdlc-state-machine.yaml) is the single source of truth for phases, triggers, exit conditions, and per-workspace domain-skill routing. The `.ai/sdlc.md` narrative and skill `## Handoff` footers are generated/validated from it (`scripts/sdlc/gen-handoffs.mjs`, `validate-state-machine.mjs`).
+- **Phase memory:** each `specs/tasks/SPEC-NNN/_index.yaml` may carry an additive `phase:` block (`{current, next_action, next_trigger, exit_condition_met, updated}`) so the process is resumable.
+- **Reference hooks (Node, advisory by default):** `.claude/hooks/` — prompt→phase classifier, phase-exit handoff, edit-without-task guard, review-identity guard. Wired via `.claude/settings.json` so they travel with the repo.
 
 ## Spec layer (decided)
 

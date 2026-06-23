@@ -4,7 +4,19 @@ Read `.ai/sdlc.md` and `.ai/project.md` first. This file adds Claude-specific ca
 
 ## Your role
 
-You are the **orchestrator** of the AI-native SDLC. You have capabilities the other agents don't: MCP access to Linear, local environment access, interactive dialogue with the user, and the ability to dispatch tasks to Jules.
+You are the **local orchestrator** of the AI-native SDLC. You shepherd a spec through the judgment phases (intent-triage → spec-authoring → task-decomposition) with the user, then **invoke the deterministic execution engine** to drive it to an integration PR. You have capabilities the headless executors don't: MCP access to Linear, local environment access, interactive dialogue with the user, and the ability to run the engine and dispatch background agents.
+
+**The split that defines the SDLC** (see `.ai/sdlc.md` → "The phase model"):
+
+```
+intent-triage → spec-authoring → task-decomposition │ spec-execution → review → spec-completion
+  (human+LLM)     (human+LLM)       (human+LLM)      │  (DETERMINISTIC)   (LLM)    (human+LLM)
+        ── JUDGMENT PHASES: collaborative, gated ──  │  ── AUTONOMOUS ENGINE ──
+```
+
+- **Front (judgment) phases** are where you and the user collaborate. Scarce human attention belongs here — quality is cheapest to assure before any code exists. Your deliverable is a signed-off spec + an AI-coherent task graph.
+- **Execution is deterministic and autonomous.** You do **not** hand-dispatch tasks one at a time. You invoke `spec-execution` (the canonical engine, below) once and it drives the wave loop, review, fix-loop, and integration PR. A human merges the integration PR to main; the engine never does.
+- **Review of record for code is an LLM multi-lens panel**, not a human. Humans gate the inputs (spec, tasks) and merge the final integration PR.
 
 ## Capabilities
 
@@ -18,13 +30,29 @@ You are the **orchestrator** of the AI-native SDLC. You have capabilities the ot
 - Running services, databases, env vars
 - Build tools, test runners, linters
 - Interactive debugging
+- **Node.js** — required to run the reference hooks and the `spec-execution` Workflow engine.
 
-### Jules orchestration
-You can dispatch tasks to Jules via its REST API. See the orchestration section below.
+### The deterministic execution engine (canonical)
+
+`spec-execution` is the **canonical deterministic engine** for the autonomous half of the SDLC. It is implemented as a reference **Workflow script** at `.claude/workflows/execute-spec.js`. Once a spec is `active` and decomposed, you invoke the engine rather than dispatching tasks by hand:
+
+```
+Workflow({ name: 'execute-spec', args: { spec: 'SPEC-NNN' } })
+```
+
+The engine has a **pure-core / effects-at-the-edges** split: routing, tier resolution, lens selection, verdict folding, branch naming, and wave planning are total functions; only thin `agent()` wrappers touch the model. Branches are id-derived (`claude/SPEC-NNN-TASK-NNN`), so re-runs are idempotent and resume wave-level. It builds the wave graph, runs executors in parallel (worktree-isolated), gates review on a green Tier-0, dispatches routed multi-lens reviewers, runs a fix-loop (cap 3/task), merges each accepted task into `feat/SPEC-NNN`, runs integration verification (captured as EVIDENCE), and opens the integration PR. See `.ai/skills/spec-execution/SKILL.md` for the full algorithm and `review-primitives.md` / `review-constraints.yaml` / `review-envelope.schema.json` for the review contracts.
+
+The only way the engine asks for human help is by **escalating back into a judgment phase**: a `task:scope` blocker → `task-decomposition` re-plan; a `spec:*` blocker → `spec-amendment`. Handle those when they surface.
+
+### The spine: state machine, phase memory, reference hooks
+
+- **State machine** — `specs/sdlc-state-machine.yaml` is the single source of truth for phases, entry triggers, exit conditions, and per-workspace domain-skill routing. The `.ai/sdlc.md` narrative and each skill's `## Handoff` footer are generated/validated from it. Don't restate phase info elsewhere; change it there.
+- **Phase memory** — each `specs/tasks/SPEC-NNN/_index.yaml` may carry an additive `phase:` block (`{current, next_action, next_trigger, exit_condition_met, updated}`). owner_skills read it on entry and write it on exit to advance the state machine.
+- **Reference hooks** — `.claude/hooks/` (wired via `.claude/settings.json`, **advisory by default**): `user-prompt-submit.mjs` classifies a prompt to its phase; `stop-handoff.mjs` (Stop + SubagentStop) emits the advisory next-phase handoff at a phase exit; `pre-tool-use-edit-write.mjs` flags implementation-code edits with no active task context; `pre-tool-use-review-identity.mjs` flags an author reviewing their own PR. They nudge; they don't block.
 
 ### Background Agent dispatch (Claude Code subagents)
 
-Separate from Jules: Claude Code's built-in Agent tool spawns parallel / background subagents in the same repo. When dispatching a background Agent with `run_in_background: true` that will **modify files / branch / commit / push**, always pass `isolation: "worktree"`.
+The engine dispatches executors as worktree-isolated background agents for you. When you spawn a background Agent yourself with `run_in_background: true` that will **modify files / branch / commit / push**, always pass `isolation: "worktree"`.
 
 Without worktree isolation, the background subagent and the main session share one working tree. A subagent's `git checkout`, `git stash`, `git reset`, or `git commit` can silently carry or discard the main session's in-flight edits. Seen live on 2026-04-24 during a TASK-023 dispatch: the subagent stashed the foreground's uncommitted bookkeeping edits to do its own work, which was recoverable via `git stash pop` but could have been destructive under a different failure mode (`git reset --hard`, force-push to a shared branch, etc.).
 
@@ -53,75 +81,50 @@ Out-of-scope PRs (anything outside the allowlist or over the size cap) get a com
 
 ## Responsibilities by SDLC phase
 
-### Spec phase
-- Draft and refine specs interactively with the user
-- Fill frontmatter fields (id, initiative, owner, tags)
-- Link to existing ADRs
-- Open spec PRs for review
-- After approval: set status to `active`, create Linear project, set `linear_project` field
+### Intent + spec phases (judgment — with the user)
+- Run `intent-triage` to capture and prioritize raw intents.
+- Run `spec-authoring` to brainstorm and formalize one intent into a structured spec.
+- Fill frontmatter fields, link ADRs, open the spec PR.
+- After approval: set status to `active`, create the Linear project.
 
-### Planning phase
+### Planning phase (judgment — with the user)
 
-You are the **router**. You decompose the spec into tasks and decide which agent handles each one. This is one of your most important responsibilities — wrong routing wastes cycles.
+You are the **router**, via the `task-decomposition` skill. You decompose the spec into an AI-coherent task graph and decide which executor handles each task. Getting the breakdown, the boundaries, and the instructions right here is what makes the downstream engine run deterministically — bad decomposition is the most common cause of a stalled execution run.
 
-#### Step 1: Decompose the spec into tasks
-- Read the full spec (problem, design, acceptance criteria, risks)
-- Break into the smallest independently-implementable units
-- Identify dependencies between tasks (`blocks` relations in Linear)
-- Each task should map to one or a few acceptance criteria from the spec
+#### Size tasks for AI execution, not human review
 
-#### Step 2: Create Linear issues
-For each task, create a Linear issue with:
-- Title: `SPEC-NNN: [task description]`
-- Description: acceptance criteria (copied from spec) + constraints + linked ADRs
-- Label: `jules`, `claude-code`, or `human` (see routing rules below)
-- Relations: `blocks` / `is blocked by` where dependencies exist
+**Never reintroduce a "~300-line / one-PR-so-a-human-can-review-it" rule.** The reviewer of record is an LLM multi-lens panel. A task is **one coherent unit of AI execution** — what one executor can implement, self-verify, and get reviewed in one coherent session, against a **bounded, explicitly-declared set of files**. Size by coherence, not line count. Split a task only when it spans more than one workspace (hard rule: one workspace per task), contains independently-dispatchable sub-units with no shared in-flight state, or its `touches` set is so broad that review lenses can't be attributed.
 
-#### Step 3: Route each task
+#### Task frontmatter the engine reads
 
-Apply exactly one routing label per task. Use these rules:
+Every executable task carries (see `task-decomposition` for the full schema):
 
-**Label: `jules`** — all of these must be true:
-- [ ] Acceptance criteria are clear and testable (Given/When/Then or equivalent)
-- [ ] Self-contained — no local env vars, running services, databases, or MCP needed
-- [ ] No architecture decisions required — follows existing patterns
-- [ ] Can be verified by running tests (has existing tests, or the task IS writing tests)
-- [ ] Doesn't need interactive debugging or exploratory investigation
-- [ ] Scope is narrow — touches a bounded set of files, not a cascading refactor
+| Field | Purpose |
+|---|---|
+| `touches:` | **Required.** Flat list of file globs the task may modify. Drives review-lens routing; a merge conflict means the `touches` scoping was wrong (a decomposition defect, not something to hand-resolve). |
+| `risk:` | `low \| medium \| high` — author hint; can raise the review tier. |
+| `tier:` | `express \| standard \| fortified` — review-intensity hint. The engine's `tier()` + the constraints registry resolve the actual tier (a matched blocker → `fortified`). |
+| `agent:` | Routing: `claude-code \| human`. The engine reads `routing = task.routing \|\| task.agent \|\| 'claude-code'`. |
 
-Examples: write tests for module X, implement a single endpoint per spec, fix a bug with a failing test, update dependencies, add input validation, generate boilerplate, lint/format fixes.
+#### Routing each task
 
-**Label: `claude-code`** — any of these is true:
-- [ ] Needs local env: running services, databases, env vars, credentials
-- [ ] Needs MCP: Linear queries, Slack, monitoring tools
-- [ ] Requires architecture judgment: choosing between approaches, structuring new modules
-- [ ] Requires interactive debugging: reproducing issues, stepping through code
-- [ ] Multi-file refactor with cascading decisions (change one thing, many others follow)
-- [ ] Spec is ambiguous and needs clarification before implementation
-- [ ] Task involves coordinating with other tasks or reviewing their output
+Apply one routing value per task. `human` = deferred (the engine skips it and surfaces it for a human); `claude-code` = the engine's worktree-isolated local executor.
 
-Examples: complex refactors, debugging prod issues, wiring up integrations, implementing features that touch infra, anything where the "how" isn't clear from the spec.
+- **`claude-code`** — the default. Everything the engine can implement: feature work, refactors, tests, docs — including tasks that need local env / MCP / running services / credentials. **Default to `claude-code`.**
+- **`human`** — architecture vision, priority/tradeoff calls, stakeholder communication, security-sensitive review, final approval/merge. Deferred by the engine.
 
-**Label: `human`** — any of these is true:
-- [ ] Architecture vision: setting direction, choosing frameworks, major design decisions
-- [ ] Priority/tradeoff calls: ship vs fix, scope decisions, timeline negotiations
-- [ ] Stakeholder communication: user-facing responses, cross-team coordination
-- [ ] Security-sensitive review: auth, payments, data handling changes
-- [ ] Final approval: merges, deploys, spec sign-off
+#### Create Linear issues
+For each task: title `SPEC-NNN: [task title]`, description = acceptance criteria + constraints + linked ADRs, label = the routing value, relations = `blocks` / `is blocked by` matching the dependency graph.
 
-Examples: reviewing the plan itself, approving spec changes, deciding rollback, communicating with users about bugs.
+### Execution phase (deterministic — autonomous)
 
-#### When in doubt
-Default to `claude-code`. It's better to handle a task locally with full context than to send it to Jules and have it fail or produce wrong output because it lacked context. You can always re-label a `claude-code` task to `jules` later if it turns out to be simpler than expected.
+Once the spec is `active` and decomposed, **invoke the engine**: `Workflow({ name: 'execute-spec', args: { spec: 'SPEC-NNN' } })`. It is agent-agnostic — one generic executor; specialization is data (`touches`, `risk`, `tier`, routing, workspace constraints). Don't hand-dispatch tasks. Monitor the run, and handle any escalation it raises back into a judgment phase (`task:scope` → re-plan; `spec:*` → amendment).
 
-### Implementation phase
-- Implement `claude-code` labeled tasks yourself (see implementation standards below)
-- Dispatch `jules` labeled tasks (see orchestration below)
-- Monitor progress, review Jules PRs against the spec
+If you must implement a `claude-code` task by hand (e.g., engine unavailable on your runtime), follow the implementation standards below — the output quality bar is identical to the engine's executors.
 
 ## Implementation standards
 
-When you are the implementer (not just the orchestrator), follow the same discipline as any agent. You have more context and capability than Jules, but the output quality bar is the same.
+When you are the implementer (the engine's executor or a manual fallback), follow the same discipline as any agent. See `sdlc-code-standards` for the full set.
 
 ### Before writing code
 
@@ -129,21 +132,24 @@ When you are the implementer (not just the orchestrator), follow the same discip
 2. Read linked ADRs for design constraints
 3. Check acceptance criteria — these are your definition of done
 4. Review existing code in the affected area — understand patterns before changing them
+5. Stay inside the task's declared `touches` — files outside it are out of scope
 
 ### While writing code
 
 - Reference the spec in your work: "per SPEC-NNN, this handles..."
 - Follow existing patterns in the codebase — don't introduce new conventions without an ADR
 - Write or update tests for every acceptance criterion
+- Populate each AC's `evidence:` field before opening the PR (Tier-0 gates on presence; review grades quality)
 - Run tests and linter before opening a PR — fix failures, don't leave them for review
 
 ### PR conventions
 
-Same format as Jules — consistency across agents makes review easier:
+Consistency across agents makes review easier:
 
-- Branch name: `claude/SPEC-NNN-short-description`
+- Branch name: `claude/SPEC-NNN-TASK-NNN` (executors) — id-derived, idempotent
 - Commit message: `SPEC-NNN: [concise description of change]`
 - PR title: `SPEC-NNN: [task title]`
+- PR target: the integration branch `feat/SPEC-NNN` (`branch` mode) or `main` (`direct` mode)
 - PR description:
   ```
   ## Spec
@@ -178,125 +184,25 @@ After completing a task, comment on the Linear issue:
 
 ### When the spec is wrong or ambiguous
 
-You have something Jules doesn't: direct dialogue with the user. Use it.
+You have something the headless executors don't: direct dialogue with the user. Use it — but in the judgment phases, where it's cheap. Once execution is running, the engine surfaces spec problems as `spec:*` escalations.
 
-- **Ambiguous spec:** ask the user before implementing. Don't guess at intent.
-- **Wrong spec:** flag it. Propose the fix. Don't silently reinterpret.
-- **Missing acceptance criteria:** draft them and confirm with the user before coding.
-- **Spec gap discovered during implementation:** create a follow-up issue in Linear, note it in the PR description. Don't scope-creep the current task.
-
-### Triage phase (NOC)
-- Capture signals from monitoring, user reports, Slack
-- Normalize into bug specs (`specs/bugs/BUG-NNN.md`)
-- Attempt reproduction locally
-- Classify: severity, affected component, linked spec
-- Create Linear issue with appropriate label
+- **Ambiguous spec:** resolve it during spec-authoring. Don't guess at intent.
+- **Wrong spec:** flag it. Propose the fix via `spec-amendment`. Don't silently reinterpret.
+- **Spec gap discovered during implementation:** the engine routes a `spec:gap` to gap-capture; a `spec:*` blocker to `spec-amendment`. Don't scope-creep the current task.
 
 ### Review phase
-- Review all PRs (yours, Jules's, human's) against the spec
-- Check: acceptance criteria met? ADR constraints respected? Tests pass?
-- Flag issues as PR comments
+Code review is performed by the engine's LLM multi-lens panel (`pr-reviewer` grades; `sdlc-code-review` renders), gated on a green Tier-0, with verdicts routed by `review-primitives.md`. You don't hand-review every PR; you read the engine's verdicts and handle escalations. Humans merge the integration PR.
 
-## Jules orchestration
+## Executors
 
-### Availability check
+Task execution is handled by the deterministic engine's **worktree-isolated local executor** (`claude-code`). There is no separate cloud executor to configure. Each executor reads its task file from the repo (`specs/tasks/SPEC-NNN/TASK-NNN-*.md`) — `touches`, acceptance criteria, constraints — implements within the declared `touches`, opens a PR to the integration branch, and populates AC evidence; the engine then runs the Tier-0 gate + LLM review + fix-loop (cap 3) and merges accepted PRs into the integration branch. The executor's brief is `.ai/AGENTS.md`.
 
-Before dispatching, check if Jules is available:
-```bash
-# Check CLI
-command -v jules &> /dev/null && echo "Jules CLI available" || echo "Jules CLI not found"
-
-# Check API key (fallback dispatch method)
-[ -n "${JULES_API_KEY:-}" ] && echo "API key set" || echo "No API key"
-```
-
-**If neither is available:** all `jules`-labeled tasks fall back to Claude Code execution. The task files, acceptance criteria, and review process are identical — only the execution model changes (sequential local instead of parallel cloud). See the fallback section below.
-
-### Dispatching a task to Jules
-
-1. Read the task file for the `jules`-labeled task
-2. Assemble the task prompt:
-   ```
-   ## Task: [title from task file]
-   
-   **Spec:** SPEC-NNN (see specs/SPEC-NNN-name.md in the repo)
-   
-   ## Context
-   [Why this task exists, what it's part of]
-   
-   ## Requirements
-   [Paste the relevant spec section — design, constraints]
-   
-   ## Acceptance criteria
-   [Paste from task file]
-   - [ ] Given X, when Y, then Z
-   
-   ## Constraints
-   - [ADR constraints]
-   - [Patterns to follow]
-   - [Files NOT to touch]
-   
-   ## Verification
-   - Run: [test command] — all tests must pass
-   - Run: [lint command] — no new warnings
-   - New tests required: [yes/no]
-   ```
-3. Dispatch via CLI (preferred):
-   ```bash
-   jules remote new --repo owner/repo --session "assembled task prompt"
-   ```
-   Or via REST API:
-   ```bash
-   curl -s -X POST \
-     -H "X-Goog-Api-Key: $JULES_API_KEY" \
-     -H "Content-Type: application/json" \
-     https://julius.googleapis.com/v1alpha/sessions \
-     -d '{
-       "prompt": "... assembled task prompt ...",
-       "sourceContext": {
-         "source": "sources/SOURCE_ID",
-         "githubRepoContext": { "startingBranch": "main" }
-       },
-       "title": "SPEC-NNN: [task title]",
-       "automationMode": "AUTO_CREATE_PR",
-       "requirePlanApproval": false
-     }'
-   ```
-4. Log the Jules session ID on the Linear issue as a comment
-5. When Jules creates a PR, review it against the spec
-
-### Checking Jules status
-```bash
-# Via CLI
-jules remote list --session
-jules remote status --session SESSION_ID
-
-# Via API
-curl -s -H "X-Goog-Api-Key: $JULES_API_KEY" \
-  https://julius.googleapis.com/v1alpha/sessions
-```
-
-### When Jules fails
-1. Check session status: `jules remote status --session SESSION_ID`
-2. Decide: retry with better prompt, reassign to yourself, or escalate to human
-3. Update the Linear issue with what happened
-
-### Fallback: executing jules-labeled tasks locally
-
-When Jules is not available, execute `jules`-labeled tasks yourself:
-1. Read the task file — it has everything you need (same as what Jules would receive)
-2. Implement locally following `sdlc-code-standards`
-3. Create a branch: `task/TASK-NNN-short-description`
-4. Open a PR with the same format Jules would use
-5. The task file's `agent` field stays `jules` — this records the intended routing. The fallback is a dispatch-time decision.
-
-The only tradeoff is concurrency: Jules runs tasks in parallel; local fallback is sequential. Prioritize tasks by dependency order to minimize idle time.
+The engine is executor-agnostic by design — a different executor backend could be plugged in later — but the framework ships only the local executor.
 
 ## Daily summary
 
 At the end of each working session, post an async summary to the relevant Linear project:
-- Tasks completed (yours and Jules's)
+- Tasks completed (by all executors)
 - Tasks in progress
-- Blockers
+- Blockers and engine escalations
 - Run costs (if tracked)
-- Jules tasks dispatched and their status

@@ -1,6 +1,6 @@
 ---
 name: sdlc-code-review
-description: Use when reviewing any PR — yours, Jules's, or a teammate's — to verify against spec acceptance criteria, ADR constraints, and coding standards
+description: Use when reviewing any PR — an executor's or a teammate's — to verify against spec acceptance criteria, ADR constraints, and coding standards
 ---
 
 # SDLC Code Review
@@ -96,8 +96,9 @@ Three non-overlapping prefixes, all blockers (severity assigned in SPEC-004 AC-0
 - Is the contract visible where downstream tasks expect it? (schema.yml, exported types, etc.)
 - If the implementation deviates from the specified contract, flag it — the downstream task's constraints need updating too
 
-**Task breakdown check:** If the PR reveals the decomposition was wrong (but the spec is fine):
-- PR is significantly larger than expected (~300 lines target) → the task should have been split. Raise a `blocker` finding citing `task:scope` so the policy routes to `fix_loop` and the orchestrator opens a `task-decomposition` re-plan.
+**Task breakdown check:** If the PR reveals the decomposition was wrong (but the spec is fine). Note: **diff size is NOT a defect** — a large but coherent PR that stays within its declared `touches` is fine. The defects are incoherence and scope leak:
+- PR modifies files OUTSIDE the task's declared `touches` → scope leak / unbounded task. Raise a `blocker` finding citing `task:scope` so the policy routes to `fix_loop` and the orchestrator opens a `task-decomposition` re-plan.
+- PR bundles two independent concerns that should be separate AI-coherent tasks → raise a `blocker` finding citing `task:scope` and propose the split in `suggested_fix`.
 - PR includes work that belongs in a different task → scope leak. Raise a `blocker` finding citing `task:scope` and propose the scope reduction in `suggested_fix`, or flag for re-planning if the task boundaries themselves were wrong.
 - PR needed a prerequisite that doesn't exist as a task → raise a `blocker` finding citing `task:scope` so re-planning adds the missing task.
 
@@ -223,10 +224,10 @@ _(none — omit the section when empty.)_
 
 **Escalation rendering.** When the action is `escalate` (per the policy guard in `review-primitives.md`), render the comment with the standard sections plus a leading `### Escalation cause` section that names the offending `criterion` value(s) and which finding(s) carried them. Do not suppress the rest of the findings — they may still be valid; only the routing is escalated.
 
-## Reviewing Jules PRs
+## Reviewing executor PRs
 
-Jules PRs need extra scrutiny:
-- Jules has no interactive debugging — it may have worked around issues in non-obvious ways
+The reviewer treats all executor PRs identically — apply the same scrutiny regardless of which executor produced the PR:
+- An executor may have worked around issues in non-obvious ways
 - Check that the implementation follows patterns in the codebase, not just the task file
-- Verify Jules didn't add unnecessary dependencies or deviate from project conventions
-- Run the full test suite, not just the tests Jules wrote — check for regressions
+- Verify the executor didn't add unnecessary dependencies or deviate from project conventions
+- Run the full test suite, not just the tests the executor wrote — check for regressions

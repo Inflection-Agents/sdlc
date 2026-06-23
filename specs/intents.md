@@ -45,7 +45,7 @@ Phase 1 (docs refresh + bootstrap.sh fix + skill wiring) drafted as [SPEC-003](S
 1. **Working first spec in 10 minutes, not files scaffolded in 10 minutes.** Current bootstrap leaves you with empty directories and a "next steps" checklist of five items. Target: by the end of onboarding, you've authored a tiny throwaway spec, decomposed it into a task, and round-tripped it through the loop. *That* is "set up."
 2. **Three doors with clear signposting.** Greenfield repo, existing repo adopting the framework, and joining a team that already uses it are three different journeys. Today they're one undifferentiated bash script. Each should have its own entry point.
 3. **Defer all reference material.** The README currently inventories 11 docs. A first-time reader should see three principles (spec is root, agents are assignees, runs are observable) and a single "start here" pointer. Schemas, work-graph, tooling rationale, and skill architecture should be findable but not in the critical path.
-4. **One interactive command, not a checklist.** `npx sdlc init` (or equivalent — name TBD) walks you through choices interactively: which agents (Claude / Jules / Gemini, any combination), which work tracker (Linear / GitHub Issues / none), whether this is a monorepo. Bootstrap.sh became 200 lines because every check is conditional; that complexity should be hidden behind a wizard.
+4. **One interactive command, not a checklist.** `npx sdlc init` (or equivalent — name TBD) walks you through choices interactively: which local orchestrator (Claude Code / Gemini CLI), which work tracker (Linear / GitHub Issues / none), whether this is a monorepo. Bootstrap.sh became 200 lines because every check is conditional; that complexity should be hidden behind a wizard.
 5. **Verify by doing, not by checking.** The "is it set up?" verification is "run `sdlc demo`, which dispatches a no-op example task end-to-end." If it round-trips, you're set up. If not, the wizard tells you what to fix.
 6. **Adopt the reference implementation's unified skill-wiring approach.** `tools/dev/setup-sdlc.sh` in the reference implementation links `.ai/skills/` into both `.ai/skills/` and `~/.agents/skills/` so the same skills work across local agents. Upstream should ship this pattern, not require each consumer to invent it.
 
@@ -90,7 +90,7 @@ The reference implementation has `.ai/DESIGN.md` (Figma frame mapping) and `figm
 
 ## Initiative: sdlc-multi-agent
 
-The reference implementation runs Claude Code, Jules, and Gemini side-by-side; upstream framework was built around Claude + Jules. The patterns for keeping multiple agents coherent need to port back.
+The reference implementations run multiple local agents (Claude Code, Gemini CLI); the patterns for keeping multiple agents coherent need to port back. (Jules was dropped as an executor — 2026-06-22 — for being impractical in real use; routing is now `claude-code | human`.)
 
 ### `[backlog]` Three role-specific entry points with consistent shape
 The reference implementation has `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` with prescriptive role framing ("You are the orchestrator", "You are a task executor"). Upstream has the first two but no consistent template. Decide: do we ship `GEMINI.md` upstream, or do we ship a single agent-entry-point template that the consumer instantiates per agent?
@@ -104,8 +104,8 @@ The reference implementation's `project.md` ballooned to 406 lines and includes 
 ### `[backlog]` Auto-merge bookkeeping workflow template
 The reference implementation has `.github/workflows/auto-merge-sdlc-bookkeeping.yml` that auto-merges status flips, index updates, and spec-index entries (PRs titled `sdlc: bookkeeping`, capped at 100 lines, gated on CI). Ship upstream as a reference template under `templates/ci/` or similar.
 
-### `[deferred]` Deeper Jules orchestration patterns
-The reference implementation's `CLAUDE.md` has more depth around Jules: source ID discovery, fallback flow when Jules unavailable, MCP wiring for Jules. Upstream version is solid but the reference implementation has lived experience. Port the lessons (not the full file) into upstream `.ai/CLAUDE.md`.
+### `[dropped]` Deeper Jules orchestration patterns
+Dropped 2026-06-22 — Jules was removed as an executor (impractical in real use). Routing is now `claude-code | human`; execution runs through the deterministic engine's local worktree-isolated executor. No Jules orchestration to port.
 
 ---
 

@@ -2,6 +2,16 @@
 
 How to run the AI-native SDLC on a real project. Start here when kicking off a new initiative or refactoring effort.
 
+## The shape: collaborate up front, then run
+
+```
+intent-triage → spec-authoring → task-decomposition │ spec-execution → review → spec-completion
+  (human+LLM)     (human+LLM)       (human+LLM)      │  (DETERMINISTIC)   (LLM)    (human+LLM)
+        ── JUDGMENT PHASES: collaborative, gated ──  │  ── AUTONOMOUS ENGINE ──
+```
+
+*Quality when it's cheap to assure it — then autonomous execution.* You and the team spend judgment on the front phases — the intent, the spec, and the task graph. Each ends at a hard sign-off gate. Once the spec is `active` and decomposed, you invoke one engine (`execute-spec`) and it drives execution to an integration PR with no further human attention. An LLM multi-lens panel reviews the code; a human merges the integration PR to `main`. The single source of truth for the phases is [`specs/sdlc-state-machine.yaml`](specs/sdlc-state-machine.yaml).
+
 ## Phase 0: Setup
 
 1. Create a Linear initiative for the effort
@@ -17,62 +27,59 @@ How to run the AI-native SDLC on a real project. Start here when kicking off a n
 5. Define escalation rules for this project (what requires human sign-off)
 6. Agree on run budget limits (tokens, cost, timeout)
 
-## Phase 1: Spec
+## Phase 1: Intent (judgment — human + LLM)
 
-**Who:** PM or tech lead drafts, agent can assist
+**Who:** owner/PM with the agent (`intent-triage` skill)
 
-1. Copy `templates/spec.md` to `specs/SPEC-NNN-name.md`
-2. Fill in the frontmatter (id, title, initiative, owner, tags)
-3. Write the body sections (Problem, Success criteria, Scope, Design, Acceptance criteria, Risks)
-4. If this is a refactor, include the Migration section (current state, target state, strategy, rollback)
-5. Open a PR — CI validates the schema, team reviews the intent
-6. On approval, set status to `active` and merge
-7. Create the Linear project, set `linear_project` in frontmatter
+1. Capture raw intents ("I want to…", "we should…") into `specs/intents.md`
+2. Prioritize the backlog with the owner
+3. Select an intent to spec out
 
-## Phase 2: Plan
+## Phase 2: Spec (judgment — human + LLM)
 
-**Who:** Agent drafts, human reviews
+**Who:** owner/PM drafts with the agent; eng lead + domain experts + stakeholders weigh in (`spec-authoring` skill)
 
-1. Agent reads the spec and produces a plan:
-   - Task breakdown with dependencies
-   - Suggested ordering (what can parallelize, what's sequential)
-   - Risk flags (areas needing human review, areas with weak test coverage)
-   - Estimated complexity per task
-2. Human reviews the plan:
-   - Are the tasks the right granularity?
-   - Are dependencies correct?
-   - Are the risky areas identified?
-3. Create Linear issues from the approved plan
-4. Assign: which tasks go to agents, which need humans
+1. Brainstorm the intent into `templates/spec.md` → `specs/SPEC-NNN-name.md`
+2. Fill the frontmatter (id, title, initiative, owner, tags) and body (Problem, Success criteria, Scope, Design, Acceptance criteria, Risks)
+3. If a refactor, include the Migration section (current state, target state, strategy, rollback)
+4. Open a spec PR — CI validates the schema; `spec-reviewer` grades it; the named reviewers and stakeholders sign off on *intent*
+5. **Sign-off gate:** on approval, set status to `active` and merge; create the Linear project, set `linear_project`
 
-## Phase 3: Execute
+## Phase 3: Decompose (judgment — human + LLM)
 
-**Who:** Agent implements, human reviews
+**Who:** eng lead + agent decide the breakdown (`task-decomposition` skill)
 
-For each task:
-1. Agent reads the spec + plan + relevant code
-2. Agent creates a branch, implements, writes tests
-3. Agent opens a PR linking to the Linear issue
-4. Agent runs CI and reports results
-5. Human reviews the PR
-6. On approval: merge and close the Linear issue
+1. Break the spec into an **AI-coherent task graph** — each task is one coherent unit of AI execution with a bounded, declared `touches` set (file globs), one workspace per task. **Size by coherence, not line count** (a coherent 800-line token layer is one task). The deliverable is *great instructions*, not small diffs.
+2. Set `risk` and `tier` hints; wire `depends_on`/`blocks`; ensure parallel tasks have non-overlapping `touches`
+3. Route each task (`agent: claude-code | human`) — routing is data the engine reads, not a hand-dispatch plan
+4. **Sign-off gate:** the eng lead confirms granularity, boundaries, and dependencies; write the `phase:` block; create Linear issues
 
-Run logging (interim approach):
-- Each agent run logs: start time, end time, token cost, tool calls, outcome
-- Summary posted as a comment on the Linear issue
-- Structured log appended to a project-level run log
+## Phase 4: Execute (deterministic — autonomous)
 
-## Phase 4: Verify
+**Who:** the `execute-spec` engine; **no human attention until the integration PR**
 
-**Who:** Agent runs evals, human validates
+Invoke the engine once:
+```
+Workflow({ name: 'execute-spec', args: { spec: 'SPEC-NNN' } })
+```
+It builds the wave graph from `depends_on`, then per task: dispatches a worktree-isolated executor → gates on a green **Tier-0** (lint/typecheck/unit) → dispatches **routed multi-lens reviewers** (lenses selected by `touches` from `review-constraints.yaml`) → runs a **fix loop (cap 3/task)** → merges each accepted task into `feat/SPEC-NNN`. Branches are id-derived, so a stopped run resumes wave-level on re-invoke. The only way it asks for help is to **escalate back into a judgment phase**: a `task:scope` blocker → `task-decomposition` re-plan; a `spec:*` blocker → `spec-amendment`.
 
-1. Agent runs the full test suite post-merge
-2. Agent checks for regressions (new failures, performance changes)
-3. For refactors: agent verifies behavior parity between old and new paths
-4. Human does exploratory testing on changed surfaces
-5. Update the spec if behavior has intentionally changed
+## Phase 5: Review + Integrate (LLM review, human merge)
 
-## Phase 5: Triage (ongoing)
+**Who:** LLM panel reviews; a human merges
+
+1. The engine runs the expensive integration verification (captured as EVIDENCE) and opens the integration PR `feat/SPEC-NNN → main`, with per-task verdicts and the Testing Evidence section
+2. An independent `integration-reviewer` checks the spec's **success criteria** (not just per-task ACs)
+3. **A human merges the integration PR.** The engine never merges to `main`.
+
+## Phase 6: Complete
+
+**Who:** `spec-completion` skill + owner
+
+1. Verify the spec's success criteria end-to-end against `main`
+2. Move the spec to a terminal state; close out the Linear project
+
+## Phase 7: Triage (ongoing)
 
 See [triage.md](triage.md) for the full pipeline. During active development:
 - Bugs found during implementation → normalize immediately, don't create loose tickets
@@ -102,15 +109,18 @@ See [triage.md](triage.md) for the full pipeline. During active development:
 | Tasks completed per cycle | Linear | Throughput |
 | Agent vs human task ratio | Linear labels | Agent adoption |
 | Cost per task (tokens) | Run logs | Efficiency |
-| PR review turnaround | GitHub | Bottleneck detection |
+| Fix-loop iterations per task | `_execution.log.jsonl` | Decomposition/instruction quality |
+| Escalations per spec (re-plan / amendment) | Run logs | Front-phase quality |
 | Bug density per spec | Linear relations | Spec quality |
 | Regression rate by author type | Git + CI | Agent code quality |
 | Time from signal to fix | Linear timestamps | Triage effectiveness |
 
 ## Anti-patterns to watch
 
-- **Spec drift:** implementation diverges from spec and nobody updates either. Fix: spec review at each milestone.
-- **Agent overload:** assigning tasks that need human judgment to agents. Fix: clear criteria in the plan for what's agent-suitable.
-- **Review bottleneck:** agents produce PRs faster than humans review them. Fix: budget agent throughput to review capacity, not the other way around.
-- **Invisible runs:** agent work happens but isn't logged. Fix: no merge without run metadata attached.
+- **Spec drift:** implementation diverges from spec and nobody updates either. Fix: spec review at each milestone; the engine escalates `spec:*` blockers to `spec-amendment`.
+- **Agent overload:** assigning tasks that need human judgment to agents. Fix: route those tasks `human` (deferred by the engine) in decomposition.
+- **Sizing tasks for human review:** fragmenting one coherent change into many tiny "reviewable" PRs. Fix: a human is not the reviewer of record — size by coherence + bounded `touches`. Never reintroduce a ~300-line / one-PR-per-task rule.
+- **Hand-dispatching tasks:** running tasks one at a time instead of invoking the engine. Fix: get the decomposition right, then run `execute-spec` once.
+- **Skimping on the front phases:** rushing intent/spec/decomposition to "start coding." Fix: that is exactly where attention belongs — bad decomposition is the top cause of stalled runs.
+- **Invisible runs:** agent work happens but isn't logged. Fix: no merge without run metadata; enable `_execution.log.jsonl`.
 - **Ticket creep:** falling back to Jira-style "create a ticket for everything." Fix: specs are the root, tasks are ephemeral.
