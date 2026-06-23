@@ -8,6 +8,34 @@ You are participating in an AI-native software development lifecycle. This docum
 2. **Agents are assignees.** You are a first-class participant — you get assigned tasks, produce artifacts, and are accountable for your output.
 3. **Runs are observable.** Log what you did, what it cost, and whether it passed. Your work must be auditable.
 4. **Humans decide intent and priority.** You propose, draft, and implement. Humans approve specs, prioritize work, and make tradeoff calls.
+5. **Judgment up front, deterministic execution behind.** Scarce human attention belongs in the front phases, where it is cheapest to assure quality. Execution is autonomous. (See the phase model below.)
+6. **Humans give great instructions, not great reviews.** The deliverable of the front phases is a complete, unambiguous spec + task graph. The reviewer of record for code is an LLM multi-lens panel; humans gate the inputs and merge the final integration PR.
+
+## The phase model — collaborate up front, then run
+
+```
+intent-triage → spec-authoring → task-decomposition │ spec-execution → review → spec-completion
+  (human+LLM)     (human+LLM)       (human+LLM)      │  (DETERMINISTIC)   (LLM)    (human+LLM)
+        ── JUDGMENT PHASES: collaborative, gated ──  │  ── AUTONOMOUS ENGINE ──
+```
+
+- **Front (judgment) phases are collaborative and human-gated.** Multiple humans — owner/PM, eng
+  lead, domain experts, stakeholders — collaborate on the intent and the spec. *What* to build and
+  *how* to split it require judgment. Quality is cheapest to assure here, before any code exists, so
+  this is where human attention is spent. Each judgment phase ends at a hard sign-off gate.
+- **`spec-execution` is deterministic and autonomous.** Once the spec + task graph are signed off,
+  the execution engine runs the executor → Tier-0 gate → routed multi-lens review → fix loop → merge
+  loop with no further human attention until the integration PR. It is a Workflow script with a
+  pure-core / effects-at-the-edges split (see the `spec-execution` skill).
+- **Review is LLM, not human.** A multi-lens reviewer panel grades each PR. Humans only merge the
+  final integration PR to `main`.
+- **The escape hatch back to judgment.** When the engine finds the spec or the decomposition is
+  wrong (a `spec:*` or `task:scope` blocker), it escalates out of the autonomous loop into
+  `spec-amendment` or `task-decomposition` re-planning — a judgment phase — then resumes.
+
+The single source of truth for the phases, their triggers, and transitions is
+`specs/sdlc-state-machine.yaml`. The per-spec `phase:` block in each `_index.yaml` records where a
+spec is and what comes next, making the process resumable.
 
 ## Spec system
 
@@ -50,9 +78,8 @@ The work graph lives in Linear. Key conventions:
 
 | Label | Meaning |
 |-------|---------|
-| `jules` | Task is eligible for Jules (cloud agent). Self-contained, clear acceptance criteria, no local env needed. |
-| `claude-code` | Task requires a local orchestrator (Claude Code, Gemini CLI, or equivalent). Needs MCP, local env, architecture judgment, or interactive debugging. |
-| `human` | Task requires human. Architecture decisions, stakeholder comms, priority calls. |
+| `claude-code` | The default. Executed by the deterministic engine's worktree-isolated local executor. |
+| `human` | Requires a human decision: architecture direction, priority/tradeoff calls, stakeholder comms, security-sensitive sign-off. Deferred by the engine. |
 
 ### How tasks get routed
 
@@ -62,11 +89,12 @@ One spec produces many tasks. The **local agent** (Claude Code or equivalent) de
 Spec (one file in specs/)
   │
   └─ Local agent decomposes into tasks (Linear issues)
-       ├─ Task A: label=jules        → dispatched to Jules via API
-       ├─ Task B: label=claude-code  → implemented by local agent
-       ├─ Task C: label=jules        → dispatched to Jules via API
-       ├─ Task D: label=human        → assigned to human
-       └─ Task E: label=claude-code  → implemented by local agent
+       │
+       └─ spec-execution engine dispatches the wave graph:
+            ├─ Task A: label=claude-code  → worktree-isolated local executor
+            ├─ Task B: label=claude-code  → worktree-isolated local executor
+            ├─ Task C: label=human        → deferred (a human does it)
+            └─ Task D: label=claude-code  → worktree-isolated local executor
 ```
 
 Specs don't live in agent-specific folders. There is one `specs/` directory. Routing is by label on the Linear issue, not by file location.
@@ -97,7 +125,11 @@ When you complete a task, comment on the Linear issue with:
 
 ## Task system
 
-Tasks are structured files in the repo at `specs/tasks/SPEC-NNN/`. Each task has YAML frontmatter with: id, spec, agent assignment, dependencies, acceptance criteria. An `_index.yaml` in each directory encodes the full dependency graph.
+Tasks are structured files in the repo at `specs/tasks/SPEC-NNN/`. Each task has YAML frontmatter with: id, spec, agent (routing), `workspace`, `touches` (the file globs it may modify), `risk`, `tier`, dependencies, and acceptance criteria. An `_index.yaml` in each directory encodes the full dependency graph (and the optional `phase:` memory block).
+
+Tasks are **AI-coherent units of execution**, not human-reviewable PR chunks: sized by coherence and a bounded `touches` set, not by line count. See `task-schema.md`.
+
+Once a spec is decomposed, the **deterministic execution engine** (`spec-execution` skill, implemented by `.claude/workflows/execute-spec.js`) drives all tasks: it builds the wave graph, runs executors in parallel (worktree-isolated), gates review on a green Tier-0, runs the LLM multi-lens review + fix loop, and merges into the integration branch. You do not hand-dispatch tasks one at a time. The per-task lifecycle below is the **executor's** view of a single task within that loop.
 
 Tasks also have corresponding Linear issues for human visibility and live status tracking. The repo owns definition; Linear owns status.
 
@@ -151,6 +183,74 @@ Escalate to a human immediately for:
 ## Agent-specific instructions
 
 This document is the shared process. Your agent-specific config file has additional instructions:
-- **Claude Code / local agents:** see `CLAUDE.md` for MCP access, Linear integration, Jules orchestration, local env capabilities
-- **Jules / cloud agents:** see `AGENTS.md` for cloud VM constraints, what's available, how to read specs from the repo
+- **Claude Code / local orchestrator:** see `CLAUDE.md` for MCP access, Linear integration, invoking the execution engine, local env capabilities
+- **Executor agents:** see `AGENTS.md` for the executor brief — how any agent dispatched to a task reads its task file, stays within `touches`, and opens a PR to the integration branch
 - **Other agents:** follow this document. If you have capabilities beyond what's described here, document them in your agent-specific config.
+
+<!-- sdlc:phases:start -->
+<!-- GENERATED from specs/sdlc-state-machine.yaml by scripts/sdlc/gen-handoffs.mjs — do not edit between markers; re-run the generator. -->
+
+## SDLC phases
+
+The phases below are generated from `specs/sdlc-state-machine.yaml` — the single,
+machine-readable source of truth for the SDLC state machine. Each phase is owned by
+a skill, has documented entry triggers, and hands off to the next phase on its exit
+condition. **Do not hand-edit this section** — change the YAML and re-run
+`node scripts/sdlc/gen-handoffs.mjs`.
+
+### intent-triage
+
+- **Owner skill:** `intent-triage`
+- **Entry triggers:** "I want to", "we need to", "we should", "brain dump", "review the intent backlog", "prioritize the backlog"
+- **Preconditions:** one or more raw intents to capture or an existing intent backlog to review
+- **Exit condition:** an intent is captured/prioritized in specs/intents.md and selected to spec out
+- **Next step:** `spec-authoring` — trigger: "spec out intent #N"
+
+### spec-authoring
+
+- **Owner skill:** `spec-authoring`
+- **Entry triggers:** "I want to build", "we need to refactor", "spec out", "new feature", "new initiative"
+- **Preconditions:** intent exists or owner confirms none is needed
+- **Exit condition:** spec status flips draft -> active (after spec-reviewer sign-off and owner approval)
+- **Next step:** `task-decomposition` — trigger: "decompose SPEC-NNN"
+
+### task-decomposition
+
+- **Owner skill:** `task-decomposition`
+- **Entry triggers:** "decompose this spec", "break this down", "this task is too big", "split this task", "we need another task before X", "merge these tasks", "re-route this task"
+- **Preconditions:** spec has status active
+- **Exit condition:** AI-coherent tasks + _index.yaml dependency graph exist with touches/routing declared
+- **Next step:** `spec-execution` — trigger: "execute SPEC-NNN"
+
+### spec-execution
+
+- **Owner skill:** `spec-execution`
+- **Entry triggers:** "execute this spec", "execute SPEC-NNN", "run the spec", "start the execution loop", "dispatch the tasks"
+- **Preconditions:** spec has status active and decomposed tasks with a dependency graph exist
+- **Exit condition:** all tasks merged into the integration branch and the integration PR (feat/spec-NNN -> main) is open
+- **Next step:** `review` — trigger: "review the PRs for SPEC-NNN"
+
+### review
+
+- **Owner skill:** `pr-reviewer`
+- **Entry triggers:** "review the PR", "review this PR", "grade the PR", "review the PRs for SPEC-NNN"
+- **Preconditions:** one or more PRs exist and the author is not the reviewer
+- **Exit condition:** every PR carries a graded verdict and accepted PRs are merged
+- **Next step:** `spec-completion` — trigger: "close out SPEC-NNN"
+
+### spec-completion
+
+- **Owner skill:** `spec-completion`
+- **Entry triggers:** "is this spec finished", "all tasks are merged", "verify the spec", "close out SPEC-NNN"
+- **Preconditions:** all tasks for the spec are done or nearly done
+- **Exit condition:** spec success criteria verified end-to-end and spec status set to a terminal state
+- **Next step:** `none` (terminal phase)
+
+### spec-amendment
+
+- **Owner skill:** `spec-amendment`
+- **Entry triggers:** "the spec assumed X but it is actually Y", "we need to add scope", "this acceptance criterion is untestable", "the design does not work", "the requirements changed"
+- **Preconditions:** an active spec is found to be wrong, incomplete, or in need of change mid-flight; a spec is amendable IFF its status is active or draft — every other status (done, superseded, deprecated, cancelled) is CLOSED and immutable; route a change to a closed spec to a new spec (spec-authoring) or a bug spec under specs/bugs/ instead
+- **Exit condition:** spec is amended (version bumped) and spec-reviewer re-signs off
+- **Next step:** `task-decomposition` — trigger: "decompose SPEC-NNN"
+<!-- sdlc:phases:end -->

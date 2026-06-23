@@ -1,0 +1,83 @@
+# Review constraints registry — AI-native SDLC
+#
+# The deterministic engine (.claude/workflows/execute-spec.js) selects a task's review lenses as:
+#     lenses = baseLenses(workspace)  ∪  { lens of each constraint whose `when` matches the task }
+# and resolves the task's review TIER from constraint severity:
+#     a matched blocker → fortified · a matched major → at least standard (express vetoed)
+#
+# `when` matches if ANY of: a `touches` glob overlaps the task's `touches`; the task's
+# workspace is in `workspace`; or the task declares the `task_has` field.
+# `scope: task` constraints run per-task; `scope: integration` run once at the integration gate.
+#
+# Lens → reviewer agent mapping lives in the engine (SPECIAL_REVIEWER); a lens with no special
+# agent is graded by the generic `task-reviewer`. Cite findings by the constraint `cite` prefix
+# (see review-primitives.md > Grounding rules for the allowed prefixes).
+#
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# This file ships with GENERIC, illustrative entries. Replace `baseLenses` workspaces and the
+# `constraints:` list with this repo's real invariants. The three always-on base lenses
+# (ac-completeness, conventions, adversarial) are a sensible default for any stack; the
+# constraints below show the shape for stack-specific blockers/majors. Delete what you don't need.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+
+# Always-on lenses per workspace (the generic `task-reviewer` grades these). `_default` applies to
+# any workspace without an explicit entry.
+baseLenses:
+  _default: [ac-completeness, conventions, adversarial]
+
+constraints:
+  # ── EXAMPLE: a hard architectural invariant on a "pure core" / shared package ──────────────
+  - id: INV-CORE-PURITY
+    scope: task
+    when: { touches: ["packages/shared/src/core/**", "**/domain/**"] }
+    lens: core-purity
+    severity: blocker
+    check: >
+      The pure core imports no I/O, platform, or framework API and contains no side effects
+      (no network, no clock, no global mutable state). Effects are described as data and
+      performed at the edges, never inline in domain logic.
+    cite: "inv:INV-CORE-PURITY"
+
+  # ── EXAMPLE: design-system fidelity on UI code ────────────────────────────────────────────
+  - id: INV-DESIGN-FIDELITY
+    scope: task
+    when: { touches: ["**/ui/theme/**", "**/ui/components/**", "**/components/**"] }
+    lens: design-fidelity
+    severity: major
+    check: >
+      All colors/type/spacing/radius/elevation come from the design-system tokens (no hardcoded
+      values a token already names); components match the design handoff contracts.
+    cite: "design:tokens"
+
+  # ── EXAMPLE: accessibility on interactive UI ──────────────────────────────────────────────
+  - id: INV-A11Y
+    scope: task
+    when: { touches: ["**/ui/components/**", "**/*Screen*", "**/pages/**"] }
+    lens: a11y
+    severity: major
+    check: >
+      Interactive targets meet the platform minimum hit area; every actionable element has an
+      accessible name/role; color contrast meets WCAG AA.
+    cite: "lens:a11y"
+
+  # ── EXAMPLE: security-sensitive surfaces always get the adversarial + a security lens ──────
+  - id: INV-AUTHZ-FAILCLOSED
+    scope: task
+    when: { touches: ["**/auth/**", "**/middleware/**", "**/api/**"] }
+    lens: security
+    severity: blocker
+    check: >
+      Authorization is fail-closed (missing/invalid credentials are denied, never defaulted to
+      allow); no secrets in code or logs; inputs at trust boundaries are validated.
+    cite: "lens:security"
+
+  # ── EXAMPLE: an integration-scope constraint, checked once at the integration gate ────────
+  - id: INV-CONTRACT-PARITY
+    scope: integration
+    when: { touches: ["packages/contracts/**", "**/schema/**"] }
+    lens: contract-parity
+    severity: blocker
+    check: >
+      Producer and consumer contracts stay in parity (run the repo's contract-drift check);
+      additive/optional changes preserve compatibility; a breaking shape change bumps the version.
+    cite: "inv:INV-CONTRACT-PARITY"
