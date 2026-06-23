@@ -177,7 +177,14 @@ const buildWaves = (tasks) => {
         if (stack.has(id)) throw new Error(`task_graph_cycle at ${id}`)
         stack.add(id)
         const deps = dependsOf(tasks[id] || {})
-        const w = deps.length ? Math.max(...deps.map((d) => compute(d, stack))) + 1 : 0
+        const w = deps.length
+            ? Math.max(
+                  ...deps.map((d) => {
+                      if (!(d in tasks)) throw new Error(`unknown_dependency ${d} (from ${id})`)
+                      return compute(d, stack)
+                  })
+              ) + 1
+            : 0
         stack.delete(id)
         wave[id] = w
         return w
@@ -200,7 +207,13 @@ const doneTaskIds = (tasks) => new Set(Object.values(tasks).filter(isDone).map((
 // true iff a fix touched a file no blocking finding named (then a scoped re-review is unsafe).
 const fixTouchedOutsideScope = (exec, blocking) => {
     const touched = (exec && Array.isArray(exec.files) ? exec.files : []).filter((f) => typeof f === 'string')
-    const inScope = new Set((Array.isArray(blocking) ? blocking : []).map((f) => f && (f.location || f.file)).filter((f) => typeof f === 'string'))
+    // findings carry `location` as file:line; strip the line so it can match a bare touched path.
+    const inScope = new Set(
+        (Array.isArray(blocking) ? blocking : [])
+            .map((f) => f && (f.location || f.file))
+            .filter((f) => typeof f === 'string')
+            .map((loc) => loc.split(':')[0])
+    )
     return touched.some((f) => !inScope.has(f))
 }
 
@@ -436,6 +449,9 @@ const acceptMergeOrder = (built) =>
 // then an independent review against the spec's success criteria, then open the PR.
 const runIntegrationVerify = (workspaces) => {
     const verifiers = uniq(workspaces.map((w) => (WORKSPACES[w] || WORKSPACES._default).expensiveVerify).filter(Boolean))
+    // NOTE: with no workspace declaring an `expensiveVerify` (the shipped `_default`), the integration
+    // EVIDENCE gate is vacuously green — there is no end-to-end proof beyond the per-task Tier-0 gates.
+    // Set `expensiveVerify` on a workspace to require real integration evidence (e.g. an e2e run).
     if (!verifiers.length) return Promise.resolve({ built: true, testsPassed: true, commands: [], artifacts: [] })
     return agent(
         [
@@ -549,6 +565,9 @@ async function run() {
     const taskVerdicts = results.map((r) => ({ task: r.taskId, status: r.status }))
     const { prUrl } = await openIntegrationPR(evidence, taskVerdicts)
     const integrationReview = await runIntegrationReview(prUrl, evidence, integConstraints)
+    // NOTE: unlike per-task reviewPass, the integration gate intentionally collapses ALL blocking
+    // findings to "not ready" (it does not separately escalate task:scope / spec:* / design-altitude).
+    // The integration PR awaits a human merge regardless, so a human sees any blocking finding directly.
     // same guard as per-task reviewPass: a malformed or abstained integration review is NOT an accept.
     const reviewOk = validEnvelope(integrationReview) && integrationReview.reviewer_status !== 'abstained'
     const readyToMerge = reviewOk && gate((integrationReview && integrationReview.findings) || []) === 'accept'

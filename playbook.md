@@ -79,7 +79,7 @@ It builds the wave graph from `depends_on`, then per task: dispatches a worktree
 1. Verify the spec's success criteria end-to-end against `main`
 2. Move the spec to a terminal state; close out the Linear project
 
-## Phase 5: Triage (ongoing)
+## Phase 7: Triage (ongoing)
 
 See [triage.md](triage.md) for the full pipeline. During active development:
 - Bugs found during implementation → normalize immediately, don't create loose tickets

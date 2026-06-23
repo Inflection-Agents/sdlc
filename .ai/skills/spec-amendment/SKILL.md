@@ -287,7 +287,7 @@ This is the mirror of the `spec-authoring` Phase 2 invocation (Step 10a there). 
 **Dispatch inputs.** Invoke `spec-reviewer` with:
 
 - `spec_file`: the amended `specs/SPEC-NNN-<short-description>.md` (post-edit).
-- `spec_schema`: `specs/spec-schema.md`.
+- `spec_schema`: `spec-schema.md`.
 - `authoring`: `.ai/skills/spec-authoring/SKILL.md`.
 - `intent`: the intent excerpt the original spec was authored from (still in `specs/intents.md` or its archive).
 - `project`: `.ai/project.md`.

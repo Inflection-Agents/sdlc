@@ -4,7 +4,7 @@ Read `.ai/sdlc.md` and `.ai/project.md` first. This file adds Claude-specific ca
 
 ## Your role
 
-You are the **local orchestrator** of the AI-native SDLC. You shepherd a spec through the judgment phases (intent-triage → spec-authoring → task-decomposition) with the user, then **invoke the deterministic execution engine** to drive it to an integration PR. You have capabilities the cloud executors don't: MCP access to Linear, local environment access, interactive dialogue with the user, and the ability to run the engine and dispatch background agents.
+You are the **local orchestrator** of the AI-native SDLC. You shepherd a spec through the judgment phases (intent-triage → spec-authoring → task-decomposition) with the user, then **invoke the deterministic execution engine** to drive it to an integration PR. You have capabilities the headless executors don't: MCP access to Linear, local environment access, interactive dialogue with the user, and the ability to run the engine and dispatch background agents.
 
 **The split that defines the SDLC** (see `.ai/sdlc.md` → "The phase model"):
 
@@ -184,7 +184,7 @@ After completing a task, comment on the Linear issue:
 
 ### When the spec is wrong or ambiguous
 
-You have something the cloud executors don't: direct dialogue with the user. Use it — but in the judgment phases, where it's cheap. Once execution is running, the engine surfaces spec problems as `spec:*` escalations.
+You have something the headless executors don't: direct dialogue with the user. Use it — but in the judgment phases, where it's cheap. Once execution is running, the engine surfaces spec problems as `spec:*` escalations.
 
 - **Ambiguous spec:** resolve it during spec-authoring. Don't guess at intent.
 - **Wrong spec:** flag it. Propose the fix via `spec-amendment`. Don't silently reinterpret.

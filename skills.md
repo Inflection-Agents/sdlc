@@ -104,7 +104,7 @@ your-repo/
 ├── .claude/workflows/execute-spec.js ← reference deterministic execution engine
 ├── .claude/hooks/                    ← advisory SDLC hooks (.mjs)
 ├── specs/sdlc-state-machine.yaml     ← single source of truth for phases + transitions
-├── scripts/sdlc/                     ← validators (state machine, phase memory, drift)
+├── scripts/sdlc/                     ← validators (state machine, phase memory) + gen-handoffs
 │
 │   # Domain skills (Layer 1) — add to .ai/skills/ prefixed by workspace/technology
 │   ├── dbt-cartographer/SKILL.md

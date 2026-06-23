@@ -131,16 +131,17 @@ if git rev-parse --git-dir &> /dev/null 2>&1; then
     ok "Spec templates exist"
   fi
 
-  # Copy project-level Claude skills if not present
-  if [ ! -d "$REPO_ROOT/.claude/skills" ]; then
-    if [ -d "$SCRIPT_DIR/.claude/skills" ]; then
-      info "Copying project-level Claude skills..."
-      mkdir -p "$REPO_ROOT/.claude/skills"
-      cp -r "$SCRIPT_DIR/.claude/skills/"* "$REPO_ROOT/.claude/skills/"
-      ok "Copied SDLC skills to .claude/skills/ — Claude Code will load them automatically"
+  # Wire Claude Code's skill dir as a SYMLINK to .ai/skills (the canonical location),
+  # so the two never drift. (.ai/ — including skills/ — was copied above.)
+  if [ ! -e "$REPO_ROOT/.claude/skills" ]; then
+    if [ -d "$REPO_ROOT/.ai/skills" ]; then
+      info "Linking .claude/skills → ../.ai/skills ..."
+      mkdir -p "$REPO_ROOT/.claude"
+      ln -s ../.ai/skills "$REPO_ROOT/.claude/skills"
+      ok "Linked .claude/skills → ../.ai/skills — Claude Code loads skills from .ai/skills"
     fi
   else
-    ok ".claude/skills/ directory exists"
+    ok ".claude/skills already present"
   fi
 
   # ── Spine + engine: state machine, workflow, hooks, review contracts, validators ──
@@ -249,11 +250,11 @@ echo "  3. Ensure Linear labels exist: claude-code, human"
 echo "  4. Write your first spec: cp specs/templates/spec.md specs/SPEC-001-name.md"
 echo ""
 echo "Configure the spine + engine:"
-echo "  6. Fill in .ai/skills/review-constraints.yaml with your repo's real review"
+echo "  5. Fill in .ai/skills/review-constraints.yaml with your repo's real review"
 echo "     lenses and invariants (the shipped constraints are generic examples)"
-echo "  7. Customize specs/sdlc-state-machine.yaml domain_routing to map your"
+echo "  6. Customize specs/sdlc-state-machine.yaml domain_routing to map your"
 echo "     repo's workspaces to owners/reviewers"
-echo "  8. Hooks in .claude/hooks/ are ADVISORY by default (they warn, not block)."
+echo "  7. Hooks in .claude/hooks/ are ADVISORY by default (they warn, not block)."
 echo "     Review .claude/settings.json and tighten them once you trust the flow."
-echo "  9. Validate the spine: node scripts/sdlc/validate-state-machine.mjs"
+echo "  8. Validate the spine: node scripts/sdlc/validate-state-machine.mjs"
 echo ""

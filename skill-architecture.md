@@ -60,7 +60,7 @@ The three skill layers describe *knowledge* agents apply. Underneath the SDLC-pr
   .claude/hooks/*.mjs             ← advisory: classify prompt, handoff at phase exit, guard edits/review
   .ai/skills/review-primitives.md │ review-constraints.yaml │ review-envelope.schema.json
                                    ← review contracts: severity spine, lens registry, output schema
-  scripts/sdlc/*.mjs              ← validators (state machine, phase memory, contract drift)
+  scripts/sdlc/*.mjs              ← validators (state machine, phase memory) + gen-handoffs
 ```
 
 - **The engine is agent-agnostic.** One generic executor; specialization is *data* on the task (`touches`, `risk`, `tier`, routing, workspace constraints). `spec-execution` invokes the engine rather than hand-dispatching tasks.

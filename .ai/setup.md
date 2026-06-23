@@ -20,12 +20,14 @@ Otherwise, run the SDLC's own bootstrap from this directory:
 ```
 
 This script:
-1. Checks prerequisites (including Node.js for the hooks + execution engine)
-2. Copies the spine: the state machine (`specs/sdlc-state-machine.yaml`), the reference hooks (`.claude/hooks/`), the execution Workflow (`.claude/workflows/execute-spec.js`), and the review contracts (`.ai/skills/review-*.yaml` / `.json` / `.md`)
-3. Wires the hooks into `.claude/settings.json` (advisory by default — they nudge, they don't block)
-4. Sets up Claude Code MCP servers (Linear)
-5. Creates Linear labels if they don't exist
-6. Runs the SDLC validators and verifies everything works
+1. Checks prerequisites (Node.js for the hooks + engine, Git, GitHub CLI, Claude Code)
+2. Scaffolds `specs/` and `.ai/`, and copies the spec/task templates
+3. Copies the spine: the state machine (`specs/sdlc-state-machine.yaml`), the reference hooks (`.claude/hooks/`), the execution Workflow (`.claude/workflows/execute-spec.js`), the review contracts (`.ai/skills/review-*.yaml` / `.json` / `.md`), and the validators (`scripts/sdlc/`)
+4. Wires the hooks into `.claude/settings.json` (advisory by default — and never clobbers an existing settings.json; it prints merge guidance instead)
+5. Links `.claude/skills` → `.ai/skills`
+6. Prints next steps (the MCP + Linear-label setup below, and the customizations to fill in)
+
+It does NOT set up MCP or create Linear labels — those are the manual steps in §3 and §5 below.
 
 ## 3. Configure your AI agents
 
@@ -88,7 +90,7 @@ node scripts/sdlc/validate-phase-memory.mjs
 claude "list my Linear teams"
 ```
 
-`scripts/sdlc/` also ships `gen-handoffs.mjs` (regenerates skill `## Handoff` footers from the state machine) and `check-review-contract-drift.mjs` (catches review-contract drift). See `scripts/sdlc/README.md`.
+`scripts/sdlc/` also ships `gen-handoffs.mjs` (regenerates skill `## Handoff` footers from the state machine; run with `--check` in CI). See `scripts/sdlc/README.md` for the full list, including forthcoming validators.
 
 ## 7. Directory structure
 
@@ -111,7 +113,7 @@ claude "list my Linear teams"
 └── skills → ../.ai/skills   ← symlink; Claude Code loads skills from here
 
 scripts/sdlc/       ← validators: validate-state-machine.mjs, validate-phase-memory.mjs,
-                       gen-handoffs.mjs, check-review-contract-drift.mjs
+                       gen-handoffs.mjs
 
 specs/
 ├── sdlc-state-machine.yaml  ← single source of truth for phases + transitions

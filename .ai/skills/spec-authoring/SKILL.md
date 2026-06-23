@@ -281,7 +281,7 @@ After Step 10 produces a draft the owner is broadly comfortable with, and BEFORE
 **Dispatch inputs.** Invoke `spec-reviewer` with the following inputs (all paths are concrete; do not invent them):
 
 - `spec_file`: `specs/SPEC-NNN-<short-description>.md` — the draft just written.
-- `spec_schema`: `specs/spec-schema.md` — for required-section and frontmatter checks.
+- `spec_schema`: `spec-schema.md` — for required-section and frontmatter checks.
 - `authoring`: `.ai/skills/spec-authoring/SKILL.md` — this skill, for `spec-authoring:<anchor>` citations.
 - `intent`: the relevant excerpt from `specs/intents.md` (the intent this spec formalizes). If invoked outside the intent-triage handoff, the owner provides the intent excerpt or confirms there is none.
 - `project`: `.ai/project.md` — for workspace coverage checks.
