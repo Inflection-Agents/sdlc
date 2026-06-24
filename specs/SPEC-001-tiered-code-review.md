@@ -2,12 +2,12 @@
 id: SPEC-001
 title: Graded review for specs and PRs
 status: completed
-version: 1
+version: 1.2
 supersedes:
 initiative: INI-001
 owner: franklin
 created: 2026-05-18
-updated: 2026-05-18
+updated: 2026-06-23
 completed: 2026-05-18
 tags: [review, throughput, pr-reviewer, spec-reviewer, orchestration]
 linear_project:
@@ -336,6 +336,20 @@ Entries are append-only at first. The `resolved` boolean and its companion field
   - Amendment to the "New consequence rows are added via spec-amendment on SPEC-001" rule in `review-primitives.md`, now authorizing two paths: (a) spec-amendment while SPEC-001 is amendable, OR (b) a subsequent spec that extends the live artifact and adds a Changelog v1.1 annotation (the extension pattern; this entry is the originating use).
   - Semantic narrowing of `monorepo:boundary` to import-graph violations only (per `.ai/project.md` workspace dependency rules). The new `monorepo:workspace-scope` and `monorepo:verify-coverage` prefixes carve out the file-touch and test-failure cases respectively.
 - See SPEC-004 for the full design and rationale.
+
+### v1.2 (2026-06-23) — PR-side prefix-table normalization via SPEC-006
+- Normalized the PR-side grounding-prefix vocabulary in live `review-primitives.md` (Design > Grounding rules) into ONE canonical PR-side prefix table, all in the engine-parseable lowercase `prefix:` colon form. This is additive: it unifies an existing vocabulary and introduces no behavior change to severity or routing — every previously-citable defect remains citable under its normalized name. The extension pattern (SPEC-004) applies: a subsequent spec (SPEC-006) extends the live artifact and records the change here.
+- **Old → new mapping** (PR-side only):
+  - `AC-NNN` → `ac:AC-NNN`
+  - `ADR-NNN` → `adr:ADR-NNN`
+  - `sdlc-code-standards:<anchor>` → `std:<anchor>`
+  - `monorepo:boundary` / `monorepo:workspace-scope` / `monorepo:verify-coverage` → unchanged (already colon form)
+  - `task:blocks:<id>` / `task:scope` / `task:evidence-missing` → unchanged
+  - `spec:ambiguous-ac` / `spec:contradictory-ac` / `spec:wrong-design` / `spec:missing-section` / `spec:gap` → unchanged
+  - `inv:<INV-ID>` / `design:<token-or-component>` / `lens:<lens-name>` → unchanged (engine/registry lens citations); now explicitly enumerated in the canonical PR-side table
+- The **spec-side** (`spec-reviewer`) prefix set is untouched (`spec-schema:`, `spec-authoring:`, `intent:`, `monorepo:workspaces`, `SPEC-NNN:`, `ADR-NNN`).
+- **Consumer:** SPEC-006 aligns the engine (`execute-spec.js` `ALLOWED_PREFIX`) and the review envelope schema (`review-envelope.schema.json` `criterion`) to this canonical PR-side table, and pins the three sources with a parity test (SPEC-006 TASK-210). Existing skill prose still using legacy forms is migrated by SPEC-006 (TASK-209/TASK-210) per this mapping.
+- See SPEC-006 for the full design and rationale.
 
 ## Appendix A — `pr-reviewer` prompt (draft)
 

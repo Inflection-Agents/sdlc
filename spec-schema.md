@@ -46,6 +46,11 @@ linear_project: PRJ-XYZ         # Linear project id, for bidirectional linking
 | `tags` | no | yes | Array of strings. |
 | `linear_project` | no | yes | Set when the Linear project is created. |
 
+**Plan-review verdict.** The plan-review gate's verdict for a spec is not recorded in the spec
+frontmatter — it lives in the `plan_review:` block of the spec's `specs/tasks/SPEC-NNN/_index.yaml`
+(owned by `task-schema.md`), since the plan being attested is the spec *and* its decomposition. That
+block is what `execute-spec` reads at the Plan phase and fails closed on.
+
 ## Body structure
 
 After frontmatter, every spec follows this section order. Sections can be brief but must be present — an empty section signals "not yet defined" and blocks the spec from moving to `active`.

@@ -17,10 +17,10 @@ plan_review:
 # both ADRs were authored alongside the spec (PR #39). No execution task creates them.
 
 phase:
-  current: task-decomposition
-  next_action: spec-execution
-  next_trigger: "execute SPEC-006"
-  exit_condition_met: true
+  current: spec-execution
+  next_action: review
+  next_trigger: "review the PRs for SPEC-006"
+  exit_condition_met: false
   updated: 2026-06-23
 
 tasks:
@@ -31,7 +31,7 @@ tasks:
     touches: [specs/SPEC-001-tiered-code-review.md, .ai/skills/review-primitives.md]
     risk: medium
     tier: standard
-    status: pending
+    status: done
     depends_on: []
     blocks: [TASK-210]
 
@@ -42,9 +42,9 @@ tasks:
     touches: [task-schema.md, spec-schema.md, .ai/skills/task-decomposition/SKILL.md]
     risk: low
     tier: standard
-    status: pending
+    status: done
     depends_on: []
-    blocks: [TASK-208, TASK-211]
+    blocks: [TASK-208, TASK-209, TASK-211]
 
   - id: TASK-207
     title: "Add the agent: field to review-constraints.yaml (registry-as-data)"
@@ -53,7 +53,7 @@ tasks:
     touches: [.ai/skills/review-constraints.yaml]
     risk: low
     tier: standard
-    status: pending
+    status: done
     depends_on: []
     blocks: [TASK-208]
 
@@ -72,11 +72,14 @@ tasks:
     title: "Naming clarity — rename review->code-review phase, regen handoffs, review-moments diagram"
     agent: claude-code
     workspace: sdlc
+    # touches lists the files this task authors directly; note gen-handoffs.mjs ALSO regenerates the
+    # `## Handoff` footers across owner-skill files (incl. task-decomposition/SKILL.md), so this task must
+    # run AFTER TASK-206 (which edits that file's body) to avoid clobbering it — hence depends_on: [TASK-206].
     touches: [specs/sdlc-state-machine.yaml, skill-architecture.md, .ai/sdlc.md, .ai/skills/spec-execution/SKILL.md, .ai/skills/pr-reviewer/SKILL.md, skills.md, README.md]
     risk: medium
     tier: standard
     status: pending
-    depends_on: []
+    depends_on: [TASK-206]
     blocks: []
 
   - id: TASK-210
@@ -102,6 +105,6 @@ tasks:
     blocks: []
 
 # Waves (computed from the graph):
-#   w0: TASK-205 (human), TASK-206, TASK-207, TASK-209   (disjoint touches → parallel)
-#   w1: TASK-208                                          (after 206 + 207)
+#   w0: TASK-205 (human), TASK-206, TASK-207             (disjoint touches → parallel)
+#   w1: TASK-208 (after 206 + 207), TASK-209 (after 206) (disjoint: engine+tests vs state-machine+skills)
 #   w2: TASK-210 (after 205 + 208), TASK-211 (after 206 + 208)
