@@ -228,7 +228,7 @@ hardening.)
 - `specs/sdlc-state-machine.yaml` — phase definitions; this skill owns the `spec-execution` phase.
 
 On exit (integration PR open in `branch` mode, or all task PRs merged in `direct` mode), set the
-`_index.yaml` `phase:` block to `{ current: spec-execution, next_action: review,
+`_index.yaml` `phase:` block to `{ current: spec-execution, next_action: code-review,
 next_trigger: "review the PRs for SPEC-NNN", exit_condition_met: true }` before handing off (the
 canonical handoff fields are in the generated `## Handoff` footer below).
 
@@ -253,5 +253,5 @@ This phase is **spec-execution** in the SDLC state machine (`specs/sdlc-state-ma
 
 **Exit condition:** all tasks merged into the integration branch and the integration PR (feat/spec-NNN -> main) is open
 
-**Next step:** `review` — trigger: "review the PRs for SPEC-NNN"
+**Next step:** `code-review` — trigger: "review the PRs for SPEC-NNN"
 <!-- sdlc:handoff:end -->

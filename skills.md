@@ -7,8 +7,8 @@ Skills are how agents learn to follow the SDLC process at the right moment. They
 The SDLC splits into **judgment up front, deterministic execution behind** (see `.ai/sdlc.md` → "The phase model"). The skills group along that split:
 
 ```
-intent-triage → spec-authoring → task-decomposition │ spec-execution → review → spec-completion
-  (human+LLM)     (human+LLM)       (human+LLM)      │  (DETERMINISTIC)   (LLM)    (human+LLM)
+intent-triage → spec-authoring → task-decomposition │ spec-execution → code-review → spec-completion
+  (human+LLM)     (human+LLM)       (human+LLM)      │  (DETERMINISTIC)    (LLM)      (human+LLM)
         ── JUDGMENT PHASES: collaborative, gated ──  │  ── AUTONOMOUS ENGINE ──
 ```
 

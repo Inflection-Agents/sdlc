@@ -9,8 +9,8 @@
 #
 # THE SHAPE — judgment up front, deterministic execution behind:
 #
-#   intent-triage → spec-authoring → task-decomposition │ spec-execution → review → spec-completion
-#     (human+LLM)     (human+LLM)       (human+LLM)      │  (DETERMINISTIC)   (LLM)    (human+LLM)
+#   intent-triage → spec-authoring → task-decomposition │ spec-execution → code-review → spec-completion
+#     (human+LLM)     (human+LLM)       (human+LLM)      │  (DETERMINISTIC)    (LLM)      (human+LLM)
 #           ── JUDGMENT PHASES: collaborative, gated ──  │  ── AUTONOMOUS ENGINE ──
 #
 # Scarce human attention belongs in the judgment phases, where quality is cheapest to assure.
@@ -25,7 +25,7 @@
 # Stop/SubagentStop + UserPromptSubmit hooks). Each spec's `specs/tasks/SPEC-NNN/_index.yaml` may carry:
 #
 #   phase:
-#     current: review                  # a phases[].id value, or `none` when no phase is active
+#     current: code-review            # a phases[].id value, or `none` when no phase is active
 #     next_action: spec-completion     # the current phase's next_phase (a phases[].id), or `none`
 #     next_trigger: 'close out SPEC-NNN'  # the current phase's next_trigger string
 #     exit_condition_met: false        # set true by the owner_skill at phase exit; read by stop-handoff
@@ -93,10 +93,10 @@ phases:
           - 'spec has status active and decomposed tasks with a dependency graph exist'
       owner_skill: spec-execution
       exit_condition: 'all tasks merged into the integration branch and the integration PR (feat/spec-NNN -> main) is open'
-      next_phase: review
+      next_phase: code-review
       next_trigger: 'review the PRs for SPEC-NNN'
 
-    - id: review
+    - id: code-review
       entry_triggers:
           - 'review the PR'
           - 'review this PR'
@@ -154,10 +154,10 @@ domain_routing:
 # Non-phase SDLC skills that are intentionally NOT a phase owner_skill or a domain skill.
 # Listing a skill here records that it is exempt from the per-phase `## Handoff` footer contract.
 # Reviewers invoked BY a phase (spec-reviewer, pr-reviewer specialists), reference docs, and
-# authoring helpers live here. (pr-reviewer IS the `review` phase owner_skill, so it is NOT exempt.)
+# authoring helpers live here. (pr-reviewer IS the `code-review` phase owner_skill, so it is NOT exempt.)
 exempt:
     - spec-reviewer
-    - pr-reviewer        # note: also the `review` phase owner; listed for discoverability only
+    - pr-reviewer        # note: also the `code-review` phase owner; listed for discoverability only
     - sdlc-code-standards
     - sdlc-code-review
     - create-domain-skill

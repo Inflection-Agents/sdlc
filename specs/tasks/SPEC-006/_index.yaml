@@ -64,7 +64,7 @@ tasks:
     touches: [.claude/workflows/execute-spec.js, scripts/sdlc/reviewer-routing.test.mjs, scripts/sdlc/plan-gate.test.mjs]
     risk: high
     tier: fortified
-    status: pending
+    status: done
     depends_on: [TASK-206, TASK-207]
     blocks: [TASK-210, TASK-211]
 
@@ -78,7 +78,7 @@ tasks:
     touches: [specs/sdlc-state-machine.yaml, skill-architecture.md, .ai/sdlc.md, .ai/skills/spec-execution/SKILL.md, .ai/skills/pr-reviewer/SKILL.md, skills.md, README.md]
     risk: medium
     tier: standard
-    status: pending
+    status: done
     depends_on: [TASK-206]
     blocks: []
 
