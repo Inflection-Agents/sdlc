@@ -18,7 +18,7 @@ plan_review:
 
 phase:
   current: spec-execution
-  next_action: review
+  next_action: code-review
   next_trigger: "review the PRs for SPEC-006"
   exit_condition_met: false
   updated: 2026-06-23
@@ -89,7 +89,7 @@ tasks:
     touches: [.claude/workflows/execute-spec.js, .ai/skills/review-envelope.schema.json, scripts/sdlc/prefix-parity.test.mjs]
     risk: medium
     tier: fortified
-    status: pending
+    status: done
     depends_on: [TASK-205, TASK-208]
     blocks: []
 
@@ -100,7 +100,7 @@ tasks:
     touches: [specs/tasks/SPEC-001/_index.yaml, specs/tasks/SPEC-002/_index.yaml, specs/tasks/SPEC-003/_index.yaml, specs/tasks/SPEC-004/_index.yaml, specs/tasks/SPEC-005/_index.yaml]
     risk: low
     tier: express
-    status: pending
+    status: done
     depends_on: [TASK-206, TASK-208]
     blocks: []
 

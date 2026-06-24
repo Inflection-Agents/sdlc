@@ -149,7 +149,7 @@ const validateContract = (task) => {
 // --- pure verdict logic ---
 const isBlocking = (f) => f && (f.severity === 'blocker' || f.severity === 'major')
 const gate = (findings) => ((findings || []).some(isBlocking) ? 'fix_loop' : 'accept')
-const ALLOWED_PREFIX = ['ac:', 'inv:', 'design:', 'lens:', 'task:scope', 'spec:'] // review-primitives.md > Grounding rules
+const ALLOWED_PREFIX = ['ac:', 'adr:', 'std:', 'inv:', 'design:', 'lens:', 'monorepo:', 'task:', 'spec:'] // review-primitives.md > PR-side canonical prefix table
 const critOf = (f) => (f && (f.criterion || f.citation)) || ''
 const groundedFinding = (f) => !!f && typeof f === 'object' && typeof f.severity === 'string' && (typeof f.criterion === 'string' || typeof f.citation === 'string')
 const validEnvelope = (r) =>

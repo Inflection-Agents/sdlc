@@ -29,7 +29,7 @@
           },
           "criterion": {
             "type": "string",
-            "description": "The grounded citation — MUST start with an allowed prefix for this reviewer's role (see review-primitives.md > Grounding rules): e.g. ac:AC-NNN, design:<token-or-component>, spec:<gap-kind>, task:scope, inv:<INV-ID>, lens:<lens-name>."
+            "description": "The grounded citation — MUST start with an allowed prefix for this reviewer's role (see review-primitives.md > Grounding rules). The canonical PR-side prefix set (per review-primitives.md > PR-side canonical prefix table, mirrored by execute-spec.js ALLOWED_PREFIX) is enumerated here as a machine-parseable list — PR_SIDE_PREFIXES = [ac:, adr:, std:, inv:, design:, lens:, monorepo:, task:, spec:]. Example citations: ac:AC-NNN, adr:ADR-NNN, std:<section-anchor>, inv:<INV-ID>, design:<token-or-component>, lens:<lens-name>, monorepo:boundary, task:scope, spec:<gap-kind>. Spec-side reviewers use the distinct spec-side prefix set."
           },
           "citation": {
             "type": "string",

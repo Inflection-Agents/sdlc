@@ -3,6 +3,11 @@ title: "Artifact completeness ports from the reference implementation"
 created: 2026-05-18
 updated: 2026-05-19
 
+plan_review:
+  status: approve-ready
+  approved: true
+  reviewed: 2026-06-23   # back-filled: these specs were reviewed/executed before the gate existed
+
 tasks:
   - id: TASK-021
     title: "task-schema.md + templates/task.md — add evidence: field per AC"

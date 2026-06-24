@@ -3,6 +3,11 @@ title: "Spec execution orchestration — wave-based loop with tiered review"
 created: 2026-05-18
 updated: 2026-05-18
 
+plan_review:
+  status: approve-ready
+  approved: true
+  reviewed: 2026-06-23   # back-filled: these specs were reviewed/executed before the gate existed
+
 tasks:
   - id: TASK-009
     title: "Create .ai/skills/spec-execution/SKILL.md (drives full orchestration loop)"
