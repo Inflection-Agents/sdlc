@@ -59,15 +59,17 @@ const WORKSPACES = {
 }
 const wsOf = (task) => WORKSPACES[task && task.workspace] || WORKSPACES._default
 
-// lens -> special reviewer agent; anything unmapped is graded by the generic `task-reviewer`.
-const SPECIAL_REVIEWER = {
-    'design-fidelity': 'design-fidelity-reviewer',
-    'core-purity': 'invariants-reviewer',
-    'security': 'invariants-reviewer'
-    // note: integration-scope lenses (e.g. contract-parity) are graded by integration-reviewer
-    // at the integration gate, so they are intentionally NOT mapped here.
-}
-const lensToAgent = (lens) => SPECIAL_REVIEWER[lens] || 'task-reviewer'
+// lens -> reviewer agent, resolved from the registry (ADR-001): the constraint declaring this lens
+// names its own `agent:`; an unmapped lens (no matching constraint with an agent) folds into the
+// generic `task-reviewer`. Pure: depends only on the parsed constraints + lens. MUST stay
+// byte-identical to the copy in scripts/sdlc/reviewer-routing.test.mjs.
+const agentForLens = (constraints, lens) =>
+    ((constraints || []).find((c) => c.lens === lens && c.agent) || {}).agent || 'task-reviewer'
+
+// plan-review gate (ADR-002): a plan is approved ONLY when the _index.yaml plan_review block is
+// present, approved, and not flagged for rework. Absent block => undefined => false (fail-closed).
+// MUST stay byte-identical to the copy in scripts/sdlc/plan-gate.test.mjs.
+const planApproved = (pr) => !!pr && pr.approved === true && pr.status !== 'needs-rework'
 
 // --- tiny functional toolkit ---
 const uniq = (xs) => [...new Set(xs)]
@@ -147,7 +149,7 @@ const validateContract = (task) => {
 // --- pure verdict logic ---
 const isBlocking = (f) => f && (f.severity === 'blocker' || f.severity === 'major')
 const gate = (findings) => ((findings || []).some(isBlocking) ? 'fix_loop' : 'accept')
-const ALLOWED_PREFIX = ['ac:', 'inv:', 'design:', 'lens:', 'task:scope', 'spec:'] // review-primitives.md > Grounding rules
+const ALLOWED_PREFIX = ['ac:', 'adr:', 'std:', 'inv:', 'design:', 'lens:', 'monorepo:', 'task:', 'spec:'] // review-primitives.md > PR-side canonical prefix table
 const critOf = (f) => (f && (f.criterion || f.citation)) || ''
 const groundedFinding = (f) => !!f && typeof f === 'object' && typeof f.severity === 'string' && (typeof f.criterion === 'string' || typeof f.citation === 'string')
 const validEnvelope = (r) =>
@@ -273,10 +275,15 @@ const EVIDENCE = {
 const PLAN = {
     type: 'object',
     required: ['tasks', 'constraints', 'baseLenses'],
+    additionalProperties: true, // carry through plan_review (the gate's input) and any other top-level blocks
     properties: {
         tasks: { type: 'object' }, // id -> { id, workspace, touches[], tier?, risk?, routing?, depends_on[], status, acceptance_criteria[] }
-        constraints: { type: 'array' },
-        baseLenses: { type: 'object' }
+        // each constraint item permits `agent:` (the registry's reviewer routing, ADR-001) and any
+        // other registry fields — additionalProperties:true so the parsed YAML carries `agent:` through.
+        constraints: { type: 'array', items: { type: 'object', additionalProperties: true } },
+        baseLenses: { type: 'object' },
+        // the top-level plan_review block from _index.yaml (ADR-002), read by the planApproved gate.
+        plan_review: { type: ['object', 'null'] }
     }
 }
 const MERGE_RESULT = {
@@ -362,8 +369,8 @@ const reviewPass = async (cfg, constraints, task, exec, prior, restrictLenses) =
     const lenses = restrict ? all.filter((l) => restrict.has(l)) : all
     if (!lenses.length) return { verdict: 'accept', blocking: [] }
 
-    const generic = lenses.filter((l) => lensToAgent(l) === 'task-reviewer')
-    const specialByAgent = groupBy(lenses.filter((l) => lensToAgent(l) !== 'task-reviewer'), lensToAgent)
+    const generic = lenses.filter((l) => agentForLens(constraints, l) === 'task-reviewer')
+    const specialByAgent = groupBy(lenses.filter((l) => agentForLens(constraints, l) !== 'task-reviewer'), (l) => agentForLens(constraints, l))
     const dispatches = []
     if (generic.length) dispatches.push(() => runReviewer('task-reviewer', generic, checks, task, exec, prior))
     for (const ag of Object.keys(specialByAgent)) dispatches.push(() => runReviewer(ag, specialByAgent[ag], checks, task, exec, prior))
@@ -495,11 +502,20 @@ async function run() {
     const plan = await agent(
         `Read specs/tasks/${SPEC}/_index.yaml and every specs/tasks/${SPEC}/TASK-*.md, plus .ai/skills/review-constraints.yaml. Return PLAN: ` +
             `tasks (a map id -> { id, workspace, touches (flat string[] of globs verbatim), tier (or null), risk (or null), routing (claude-code|human, or null), depends_on (ids, or {id,ordering_only,reason} objects), status, acceptance_criteria (ids) }); ` +
-            `constraints (the parsed review-constraints.yaml \`constraints:\` list verbatim); and baseLenses (the parsed \`baseLenses:\` map).`,
+            `constraints (the parsed review-constraints.yaml \`constraints:\` list verbatim, INCLUDING each constraint's \`agent:\` field when present); ` +
+            `baseLenses (the parsed \`baseLenses:\` map); and plan_review (the top-level \`plan_review:\` block from _index.yaml verbatim — including \`approved\` and \`status\`; if _index.yaml has no plan_review block, return null).`,
         { schema: PLAN, label: `plan:${SPEC}` }
     )
     const { tasks, constraints } = plan
     const cfg = { baseLenses: plan.baseLenses }
+
+    // plan-review gate (ADR-002): HALT before ANY executor is dispatched unless the plan is approved.
+    // Absent / unapproved / needs-rework => fail-closed HALT. Must run before buildWaves spawns work.
+    if (!planApproved(plan.plan_review)) {
+        log(`HALT: ${SPEC} plan review not approved — run plan review and set plan_review.approved: true in specs/tasks/${SPEC}/_index.yaml (status must not be needs-rework).`)
+        return { spec: SPEC, halt: 'plan-review-not-approved', plan_review: plan.plan_review || null }
+    }
+
     const waves = buildWaves(tasks) // pure topo; throws task_graph_cycle on a cycle
 
     phase('Build')

@@ -9,8 +9,12 @@
 # workspace is in `workspace`; or the task declares the `task_has` field.
 # `scope: task` constraints run per-task; `scope: integration` run once at the integration gate.
 #
-# Lens → reviewer agent mapping lives in the engine (SPECIAL_REVIEWER); a lens with no special
-# agent is graded by the generic `task-reviewer`. Cite findings by the constraint `cite` prefix
+# Lens → reviewer routing is DATA, not code: each task-scope constraint's optional `agent:` field
+# is the single source of truth, read by the engine (.claude/workflows/execute-spec.js). Defaults:
+# a constraint with no `agent:` ⇒ the generic `task-reviewer`; a `scope: integration` constraint
+# ⇒ the `integration-reviewer` at the integration gate (the engine's task-scope resolver does not
+# route integration lenses, so they carry no `agent:`). Adding a specialist for a lens is a one-line
+# `agent:` edit here — no engine change. Cite findings by the constraint `cite` prefix
 # (see review-primitives.md > Grounding rules for the allowed prefixes).
 #
 # ─────────────────────────────────────────────────────────────────────────────────────────────
@@ -31,6 +35,7 @@ constraints:
     scope: task
     when: { touches: ["packages/shared/src/core/**", "**/domain/**"] }
     lens: core-purity
+    agent: invariants-reviewer
     severity: blocker
     check: >
       The pure core imports no I/O, platform, or framework API and contains no side effects
@@ -43,6 +48,7 @@ constraints:
     scope: task
     when: { touches: ["**/ui/theme/**", "**/ui/components/**", "**/components/**"] }
     lens: design-fidelity
+    agent: design-fidelity-reviewer
     severity: major
     check: >
       All colors/type/spacing/radius/elevation come from the design-system tokens (no hardcoded
@@ -65,6 +71,7 @@ constraints:
     scope: task
     when: { touches: ["**/auth/**", "**/middleware/**", "**/api/**"] }
     lens: security
+    agent: invariants-reviewer
     severity: blocker
     check: >
       Authorization is fail-closed (missing/invalid credentials are denied, never defaulted to

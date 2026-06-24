@@ -57,12 +57,37 @@ Reviewers must find the consequence in this catalog before raising a `blocker` o
 
 ## Grounding rules
 
-Every finding MUST cite its source in the `criterion` field of the output schema. Allowed citation prefixes per reviewer role:
+Every finding MUST cite its source in the `criterion` field of the output schema. All prefixes use the engine-parseable lowercase `prefix:` colon form; a citation is grounded when it starts with one of the allowed prefixes for the reviewer's role (`criterion.startsWith(prefix)`).
+
+#### PR-side canonical prefix table
+
+This is the **single, canonical** allowed-prefix set for `pr-reviewer` (Tier 1) and all Tier 2 PR specialists. It is the SPEC-001-owned contract that the engine (`execute-spec.js` `ALLOWED_PREFIX`) and the review envelope schema (`review-envelope.schema.json` `criterion`) align to (per SPEC-006). Every allowed PR-side prefix and its meaning:
+
+| Prefix | Form | Meaning |
+|---|---|---|
+| `ac:` | `ac:AC-NNN` | Finding grounds in a specific acceptance criterion of the task under review (criterion fails / is untestable / contradicts another). |
+| `adr:` | `adr:ADR-NNN` | Deviation from a cited Architecture Decision Record. |
+| `std:` | `std:<section-anchor>` | Deviation from `sdlc-code-standards` (anchor refers to a heading slug in that skill). |
+| `monorepo:` | `monorepo:boundary` | Blocker: import-graph violation — a file in workspace A imports from workspace B against the dependency graph in `.ai/project.md` (distinct from file-touch violations, which use `monorepo:workspace-scope`). |
+| `monorepo:` | `monorepo:workspace-scope` | Blocker: PR touches files outside the declared workspace. |
+| `monorepo:` | `monorepo:verify-coverage` | Blocker: PR fails tests in any `verify_workspaces`. |
+| `task:` | `task:blocks:<id>` | Finding grounds in a `blocks:` relationship declared in the task frontmatter. |
+| `task:` | `task:scope` | Cross-skill signal (blocker): PR scope reveals the task was decomposed wrong; routes to `task-decomposition` (see SPEC-002). |
+| `task:` | `task:evidence-missing` | Tier 1 `major`: an AC's `evidence:` field is populated but insufficient (Tier 0 only checks presence). |
+| `spec:` | `spec:ambiguous-ac` / `spec:contradictory-ac` / `spec:wrong-design` / `spec:missing-section` | Cross-skill signals: implementation reveals the spec is wrong; route to `spec-amendment` (see SPEC-002). |
+| `spec:` | `spec:gap` | Blocker cross-skill signal routing to gap-capture (per SPEC-004 Design > 2); a reviewer raising `spec:gap` MUST assign severity `blocker` so the gap-capture handler intercepts it. |
+| `inv:` | `inv:<INV-ID>` | Violation of a named review invariant from the constraints registry (`review-constraints.yaml`), e.g. `inv:INV-CORE-PURITY`. |
+| `design:` | `design:<token-or-component>` | Design-fidelity finding grounded in a design token or component (registry lens citation). |
+| `lens:` | `lens:<lens-name>` | Finding grounded in a registry review lens, e.g. `lens:a11y`, `lens:security`. |
+
+Tier 2 PR specialists (`cross_spec`, `adversarial`, `domain:dbt`, etc.) **inherit the PR-side prefixes above verbatim** and may not invent new prefixes.
+
+#### Spec-side prefix table
+
+Allowed citation prefixes for `spec-reviewer` (distinct from the PR-side set above):
 
 | Reviewer role | Allowed citation prefixes |
 |---|---|
-| `pr-reviewer` (Tier 1) | `AC-NNN`; `ADR-NNN`; `sdlc-code-standards:<section-anchor>`; `monorepo:boundary` (blocker: import-graph violation — a file in workspace A imports from workspace B against the dependency graph in `.ai/project.md`; distinct from file-touch violations which use `monorepo:workspace-scope`); `task:blocks:<id>`; `task:scope`; `spec:ambiguous-ac` / `spec:contradictory-ac` / `spec:wrong-design` / `spec:missing-section` (cross-skill signals — see SPEC-002); `task:evidence-missing` (Tier 1 major when AC evidence is populated but insufficient); `spec:gap` (blocker: cross-skill signal routing to gap-capture per SPEC-004 Design > 2; a reviewer raising `spec:gap` MUST assign severity blocker so the gap-capture handler intercepts it); `monorepo:workspace-scope` (blocker: PR touches files outside declared workspace); `monorepo:verify-coverage` (blocker: PR fails tests in any verify_workspaces) |
-| Tier 2 PR specialists (`cross_spec`, `adversarial`, `domain:dbt`, etc.) | Inherits the `pr-reviewer` prefixes verbatim. Specialists may not invent new prefixes. |
 | `spec-reviewer` | `spec-schema:<field\|section>`; `spec-authoring:<section-anchor>` (anchor refers to a heading slug in `spec-authoring/SKILL.md`); `ADR-NNN`; `intent:<id>` (from `specs/intents.md`); `monorepo:workspaces`; `SPEC-NNN:<section>` — usable for cross-spec contradictions in either direction: (a) when this spec's `depends_on` references another spec, or (b) when another spec declares `depends_on` on this spec (the reviewer is supplied with both upstream and downstream spec paths in inputs) |
 
 If a reviewer cannot ground a finding in one of the allowed prefixes for its role, the finding is not raised. Style preferences without a standards citation are at most a `nit`. A finding whose `criterion` field does not match an allowed prefix is a SPEC-001 contract violation and triggers an `escalate` action from the orchestrator policy (see below).

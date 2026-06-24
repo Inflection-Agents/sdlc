@@ -15,8 +15,8 @@ A practical framework for running agile software development with AI agents as f
 ## The phase model — collaborate up front, then run
 
 ```
-intent-triage → spec-authoring → task-decomposition │ spec-execution → review → spec-completion
-  (human+LLM)     (human+LLM)       (human+LLM)      │  (DETERMINISTIC)   (LLM)    (human+LLM)
+intent-triage → spec-authoring → task-decomposition │ spec-execution → code-review → spec-completion
+  (human+LLM)     (human+LLM)       (human+LLM)      │  (DETERMINISTIC)    (LLM)      (human+LLM)
         ── JUDGMENT PHASES: collaborative, gated ──  │  ── AUTONOMOUS ENGINE ──
 ```
 

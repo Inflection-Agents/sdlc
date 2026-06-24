@@ -1,0 +1,110 @@
+spec: SPEC-006
+title: "Enforced plan-review gate and registry-driven reviewer routing"
+created: 2026-06-23
+updated: 2026-06-23
+
+# Plan-review verdict (SPEC-006's own new convention). Stamped at the task-decomposition
+# plan-review gate (this phase — the conversational multi-lens loop; the deterministic
+# review-spec.js loop is increment C, out of scope). approved is set true by the owner.
+# execute-spec gates on this.
+plan_review:
+  status: approve-ready
+  approved: true        # owner-delegated for this autonomous run; converged after 1 fix round (2-lens panel)
+  reviewed: 2026-06-23
+
+# AC coverage note: the spec's ADR-existence AC (ADR-001/ADR-002 present, status proposed,
+# spec SPEC-006, with rejected alternatives) is SATISFIED by the spec-authoring commit —
+# both ADRs were authored alongside the spec (PR #39). No execution task creates them.
+
+phase:
+  current: spec-execution
+  next_action: code-review
+  next_trigger: "review the PRs for SPEC-006"
+  exit_condition_met: true   # all 7 tasks done; integration PR #39 opened (human merges to main)
+  updated: 2026-06-23
+
+tasks:
+  - id: TASK-205
+    title: "Amend SPEC-001 — canonical PR-side grounding-prefix table in review-primitives.md"
+    agent: human
+    workspace: sdlc
+    touches: [specs/SPEC-001-tiered-code-review.md, .ai/skills/review-primitives.md]
+    risk: medium
+    tier: standard
+    status: done
+    depends_on: []
+    blocks: [TASK-210]
+
+  - id: TASK-206
+    title: "Schema + stamping for the plan_review block (task-schema, spec-schema, task-decomposition)"
+    agent: claude-code
+    workspace: sdlc
+    touches: [task-schema.md, spec-schema.md, .ai/skills/task-decomposition/SKILL.md]
+    risk: low
+    tier: standard
+    status: done
+    depends_on: []
+    blocks: [TASK-208, TASK-209, TASK-211]
+
+  - id: TASK-207
+    title: "Add the agent: field to review-constraints.yaml (registry-as-data)"
+    agent: claude-code
+    workspace: sdlc
+    touches: [.ai/skills/review-constraints.yaml]
+    risk: low
+    tier: standard
+    status: done
+    depends_on: []
+    blocks: [TASK-208]
+
+  - id: TASK-208
+    title: "Engine — agentForLens routing + fail-closed plan_review gate + pure-function tests"
+    agent: claude-code
+    workspace: sdlc
+    touches: [.claude/workflows/execute-spec.js, scripts/sdlc/reviewer-routing.test.mjs, scripts/sdlc/plan-gate.test.mjs]
+    risk: high
+    tier: fortified
+    status: done
+    depends_on: [TASK-206, TASK-207]
+    blocks: [TASK-210, TASK-211]
+
+  - id: TASK-209
+    title: "Naming clarity — rename review->code-review phase, regen handoffs, review-moments diagram"
+    agent: claude-code
+    workspace: sdlc
+    # touches lists the files this task authors directly; note gen-handoffs.mjs ALSO regenerates the
+    # `## Handoff` footers across owner-skill files (incl. task-decomposition/SKILL.md), so this task must
+    # run AFTER TASK-206 (which edits that file's body) to avoid clobbering it — hence depends_on: [TASK-206].
+    touches: [specs/sdlc-state-machine.yaml, skill-architecture.md, .ai/sdlc.md, .ai/skills/spec-execution/SKILL.md, .ai/skills/pr-reviewer/SKILL.md, skills.md, README.md]
+    risk: medium
+    tier: standard
+    status: done
+    depends_on: [TASK-206]
+    blocks: []
+
+  - id: TASK-210
+    title: "PR-side prefix alignment — ALLOWED_PREFIX + schema criterion to the amended table + parity test"
+    agent: claude-code
+    workspace: sdlc
+    touches: [.claude/workflows/execute-spec.js, .ai/skills/review-envelope.schema.json, scripts/sdlc/prefix-parity.test.mjs]
+    risk: medium
+    tier: fortified
+    status: done
+    depends_on: [TASK-205, TASK-208]
+    blocks: []
+
+  - id: TASK-211
+    title: "Back-fill plan_review blocks into existing SPEC-001..005 _index.yaml files"
+    agent: claude-code
+    workspace: sdlc
+    touches: [specs/tasks/SPEC-001/_index.yaml, specs/tasks/SPEC-002/_index.yaml, specs/tasks/SPEC-003/_index.yaml, specs/tasks/SPEC-004/_index.yaml, specs/tasks/SPEC-005/_index.yaml]
+    risk: low
+    tier: express
+    status: done
+    depends_on: [TASK-206, TASK-208]
+    blocks: []
+
+# Waves (computed from the graph):
+#   w0: TASK-205 (human), TASK-206, TASK-207             (disjoint touches → parallel)
+#   w1: TASK-208 (after 206 + 207), TASK-209 (after 206) (disjoint: engine+tests vs state-machine+skills)
+#   w2: TASK-210 (after 205 + 208), TASK-211 (after 206 + 208)

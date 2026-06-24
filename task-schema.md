@@ -217,6 +217,14 @@ phase:
   exit_condition_met: false          # set true by the owner_skill at phase exit (read by stop-handoff)
   updated: 2026-04-22
 
+# Plan-review block (additive) — the durable verdict of the plan-review gate, stamped by
+# task-decomposition at its approval gate. execute-spec reads this at the Plan phase and fails
+# closed on it (see "Plan-review block" below).
+plan_review:
+  status: approve-ready              # approve-ready | approve-after-fixes | needs-rework
+  approved: true                     # OWNER sign-off — execute-spec gates on this
+  reviewed: 2026-04-22               # ISO date the plan review was recorded
+
 tasks:
   - id: TASK-001
     title: "Add auth middleware"
@@ -277,6 +285,27 @@ SubagentStop handoff hook reads it to surface the next phase's trigger to the op
 additive — `_index.yaml` files without it stay valid, and single-session repos can ignore it. The
 allowed `current`/`next_action` values and the `next_trigger` strings are defined once in
 `specs/sdlc-state-machine.yaml`; do not invent new ones here.
+
+### Plan-review block
+
+The top-level `plan_review:` block is the durable, machine-readable verdict of the **plan-review
+gate** — the pre-code gate that attests the spec *and* its decomposition before any executor runs. It
+sits beside `phase:` and `tasks:` in `_index.yaml`. The `task-decomposition` skill stamps it at its
+approval gate (the decomposition-stage half of the two-stage plan-review gate); the owner sets
+`approved: true`.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `status` | enum | `approve-ready \| approve-after-fixes \| needs-rework`. The plan-review verdict. |
+| `approved` | boolean | OWNER sign-off. The skill stamps `false`; the owner flips it to `true`. `execute-spec` gates on this. |
+| `reviewed` | ISO date | When the plan review was recorded. |
+
+The block is **additive** — `_index.yaml` files without it remain schema-valid. But the deterministic
+engine (`.claude/workflows/execute-spec.js`) **fails closed** on it: at the Plan phase, before
+spawning any executor, it HALTs unless `plan_review.approved === true` and `plan_review.status !==
+'needs-rework'`. A *missing* `plan_review` block halts exactly like an unapproved one — absent and
+unapproved are treated identically. (Existing `_index.yaml` files that predate the gate are
+back-filled with the block so the fail-closed behaviour does not retroactively block them.)
 
 ## Directory structure (updated)
 

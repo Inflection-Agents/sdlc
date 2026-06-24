@@ -309,6 +309,10 @@ phase:
   updated: YYYY-MM-DD
 ```
 
+The owner-approval gate (Step 9) also stamps the `plan_review:` block — see that step. Do not write
+`plan_review:` here at index-creation time; it is stamped only once the owner has approved the
+decomposition.
+
 ### Step 8: Self-review (mandatory)
 
 Before presenting to the user, verify:
@@ -335,7 +339,13 @@ Before presenting to the user, verify:
 - [ ] (Collision) No overlapping tasks with other active specs in the same workspace — or overlap is flagged and user has decided how to handle it
 - [ ] (Standards) No task's Constraints section instructs a violation of `sdlc-code-standards` — no "leave X deprecated," "skip test for Y," "comment out Z," or similar directives that would override the floor. Task briefs cannot un-enforce universal standards. If a genuine exception is needed, the Constraints section documents the exact reason.
 
-### Step 9: Review with the user
+### Step 9: Review with the user — the plan-review approval gate
+
+This is the **decomposition-stage half of the two-stage plan-review gate** (the spec-stage half is
+`spec-authoring` Step 10a, which runs `spec-reviewer` over the draft spec before sign-off). "The plan"
+is the spec *and* its decomposition; this gate attests the decomposition — DAG acyclicity, no
+same-wave `touches` collisions, and AC groundedness (the dimensions Step 8 self-review enumerates) —
+and records a durable verdict the execution engine gates on.
 
 Present the decomposition. For each task, show:
 - What it does
@@ -348,6 +358,28 @@ Ask:
 - Are the dependencies correct?
 - Do the routing labels make sense?
 - Anything missing?
+
+**Stamp the `plan_review:` block (mandatory).** Once you and the owner have walked the decomposition
+and the owner approves it, stamp the top-level `plan_review:` block into `_index.yaml` (schema:
+`task-schema.md` → "Plan-review block"):
+
+```yaml
+plan_review:
+  status: approve-ready          # approve-ready | approve-after-fixes | needs-rework
+  approved: false                # the skill writes false; the OWNER sets it true
+  reviewed: YYYY-MM-DD           # ISO date this plan review was recorded
+```
+
+- The skill writes `approved: false`. The **owner** is the sign-off authority — only the owner flips
+  it to `approved: true`. This keeps the human as the gatekeeper while making the verdict a durable,
+  machine-readable artifact instead of a transient conversation.
+- Set `status` to the review outcome (`approve-ready` when clean; `approve-after-fixes` if minor fixes
+  were agreed; `needs-rework` if the decomposition must be revised — in which case loop back through
+  Step 2–8 before re-stamping).
+- **`execute-spec` refuses to run without this block.** At the Plan phase, before spawning any
+  executor, the engine fails closed: it HALTs unless `plan_review.approved === true` and
+  `plan_review.status !== 'needs-rework'`. A missing block halts exactly like an unapproved one. Do
+  not hand off to `spec-execution` until the owner has set `approved: true`.
 
 ### Step 10: Open a PR
 

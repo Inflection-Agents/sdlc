@@ -21,10 +21,13 @@ INPUTS:
   - pr_diff:   unified diff of the PR
   - previous_output: (optional, may be null on first iteration)
 
-GROUNDING (per review-primitives.md):
-  - Allowed citation prefixes: AC-NNN; ADR-NNN; sdlc-code-standards:<section-anchor>;
-    monorepo:boundary; task:blocks:<id>; task:scope; spec:ambiguous-ac;
-    spec:contradictory-ac; spec:wrong-design; spec:missing-section.
+GROUNDING (per review-primitives.md > PR-side canonical prefix table — the authoritative set):
+  - Allowed citation prefixes (lowercase colon form, mirroring review-primitives.md;
+    these MUST match the engine's ALLOWED_PREFIX): ac:AC-NNN; adr:ADR-NNN;
+    std:<section-anchor>; monorepo:boundary; monorepo:workspace-scope;
+    monorepo:verify-coverage; task:blocks:<id>; task:scope; task:evidence-missing;
+    spec:ambiguous-ac; spec:contradictory-ac; spec:wrong-design; spec:missing-section;
+    spec:gap; inv:<INV-ID>; design:<token-or-component>; lens:<lens-name>.
   - If you cannot ground a finding, do not raise it.
 
 SEVERITY: apply the PR-side consequence catalog from review-primitives.md.

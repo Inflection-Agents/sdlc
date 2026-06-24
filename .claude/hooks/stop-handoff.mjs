@@ -18,7 +18,7 @@
 // specs/tasks/SPEC-NNN/_index.yaml may carry a `phase:` block
 //
 //   phase:
-//     current: review                 # a phases[].id, or `none`
+//     current: code-review            # a phases[].id, or `none`
 //     next_action: spec-completion    # the phase's next_phase (a phases[].id)
 //     next_trigger: 'close out …'     # the phase's next_trigger string
 //     exit_condition_met: true        # set by the owner_skill at phase exit

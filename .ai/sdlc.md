@@ -14,8 +14,8 @@ You are participating in an AI-native software development lifecycle. This docum
 ## The phase model — collaborate up front, then run
 
 ```
-intent-triage → spec-authoring → task-decomposition │ spec-execution → review → spec-completion
-  (human+LLM)     (human+LLM)       (human+LLM)      │  (DETERMINISTIC)   (LLM)    (human+LLM)
+intent-triage → spec-authoring → task-decomposition │ spec-execution → code-review → spec-completion
+  (human+LLM)     (human+LLM)       (human+LLM)      │  (DETERMINISTIC)    (LLM)      (human+LLM)
         ── JUDGMENT PHASES: collaborative, gated ──  │  ── AUTONOMOUS ENGINE ──
 ```
 
@@ -228,9 +228,9 @@ condition. **Do not hand-edit this section** — change the YAML and re-run
 - **Entry triggers:** "execute this spec", "execute SPEC-NNN", "run the spec", "start the execution loop", "dispatch the tasks"
 - **Preconditions:** spec has status active and decomposed tasks with a dependency graph exist
 - **Exit condition:** all tasks merged into the integration branch and the integration PR (feat/spec-NNN -> main) is open
-- **Next step:** `review` — trigger: "review the PRs for SPEC-NNN"
+- **Next step:** `code-review` — trigger: "review the PRs for SPEC-NNN"
 
-### review
+### code-review
 
 - **Owner skill:** `pr-reviewer`
 - **Entry triggers:** "review the PR", "review this PR", "grade the PR", "review the PRs for SPEC-NNN"

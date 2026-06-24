@@ -64,8 +64,28 @@ The three skill layers describe *knowledge* agents apply. Underneath the SDLC-pr
 ```
 
 - **The engine is agent-agnostic.** One generic executor; specialization is *data* on the task (`touches`, `risk`, `tier`, routing, workspace constraints). `spec-execution` invokes the engine rather than hand-dispatching tasks.
-- **Reviewer of record is the LLM multi-lens panel** (`pr-reviewer` grades → `sdlc-code-review` renders), gated on a green Tier-0 and routed by `review-primitives.md`. Humans gate the judgment-phase inputs and merge the integration PR; they are not the per-PR reviewers.
+- **Code review's reviewer of record is the LLM multi-lens panel** (`pr-reviewer` grades → `sdlc-code-review` renders), gated on a green Tier-0 and routed by `review-primitives.md`. Humans gate the judgment-phase inputs and merge the integration PR; they are not the per-PR reviewers.
 - **The state machine is authoritative.** The `.ai/sdlc.md` phase narrative and each skill's `## Handoff` footer are generated/validated from `specs/sdlc-state-machine.yaml` — don't restate phase info in the skills.
+
+## The three review moments
+
+Review happens at three distinct moments in the lifecycle, each with its own trigger, owner, and artifact under review. They are *not* the same gate at different times — they grade different things:
+
+```
+plan review          code review            integration review
+(spec + tasks)        (per-task PR)          (whole spec)
+before any code  →    during execute-spec  →  at the end
+spec-reviewer +       pr-reviewer →           integration-reviewer
+task-decomposition    sdlc-code-review        (vs success criteria)
+```
+
+| Moment | When (trigger) | Artifact reviewed | Owner |
+|--------|----------------|-------------------|-------|
+| **Plan review** | At the spec sign-off gate and decomposition gate, *before any code exists* | The spec + the task decomposition (graph, `touches`, routing) | `spec-reviewer` (graded findings) + the `task-decomposition` gate |
+| **Code review** | Per task PR, *during* `execute-spec`, gated on a green Tier-0 | One task's PR diff vs its task file, spec, and ADRs | `pr-reviewer` grades → `sdlc-code-review` renders |
+| **Integration review** | At the *end*, on the integration PR (`feat/SPEC-NNN → main`) | The whole spec vs its success criteria + integration-scope constraints | `integration-reviewer` |
+
+Spending review effort up front (plan review) is the cheapest place to assure quality — the central wager of "judgment up front, deterministic execution behind." The pre-code gate is **plan review**, never "spec review" alone (the spec is only half of it — the decomposition is reviewed too). The per-task PR gate is **code review**.
 
 ## How they compose
 
