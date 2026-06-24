@@ -22,6 +22,7 @@ const REPO = join(HERE, '..', '..') // scripts/sdlc -> repo root
 const PRIMITIVES = join(REPO, '.ai', 'skills', 'review-primitives.md')
 const ENGINE = join(REPO, '.claude', 'workflows', 'execute-spec.js')
 const SCHEMA = join(REPO, '.ai', 'skills', 'review-envelope.schema.json')
+const PRREVIEWER = join(REPO, '.ai', 'skills', 'pr-reviewer', 'SKILL.md')
 
 const read = (p) => readFileSync(p, 'utf8')
 const sorted = (s) => [...s].sort()
@@ -96,6 +97,32 @@ test('PR-side prefix set is identical across review-primitives.md, ALLOWED_PREFI
         sorted(fromPrimitives),
         `schema criterion diverges from review-primitives.md PR-side table.\n  primitives: ${sorted(fromPrimitives)}\n  schema:     ${sorted(fromSchema)}`
     )
+})
+
+// (d) pr-reviewer/SKILL.md — the GROUNDING block instructs reviewers which prefixes to cite.
+//     It must cite the canonical PR-side set in colon form and must NOT instruct a legacy bare
+//     form (AC-NNN / ADR-NNN / sdlc-code-standards:) that the engine's ALLOWED_PREFIX rejects —
+//     otherwise a reviewer obeying its own skill gets escalated as ungrounded (SPEC-006 AC).
+function groundingBlock(md) {
+    const g = md.indexOf('GROUNDING')
+    assert.notEqual(g, -1, 'GROUNDING block not found in pr-reviewer/SKILL.md')
+    const after = md.slice(g)
+    const end = after.indexOf('\nSEVERITY')
+    return end === -1 ? after : after.slice(0, end)
+}
+
+test('pr-reviewer GROUNDING cites the canonical PR-side prefixes in colon form, with no legacy bare forms', () => {
+    const block = groundingBlock(read(PRREVIEWER))
+    const canonical = parsePrimitives(read(PRIMITIVES))
+    // coverage: every canonical colon-prefix is cited
+    for (const p of canonical) {
+        assert.ok(block.includes(p), `pr-reviewer GROUNDING does not cite canonical PR-side prefix ${p}`)
+    }
+    // regression guard: no BARE legacy form (AC-NNN not as ac:AC-NNN, ADR-NNN not as adr:ADR-NNN,
+    // and no sdlc-code-standards: — replaced by std:). Lookbehind exempts the canonical colon form.
+    assert.ok(!/(?<!ac:)AC-NNN/.test(block), 'pr-reviewer GROUNDING still instructs the bare legacy form AC-NNN (engine rejects it)')
+    assert.ok(!/(?<!adr:)ADR-NNN/.test(block), 'pr-reviewer GROUNDING still instructs the bare legacy form ADR-NNN (engine rejects it)')
+    assert.ok(!block.includes('sdlc-code-standards:'), 'pr-reviewer GROUNDING still instructs sdlc-code-standards: (replaced by std:)')
 })
 
 test('every PR-side canonical prefix is accepted by ALLOWED_PREFIX (startsWith semantics)', () => {
