@@ -17,10 +17,10 @@ plan_review:
 # both ADRs were authored alongside the spec (PR #39). No execution task creates them.
 
 phase:
-  current: spec-execution
-  next_action: code-review
-  next_trigger: "review the PRs for SPEC-006"
-  exit_condition_met: true   # all 7 tasks done; integration PR #39 opened (human merges to main)
+  current: code-review
+  next_action: spec-completion
+  next_trigger: "close out SPEC-006"
+  exit_condition_met: true   # code review converged (1 major fixed) + PR #39 merged to main
   updated: 2026-06-23
 
 tasks:
