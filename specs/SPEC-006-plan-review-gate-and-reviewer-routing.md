@@ -1,7 +1,7 @@
 ---
 id: SPEC-006
 title: "Enforced plan-review gate and registry-driven reviewer routing"
-status: active
+status: completed
 version: 1
 initiative: INI-001
 owner: franklin
