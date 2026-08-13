@@ -110,6 +110,11 @@ When this happens: don't just push the PR back into `fix_loop` and stop. Use `ta
 - Are there related tests that should still pass?
 - Were any existing tests modified? If so, is it justified?
 
+**Behavioral-expansion check (the class tests can't catch — `std:behavior-preservation`):**
+- Does this change make a routing / delivery / ingestion / gating / access / scope path do *more* than before — new data / scope / site / tenant / traffic now flowing, a previously-inert config path now active, a guard relaxed, a default flipped? A change can be code-correct with every test green and still be wrong here.
+- If so, does the PR state the prior behavioral contract AND show the expansion is intended? "The config already listed it" is **not** intent — a value in config is not authorization. An unstated expansion is a `major` finding (`blocker` if it reaches production data/traffic).
+- Was any behavioral/infra change validated off-prod (dry-run / non-prod)? Flag if the validation itself mutated production.
+
 **Monorepo regression check:**
 - If shared code changed, were ALL consuming workspaces tested?
 - If data models changed (dbt), could downstream app queries break?

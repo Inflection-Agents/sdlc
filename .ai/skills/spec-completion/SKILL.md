@@ -21,7 +21,8 @@ Without this skill, specs stay `active` forever. You can't answer "what shipped 
 
 1. **All tasks must be done or cancelled.** If any task is `pending`, `in-progress`, or `blocked`, the spec is not ready for completion. Cancelled tasks are acceptable only if the cancelled scope was intentional (documented in a spec amendment).
 2. **Success criteria must be verified, not assumed.** "All tasks passed their acceptance criteria" does not mean the success criteria are met. Verify each one independently.
-3. **User signs off.** The spec owner (human) makes the final call. The agent presents evidence; the human decides.
+3. **Behavioral changes need an armed regression guard, not a deferred check.** If the spec changes a production behavioral metric (prompts, matching/scoring, gating rules, retrieval inputs, thresholds), it is not complete until it has a declared guardrail (baseline + threshold), a realized measurement on the first production exposure, and an armed rollback with an automatic trigger. See Step 5a. A "monitor the dashboard next week" deferral does not satisfy this.
+4. **User signs off.** The spec owner (human) makes the final call. The agent presents evidence; the human decides.
 
 ---
 
@@ -129,6 +130,22 @@ Deferred criteria don't block completion, but they must have:
 - A dashboard or tool to check against
 
 **Rigor requirement:** Every measurement-class deferred criterion MUST have all three fields populated: Owner, Trigger, Method. The skill emits a completion-blocking failure (reports verdict: "Blocked") if any measurement-class criterion is missing any of the three. No deferral without a clear path to verification.
+
+### Step 5a: Behavioral-change regression gate (mandatory)
+
+**Trigger:** the spec changes a **production behavioral metric** — anything where the same input can now produce a different model/system output at scale: coder/critic prompts or instructions, ranking/matching/scoring logic, auto-approve or gating rules, retrieval/RAG inputs, classifier thresholds, pricing/eligibility logic. If in doubt, it qualifies.
+
+For these, a *deferred-to-production, owned-by-a-human* measurement (Step 5) is **NOT sufficient** and MUST NOT be used as the completion path. The failure mode this closes: a change ships, the "realized-lift measurement" is handed to a human to check "next day," the metric silently regresses, and nobody notices until a downstream incident. (This is exactly how SPEC-026's screening coder-instruction change cut the AIWW `validated` rate 50%→16% and collapsed automation for a full prod batch before a human caught it.)
+
+A behavioral-change spec is **complete only when ALL of the following exist and are stamped in the completion report**:
+
+1. **Guardrail metric + baseline + regression threshold**, declared in the spec (not invented at completion). e.g. `screening first-pass validated% ≥ baseline(50%) − 5pt`, measured over the first N post-deploy units (batch / hour / 1k requests). If the spec has no guardrail, that is a **spec-amendment blocker** — send it back to `spec-authoring`/`spec-amendment` to add one; do not complete.
+2. **A realized post-deploy measurement of that guardrail on the FIRST real production exposure** — not a future promise. The spec status stays `active` (a `monitoring` sub-state) until this first measurement lands. "Blocked" verdict until then.
+3. **An armed, pre-written rollback** — the exact revert (migration/flag/config) prepared and referenced by path/id, plus the automatic trigger condition (`if guardrail breaches threshold on the first N units → execute rollback`). "Someone will watch the dashboard" is not an armed rollback. Prefer a flag/kill-switch or a one-command revert so the rollback is seconds, not a rebuild.
+
+**Prefer a canary over a full-fleet cutover** for behavioral changes: expose the new behavior to a bounded slice (one practice / N% of traffic / a shadow run) and compare the guardrail against control before full rollout. A shadow/canary that never touched the full fleet cannot cause a full-fleet regression.
+
+Stamp the outcome in the completion report's **Deferred verifications** section as a `behavioral-guardrail` row: metric, baseline, threshold, first-exposure result, rollback artifact + trigger. A behavioral-change spec with an empty or missing `behavioral-guardrail` row is **Blocked**, never **Ready to complete**.
 
 ## Step 6: Handle manual criteria
 

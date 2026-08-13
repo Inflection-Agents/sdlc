@@ -252,6 +252,7 @@ Before presenting the spec to the user, verify:
 - [ ] Acceptance criteria are testable (an agent can verify each one programmatically)
 - [ ] "Out of scope" has at least 2-3 items
 - [ ] Success criteria are measurable (not "improve performance" — "p99 latency < 200ms")
+- [ ] If the spec changes a **production behavioral metric** (prompts/instructions, matching/scoring/ranking, gating or auto-approve rules, retrieval/RAG inputs, thresholds), it declares a **guardrail**: the metric, its current baseline, a regression threshold, the first-exposure measurement window, and an **armed rollback** (the exact revert artifact + an automatic trigger condition). Behavioral changes ship behind a canary/flag where feasible. `spec-completion` Step 5a blocks completion without this — declare it here, not at the end.
 - [ ] Design section references the alternatives considered and why this approach was chosen
 - [ ] For refactors: migration section has a rollback plan
 - [ ] All Phase 1 agreements are captured — nothing lost in translation from brainstorming to spec

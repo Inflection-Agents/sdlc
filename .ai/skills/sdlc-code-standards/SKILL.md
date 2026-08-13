@@ -56,6 +56,20 @@ Non-negotiable coding principles for all implementation work. These apply whethe
 - No configurability beyond what's specified
 - No backwards-compatibility shims — change the code directly
 
+### Behavior Preservation — no silent scope/behavior expansion
+
+The most dangerous change is the one with **no code error.** A change can pass syntax, type, and logic tests — the mechanism works — and still be wrong, because it *expands what the system does*: new data flows, a new site/tenant/scope is covered, a previously-inert config path activates, a guard relaxes, a default flips. Tests confirm the mechanism; they do **not** confirm the resulting behavior matches intent. A green suite on a scope-expanding change is false confidence.
+
+Before changing any component with a **declared or known behavioral contract** — routing, delivery, ingestion, gating, access, scope, feature enablement, anything that decides *what flows where* — do this, and record it in the PR/commit description:
+
+1. **State the contract.** What does this component currently do, and explicitly NOT do? (e.g., "prod-mirror delivers AIWW only.")
+2. **Diff the behavior, not the code.** What will it do differently after the change? Name any *expansion*: new inputs consumed, new outputs produced, new scope/sites/tenants covered, an inert config path now live, a guard loosened.
+3. **Existing config is NOT intent.** A value you find in the code/config (`for PRACTICE in AIWW CNY`) is not authorization to activate it. Verify it against the *stated* intent; if they differ, STOP — that mismatch is a finding, not a green light. "The code already said X" is never sufficient.
+4. **Flag any behavioral delta for human approval before applying** — especially expansions. This is the one class of change tests cannot gate for you.
+5. **Validate off-prod.** Exercise the change with a dry-run or in a non-prod environment. Never validate a behavioral/infra change with a live production mutation — the validation itself becomes the incident.
+
+Seen live on 2026-08-13: a correct, fully-tested fix to make the prod SFTP mirror read raw root drops *also activated* a stale `CNY` entry in the mirror's practice list (merged weeks earlier, previously inert). Validating it with a live prod mirror-run delivered 261 CNY reports into an AIWW-only production — zero code errors, all tests green. The intent ("prod = AIWW only") was known; the committed config contradicted it; the change should have surfaced that delta for approval and been validated off-prod, not against prod.
+
 ### Single Responsibility
 
 - Each function does one thing. If you can't name it in 3 words, split it.
@@ -171,6 +185,9 @@ If you catch yourself doing any of these, stop and correct:
 | Adding a comment that restates the code | Delete the comment. |
 | Saying "should work" without running tests | Run the tests. Read the output. |
 | Keeping code you wrote before the test | Delete it. Start with the test. |
+| Treating a config value you found as the intent | Verify against the stated intent. A mismatch is a finding, not a go. |
+| A fix that makes a path do *more* than before (new data/scope/tenant flows) | State the behavior delta, flag it for approval — tests won't catch it. |
+| Validating a behavioral/infra change by mutating prod | Dry-run or use non-prod. The validation must not be the incident. |
 
 ## Monorepo discipline
 
@@ -189,6 +206,8 @@ If `.ai/project.md` defines workspaces:
 - [ ] Tests were run and output was read — all pass
 - [ ] No code duplication beyond 2 instances
 - [ ] Nothing built that the spec didn't ask for
+- [ ] Behavior preserved — if this touches a routing/delivery/gating/scope path, the behavior delta is stated and any *expansion* (new data/scope/tenant flowing, an inert config path activated) is flagged for approval, not assumed from existing config
+- [ ] Behavioral/infra changes were validated off-prod (dry-run or non-prod), not by mutating production
 - [ ] No dead code, unused imports, or TODO comments for current work
 - [ ] Commit message references SPEC or TASK ID
 - [ ] Error handling only at system boundaries
