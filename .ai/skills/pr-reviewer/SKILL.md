@@ -42,6 +42,20 @@ hand-offs, per SPEC-002 Phase 2 cross-skill signals):
     "spec:wrong-design" / "spec:missing-section" — implementation reveals
     spec is wrong.
 
+BEHAVIORAL-EXPANSION CHECK (mandatory — the class tests cannot catch): a change
+can be code-correct and fully green yet WRONG because it expands what the system
+does at runtime. On every PR that touches a routing / delivery / ingestion /
+gating / access / feature-enablement / scope path, ask: does this make the path
+do MORE than before — new data / scope / site / tenant / traffic now flowing, a
+previously-inert config path now active, a guard relaxed, a default flipped? If
+so, and the PR does not both (a) state the prior behavioral contract and (b)
+show the expansion is intended, raise a finding cited `std:behavior-preservation`
+— `major` normally, `blocker` if the expansion reaches production data/traffic.
+Do NOT accept "the config already listed it" as justification: a value present
+in config is not evidence of intent. This is orthogonal to task:scope (that is
+file/PR scope; this is runtime BEHAVIOR scope) and to spec ACs (a change can
+satisfy every AC and still silently expand behavior the ACs never named).
+
 OUTPUT: the shared JSON envelope with `artifact: "pr"`, `tier: 1`, populated
 `verification`, and `tier_2_dispatch_recommended` per Appendix B rules.
 
