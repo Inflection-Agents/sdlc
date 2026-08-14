@@ -285,15 +285,30 @@ if git rev-parse --git-dir &> /dev/null 2>&1; then
     ok ".gitignore already ignores .claude/.sdlc-* state"
   fi
 
-  # Copy SDLC validators into scripts/sdlc/
+  # Copy SDLC validators into scripts/sdlc/ — per file, "only if absent". A
+  # whole-directory guard (only copy if scripts/sdlc/ doesn't exist AT ALL) left a
+  # pre-ADR-003 repo with NONE of the new gates: the directory already existed with
+  # just the older validators, so the new plan-gate.mjs / reviewer-routing.mjs /
+  # validate-review-envelope.mjs / check-review-constraint-globs.mjs were silently
+  # skipped — while .github/workflows/ and .claude/hooks/__tests__/ (below) WERE
+  # copied, since those directories were genuinely new. That combination shipped a
+  # CI workflow invoking gates that were not there. Copying per file closes the gap
+  # without ever overwriting a repo's own edits to an existing file.
   if [ -d "$SCRIPT_DIR/scripts/sdlc" ]; then
-    if [ ! -d "$REPO_ROOT/scripts/sdlc" ]; then
-      info "Copying SDLC validators..."
-      mkdir -p "$REPO_ROOT/scripts/sdlc"
-      cp -r "$SCRIPT_DIR/scripts/sdlc/"* "$REPO_ROOT/scripts/sdlc/"
+    mkdir -p "$REPO_ROOT/scripts/sdlc"
+    SDLC_SCRIPTS_COPIED=false
+    for sdlc_file in "$SCRIPT_DIR/scripts/sdlc/"*; do
+      [ -f "$sdlc_file" ] || continue
+      sdlc_name="$(basename "$sdlc_file")"
+      if [ ! -f "$REPO_ROOT/scripts/sdlc/$sdlc_name" ]; then
+        cp "$sdlc_file" "$REPO_ROOT/scripts/sdlc/$sdlc_name"
+        SDLC_SCRIPTS_COPIED=true
+      fi
+    done
+    if [ "$SDLC_SCRIPTS_COPIED" = true ]; then
       ok "Copied scripts/sdlc/ validators + delivery gates (state machine, phase memory, handoffs, plan gate, reviewer routing, envelope validation, registry globs)"
     else
-      ok "scripts/sdlc/ directory exists"
+      ok "scripts/sdlc/ already has every file this bootstrap ships"
     fi
   fi
 else
@@ -321,4 +336,6 @@ echo "  7. Hooks in .claude/hooks/ are ADVISORY by default (they warn, not block
 echo "     Review .claude/settings.json and tighten them once you trust the flow."
 echo "  8. Validate the spine: node scripts/sdlc/validate-state-machine.mjs"
 echo "     and check the registry rows resolve: node scripts/sdlc/check-review-constraint-globs.mjs"
+echo "  9. If this repo uses vitest/jest: exclude .claude/hooks/__tests__/ from its config —"
+echo "     those are node:test files (run via 'node --test'), not your test runner's."
 echo ""

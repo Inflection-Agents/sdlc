@@ -68,8 +68,16 @@ review-independence rule in `.ai/skills/review-primitives.md`. It only acts on
 `gh pr review --approve`, `gh pr merge`, and accept-verdict `gh pr comment`
 commands; everything else (request-changes, blocking verdicts, non-`gh`
 commands) is a no-op. Identities are resolved via `gh`/`git` only after an
-accept is detected. There is **no override** for this gate. Advisory by default;
-fails open if either identity cannot be resolved.
+accept is detected. Advisory by default (`warn`); fails open if either identity
+cannot be resolved or the mode is not `enforce`.
+
+**One exemption exists** (ADR-003): a `gh pr merge` whose PR base resolves to a
+`feat/spec-*` integration branch is a delivery executor merging its own task
+PR — mandatory work, not a self-accept — and is allowed. Every other case denies:
+`main`/any other base, a chained or cross-repo command, an unresolvable PR
+selector, and every `gh pr review`/`gh pr comment` accept. There is no override
+for those. See `.claude/hooks/__tests__/review-identity-merge-carveout.test.mjs`
+for the exact boundary.
 
 ## Validators (`scripts/sdlc/`)
 
@@ -140,10 +148,11 @@ example rows. Run: `node scripts/sdlc/check-review-constraint-globs.mjs [--enfor
 ## Tests
 
 `node --test scripts/sdlc/*.test.mjs` covers the plan gate, reviewer routing, the
-envelope validator, and PR-side prefix parity (`review-primitives.md` ↔ the
-validator's `PR_SIDE_PREFIXES` ↔ the envelope schema ↔ the `pr-reviewer`
-GROUNDING block). `node --test .claude/hooks/__tests__/*.test.mjs` covers the goal
-leash. Both are dependency-free and hermetic.
+envelope validator, the registry glob checker, and PR-side prefix parity
+(`review-primitives.md` ↔ the validator's `PR_SIDE_PREFIXES` ↔ the envelope
+schema ↔ the `pr-reviewer` GROUNDING block). `node --test
+.claude/hooks/__tests__/*.test.mjs` covers the goal leash and the merge
+carve-out. Both suites are dependency-free and hermetic.
 
 ## Forthcoming validators
 

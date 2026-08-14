@@ -36,7 +36,7 @@
 //                      unrelated PR red and create pressure to rubber-stamp the flag.
 //
 // Exits 0 when every given plan passes the selected check, 1 otherwise.
-import { readFileSync, realpathSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -119,12 +119,23 @@ export function checkPlanGate(path) {
     return { path, block, approved: true, reason: null }
 }
 
+/** Does this argument look like an unexpanded shell glob (contains * ? [ )? */
+const looksLikeGlob = (s) => /[*?[\]]/.test(s)
+
 function main(argv) {
     const presenceOnly = argv.includes('--presence-only')
-    const paths = argv.filter((a) => a !== '--presence-only')
-    if (paths.length === 0) {
+    const rawPaths = argv.filter((a) => a !== '--presence-only')
+    if (rawPaths.length === 0) {
         process.stderr.write('usage: node scripts/sdlc/plan-gate.mjs [--presence-only] <_index.yaml> [...]\n')
         process.exit(1)
+    }
+    // A glob matching nothing (no specs/tasks/ yet on a fresh repo) is passed
+    // through literally without `nullglob`. That is "nothing to gate", not a
+    // missing file — the first PR of every bootstrapped repo must not fail here.
+    const paths = rawPaths.filter((p) => existsSync(p) || !looksLikeGlob(p))
+    if (paths.length === 0) {
+        process.stdout.write('plan-gate: nothing to check (no matching _index.yaml files)\n')
+        process.exit(0)
     }
     let ok = true
     for (const path of paths) {

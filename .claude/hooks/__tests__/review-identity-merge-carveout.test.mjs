@@ -87,6 +87,86 @@ test('an unresolvable PR selector is denied, not resolved off the current branch
     assert.equal(runGate('gh pr merge "$PR" --squash', { base: 'feat/spec-006' }), DENY)
 })
 
+/**
+ * A stub `gh` that answers a DIFFERENT base depending on WHICH PR number it was
+ * asked about — needed to prove the hook resolves the base of the PR actually
+ * being merged, not of some other PR-shaped token found elsewhere in the command.
+ */
+function runGateWithDistinctBases(command, basesByPr) {
+    const dir = mkdtempSync(join(tmpdir(), 'sdlc-gate-'))
+    try {
+        const stub = join(dir, 'gh')
+        const cases = Object.entries(basesByPr)
+            .map(([n, base]) => `  ${n}) echo '{"baseRefName":"${base}"}'; exit 0 ;;`)
+            .join('\n')
+        writeFileSync(
+            stub,
+            `#!/bin/sh
+for a in "$@"; do
+  case "$a" in
+${cases}
+    author,headRefOid) echo '{"author":{"login":"same-actor"},"headRefOid":""}'; exit 0 ;;
+  esac
+done
+echo 'same-actor'
+`,
+            'utf8'
+        )
+        chmodSync(stub, 0o755)
+        const res = spawnSync('node', [HOOK], {
+            input: JSON.stringify({ tool_name: 'Bash', tool_input: { command } }),
+            encoding: 'utf8',
+            env: {
+                ...process.env,
+                PATH: `${dir}:${process.env.PATH}`,
+                SDLC_GUARD_MODE: 'enforce',
+                SDLC_REVIEW_GATE_AUTHOR_LOGIN: 'same-actor',
+                SDLC_REVIEW_GATE_REVIEWER_LOGIN: 'same-actor'
+            }
+        })
+        return res.status
+    } finally {
+        rmSync(dir, { recursive: true, force: true })
+    }
+}
+
+test('a PR URL embedded in a flag value cannot steer resolution to a DIFFERENT PR (round-3 bypass)', () => {
+    // PR 42 (the one actually being merged) targets `main`; PR 7 (mentioned only
+    // inside a flag value) targets a task branch. Before the fix, extractPrNumber
+    // scanned the whole command for a PR-shaped URL and found "7" here, so the gate
+    // resolved PR 7's base — a task branch — and exempted a merge of PR 42 into
+    // `main`. It must now resolve PR 42, the PR gh will actually merge.
+    const bases = { 42: 'main', 7: 'feat/spec-1' }
+    assert.equal(
+        runGateWithDistinctBases('gh pr merge 42 --squash -t "closes https://github.com/o/r/pull/7"', bases),
+        DENY,
+        'must resolve PR 42 (the one merged), not PR 7 (mentioned only in a flag value)'
+    )
+    assert.equal(
+        runGateWithDistinctBases('gh pr merge 42 --squash -b "see https://github.com/o/r/pull/7 for context"', bases),
+        DENY
+    )
+    // The reverse must still work: a genuine, correctly-targeted merge is exempt.
+    assert.equal(runGateWithDistinctBases('gh pr merge 7 --squash', bases), ALLOW)
+})
+
+test('a bare PR URL as the selector itself is still resolvable (not a regression)', () => {
+    const bases = { 7: 'feat/spec-1' }
+    assert.equal(
+        runGateWithDistinctBases('gh pr merge https://github.com/o/r/pull/7 --squash', bases),
+        ALLOW,
+        'a URL that IS the selector (first positional token) must still resolve'
+    )
+})
+
+test('a cross-repo command (-R/--repo) does not get the carve-out', () => {
+    // The base lookup never queries the flagged repo, so honoring -R/--repo here
+    // would either resolve the wrong repo's PR or silently trust an unrelated
+    // answer. The carve-out simply does not apply; it falls through to deny.
+    assert.equal(runGate('gh pr merge 7 --squash -R owner/other-repo', { base: 'feat/spec-1' }), DENY)
+    assert.equal(runGate('gh pr merge 7 --squash --repo owner/other-repo', { base: 'feat/spec-1' }), DENY)
+})
+
 test('a chained command cannot borrow one PR\'s base to exempt another action', () => {
     // Both halves resolve through the same stub, so if chaining were allowed these
     // would pass on PR 100's task base while actually merging/approving something else.

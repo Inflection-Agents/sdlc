@@ -121,10 +121,21 @@ integration gate.**
     the merge is recorded with the authorizing sentence and the panel's verdict, so the authority
     is auditable after the fact. Anything less is the delivery rule, unchanged.
 
-    ADR-003 itself is the worked example, and an uncomfortable one: it was authored, reviewed by
-    three independently dispatched panels across two rounds, and merged by its author on the
-    owner's explicit instruction. Recording that plainly is better than shipping a rule the
-    framework visibly breaks on its first use.
+    **ADR-003 itself is the worked example, recorded here per the auditability requirement above,
+    not merely narrated:**
+
+    - **Authorizing sentence** (verbatim, from the owner): *"Create a PR, run it through reviews
+      and merge it."*
+    - **Panel verdicts:** three independently dispatched panels (doctrine coherence, code
+      correctness, adversarial), re-dispatched across multiple rounds against the full branch each
+      time rather than spot-checked. Round 1 returned 9 blockers / 16 majors; round 2 returned 0
+      blockers / ~27 majors (including two bypasses in a fix round 1 itself introduced); this round
+      is the one this bullet is written for, and it is not backfilled — if a round returns an
+      unresolved blocker or major, this ADR does not claim to be merge-clean and the merge does not
+      happen until it is.
+    - This is an uncomfortable example on purpose: a rule that could not survive being applied to
+      the change that wrote it would not be worth writing. Recording the trail plainly is safer
+      than shipping a rule the framework's own repo cannot demonstrate it follows.
 
 12. **The delivery run is transparent.** It keeps a visible session task list — one entry per task in
     `_index.yaml`, plus end-to-end validation and the integration gate — marked `in_progress` before
@@ -212,7 +223,7 @@ omit — and because each is a candidate for a real gate later:
 
 | Guarantee | Was | Is now | Bounded by |
 | --- | --- | --- | --- |
-| The plan-review gate runs before any work | Engine HALT before dispatch | The skill's §1 step, plus the CI job | `scripts/sdlc/plan-gate.mjs` in CI — but a run that skips §1 is not stopped, and under `claude -p` the leash is inert too |
+| The plan-review gate runs before any work | Engine HALT before dispatch | The skill's §1 step, plus the CI job | `scripts/sdlc/plan-gate.mjs --presence-only` in CI (repo-wide — proves only that the block EXISTS, never that it says `approved: true`, so a mid-decomposition spec doesn't redden unrelated PRs); full approval is checked per-spec by the skill's §1 before a run starts. A run that skips §1 is not stopped, and under `claude -p` the leash is inert too |
 | `isolation: "worktree"` on every file-writing subagent | Passed in code on every dispatch | Prose, repeated across the skill, the SOP, `.ai/CLAUDE.md`, `.ai/AGENTS.md`, `agent-orchestration.md` and `roles.md` | Nothing. The failure is destructive and was observed live (a non-isolated subagent stashed a foreground session's uncommitted edits). With fan-out now rare, it is also the rule least likely to be remembered |
 | Every reviewer envelope is validated | Engine validated before routing | The skill runs `validate-review-envelope.mjs` | The validator exists and is tested; invoking it is discretionary |
 | The constraints registry is evaluated | Engine computed `lensesFor(touches)` | An agent reads the YAML at the gate | `check-review-constraint-globs.mjs` proves the rows are *resolvable*, not that they were *consulted* |
@@ -221,6 +232,7 @@ omit — and because each is a candidate for a real gate later:
 | A pending `human`-routed task blocks integration | Engine skipped integration while one was pending | Prose in the skill's exit criteria | Nothing mechanical. The criterion reads "done or explicitly deferred with a reason", so the run must surface a deferral rather than be stopped by it |
 | Task merge + `_index.yaml` status flip were one commit | Engine wrote both in a single commit, so a crash left a consistent index | Two SOP steps | Nothing. A run interrupted between them leaves a merged task reading `pending`; SOP §2 step 6 now says to commit and push the flip immediately after the merge |
 | Dependency-graph sanity (cycles, unknown dependencies) | Engine threw before any work started | A decomposition-time checklist item | Nothing yet — the DAG-acyclicity validator is still "forthcoming" in `scripts/sdlc/README.md` |
+| Integration EVIDENCE halt | An independently dispatched `tester` agent returned `{built, testsPassed}`; the engine HALTed before opening the integration PR unless both were true | SOP §6 prose ("attach the output as evidence... never claim a validation ran without it") plus a reviewer raising `task:evidence-missing` at the gate | Nothing mechanical. Note the honest caveat in the other direction: the engine's own shipped `_default` workspace declared no `expensiveVerify`, so this HALT was vacuously satisfied for any repo that didn't configure one — the loss is real only for a repo that had |
 
 **Negative / accepted**
 

@@ -137,13 +137,18 @@ function classify(command) {
 function extractPrNumber(cmd) {
     const m = cmd.match(/\bgh\s+pr\s+(?:review|comment|merge)\b([^\n]*)/)
     if (!m) return null
-    const rest = m[1]
-    const url = rest.match(/github\.com\/[^/\s]+\/[^/\s]+\/pull\/(\d+)/)
+    const rest = m[1].trim()
+    if (!rest) return null
+    // ONLY the FIRST positional token after the verb — gh's own selector
+    // convention (`gh pr merge [<number> | <url> | <branch>] [flags...]`).
+    // Scanning the REST of the command for a PR-shaped token let a URL embedded
+    // in a flag value (`-t "closes https://github.com/o/r/pull/7"`, a commit
+    // message, `--body`) steer base resolution to an unrelated PR — a self-merge
+    // to `main` exempted off a task PR's base (PR #42 review, round 3).
+    const first = rest.split(/\s+/)[0]
+    if (/^\d+$/.test(first)) return first
+    const url = first.match(/^https?:\/\/github\.com\/[^/\s]+\/[^/\s]+\/pull\/(\d+)$/)
     if (url) return url[1]
-    const tokens = rest.split(/\s+/).filter(Boolean)
-    for (const t of tokens) {
-        if (/^\d+$/.test(t)) return t
-    }
     return null
 }
 
@@ -168,7 +173,14 @@ const INTEGRATION_BRANCH = /^feat\/spec-/i
  */
 function isSingleUnchainedGhAction(cmd) {
     if (/[;&|]{1,2}|\$\(|`|\n/.test(String(cmd))) return false
-    return (String(cmd).match(/\bgh\s+pr\s+(?:review|comment|merge)\b/g) || []).length === 1
+    if ((String(cmd).match(/\bgh\s+pr\s+(?:review|comment|merge)\b/g) || []).length !== 1) return false
+    // A cross-repo command (`-R owner/repo` / `--repo owner/repo`) targets a
+    // different repository than the one the base lookup below queries. Rather
+    // than propagate the flag (more surface to get subtly wrong), the carve-out
+    // simply refuses a cross-repo command — it falls through to the normal
+    // author≠reviewer check, which is the fail-closed direction.
+    if (/(^|\s)(-R|--repo)(\s|=)/.test(String(cmd))) return false
+    return true
 }
 
 /**
@@ -178,8 +190,10 @@ function isSingleUnchainedGhAction(cmd) {
  * base may well be a task branch. Only a bare number or a github.com pull URL counts.
  */
 function hasResolvablePrSelector(cmd, prNumber) {
-    if (prNumber) return true
-    return /github\.com\/[^\s]+\/pull\/\d+/.test(String(cmd))
+    // extractPrNumber above now ONLY resolves from the first positional token, so
+    // a non-null prNumber already means "unambiguously resolvable". No secondary
+    // whole-command scan — that was the other half of the same bypass class.
+    return prNumber != null
 }
 
 /**

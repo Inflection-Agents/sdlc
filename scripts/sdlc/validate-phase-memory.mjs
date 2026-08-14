@@ -162,6 +162,9 @@ export function validateFile(path, phaseIds) {
     return validatePhaseBlock(parsePhaseBlock(text), phaseIds)
 }
 
+/** Does this argument look like an unexpanded shell glob (contains * ? [ )? */
+const looksLikeGlob = (s) => /[*?[\]]/.test(s)
+
 function parseArgs(argv) {
     const args = { machine: DEFAULT_MACHINE, files: [] }
     for (let i = 0; i < argv.length; i += 1) {
@@ -179,6 +182,17 @@ function main() {
         )
         process.exit(2)
     }
+    // A glob that matched nothing (e.g. no specs/tasks/ directory yet) is passed
+    // through by the shell as a literal string with no `nullglob`. Treat an
+    // UNMATCHED glob-looking argument as "nothing to validate", not "missing
+    // file" — a fresh repo has nothing under specs/tasks/ yet, and that must not
+    // fail CI on the first PR. An explicit literal path that is genuinely absent
+    // still fails, since that intent is unambiguous.
+    const files = args.files.filter((f) => existsSync(f) || !looksLikeGlob(f))
+    if (files.length === 0) {
+        console.log('validate-phase-memory: nothing to check (no matching files)')
+        process.exit(0)
+    }
     if (!existsSync(args.machine)) {
         console.error(`error: state-machine source not found at ${args.machine}`)
         process.exit(2)
@@ -186,7 +200,7 @@ function main() {
     const phaseIds = loadPhaseIds(args.machine)
 
     let failed = false
-    for (const file of args.files) {
+    for (const file of files) {
         const problems = validateFile(file, phaseIds)
         if (problems.length === 0) {
             console.log(`OK   ${file}`)
