@@ -433,6 +433,26 @@ test('a value-taking flag never donates its separate-token value as the PR selec
     assert.equal(runGate('gh pr merge 42 -t "release notes" --squash', { base: 'feat/spec-1' }), ALLOW)
 })
 
+test('every value-taking gh pr merge flag is covered, not just -b/-t/-R (round-7 bypass)', () => {
+    // Round 6 fixed -b/--body, -t (short only), -F/--body-file and -R/--repo,
+    // but gh pr merge has three more value-taking flags that were left out of
+    // VALUE_TAKING_LONG_FLAGS/VALUE_TAKING_SHORT_FLAGS entirely: --subject's
+    // LONG form (only -t was covered), -A/--author-email, and
+    // --match-head-commit. Each one re-opens the exact same selector-donation
+    // bypass through an unguarded spelling: gh consumes "42" as the flag's
+    // value and falls back to the CURRENT branch's PR, while the gate (before
+    // this fix) read "42" as the positional selector and resolved PR 42's
+    // base instead — an executor on a task branch could exempt an unrelated
+    // merge (e.g. the integration PR into main) by naming any task PR here.
+    assert.equal(runGate('gh pr merge --subject 42 --squash', { base: 'main' }), DENY)
+    assert.equal(runGate('gh pr merge -A 42 --squash', { base: 'main' }), DENY)
+    assert.equal(runGate('gh pr merge --author-email 42 --squash', { base: 'main' }), DENY)
+    assert.equal(runGate('gh pr merge --match-head-commit 42 --squash', { base: 'main' }), DENY)
+    assert.equal(runGate('gh pr merge -dA 42 --squash', { base: 'main' }), DENY)
+    // ...and a genuine bare selector alongside any of these still resolves.
+    assert.equal(runGate('gh pr merge 42 --subject "release" --squash', { base: 'feat/spec-1' }), ALLOW)
+})
+
 test('the attached short-flag BODY form is still scanned for a verdict marker (round-6 bypass)', () => {
     // `flagValueAfter` matched only exact `-b`/`--body` tokens, never gh's own
     // attached short-flag form (`-b<value>`, no space) — even though hasRepoFlag

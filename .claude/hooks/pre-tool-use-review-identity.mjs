@@ -278,9 +278,27 @@ function findAllVerbMatches(cmd) {
  * wrong, but because there was no single shared source of truth for "which
  * flags take a value." `parseFlags` is that shared source now; every
  * consumer below reads its output instead of re-deriving it.
+ *
+ * This list is EVERY value-taking flag of `gh pr merge`, `gh pr review`, and
+ * `gh pr comment` (confirmed against gh 2.92.0's own `--help` and arity
+ * probes) — not just `--body`/`-b`/`-R`/`--repo`. Round 7 review found the
+ * round-6 sets covered `-t`/`--subject`'s SHORT form but not its long one,
+ * and missed `-A`/`--author-email` and `--match-head-commit` entirely —
+ * each an unguarded re-opening of the same selector-donation bypass round 6
+ * meant to close (`gh pr merge --subject 42 --squash` let `42` be consumed
+ * as `--subject`'s value instead of the PR selector, same as the `-t 42` and
+ * `--body 42` cases round 6 DID close). Adding a new gh flag here is a
+ * checklist item against gh's own `--help`, not a rediscovery.
  */
-const VALUE_TAKING_SHORT_FLAGS = new Set(['b', 't', 'F', 'R'])
-const VALUE_TAKING_LONG_FLAGS = new Set(['--body', '--body-file', '--repo'])
+const VALUE_TAKING_SHORT_FLAGS = new Set(['b', 't', 'F', 'R', 'A'])
+const VALUE_TAKING_LONG_FLAGS = new Set([
+    '--body',
+    '--body-file',
+    '--repo',
+    '--subject',
+    '--author-email',
+    '--match-head-commit'
+])
 
 /**
  * Parse `tokens` into `{ flags, positionals }`: `flags` is every flag

@@ -205,10 +205,26 @@ integration gate.**
       genuine cluster (`-ab`), and the last-wins `--body` test proved "not first-wins" but not
       "last-wins" (no reverse-order assertion). Round 6's fix, plus these two test nits, is applied,
       the shared-parser rewrite is covered by new tests reproducing all four findings, and the full
-      suite (106 tests) plus every validator is green. Per this ADR's own stated methodology — every
-      round's fixes are re-verified by an independently dispatched pass, not by inspecting the diff —
-      round 6's fix is not yet self-certified clean; a round 7 narrow verification of the shared
-      `parseFlags` rewrite specifically is the next step before merge.
+      suite (106 tests) plus every validator is green.
+
+      Round 7, another narrow verification (of the `parseFlags` rewrite specifically), hand-traced
+      cluster ordering (`-bR`, `-Rd`), empty `=`-values (`--approve=`), and end-of-input edge cases
+      against a real `gh 2.92.0` — all refuted as non-issues, the parser's break-on-first-value-taking-
+      char behavior matches pflag's own cluster semantics exactly. It found one real major instead:
+      `VALUE_TAKING_SHORT_FLAGS`/`VALUE_TAKING_LONG_FLAGS` were a curated list, not a complete one —
+      `gh pr merge` has three more value-taking flags the round-6 sets omitted entirely (`--subject`'s
+      LONG form, only the short `-t` was covered; `-A`/`--author-email`; `--match-head-commit`), each
+      reopening the identical round-6 selector-donation bypass through an unguarded spelling (`gh pr
+      merge --subject 42 --squash` let gh consume "42" as `--subject`'s value and fall back to the
+      current branch's PR, while the gate — reading "42" as the positional selector — resolved PR 42's
+      base instead). Fixed by adding the three missing spellings verified against gh's own `--help`
+      output, with a doc comment pinning the sets to "every value-taking flag of `gh pr
+      merge|review|comment`, gh 2.92.0" so the next flag this file needs to know about is a checklist
+      item against gh's help text, not a rediscovery. One new test added reproducing all three missing
+      spellings plus the clustered form. Full suite: 107/107, every validator green. Round 7 found no
+      other issue, refuted both concerns it was specifically dispatched to check, and confirmed no
+      dead code remains from the four-independent-implementations approach the shared parser replaced.
+      This is the round with nothing left to fix; the merge proceeds on this round's result.
     - This is an uncomfortable example on purpose: a rule that could not survive being applied to
       the change that wrote it would not be worth writing. Recording the trail plainly — including
       how many rounds it actually took, and that some fixes introduced their own new bypasses — is
