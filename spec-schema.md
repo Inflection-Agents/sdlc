@@ -20,7 +20,6 @@ supersedes: SPEC-000            # optional, previous version's id
 initiative: INI-003             # links to Linear initiative
 owner: franklin                 # human who owns intent
 workspaces: [dealer-app, shared] # which workspace members this spec affects (monorepo)
-integration_strategy: branch | direct  # optional
 created: 2026-04-22
 updated: 2026-04-22
 tags: [auth, security]          # free-form, used for search/grouping
@@ -42,14 +41,15 @@ linear_project: PRJ-XYZ         # Linear project id, for bidirectional linking
 | `created` | yes | no | ISO date. |
 | `updated` | yes | yes | ISO date. Updated on every material change. |
 | `workspaces` | no | yes | Array of workspace names from `.ai/project.md`. Omit for single-app repos. Informs task decomposition scope. |
-| `integration_strategy` | no | yes | Optional. Allowed values: `branch` \| `direct`. When set to `branch`, spec-execution uses the feat/spec-NNN integration branch pattern. When set to `direct`, spec-execution merges task PRs directly to main. When unset, spec-execution computes the strategy from spec properties via a documented heuristic (see spec-execution skill Phase 1 resolution step). Schema validation rejects any value other than `branch` or `direct`. See SPEC-005 for design. |
+| `integration_strategy` | — | — | **Retired by ADR-003.** The integration branch `feat/spec-NNN` is now unconditional: every spec cuts one, and nothing reaches `main` except by merging it. The field is ignored where it still appears on an older spec; `direct` mode no longer exists. |
 | `tags` | no | yes | Array of strings. |
 | `linear_project` | no | yes | Set when the Linear project is created. |
 
 **Plan-review verdict.** The plan-review gate's verdict for a spec is not recorded in the spec
 frontmatter — it lives in the `plan_review:` block of the spec's `specs/tasks/SPEC-NNN/_index.yaml`
 (owned by `task-schema.md`), since the plan being attested is the spec *and* its decomposition. That
-block is what `execute-spec` reads at the Plan phase and fails closed on.
+block is what a delivery run checks before it starts, and fails closed on
+(`node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml`).
 
 ## Body structure
 

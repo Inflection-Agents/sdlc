@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://ai-native-sdlc/.ai/skills/review-envelope.schema.json",
   "title": "review-envelope",
-  "description": "The ONE canonical reviewer-output schema for the AI-native SDLC. Every reviewer (task-reviewer, the lens specialists, integration-reviewer, spec-reviewer) emits exactly this shape. The deterministic engine (.claude/workflows/execute-spec.js) inlines an equivalent SUBSET (additionalProperties:true, so the extra fields here still validate). There is NO top-level verdict a reviewer self-reports: a malformed/absent envelope is a contract violation; an abstaining reviewer sets reviewer_status:abstained (the orchestrator escalates, never accepts). See review-primitives.md for the severity spine, grounding rules, and severity->action policy.",
+  "description": "The ONE canonical reviewer-output schema for the AI-native SDLC. Every reviewer (task-reviewer, the lens specialists, integration-reviewer, spec-reviewer) emits exactly this shape. scripts/sdlc/validate-review-envelope.mjs validates every returned envelope against THIS file (exit 0 valid, 2 abstained, 3 malformed/ungrounded). There is NO top-level verdict a reviewer self-reports: a malformed/absent envelope is a contract violation; an abstaining reviewer sets reviewer_status:abstained (the orchestrator escalates, never accepts). See review-primitives.md for the severity spine, grounding rules, and severity->action policy.",
   "type": "object",
   "required": ["findings"],
   "additionalProperties": true,
@@ -29,7 +29,7 @@
           },
           "criterion": {
             "type": "string",
-            "description": "The grounded citation — MUST start with an allowed prefix for this reviewer's role (see review-primitives.md > Grounding rules). The canonical PR-side prefix set (per review-primitives.md > PR-side canonical prefix table, mirrored by execute-spec.js ALLOWED_PREFIX) is enumerated here as a machine-parseable list — PR_SIDE_PREFIXES = [ac:, adr:, std:, inv:, design:, lens:, monorepo:, task:, spec:]. Example citations: ac:AC-NNN, adr:ADR-NNN, std:<section-anchor>, inv:<INV-ID>, design:<token-or-component>, lens:<lens-name>, monorepo:boundary, task:scope, spec:<gap-kind>. Spec-side reviewers use the distinct spec-side prefix set."
+            "description": "The grounded citation — MUST start with an allowed prefix for this reviewer's role (see review-primitives.md > Grounding rules). The canonical PR-side prefix set (per review-primitives.md > PR-side canonical prefix table, mirrored by PR_SIDE_PREFIXES in scripts/sdlc/validate-review-envelope.mjs) is enumerated here as a machine-parseable list — PR_SIDE_PREFIXES = [ac:, adr:, std:, inv:, design:, lens:, monorepo:, task:, spec:]. Example citations: ac:AC-NNN, adr:ADR-NNN, std:<section-anchor>, inv:<INV-ID>, design:<token-or-component>, lens:<lens-name>, monorepo:boundary, task:scope, spec:<gap-kind>. Spec-side reviewers use the distinct spec-side prefix set."
           },
           "citation": {
             "type": "string",

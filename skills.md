@@ -4,10 +4,10 @@ Skills are how agents learn to follow the SDLC process at the right moment. They
 
 ## The three-phase grouping
 
-The SDLC splits into **judgment up front, deterministic execution behind** (see `.ai/sdlc.md` → "The phase model"). The skills group along that split:
+The SDLC splits into **judgment up front, autonomous delivery behind** (see `.ai/sdlc.md` → "The phase model"). The skills group along that split:
 
 ```
-intent-triage → spec-authoring → task-decomposition │ spec-execution → code-review → spec-completion
+intent-triage → spec-authoring → task-decomposition │ spec-execution → spec-completion
   (human+LLM)     (human+LLM)       (human+LLM)      │  (DETERMINISTIC)    (LLM)      (human+LLM)
         ── JUDGMENT PHASES: collaborative, gated ──  │  ── AUTONOMOUS ENGINE ──
 ```
@@ -15,8 +15,8 @@ intent-triage → spec-authoring → task-decomposition │ spec-execution → c
 | Group | Skills | Reviewer of record |
 |---|---|---|
 | **Judgment** (human + LLM, gated) | `intent-triage`, `spec-authoring` (+`spec-reviewer`), `task-decomposition` | humans, at hard sign-off gates |
-| **Deterministic execution** (autonomous) | `spec-execution` (the engine) | — runs without human attention |
-| **Review + completion** (LLM panel; human merges) | `pr-reviewer`, `sdlc-code-review`, `spec-completion`, `spec-amendment` | LLM multi-lens panel; humans merge the integration PR |
+| **Delivery** (autonomous) | `spec-execution` (the engine) | — runs without human attention, but tracks a visible task list |
+| **Review (in-run) + completion** (LLM panel; human merges) | `pr-reviewer`, `sdlc-code-review`, `spec-completion`, `spec-amendment` | LLM multi-lens panel; humans merge the integration PR |
 
 `sdlc-code-standards` and `create-domain-skill` are cross-cutting (standards apply during all implementation; create-domain-skill onboards new workspaces).
 
@@ -35,14 +35,15 @@ Intent arrives ("I want to build X", "we need to fix Y", brain dump)
   │
   ├─ /task-decomposition     ← break a spec into an AI-coherent dependency graph of tasks
   │
-  ── DETERMINISTIC EXECUTION (autonomous engine) ─────────────────────────────
-  ├─ /spec-execution         ← THE engine: waves, Tier-0 gate, routed review, fix-loop, merge
-  │    │                        reference impl: .claude/workflows/execute-spec.js
+  ── DELIVERY (autonomous, single-executor) ──────────────────────────────────
+  ├─ /spec-execution         ← THE engine: goal leash, task list, serial burn-down,
+  │    │                        e2e validation once, adversarial integration gate
+  │    │                        policy: SKILL.md · procedures: SOP.md
   │    ├─ /pr-reviewer       ← LLM lens: emit graded JSON findings (machine-parseable)
   │    └─ /sdlc-code-review  ← render pr-reviewer findings as a human-readable review comment
   │
-  ── REVIEW + COMPLETION (LLM panel; human merges) ───────────────────────────
-  ├─ /spec-amendment         ← amend a spec when reality pushes back mid-flight (engine escalates here)
+  ── COMPLETION (human merges the integration PR) ────────────────────────────
+  ├─ /spec-amendment         ← amend a spec when reality pushes back mid-flight (a run escalates here)
   │
   ├─ /spec-completion        ← verify success criteria and close out a finished spec
   │
@@ -101,7 +102,6 @@ your-repo/
 │
 ├── .claude/skills → ../.ai/skills    ← symlink; Claude Code loads from here
 │
-├── .claude/workflows/execute-spec.js ← reference deterministic execution engine
 ├── .claude/hooks/                    ← advisory SDLC hooks (.mjs)
 ├── specs/sdlc-state-machine.yaml     ← single source of truth for phases + transitions
 ├── scripts/sdlc/                     ← validators (state machine, phase memory) + gen-handoffs
@@ -133,7 +133,7 @@ This is declarative — adding a new domain skill requires only creating the SKI
 ### Portability
 
 - **New team member clones repo** → gets all skills automatically. Claude Code picks them up via the `.claude/skills` symlink.
-- **The engine's executor** reads `.ai/AGENTS.md` (the generic executor brief) and task files, which encode the same principles.
+- **Any dispatched executor** reads `.ai/AGENTS.md` (the generic executor brief) and task files, which encode the same principles.
 - **Switching to another agent** → the skills are markdown. Adapt the SKILL.md format to the new agent's convention. The content (process, checklists, standards) stays the same.
 
 ## Skill details
@@ -211,7 +211,7 @@ Three modes:
 - Each task maps to one or a few acceptance criteria
 - **A task is one coherent unit of AI execution — sized by coherence and bounded `touches`, NOT by line count or "small enough for a human-reviewable PR."** The reviewer of record is an LLM multi-lens panel. A coherent 800-line token layer is one task.
 - Every executable task declares a non-empty `touches` set (file globs it may modify), bounded to one workspace; parallel tasks must have non-overlapping `touches`
-- `risk` and `tier` are set on every executable task (tier is a hint; the engine resolves the real tier)
+- `risk` and `tier` are set on every executable task (tier is a hint; the registry can only raise it)
 - `evidence:` field is created empty on every AC — the implementing agent fills it before PR review
 - Dependencies are explicit and minimal (maximize parallelism)
 - Every executable task has everything in the task file (no assumed context)
@@ -259,26 +259,26 @@ Three modes:
 
 **Trigger:** an active spec has tasks decomposed and is ready to execute, "execute SPEC-NNN," "run the spec"
 
-**This is THE deterministic execution engine — the autonomous half of the SDLC.** It is operationally implemented by a reference **Workflow script** at `.claude/workflows/execute-spec.js` (`Workflow({ name: 'execute-spec', args: { spec: 'SPEC-NNN' } })`); on other runtimes the same algorithm runs by hand. **Pure-core / effects-at-the-edges:** routing, tier resolution, lens selection, verdict folding, branch naming, and wave planning are total functions; only thin `agent()` wrappers touch the model. Branches are id-derived (`claude/SPEC-NNN-TASK-NNN`), so re-runs are idempotent and resume wave-level. The orchestrator **invokes** the engine rather than hand-dispatching tasks.
+**This is THE delivery engine — the autonomous half of the SDLC.** The agent running the skill *is* the executor: policy in `SKILL.md`, procedures in `SOP.md`. A deterministic Workflow engine held this role until [ADR-003](specs/adrs/ADR-003-goal-oriented-single-executor-delivery.md) retired it on measured cost; delivery is now goal-oriented judgment above a machine-readable floor.
 
-**What it does:** Drives the full execution loop:
-1. Resolves integration strategy: `branch` (integration PR to main) or `direct` (task PRs straight to main), from explicit frontmatter or a heuristic
-2. Builds the wave graph from `_index.yaml` task dependencies; validates each task's typed contract (non-empty `touches`, valid routing/risk/tier)
-3. Dispatches each wave of tasks in parallel (one worktree-isolated executor per task)
-4. Gates on a cheap, attributable **Tier-0** (lint/typecheck/unit tests for the workspace) before any reviewer runs — a red PR goes to a fix agent, not a reviewer
-5. Dispatches a **routed multi-lens review**: lenses = `baseLenses(workspace) ∪` constraints whose `when` matches the task's `touches` (from `review-constraints.yaml`); validates each envelope against `review-envelope.schema.json`
-6. Routes by severity per `review-primitives.md`: `accept`, `batch_followup_and_accept`, `fix_loop` (cap 3/task), `escalate`
-7. Escalates cross-skill signals back into a judgment phase: `task:scope` blocker → task-decomposition re-plan; `spec:gap` → gap-capture; `spec:*` blocker → spec-amendment (cap 2)
-8. In `branch` mode: merges accepted task branches into `feat/SPEC-NNN`, runs the expensive integration verification (captured as EVIDENCE), then opens the integration PR to `main` — **a human merges; the engine never does**
-9. Hands off to `spec-completion` after all tasks are merged
+**What it does:** Drives the whole spec to one integration PR:
+1. Refuses to start unless the spec is `active`, decomposed, and past the fail-closed plan-review gate (`scripts/sdlc/plan-gate.mjs`)
+2. Arms the goal leash (`.claude/.sdlc-goal-<session_id>`) so the run cannot stop half-done — `met` and `escalated` are the only release words
+3. Opens a **visible task list** (one entry per task, plus e2e validation and the gate) and keeps it current
+4. Cuts `feat/spec-NNN` off `main`; nothing for the spec reaches `main` any other way
+5. Burns the tasks down **serially, inline**: implement → the task's own tests → **self-review the diff** → PR into the integration branch → merge → delete the branch → next. Worktree-isolated subagents are the exception for a large spec
+6. Runs **end-to-end validation once** before the gate, with attached evidence
+7. Opens ONE integration PR and dispatches a **multi-lens adversarial panel** — independently, clean contexts, every envelope validated (`scripts/sdlc/validate-review-envelope.mjs`), the registry evaluated across the whole diff — looping until no blocker or major survives
+8. Leaves the PR open — **a human merges; the agent never does** — and hands off to `spec-completion`
+9. Escalates rather than grinding: `task:scope` → task-decomposition re-plan; `spec:gap` → gap-capture; `spec:*` → spec-amendment (amendment cap); security/data-loss/owner calls → hard stop
 
-**Writes telemetry** (where the runtime has a filesystem) to `specs/tasks/SPEC-NNN/_execution.log.jsonl` — one JSONL event per action, append-only, restart-safe.
+**Optional telemetry:** `specs/tasks/SPEC-NNN/_execution.log.jsonl` — one JSONL event per action, append-only, restart-safe (SOP §9). Recommended, not a gate.
 
 **Interacts with:** `pr-reviewer` (LLM lens grading), `sdlc-code-review` (human-readable rendering), `task-decomposition` (re-plan on `task:scope`), `spec-amendment` (on `spec:*` signals), `spec-completion` (final gate). **Contracts:** `review-primitives.md`, `review-constraints.yaml`, `review-envelope.schema.json`, `specs/sdlc-state-machine.yaml`.
 
 ### 4. pr-reviewer
 
-**Trigger:** Auto-invoked by `spec-execution` at the Tier 1 review step. Also invocable on demand: "review PR #NNN," "grade this PR."
+**Trigger:** Dispatched by `spec-execution` at the integration gate. Also invocable on demand: "review PR #NNN," "grade this PR."
 
 **What it does:** Reviews a single PR against its task file, parent spec, and applicable ADRs. Emits the shared JSON envelope from `review-primitives.md` with severity-graded findings.
 
@@ -382,9 +382,9 @@ sdlc-code-review      → "Here's the exact checklist: read diff, find spec, che
 Domain skill          → "Here's how to write dbt models: CTE ordering, naming, macros..."
 ```
 
-**There is no dispatch skill.** Dispatch is not an orchestration model an agent improvises — the `spec-execution` engine dispatches a worktree-isolated local executor per task. The generic executor brief is `.ai/AGENTS.md`; the orchestrator config and engine-invocation are in `.ai/CLAUDE.md`. The task files carry everything any executor needs (`touches`, ACs, constraints).
+**There is no dispatch skill.** Delivery is not a dispatch problem: the agent running `spec-execution` implements the tasks itself, and fans out to worktree-isolated subagents only as an exception for a large spec. The generic executor brief is `.ai/AGENTS.md`; the orchestrator config is `.ai/CLAUDE.md`. The task files carry everything any executor needs (`touches`, ACs, constraints).
 
-**The execution engine + spine.** `spec-execution` is implemented by the reference Workflow `.claude/workflows/execute-spec.js`, sitting on the spine: the state machine (`specs/sdlc-state-machine.yaml`, the single source of truth for phases/transitions consumed by the advisory `.claude/hooks/`), the `phase:` memory block in each `_index.yaml`, and the review contracts (`review-primitives.md`, `review-constraints.yaml`, `review-envelope.schema.json`). Validators live in `scripts/sdlc/`.
+**The delivery spine.** `spec-execution` sits on the spine: the state machine (`specs/sdlc-state-machine.yaml`, the single source of truth for phases/transitions consumed by the advisory `.claude/hooks/`), the `phase:` memory block in each `_index.yaml`, and the review contracts (`review-primitives.md`, `review-constraints.yaml`, `review-envelope.schema.json`). Validators live in `scripts/sdlc/`.
 
 ## Relationship to domain skills
 

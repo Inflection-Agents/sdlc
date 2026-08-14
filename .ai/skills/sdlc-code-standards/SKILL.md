@@ -167,7 +167,7 @@ For each dependency listed in your task's `depends_on`:
 
 This takes 2 minutes and prevents hours of rework from building on a contract that doesn't exist.
 
-**For any executor (local or cloud):** verify the upstream contract before implementing. The deterministic engine dispatches against the task file's declared `touches` and boundary constraints; if the promised contract isn't actually in the codebase, stop and flag it rather than building on a contract that doesn't exist.
+**Whoever implements the task** — the delivery agent or a dispatched subagent — verifies the upstream contract before implementing. You are working against the task file's declared `touches` and boundary constraints; if the promised contract isn't actually in the codebase, stop and flag it rather than building on a contract that doesn't exist.
 
 ## Red Flags — STOP
 

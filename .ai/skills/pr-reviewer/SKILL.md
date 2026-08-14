@@ -23,7 +23,8 @@ INPUTS:
 
 GROUNDING (per review-primitives.md > PR-side canonical prefix table — the authoritative set):
   - Allowed citation prefixes (lowercase colon form, mirroring review-primitives.md;
-    these MUST match the engine's ALLOWED_PREFIX): ac:AC-NNN; adr:ADR-NNN;
+    these MUST match PR_SIDE_PREFIXES in scripts/sdlc/validate-review-envelope.mjs,
+    which rejects an ungrounded blocking finding): ac:AC-NNN; adr:ADR-NNN;
     std:<section-anchor>; monorepo:boundary; monorepo:workspace-scope;
     monorepo:verify-coverage; task:blocks:<id>; task:scope; task:evidence-missing;
     spec:ambiguous-ac; spec:contradictory-ac; spec:wrong-design; spec:missing-section;

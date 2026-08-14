@@ -144,7 +144,7 @@ if git rev-parse --git-dir &> /dev/null 2>&1; then
     ok ".claude/skills already present"
   fi
 
-  # ── Spine + engine: state machine, workflow, hooks, review contracts, validators ──
+  # ── Spine: state machine, hooks, review contracts, validators + gates ──
 
   # Copy the SDLC state machine (single source of truth for phases/handoffs)
   if [ ! -f "$REPO_ROOT/specs/sdlc-state-machine.yaml" ]; then
@@ -155,18 +155,6 @@ if git rev-parse --git-dir &> /dev/null 2>&1; then
     fi
   else
     ok "specs/sdlc-state-machine.yaml exists"
-  fi
-
-  # Copy the deterministic execution Workflow engine
-  if [ ! -f "$REPO_ROOT/.claude/workflows/execute-spec.js" ]; then
-    if [ -f "$SCRIPT_DIR/.claude/workflows/execute-spec.js" ]; then
-      info "Copying spec-execution Workflow engine..."
-      mkdir -p "$REPO_ROOT/.claude/workflows"
-      cp "$SCRIPT_DIR/.claude/workflows/execute-spec.js" "$REPO_ROOT/.claude/workflows/execute-spec.js"
-      ok "Copied .claude/workflows/execute-spec.js — the deterministic execution engine"
-    fi
-  else
-    ok ".claude/workflows/execute-spec.js exists"
   fi
 
   # Copy advisory hooks (must travel with the repo, hence .claude/hooks/)
@@ -228,7 +216,7 @@ if git rev-parse --git-dir &> /dev/null 2>&1; then
       info "Copying SDLC validators..."
       mkdir -p "$REPO_ROOT/scripts/sdlc"
       cp -r "$SCRIPT_DIR/scripts/sdlc/"* "$REPO_ROOT/scripts/sdlc/"
-      ok "Copied scripts/sdlc/ validators (state machine, phase memory, handoffs)"
+      ok "Copied scripts/sdlc/ validators + delivery gates (state machine, phase memory, handoffs, plan gate, reviewer routing, envelope validation, registry globs)"
     else
       ok "scripts/sdlc/ directory exists"
     fi
@@ -249,7 +237,7 @@ echo "  2. Install Superpowers in Claude Code: /plugin install superpowers@claud
 echo "  3. Ensure Linear labels exist: claude-code, human"
 echo "  4. Write your first spec: cp specs/templates/spec.md specs/SPEC-001-name.md"
 echo ""
-echo "Configure the spine + engine:"
+echo "Configure the spine:"
 echo "  5. Fill in .ai/skills/review-constraints.yaml with your repo's real review"
 echo "     lenses and invariants (the shipped constraints are generic examples)"
 echo "  6. Customize specs/sdlc-state-machine.yaml domain_routing to map your"
@@ -257,4 +245,5 @@ echo "     repo's workspaces to owners/reviewers"
 echo "  7. Hooks in .claude/hooks/ are ADVISORY by default (they warn, not block)."
 echo "     Review .claude/settings.json and tighten them once you trust the flow."
 echo "  8. Validate the spine: node scripts/sdlc/validate-state-machine.mjs"
+echo "     and check the registry rows resolve: node scripts/sdlc/check-review-constraint-globs.mjs"
 echo ""

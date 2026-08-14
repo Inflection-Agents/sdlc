@@ -7,14 +7,19 @@
 # (see scripts/sdlc/gen-handoffs.mjs and scripts/sdlc/validate-state-machine.mjs). Do not
 # restate phase/trigger information elsewhere — change it here and let the consumers re-derive.
 #
-# THE SHAPE — judgment up front, deterministic execution behind:
+# THE SHAPE — judgment up front, autonomous single-executor delivery behind:
 #
-#   intent-triage → spec-authoring → task-decomposition │ spec-execution → code-review → spec-completion
-#     (human+LLM)     (human+LLM)       (human+LLM)      │  (DETERMINISTIC)    (LLM)      (human+LLM)
-#           ── JUDGMENT PHASES: collaborative, gated ──  │  ── AUTONOMOUS ENGINE ──
+#   intent-triage → spec-authoring → task-decomposition │ spec-execution → spec-completion
+#     (human+LLM)     (human+LLM)       (human+LLM)      │  (AUTONOMOUS)     (human+LLM)
+#           ── JUDGMENT PHASES: collaborative, gated ──  │  ── DELIVERY ──
 #
 # Scarce human attention belongs in the judgment phases, where quality is cheapest to assure.
-# Once the spec + task graph are signed off, spec-execution runs deterministically and autonomously.
+# Once the spec + task graph are signed off, spec-execution runs autonomously to one integration PR.
+#
+# Review happens IN-RUN during delivery (ADR-003): the executor self-reviews each task, and the
+# single integration PR faces a multi-lens adversarial panel at the gate. There is therefore NO
+# standalone `code-review` phase — spec-execution hands off directly to spec-completion, and
+# `pr-reviewer` is the reviewer-knowledge skill those dispatched reviewers consume.
 #
 # Stable downstream contract (do not rename without coordinating the hooks + scripts):
 #   phases[].{id, entry_triggers, preconditions, owner_skill, exit_condition, next_phase, next_trigger}
@@ -25,14 +30,21 @@
 # Stop/SubagentStop + UserPromptSubmit hooks). Each spec's `specs/tasks/SPEC-NNN/_index.yaml` may carry:
 #
 #   phase:
-#     current: code-review            # a phases[].id value, or `none` when no phase is active
+#     current: spec-execution         # a phases[].id value, or `none` when no phase is active
 #     next_action: spec-completion     # the current phase's next_phase (a phases[].id), or `none`
 #     next_trigger: 'close out SPEC-NNN'  # the current phase's next_trigger string
 #     exit_condition_met: false        # set true by the owner_skill at phase exit; read by stop-handoff
+#     handoff_surfaced: false          # set true by the owner_skill AFTER it surfaces the handoff
 #     updated: 2026-06-22              # ISO-8601 date the block was last written (on phase exit)
 #
 # The `phase:` block is additive and optional: existing `_index.yaml` files without it stay
 # valid. owner_skills read it on entry (to confirm the phase) and write it on exit (to advance).
+#
+# `handoff_surfaced` is the Stop hook's block cap and the hook NEVER writes it — only reads it.
+# An owner_skill that sets `exit_condition_met: true` and stops without also setting
+# `handoff_surfaced: true` leaves the hook re-blocking that handoff on every future session,
+# including for a spec that closed months ago. This applies to the TERMINAL phase too: a
+# completed spec still needs the flag, even though there is no next phase to hand off to.
 
 version: 1
 
@@ -86,26 +98,17 @@ phases:
       entry_triggers:
           - 'execute this spec'
           - 'execute SPEC-NNN'
+          - 'implement SPEC-NNN'
+          - 'deliver SPEC-NNN'
+          - 'finish SPEC-NNN'
           - 'run the spec'
           - 'start the execution loop'
           - 'dispatch the tasks'
       preconditions:
           - 'spec has status active and decomposed tasks with a dependency graph exist'
+          - 'the plan-review gate passes (ADR-002, fail-closed): the _index.yaml plan_review block is present, approved, and not needs-rework — verify with scripts/sdlc/plan-gate.mjs'
       owner_skill: spec-execution
-      exit_condition: 'all tasks merged into the integration branch and the integration PR (feat/spec-NNN -> main) is open'
-      next_phase: code-review
-      next_trigger: 'review the PRs for SPEC-NNN'
-
-    - id: code-review
-      entry_triggers:
-          - 'review the PR'
-          - 'review this PR'
-          - 'grade the PR'
-          - 'review the PRs for SPEC-NNN'
-      preconditions:
-          - 'one or more PRs exist and the author is not the reviewer'
-      owner_skill: pr-reviewer
-      exit_condition: 'every PR carries a graded verdict and accepted PRs are merged'
+      exit_condition: 'single-executor delivery (ADR-003): the owner skill armed a session goal leash (.claude/.sdlc-goal-<session_id>, enforced by the Stop hook), kept a visible task list covering every task plus end-to-end validation and the integration gate, cut the integration branch feat/spec-NNN off main, and burned the tasks down ITSELF one at a time — each task gated by its own tests (or the workspace equivalent) plus an executor self-review, landed via a short-lived PR into feat/spec-NNN that is merged and deleted before the next task starts, with no PR, branch or worktree left lingering; sub-agent fan-out is the exception, for large specs with genuinely non-overlapping tasks only, and carries the same merge discipline. End-to-end validation ran ONCE before the gate with attached evidence. Exit (success) = the goal file is status:met and ONE integration PR (feat/spec-NNN -> main) is open, carrying every spec success criterion mapped to its evidence, having survived a full multi-lens adversarial review panel — independently dispatched, every envelope validated with scripts/sdlc/validate-review-envelope.mjs, the constraints registry evaluated in full across the whole diff — looped until no blocker or major survives, and LEFT OPEN for the human to review and merge. Nothing for a spec reaches main except by merging that branch; the agent never merges or pushes to main. A HALT is goal file status:escalated with a surfaced reason — security/data-loss/payment risk, an owner decision, the same integration finding surviving two panel rounds, the amendment cap (spec.version reaching 4), or a task that cannot land and cannot be fixed at the root'
       next_phase: spec-completion
       next_trigger: 'close out SPEC-NNN'
 
@@ -116,7 +119,7 @@ phases:
           - 'verify the spec'
           - 'close out SPEC-NNN'
       preconditions:
-          - 'all tasks for the spec are done or nearly done'
+          - "all tasks for the spec are done or nearly done and the integration PR is merged — the delivery run's independent integration review already graded the success criteria, so completion does not re-grade (when the PR was opened outside a delivery run, with no integration-reviewer verdict on the record, verify the success criteria here)"
       owner_skill: spec-completion
       exit_condition: 'spec success criteria verified end-to-end and spec status set to a terminal state'
       next_phase: none
@@ -153,11 +156,15 @@ domain_routing:
 
 # Non-phase SDLC skills that are intentionally NOT a phase owner_skill or a domain skill.
 # Listing a skill here records that it is exempt from the per-phase `## Handoff` footer contract.
-# Reviewers invoked BY a phase (spec-reviewer, pr-reviewer specialists), reference docs, and
-# authoring helpers live here. (pr-reviewer IS the `code-review` phase owner_skill, so it is NOT exempt.)
+# Reviewers invoked BY a phase (spec-reviewer, the pr-reviewer specialists), reference docs, and
+# authoring helpers live here. `pr-reviewer` is exempt as of ADR-003: the standalone `code-review`
+# phase was removed because review happens IN-RUN during delivery (the executor's per-task
+# self-review + the adversarial integration panel), so there is no longer a separate
+# post-execution phase for it to own. It remains the reviewer-knowledge skill that the dispatched
+# reviewer roles consume, and the entry point for an ad-hoc PR review outside a delivery run.
 exempt:
     - spec-reviewer
-    - pr-reviewer        # note: also the `code-review` phase owner; listed for discoverability only
+    - pr-reviewer
     - sdlc-code-standards
     - sdlc-code-review
     - create-domain-skill

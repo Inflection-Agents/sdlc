@@ -50,6 +50,13 @@ const planApproved = (pr) => !!pr && pr.approved === true && pr.status !== 'need
 A *missing* `plan_review` block is treated identically to an unapproved one — HALT. The block is additive to
 the `_index.yaml` schema (files without it stay schema-valid), but the engine fails closed on it.
 
+> **Re-homed by [ADR-003](ADR-003-goal-oriented-single-executor-delivery.md) (2026-08-14).** The
+> decision stands unchanged — the verdict lives in `_index.yaml` and the gate is fail-closed. Its
+> enforcement point moved: `planApproved` lives in
+> [`scripts/sdlc/plan-gate.mjs`](../../scripts/sdlc/plan-gate.mjs) and is checked by the `spec-execution`
+> skill (§1) before a delivery run touches anything, and by CI — instead of by the deleted engine at its
+> Plan phase.
+
 ## Consequences
 
 **Good.** The gate is structural and un-skippable. The verdict lives where `execute-spec` already reads,

@@ -30,14 +30,25 @@ the state machine's `domain_routing` (a no-op until a repo populates that block)
 per-session override file (`.claude/.sdlc-override-<session_id>`) that the
 edit/write gate honors. It never blocks and is silent on any error.
 
-**`stop-handoff.mjs`** (Stop + SubagentStop) — an advisory next-phase handoff at
-a phase exit. A Stop hook cannot print to the user, so when a spec's
-`specs/tasks/SPEC-NNN/_index.yaml` `phase:` block has `exit_condition_met: true`
-(and the handoff has not already been surfaced), it blocks the stop exactly once
-with a continuation reason naming the `next_phase` + `next_trigger` (read from
-the state machine, keyed by `phase.current`) so the agent surfaces the handoff.
-It is a no-op for mid-phase work, honors the block cap (`stop_hook_active`), and
-is silent on any error.
+**`stop-handoff.mjs`** (Stop + SubagentStop) — two jobs. (1) An advisory
+next-phase handoff at a phase exit: a Stop hook cannot print to the user, so when
+a spec's `specs/tasks/SPEC-NNN/_index.yaml` `phase:` block has
+`exit_condition_met: true` (and the handoff has not already been surfaced), it
+blocks the stop exactly once with a continuation reason naming the `next_phase` +
+`next_trigger` (read from the state machine, keyed by `phase.current`). It is a
+no-op for mid-phase work and honors the block cap (`stop_hook_active`).
+(2) **The delivery goal leash** (ADR-003): while
+`.claude/.sdlc-goal-<session_id>` is `status: active` it blocks the stop on
+**`Stop` only** and feeds the run's exit criteria back, so a delivery run cannot
+drift back to the user half-done. `met` and `escalated` are the only release
+words. Unlike the handoff branch it deliberately does not release on
+`stop_hook_active` — a one-shot block is not a leash — but it is bounded by a
+hook-owned counter (`.sdlc-goalblocks-<session_id>`, default 12, a goal's
+`max_blocks` may only lower it), expires 24h after `armed_at`, and fails OPEN
+whenever that bound cannot be enforced. `.sdlc-goal-current` is a one-shot arming
+name the first `Stop` claims by renaming to the session-keyed path; echoed goal
+text is clamped and labeled untrusted. Covered by
+`.claude/hooks/__tests__/stop-handoff-goal-leash.test.mjs`. Silent on any error.
 
 **`pre-tool-use-edit-write.mjs`** (PreToolUse, matcher `Edit|Write`) — the
 no-active-task gate. It blocks an edit to an implementation-code path when there
@@ -90,6 +101,46 @@ marker-delimited `## Handoff` footer on each phase owner-skill `SKILL.md`
 preserved, and `--check` reports drift without writing (suitable as a CI gate).
 Run: `node scripts/sdlc/gen-handoffs.mjs` (write) or
 `node scripts/sdlc/gen-handoffs.mjs --check` (verify).
+
+**`plan-gate.mjs`** — the fail-closed plan-review gate (ADR-002, re-homed by
+ADR-003). Reads the top-level `plan_review:` block from one or more
+`specs/tasks/SPEC-NNN/_index.yaml` and exits 0 only when it is present,
+`approved: true`, and not `needs-rework`. A *missing* block halts exactly like an
+unapproved one. `spec-execution` runs it before a delivery run starts; run it in
+CI too. Exports `planApproved` / `parsePlanReviewBlock` / `checkPlanGate`. Run:
+`node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml`.
+
+**`reviewer-routing.mjs`** — lens → reviewer resolution (ADR-001, re-homed by
+ADR-003). The binding is data on the constraint that owns the lens
+(`.ai/skills/review-constraints.yaml` → optional `agent:`); a lens with no such
+constraint folds into the generic `task-reviewer`. Exports `agentForLens` /
+`parseConstraints` / `loadConstraints`. Run:
+`node scripts/sdlc/reviewer-routing.mjs <lens>` or `--list`.
+
+**`validate-review-envelope.mjs`** — the owner of reviewer-envelope validation.
+Every returned verdict is checked against `.ai/skills/review-envelope.schema.json`
+plus the grounding rule (a `blocker`/`major` finding must cite an allowed PR-side
+prefix). Exit **0** valid + assessed (fold the findings), **2** valid but
+`reviewer_status: abstained` (escalate — never an accept), **3** malformed,
+absent or ungrounded (contract violation: re-dispatch or escalate). Never let a
+malformed envelope fold to "no findings" — that is the silent-accept path.
+Exports `validateEnvelope` / `PR_SIDE_PREFIXES`. Run:
+`node scripts/sdlc/validate-review-envelope.mjs <envelope.json>` (or `-` for stdin).
+
+**`check-review-constraint-globs.mjs`** — resolvability gate for the review
+registry. Every `when.touches` glob should match at least one real file: a dead
+glob silently advertises coverage that can never fire, which matters more now that
+the registry is the only mechanical review floor. **Warn by default** (the shipped
+registry is illustrative); pass `--enforce` in CI once a repo has replaced the
+example rows. Run: `node scripts/sdlc/check-review-constraint-globs.mjs [--enforce]`.
+
+## Tests
+
+`node --test scripts/sdlc/*.test.mjs` covers the plan gate, reviewer routing, the
+envelope validator, and PR-side prefix parity (`review-primitives.md` ↔ the
+validator's `PR_SIDE_PREFIXES` ↔ the envelope schema ↔ the `pr-reviewer`
+GROUNDING block). `node --test .claude/hooks/__tests__/*.test.mjs` covers the goal
+leash. Both are dependency-free and hermetic.
 
 ## Forthcoming validators
 

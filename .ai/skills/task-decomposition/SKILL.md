@@ -173,9 +173,9 @@ Rules:
 
 Apply one routing value per task. The only routing values are `claude-code` and `human`.
 
-**`claude-code`** (default) — the engine's worktree-isolated local executor implements the task. Route here unless a human decision is required. Suitable for the full range of executable work: self-contained changes with clear acceptance criteria, work needing local env / MCP / running services / credentials, architecture judgment, interactive debugging, and multi-file refactors with cascading decisions.
+**`claude-code`** (default) — the delivery agent implements the task itself (or, for a large spec with genuinely non-overlapping tasks, a worktree-isolated subagent). Route here unless a human decision is required. Suitable for the full range of executable work: self-contained changes with clear acceptance criteria, work needing local env / MCP / running services / credentials, architecture judgment, interactive debugging, and multi-file refactors with cascading decisions.
 
-**`human`** — ANY of these is true (the engine defers the task and surfaces it for a human):
+**`human`** — ANY of these is true (a delivery run defers the task and surfaces it on its task list):
 - Architecture vision or framework decisions
 - Priority/tradeoff calls
 - Stakeholder communication
@@ -203,7 +203,7 @@ id: TASK-NNN
 spec: SPEC-NNN
 title: "Clear, specific title"
 status: pending
-agent: claude-code | human         # routing; the engine treats `human` as deferred
+agent: claude-code | human         # routing; a delivery run defers `human` tasks and surfaces them
 workspace: dealer-app              # primary workspace (from .ai/project.md) — one per task
 touches:                           # REQUIRED: file globs this task may modify (bounds the task)
   - src/area/**
@@ -306,6 +306,7 @@ phase:
   next_action: spec-execution
   next_trigger: "execute SPEC-NNN"
   exit_condition_met: true
+  handoff_surfaced: true       # set AFTER you surface the handoff — the hook reads it, never writes it
   updated: YYYY-MM-DD
 ```
 
@@ -323,7 +324,7 @@ Before presenting to the user, verify:
 - [ ] Each task is ONE coherent unit of AI execution (sized by coherence, not line count — no artificial fragmentation, no sprawling multi-concern tasks)
 - [ ] Every executable task declares a non-empty `touches` set, bounded to its single workspace
 - [ ] No two tasks that can run in parallel have overlapping `touches` (overlap → merge conflict → decomposition defect)
-- [ ] `risk` and `tier` are set on every executable task (tier is a hint; the engine resolves the real tier)
+- [ ] `risk` and `tier` are set on every executable task (tier is a hint; the registry can only raise it)
 - [ ] Every executable task has everything in the task file (no assumed context)
 - [ ] Every task has at least one acceptance criterion with Given/When/Then
 - [ ] `_index.yaml` matches the individual task files
@@ -376,10 +377,11 @@ plan_review:
 - Set `status` to the review outcome (`approve-ready` when clean; `approve-after-fixes` if minor fixes
   were agreed; `needs-rework` if the decomposition must be revised — in which case loop back through
   Step 2–8 before re-stamping).
-- **`execute-spec` refuses to run without this block.** At the Plan phase, before spawning any
-  executor, the engine fails closed: it HALTs unless `plan_review.approved === true` and
-  `plan_review.status !== 'needs-rework'`. A missing block halts exactly like an unapproved one. Do
-  not hand off to `spec-execution` until the owner has set `approved: true`.
+- **A delivery run refuses to start without this block.** `spec-execution` checks the gate before it
+  touches anything and fails closed: it HALTs unless `plan_review.approved === true` and
+  `plan_review.status !== 'needs-rework'`. A missing block halts exactly like an unapproved one. The
+  predicate is `node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml`, so you can verify
+  the stamp yourself. Do not hand off to `spec-execution` until the owner has set `approved: true`.
 
 ### Step 10: Open a PR
 
@@ -399,7 +401,7 @@ For each task:
 2. Set `linear_issue` field in the task file frontmatter
 3. Commit the Linear issue IDs
 
-**Next:** Hand off to the deterministic execution engine — invoke the `spec-execution` skill (`Workflow({ name: 'execute-spec', args: { spec: 'SPEC-NNN' } })` on the Claude Code runtime). The engine builds the wave graph, dispatches executors for all ready tasks in parallel, and drives the Tier-0 → review → fix → merge loop autonomously. Do not hand-dispatch tasks one at a time. On exit, set the `_index.yaml` `phase:` block (see Step 7) with `exit_condition_met: true`; the canonical handoff fields are in the generated `## Handoff` footer below.
+**Next:** Hand off to delivery — the `spec-execution` skill ("implement SPEC-NNN"). That run arms a goal leash, opens a visible task list, cuts `feat/spec-NNN`, and burns your task graph down one task at a time, then gates the assembled change on an adversarial review panel. Your graph's dependency order *is* its execution order, so get the ordering and the `touches` boundaries right here. On exit, set the `_index.yaml` `phase:` block (see Step 7) with `exit_condition_met: true`; the canonical handoff fields are in the generated `## Handoff` footer below.
 
 ---
 

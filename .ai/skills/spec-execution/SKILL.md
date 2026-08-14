@@ -1,236 +1,197 @@
 ---
 name: spec-execution
-description: Use when an active, decomposed spec needs to be executed end-to-end — drives the deterministic wave-based loop from branch creation through the integration PR. The autonomous half of the SDLC.
+description: Use when an active spec needs to be delivered end-to-end — "implement SPEC-NNN", "execute SPEC-NNN", "deliver SPEC-NNN", "finish SPEC-NNN", "run the spec", "dispatch the tasks". You are the executor: cut an integration branch, burn the tasks down yourself one at a time behind a visible task list, validate end-to-end once, then gate on a hard adversarial review of a single integration PR left open for the human to merge.
 ---
 
 # Spec Execution
 
-## Overview
+**You implement the spec yourself.** Not a dispatcher — the executor. Move fast, keep the loop
+tight, and spend the rigor where it pays: once, at the integration gate.
 
-Execute an active spec end-to-end, **deterministically and autonomously**. This is the back half
-of the SDLC — once the judgment phases (intent-triage → spec-authoring → task-decomposition) have
-produced a signed-off spec and an AI-coherent task graph, execution requires no further human
-attention until the final integration PR.
+Procedures live in **[`SOP.md`](SOP.md)** — exact commands, per-workspace verification, the
+self-review checklist, the gate checklist. Read it once at the start of a run. This file is the
+policy; the SOP is the how.
 
-The loop: build the wave graph from task dependencies → dispatch executors in parallel
-(worktree-isolated) → gate review on a green Tier-0 → dispatch routed multi-lens reviewers →
-fix-loop with a hard cap → merge each accepted task into the integration branch → run the expensive
-integration verification (captured as EVIDENCE) → open the integration PR. **A human merges to
-main; the engine never does.**
-
-**This is a rigid skill.** Every step must be followed. No shortcuts.
-
-**Announce at start:** "Using spec-execution to drive SPEC-NNN."
-
-### Reference implementation: the deterministic Workflow script
-
-This skill is operationally implemented by a **reference Workflow script** at
-`.claude/workflows/execute-spec.js`. On the Claude Code runtime, run it directly:
+## The shape
 
 ```
-Workflow({ name: 'execute-spec', args: { spec: 'SPEC-NNN' } })
+cut feat/spec-NNN  →  task → verify → self-review → PR → merge → next task  →  validate e2e once
+                          (one at a time, nothing lingers)                   →  ONE integration PR
+                                                                             →  adversarial panel,
+                                                                                loop till clean
+                                                                             →  leave open for human
 ```
 
-On any other runtime, follow the algorithm below by hand — the logic is identical. The script is the
-canonical encoding; this document is the canonical explanation. On any discrepancy, the script's
-pure-core functions win for *routing/verdict/branch/wave* logic; this document wins for *intent*.
+## 1. Check the gate, arm the goal, then start
 
-### Determinism principles (why this is a script, not a vibe)
-
-1. **Pure-core / effects-at-the-edges.** Routing (`routingOf`), tier resolution (`tier`), lens
-   selection (`lensesFor`), verdict folding (`gate`), branch naming (`branchFor`), and wave
-   planning (`buildWaves`) are **total functions** — no agents, no I/O, unit-testable. Only the
-   thin `agent()` wrappers touch the model. This is what makes the run reproducible and auditable.
-2. **Idempotent, id-derived branches.** A task's branch is a pure function of its id
-   (`claude/SPEC-NNN-TASK-NNN`). A re-run reuses the SAME branch and PR — it updates, never
-   duplicates. The integration branch is `feat/SPEC-NNN`.
-3. **Wave-level resume.** A task is `done` once its branch is merged into the integration branch
-   and its `_index.yaml` status is committed (together, per branch). A stopped run resumes by
-   re-invoking with the same `spec`: `done` tasks are skipped, unfinished tasks reuse their
-   deterministic branch. Merge + status + push happen per-branch so a crash leaves a consistent
-   index a restart can reconcile.
-4. **Typed contracts at every handoff.** Every `agent()` call that returns data validates against a
-   schema (EXEC_RESULT, ENVELOPE, EVIDENCE, PLAN, MERGE_RESULT). A malformed contract escalates;
-   it never routes on garbage.
-
-## Hard constraints
-
-Non-negotiable. Violating any one is a contract violation and must be raised as a `blocker` by any
-reviewer of this skill's behavior.
-
-1. **Worktree isolation.** Every background executor runs with `isolation: "worktree"`. Concurrent
-   file mutations from a foreground session and a background agent in one working tree race over the
-   index and working copy with no locking primitive. The fix is spatial isolation: each background
-   executor gets its own worktree. There is one local executor and worktree isolation applies to all
-   executors — no exceptions.
-
-2. **Tier-0 gates review.** No LLM reviewer is dispatched while Tier-0 (the cheap, attributable
-   per-task gate: lint, typecheck, unit tests for the task's workspace) is red. A red PR is sent to
-   a fix agent, not a reviewer, until Tier-0 is green. This is the single largest token-cost
-   optimization in the design. Tier-0 commands are workspace data (`WORKSPACES[ws].tier0`).
-
-3. **Bounded `touches`.** A task with no declared `touches` fails the typed-contract gate and is
-   refused before any agent runs. A merge conflict when folding a task branch into the integration
-   branch means the decomposition's `touches` scoping was wrong → escalate to `task-decomposition`
-   re-plan; never hand-resolve.
-
-4. **Fix-loop cap = 3 per task.** A single shared counter per task across Tier-0 fixes and
-   review-driven fixes. After 3 attempts, escalate (`fix_loop_exhausted`) — the situation needs
-   human judgment, not another mechanical fix.
-
-5. **Routed review by lens.** Review lenses are selected, not invented:
-   `lenses = baseLenses(workspace) ∪ {lens of each constraint in review-constraints.yaml whose
-   `when` matches the task's `touches`}`. The tier resolves from constraint severity (a matched
-   blocker → `fortified`). Generic lenses fold into one `task-reviewer`; each specialist lens gets
-   its own reviewer. See `review-constraints.yaml` and `review-primitives.md`.
-
-6. **Reviewer output schema validation.** Before routing on any reviewer output, validate it against
-   `review-envelope.schema.json` (envelope shape, grounded `criterion` prefixes per the Grounding
-   rules in `review-primitives.md`, severity ∈ {blocker, major, nit, suggestion}). A malformed or
-   ungrounded envelope, or an `abstained` reviewer, **escalates** — it never accepts.
-
-7. **The engine never merges to main.** Task branches merge into `feat/SPEC-NNN`. The integration PR
-   (`feat/SPEC-NNN → main`) is opened for a human to merge. (For a small, low-risk spec the owner
-   may choose `direct` integration — task PRs to `main` — via the spec's `integration_strategy`
-   field; see Integration strategy below. Even then, a human merges the PRs.)
-
-## Process
-
-### Phase 1 — Plan (initialize)
-
-1. **Verify the spec is `status: active`.** Refuse to start otherwise.
-2. **Resolve the integration strategy** (see Integration strategy below) → `branch` or `direct`.
-3. **Read the plan.** Read `specs/tasks/SPEC-NNN/_index.yaml`, every `TASK-*.md`, and
-   `.ai/skills/review-constraints.yaml`. Build the in-memory task map (id → {workspace, touches,
-   tier, risk, routing, depends_on, status, acceptance_criteria}), the constraints list, and the
-   baseLenses map.
-4. **Validate contracts.** Every executable task must have non-empty `touches` and a valid
-   routing/tier/risk. Malformed → fail that task with a contract error (do not run it).
-5. **Build the wave graph.** Topologically sort by `depends_on`; assign each task a wave integer
-   (`wave = max(wave(deps)) + 1`, or 0). A cycle → escalate (`task_graph_cycle`). Dispatch is
-   dynamic (any task whose deps are all accepted is eligible); the wave integer is informational.
-6. **Create the integration branch** (`branch` mode): `feat/SPEC-NNN` off `main`, pushed so task
-   PRs can target it. (`direct` mode: skip — task PRs target `main`.)
-
-### Phase 2 — Build (the wave loop)
-
-For each wave, run its eligible tasks **in parallel**, each through the per-task pipeline. Fold the
-wave's accepted branches into the integration branch **before** the next wave starts, so a dependent
-task branches off a tip that already carries its dependencies.
-
-**Per-task pipeline** (`buildTask`):
+**Refuse to start** unless the spec is `status: active`, its tasks are decomposed, and the
+plan-review gate passes (ADR-002 — fail closed):
 
 ```
-skip if done/cancelled · skip if routing=human (deferred, surfaced for a human)
-   ↓
-validate typed contract (touches/routing/tier/risk) — invalid → fail
-   ↓
-executor (worktree-isolated, branch claude/SPEC-NNN-TASK-NNN off the integration tip)
-   → opens/updates a PR targeting the integration branch; populates each AC's evidence:
-   ↓
-reviewAndFix:
-   Tier-0 gate (cheap: lint/typecheck/test for the workspace)
-     red  → fix agent (++fix_count; drop carry-forward); cap 3 → escalate
-     green↓
-   routed multi-lens review (tier express/standard/fortified; lenses from registry ∩ touches)
-     ↓ validate each envelope (schema + grounding) — malformed/abstained → escalate
-     ↓ apply severity → action policy (review-primitives.md):
-        task:scope blocker     → escalate to task-decomposition re-plan
-        spec:* blocker         → escalate to spec-amendment
-        design-altitude blocker→ escalate to replan
-        any blocker/major      → fix agent (++fix_count; cap 3 → escalate)
-        only nits/suggestions  → batch as follow-ups, accept
-        clean                  → accept
-   ↓
-accept → merge the task branch into the integration branch (id order), set status:done in
-         _index.yaml + the task file IN THE SAME COMMIT, push per-branch. A merge conflict →
-         escalate (decomposition touches were wrong).
+node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml
 ```
 
-A crash in one task degrades it to `failed` (escalation) — it never sinks the wave.
+Exit `0` = approved. A missing `plan_review:` block is treated exactly like an unapproved one —
+HALT and ask the owner to review and approve the plan. Missing tasks route to `task-decomposition`
+rather than being invented here.
 
-**Cross-skill signals** (detected on the aggregated finding set): a `blocker` citing `task:scope`
-routes to `task-decomposition` re-plan; a `blocker` citing `spec:*` routes to `spec-amendment`
-(subject to a per-spec amendment cap of 2); a `design`-altitude blocker routes to replan. These are
-escalations out of the autonomous loop back into a judgment phase — the only way the deterministic
-engine asks for human help.
+Then write `.claude/.sdlc-goal-current` (the first `Stop` renames it to
+`.sdlc-goal-<session_id>`; if you know your `session_id`, write that name directly):
 
-### Phase 3 — Integrate
+```json
+{
+    "version": 1,
+    "spec": "SPEC-NNN",
+    "statement": "<the user's goal, their words>",
+    "exit_criteria": [
+        "every task in _index.yaml is done or explicitly deferred with a reason",
+        "end-to-end validation ran with evidence",
+        "integration PR feat/spec-NNN -> main is open, panel-reviewed, no blockers",
+        "<any extra bar the user named>"
+    ],
+    "status": "active",
+    "reason": null,
+    "armed_at": "<ISO-8601>",
+    "updated": "<YYYY-MM-DD>"
+}
+```
 
-When no executable task remains (a pending `human` task blocks integration):
+`.claude/hooks/stop-handoff.mjs` blocks a premature stop while `status: active`. **`met` and
+`escalated` are the only release words.** Keep `armed_at` across rewrites (it anchors the 24h
+expiry); escalation reasons go in `reason`, never `status`. Never flip `met` on a run you have not
+finished — the hook reads `status`, it cannot verify a criterion. Do not put "merged" in
+`exit_criteria`; you do not merge to `main` (§6).
 
-- **Run the expensive verification** for the affected workspaces (`WORKSPACES[ws].expensiveVerify`):
-  build, full tests, any end-to-end run, capturing **EVIDENCE** (real command output + artifacts
-  like screenshots/reports). If EVIDENCE is not green → HALT and escalate. Evidence asserted without
-  captured output is a blocker.
-- **`branch` mode:** open the integration PR `feat/SPEC-NNN → main` with the spec link, per-task
-  verdicts, and a Testing Evidence section. Run an independent `integration-reviewer` against the
-  spec's **success criteria** (not just per-task ACs) plus any integration-scope constraints. If it
-  passes → mark READY FOR HUMAN MERGE. Then hand off to `spec-completion`.
-- **`direct` mode:** task PRs already merged to `main`; no integration PR. Hand off to
-  `spec-completion` against `main` HEAD.
+Then read — **in one batch** — the spec, `specs/tasks/SPEC-NNN/_index.yaml`, and every task file.
+Surface a **≤10-line plan** (task order, which tasks need a browser or an expensive data run,
+anything you expect to escalate) and **start immediately**. The goal is the authorization; there is
+no second approval gate.
 
-A human merges the integration PR. Then `spec-completion` verifies success criteria end-to-end and
-moves the spec to a terminal state.
+## 2. Keep a visible task list — always
 
-## Integration strategy
+**The run is transparent or it is not a run.** Before the first task, create a session task list
+(the `TaskCreate`/`TaskUpdate` tools, or the equivalent todo surface) with **one entry per task in
+`_index.yaml`**, in dependency order, plus a final entry each for **end-to-end validation** and the
+**integration gate**.
 
-The merge target is resolved once in Phase 1, before any executor runs:
+- Mark an entry `in_progress` **before** you touch its files, and `completed` only when its PR is
+  merged into the integration branch and its `_index.yaml` status is flipped.
+- Exactly one entry is `in_progress` at a time (that is what serial burn-down means).
+- A deferred, blocked or escalated task stays open with the reason written into its description —
+  never silently dropped.
+- New work discovered mid-run (a fix-up, a follow-up) is added as its own entry rather than folded
+  invisibly into the task in flight.
 
-- **Explicit:** the spec's `integration_strategy` frontmatter field (`branch` | `direct`) wins. An
-  unrecognized value escalates (`invalid_frontmatter_field`).
-- **Heuristic** (when the field is absent): use `branch` if any of — `breaking` in tags, more than
-  one workspace, ≥5 tasks, or a cross-workspace `blocks` edge — else `direct`. Rationale: a feature
-  branch's bookkeeping amortizes when there are many PRs or a coordinated multi-workspace landing is
-  needed; a small single-workspace change merges directly.
+Anyone reading the session must be able to see, at any moment and without asking, which task is in
+flight and what is left. This list is the run's status surface — it does not replace the
+`_index.yaml` status flips or the goal file, and none of the three may contradict the others.
 
-`branch` → task PRs target `feat/SPEC-NNN`, then one integration PR to `main`. `direct` → task PRs
-target `main`, no integration PR. The strategy is known at every merge point.
+## 3. Integration branch — always
 
-## Failure escalation
+Cut `feat/spec-NNN` from `main` before the first task. **Every change for this spec lands there,
+and nothing reaches `main` except by merging that branch.** No task PR targets `main`, no direct
+commits to `main`, ever.
 
-Every escalation notifies the spec owner and halts the affected task (not the whole run unless the
-graph is unsatisfiable). Triggers:
+## 4. Burn the tasks down — serially, by default
 
-| Trigger | Where |
-|---|---|
-| `task_graph_cycle` — dependency cycle | wave-graph build |
-| `invalid_frontmatter_field` — bad `integration_strategy` | Phase 1 strategy resolution |
-| contract invalid — missing `touches` / bad routing/tier/risk | typed-contract gate |
-| `dispatch_failed` — worktree creation or executor crash before a PR | dispatch wrapper |
-| Tier-0 red after the fix cap, or same failure fingerprint 3× | per-task loop |
-| `reviewer_contract_violation` — malformed/ungrounded/abstained envelope | schema-validation step |
-| `fix_loop_exhausted` — fix counter > 3 | per-task loop |
-| `task:scope` blocker → re-plan · `spec:*` blocker → amendment · design-altitude → replan | cross-skill signals |
-| merge conflict into the integration branch | per-wave merge |
-| integration EVIDENCE not green | Phase 3 |
-| wall-clock per task exceeds the budget (recommend 4h) | watchdog |
+**You implement each task inline.** One at a time, in dependency order:
 
-## Telemetry (optional, recommended)
+> branch off the current `feat/spec-NNN` tip → implement → the task's own tests green → self-review
+> → PR into `feat/spec-NNN` → merge it yourself on green → delete the branch → next task
 
-Where the runtime has a filesystem, append per-task events to
-`specs/tasks/SPEC-NNN/_execution.log.jsonl` (JSONL, append-only, restart-safe): `dispatched`,
-`tier_0`, `tier_1`, `tier_2`, `fix_loop_iteration`, `routed`, `merged`, `escalated`, plus per-spec
-`integration_strategy_resolved`. This makes a run auditable and lets you reconstruct counters
-(amendment count, gap count) from the log on resume. (The Workflow runtime has no filesystem, so the
-reference script emits `log()` lines instead; finer-grained, fix-round-level resume is a planned
-hardening.)
+Four rules, and they are the ones that matter:
 
-## References (runtime contracts — change them there, not here)
+1. **Only the task's own tests (or the workspace equivalent) gate a task.** No reviewer subagent, no
+   envelope, no fix-loop ceremony per task. SOP §3.
+2. **You self-review before opening the task PR** and fix what it finds — acceptance criteria,
+   declared `touches`, scope creep, dead code, generated-artifact diffs, the obvious failure mode.
+   SOP §4.
+3. **Task N merges before task N+1 starts.** Every later task branches off that tip; an unmerged
+   task means the next one is built on a base missing it.
+4. **Nothing lingers.** After a task: no open PR, no remote branch, no local branch, no worktree.
 
-- `review-primitives.md` — severity spine, output schema, grounding rules, carry-forward,
-  severity→action policy. The single runtime source of truth for *what reviewers produce and how
-  severity routes to action*.
-- `review-constraints.yaml` — the lens/constraint registry keyed on `touches`; `baseLenses` per
-  workspace.
-- `review-envelope.schema.json` — the one reviewer-output schema.
-- `.claude/workflows/execute-spec.js` — the reference engine (pure-core + effects + `run()`).
-- `specs/sdlc-state-machine.yaml` — phase definitions; this skill owns the `spec-execution` phase.
+Sub-agents are the **exception**, reserved for a genuinely large spec with non-overlapping tasks —
+SOP §5. If you use one, `isolation: "worktree"` is mandatory, and the merge discipline above is
+unchanged.
 
-On exit (integration PR open in `branch` mode, or all task PRs merged in `direct` mode), set the
-`_index.yaml` `phase:` block to `{ current: spec-execution, next_action: code-review,
-next_trigger: "review the PRs for SPEC-NNN", exit_condition_met: true }` before handing off (the
-canonical handoff fields are in the generated `## Handoff` footer below).
+## 5. Validate end-to-end — once, before the gate
+
+Not per task. After the last task merges, run what the spec earns: the full build, the full test
+suite, the real data pipeline where one exists, the app driven in a real browser to pixel-level
+verification for any user-visible change, and performance where it matters. Commands: SOP §6.
+
+Attach the output as evidence. Never claim a validation ran without it; if one is genuinely not
+runnable, name it and say why.
+
+## 6. The integration gate — where the rigor lives
+
+Open `feat/spec-NNN -> main` carrying the evidence and every spec success criterion mapped to how it
+was verified. Then dispatch a **full multi-lens adversarial panel** — concurrently, one message,
+clean contexts, no `Edit`/`Write` — and **loop until no blocker or major survives**, re-dispatching
+the panel each round rather than spot-checking the fix. Panel composition, lens routing and the
+exit codes are in SOP §7.
+
+This is the one place `review-constraints.yaml` is evaluated **in full, across the whole diff**
+(not per task, where a narrowly-declared `touches` set makes matching unreliable). Lens → reviewer
+routing is registry data (ADR-001): `node scripts/sdlc/reviewer-routing.mjs <lens>`.
+
+Two rules that are not negotiable:
+
+- **Independence is structural here.** Every verdict comes from a separately dispatched reviewer,
+  and every envelope is validated (`node scripts/sdlc/validate-review-envelope.mjs <file>`).
+  Task-level self-review (§4, rule 2) is the deliberate exception, bought back in full at this gate.
+  A malformed, ungrounded or absent envelope is never a clean review.
+- **Leave the PR open.** The human reviews and merges it. You never merge to `main`, never push to
+  `main`, never self-approve.
+
+## 7. Exit
+
+When every exit criterion holds — verified, not assumed:
+
+1. Set the goal file `status: met`.
+2. Delete **your own** goal file and counter by exact path (`.claude/.sdlc-goal-<session_id>`, named
+   in the block reason, plus `.sdlc-goalblocks-<session_id>`). Never `rm .claude/.sdlc-goal-*` —
+   that disarms every concurrent run.
+3. Close out the task list: every entry `completed` or explicitly deferred with a reason.
+4. Write the `phase:` block to `_index.yaml` (below).
+5. Hand off to `spec-completion`, stating what satisfied each criterion — that summary is the only
+   external check on `status`, since nothing verifies it mechanically.
+
+## 8. Escalate instead of spinning
+
+Set `status: escalated`, put why in `reason`, surface it, stop. Escalate on: security, data-loss or
+payment risk (hard stop); a decision that is the owner's; the same integration finding surviving two
+panel rounds; the amendment cap (`spec.version − 1 ≥ 3`); a task that cannot land and cannot be
+fixed at the root.
+
+## Token discipline
+
+Read the spec, the task index and each task **once**, batched — never re-read what you have read.
+Read the SOP once per run. No per-task status essays and no restating the plan: the task list is the
+status report. Report when a task merges and at the gate.
+
+## Phase memory
+
+`specs/tasks/SPEC-NNN/_index.yaml` may carry a spec-level `phase:` block (see `spec-schema.md`).
+
+**On entry:** confirm `phase.current` is `task-decomposition` (handing off here) or `spec-execution`
+(resuming). A later phase means reconcile first; a missing block is valid.
+
+**On exit** (integration PR open, panel-clean, awaiting human merge):
+
+```yaml
+phase:
+    current: spec-execution
+    next_action: spec-completion
+    next_trigger: 'close out SPEC-NNN'
+    exit_condition_met: true
+    handoff_surfaced: true
+    updated: <YYYY-MM-DD>
+```
+
+Set `handoff_surfaced: true` **after** you surface the handoff (the hook reads it, never writes it —
+without it, it re-blocks every turn). Take `next_action`/`next_trigger` from
+`specs/sdlc-state-machine.yaml`; never restate the transition table here.
 
 <!-- sdlc:handoff:start -->
 <!-- GENERATED from specs/sdlc-state-machine.yaml by scripts/sdlc/gen-handoffs.mjs — do not edit between markers; re-run the generator. -->
@@ -243,6 +204,9 @@ This phase is **spec-execution** in the SDLC state machine (`specs/sdlc-state-ma
 
 - execute this spec
 - execute SPEC-NNN
+- implement SPEC-NNN
+- deliver SPEC-NNN
+- finish SPEC-NNN
 - run the spec
 - start the execution loop
 - dispatch the tasks
@@ -250,8 +214,9 @@ This phase is **spec-execution** in the SDLC state machine (`specs/sdlc-state-ma
 **Preconditions:**
 
 - spec has status active and decomposed tasks with a dependency graph exist
+- the plan-review gate passes (ADR-002, fail-closed): the _index.yaml plan_review block is present, approved, and not needs-rework — verify with scripts/sdlc/plan-gate.mjs
 
-**Exit condition:** all tasks merged into the integration branch and the integration PR (feat/spec-NNN -> main) is open
+**Exit condition:** single-executor delivery (ADR-003): the owner skill armed a session goal leash (.claude/.sdlc-goal-<session_id>, enforced by the Stop hook), kept a visible task list covering every task plus end-to-end validation and the integration gate, cut the integration branch feat/spec-NNN off main, and burned the tasks down ITSELF one at a time — each task gated by its own tests (or the workspace equivalent) plus an executor self-review, landed via a short-lived PR into feat/spec-NNN that is merged and deleted before the next task starts, with no PR, branch or worktree left lingering; sub-agent fan-out is the exception, for large specs with genuinely non-overlapping tasks only, and carries the same merge discipline. End-to-end validation ran ONCE before the gate with attached evidence. Exit (success) = the goal file is status:met and ONE integration PR (feat/spec-NNN -> main) is open, carrying every spec success criterion mapped to its evidence, having survived a full multi-lens adversarial review panel — independently dispatched, every envelope validated with scripts/sdlc/validate-review-envelope.mjs, the constraints registry evaluated in full across the whole diff — looped until no blocker or major survives, and LEFT OPEN for the human to review and merge. Nothing for a spec reaches main except by merging that branch; the agent never merges or pushes to main. A HALT is goal file status:escalated with a surfaced reason — security/data-loss/payment risk, an owner decision, the same integration finding surviving two panel rounds, the amendment cap (spec.version reaching 4), or a task that cannot land and cannot be fixed at the root
 
-**Next step:** `code-review` — trigger: "review the PRs for SPEC-NNN"
+**Next step:** `spec-completion` — trigger: "close out SPEC-NNN"
 <!-- sdlc:handoff:end -->

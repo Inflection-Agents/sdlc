@@ -52,4 +52,5 @@ updated: YYYY-MM-DD
 
 ## Verification
 
-<!-- Tier-0 gate commands (lint/typecheck/test), whether new tests are required, and where. -->
+<!-- The task's own gate: lint/typecheck/test commands for this workspace, whether new tests are
+     required, and where. Plus any changed-path audit the task's constraints imply. -->

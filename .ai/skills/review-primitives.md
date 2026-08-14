@@ -57,11 +57,11 @@ Reviewers must find the consequence in this catalog before raising a `blocker` o
 
 ## Grounding rules
 
-Every finding MUST cite its source in the `criterion` field of the output schema. All prefixes use the engine-parseable lowercase `prefix:` colon form; a citation is grounded when it starts with one of the allowed prefixes for the reviewer's role (`criterion.startsWith(prefix)`).
+Every finding MUST cite its source in the `criterion` field of the output schema. All prefixes use the machine-parseable lowercase `prefix:` colon form; a citation is grounded when it starts with one of the allowed prefixes for the reviewer's role (`criterion.startsWith(prefix)`).
 
 #### PR-side canonical prefix table
 
-This is the **single, canonical** allowed-prefix set for `pr-reviewer` (Tier 1) and all Tier 2 PR specialists. It is the SPEC-001-owned contract that the engine (`execute-spec.js` `ALLOWED_PREFIX`) and the review envelope schema (`review-envelope.schema.json` `criterion`) align to (per SPEC-006). Every allowed PR-side prefix and its meaning:
+This is the **single, canonical** allowed-prefix set for `pr-reviewer` (Tier 1) and all Tier 2 PR specialists. It is the contract that the envelope validator (`scripts/sdlc/validate-review-envelope.mjs` `PR_SIDE_PREFIXES` — which rejects an ungrounded blocking finding at runtime) and the review envelope schema (`review-envelope.schema.json` `criterion`) align to; `scripts/sdlc/prefix-parity.test.mjs` fails if any of the three drift. Every allowed PR-side prefix and its meaning:
 
 | Prefix | Form | Meaning |
 |---|---|---|

@@ -43,28 +43,31 @@ Each layer has a different job:
 | SDLC Process | What lifecycle phase am I in and what's the process? | Spec → decompose → route → implement → review. Check acceptance criteria. |
 | Domain | What are the rules for THIS technology/workspace? | dbt: CTE ordering, naming, macros. Next.js: App Router, Server Components. |
 
-## The execution engine and the spine
+## The delivery engine and the spine
 
-The three skill layers describe *knowledge* agents apply. Underneath the SDLC-process layer sits the **deterministic execution engine** and the **spine** that carries it — the machinery that turns a signed-off task graph into merged code without further human attention.
+The three skill layers describe *knowledge* agents apply. Underneath the SDLC-process layer sits the **delivery engine** — which is itself a skill — and the **spine** that carries it: the machinery that turns a signed-off task graph into merged code without further human attention.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│  JUDGMENT (human + LLM)          │  DETERMINISTIC EXECUTION (engine)  │
+│  JUDGMENT (human + LLM)          │  DELIVERY (autonomous)             │
 │  intent-triage → spec-authoring  │  spec-execution                    │
-│   → task-decomposition           │   = .claude/workflows/execute-spec.js │
-│  (Layer-2 skills, gated)         │   (pure-core fns + thin agent() edges)│
+│   → task-decomposition           │   = the skill IS the engine        │
+│  (Layer-2 skills, gated)         │   (policy: SKILL.md · how: SOP.md) │
 └─────────────────────────────────────────────────────────────────────┘
                           rides on the SPINE:
   specs/sdlc-state-machine.yaml   ← single source of truth: phases, triggers, transitions
   _index.yaml `phase:` block      ← per-spec phase memory (read on entry, written on exit)
-  .claude/hooks/*.mjs             ← advisory: classify prompt, handoff at phase exit, guard edits/review
+  _index.yaml `plan_review:` block← the fail-closed gate a delivery run checks before it starts
+  .claude/.sdlc-goal-<session_id> ← the run's goal leash, enforced by the Stop hook
+  .claude/hooks/*.mjs             ← classify prompt, handoff at phase exit + goal leash, guard edits/review
   .ai/skills/review-primitives.md │ review-constraints.yaml │ review-envelope.schema.json
                                    ← review contracts: severity spine, lens registry, output schema
-  scripts/sdlc/*.mjs              ← validators (state machine, phase memory) + gen-handoffs
+  scripts/sdlc/*.mjs              ← validators + gates: state machine, phase memory, gen-handoffs,
+                                     plan-gate, reviewer-routing, envelope validation, registry globs
 ```
 
-- **The engine is agent-agnostic.** One generic executor; specialization is *data* on the task (`touches`, `risk`, `tier`, routing, workspace constraints). `spec-execution` invokes the engine rather than hand-dispatching tasks.
-- **Code review's reviewer of record is the LLM multi-lens panel** (`pr-reviewer` grades → `sdlc-code-review` renders), gated on a green Tier-0 and routed by `review-primitives.md`. Humans gate the judgment-phase inputs and merge the integration PR; they are not the per-PR reviewers.
+- **Delivery is single-executor and agent-agnostic.** The agent running `spec-execution` implements every task itself; specialization is *data* on the task (`touches`, `risk`, `tier`, routing, workspace constraints), not a separate executor backend. Worktree-isolated subagents are an exception for large specs.
+- **Code review's reviewer of record is the LLM multi-lens panel** (`pr-reviewer` grades → `sdlc-code-review` renders), dispatched at the integration gate and routed by `review-primitives.md`. Per task, the gate is the task's own tests plus the executor's self-review. Humans gate the judgment-phase inputs and merge the integration PR; they are not the per-PR reviewers.
 - **The state machine is authoritative.** The `.ai/sdlc.md` phase narrative and each skill's `## Handoff` footer are generated/validated from `specs/sdlc-state-machine.yaml` — don't restate phase info in the skills.
 
 ## The three review moments
@@ -72,20 +75,20 @@ The three skill layers describe *knowledge* agents apply. Underneath the SDLC-pr
 Review happens at three distinct moments in the lifecycle, each with its own trigger, owner, and artifact under review. They are *not* the same gate at different times — they grade different things:
 
 ```
-plan review          code review            integration review
-(spec + tasks)        (per-task PR)          (whole spec)
-before any code  →    during execute-spec  →  at the end
-spec-reviewer +       pr-reviewer →           integration-reviewer
-task-decomposition    sdlc-code-review        (vs success criteria)
+plan review          self-review            integration review
+(spec + tasks)        (per-task diff)        (whole spec, adversarial panel)
+before any code  →    during delivery     →  at the gate
+spec-reviewer +       the executor itself     integration-reviewer + pr-reviewer
+task-decomposition    (no reviewer dispatch)  lenses → sdlc-code-review renders
 ```
 
 | Moment | When (trigger) | Artifact reviewed | Owner |
 |--------|----------------|-------------------|-------|
 | **Plan review** | At the spec sign-off gate and decomposition gate, *before any code exists* | The spec + the task decomposition (graph, `touches`, routing) | `spec-reviewer` (graded findings) + the `task-decomposition` gate |
-| **Code review** | Per task PR, *during* `execute-spec`, gated on a green Tier-0 | One task's PR diff vs its task file, spec, and ADRs | `pr-reviewer` grades → `sdlc-code-review` renders |
-| **Integration review** | At the *end*, on the integration PR (`feat/SPEC-NNN → main`) | The whole spec vs its success criteria + integration-scope constraints | `integration-reviewer` |
+| **Self-review** | Per task, *during* delivery, before its PR opens | One task's diff vs its task file, ACs, constraints and declared `touches` | The executor itself — the deliberate exception to author≠reviewer independence |
+| **Integration review** | At the *end*, on the integration PR (`feat/spec-NNN → main`) | The assembled diff: the whole spec vs its success criteria, plus every registry constraint that fires across it | An independently dispatched panel — `integration-reviewer` + adversarial `task-reviewer` + routed lenses; `pr-reviewer` grades, `sdlc-code-review` renders |
 
-Spending review effort up front (plan review) is the cheapest place to assure quality — the central wager of "judgment up front, deterministic execution behind." The pre-code gate is **plan review**, never "spec review" alone (the spec is only half of it — the decomposition is reviewed too). The per-task PR gate is **code review**.
+Spending review effort up front (plan review) is the cheapest place to assure quality — the central wager of "judgment up front, autonomous delivery behind." The pre-code gate is **plan review**, never "spec review" alone (the spec is only half of it — the decomposition is reviewed too). Independence is traded away per task and bought back in full at the integration gate, where every verdict comes from a separately dispatched reviewer.
 
 ## How they compose
 
@@ -268,7 +271,7 @@ It does NOT need to:
 | `spec-authoring` | SDLC Process | Brainstorming + spec creation |
 | `spec-reviewer` | SDLC Process | Spec quality gate (graded JSON findings) |
 | `task-decomposition` | SDLC Process | Planning |
-| `spec-execution` | SDLC Process | End-to-end spec execution: waves, review, fix-loop, merge |
+| `spec-execution` | SDLC Process | End-to-end delivery: goal leash, task list, serial burn-down, integration gate |
 | `spec-amendment` | SDLC Process | Spec changes mid-flight |
 | `spec-completion` | SDLC Process | Verify success criteria and close specs |
 | `pr-reviewer` | SDLC Process | PR quality gate (graded JSON findings, machine-parseable) |
@@ -280,4 +283,4 @@ It does NOT need to:
 | `nextjs-app-patterns` | Domain | Next.js app workspaces |
 | `shared-package-patterns` | Domain | Shared library |
 
-Not skills (but part of the system): `.claude/workflows/execute-spec.js` (the deterministic execution engine `spec-execution` invokes), `specs/sdlc-state-machine.yaml` (the spine's source of truth), `.claude/hooks/*.mjs` (advisory phase hooks), and the review contracts (`review-primitives.md`, `review-constraints.yaml`, `review-envelope.schema.json`).
+Not skills (but part of the system): `specs/sdlc-state-machine.yaml` (the spine's source of truth), `.claude/hooks/*.mjs` (the phase hooks and the delivery goal leash), `scripts/sdlc/*.mjs` (validators + delivery gates), and the review contracts (`review-primitives.md`, `review-constraints.yaml`, `review-envelope.schema.json`).

@@ -42,7 +42,7 @@ id: TASK-001
 spec: SPEC-001
 title: "Add auth middleware"
 status: pending | in-progress | done | blocked | cancelled
-agent: claude-code | human          # routing; the deterministic engine treats `human` as deferred
+agent: claude-code | human          # routing; a delivery run defers `human` tasks and surfaces them
 workspace: dealer-app               # primary workspace this task targets (one workspace per task)
 touches:                            # file globs this task may modify — REQUIRED for executable tasks
   - src/middleware/**
@@ -99,24 +99,24 @@ A task that creates a whole design-token layer (6+ files) is ONE task because it
 |-------|----------|-------|
 | `touches` | yes (executable tasks) | Flat list of file globs this task may modify. The single most important field: it bounds the task, drives review-lens routing (`review-constraints.yaml`), and makes "a merge conflict means the decomposition's file-scoping was wrong" a hard guarantee. `human`-routed tasks may omit it. |
 | `risk` | no | `low \| medium \| high`. Author's complexity hint. `high` forces the `fortified` review tier. |
-| `tier` | no | `express \| standard \| fortified`. Review-intensity HINT. The deterministic engine's `tier()` + the constraints registry resolve the ACTUAL tier — a task whose `touches` trip a registry **blocker** is `fortified` regardless of the hint; a declared-`low`-risk, well-scoped task that trips nothing may be `express` (base lenses only). |
+| `tier` | no | `express \| standard \| fortified`. Review-intensity HINT, resolved against the constraints registry — a change that trips a registry **blocker** is `fortified` regardless of the hint; a declared-`low`-risk, well-scoped task that trips nothing may be `express`. The registry can only raise the tier, never lower it. |
 
 **Rules:**
 - `touches` must stay within the task's single workspace.
-- The deterministic engine (`.claude/workflows/execute-spec.js`) refuses to run a task with no
-  `touches` (the typed-contract gate), so omitting it on an executable task is a hard error.
+- An executable task with no `touches` is not deliverable: it cannot be bounded, and the
+  self-review's changed-path audit has nothing to check against. Omitting it is a hard error at
+  decomposition, not something to discover mid-run.
 - `risk`/`tier` are additive and optional — older task files without them stay valid (`tier`
   defaults to `standard`, `risk` is treated as unset).
 
 ### Routing field (`agent`)
 
-`agent` is the canonical routing field (`claude-code | human`). The deterministic engine reads
-`routing || agent` and treats `human` as **deferred** (skipped by the engine, surfaced for a human);
-`claude-code` is the engine's worktree-isolated local executor. Route a task to `human` only when it
-genuinely requires a human decision (architecture direction, a priority/tradeoff call, a
-security-sensitive sign-off); everything else is `claude-code`. The framework is executor-agnostic in
-principle — a different executor backend could be plugged into the engine — but ships with a single
-local executor.
+`agent` is the canonical routing field (`claude-code | human`). A delivery run reads
+`routing || agent` and treats `human` as **deferred** — surfaced on the run's task list with its
+reason, blocking integration until resolved. `claude-code` means the delivery agent implements it
+(or, for a large spec with genuinely non-overlapping tasks, a worktree-isolated subagent). Route a
+task to `human` only when it genuinely requires a human decision (architecture direction, a
+priority/tradeoff call, a security-sensitive sign-off); everything else is `claude-code`.
 
 ### Evidence field rules
 
@@ -218,11 +218,11 @@ phase:
   updated: 2026-04-22
 
 # Plan-review block (additive) — the durable verdict of the plan-review gate, stamped by
-# task-decomposition at its approval gate. execute-spec reads this at the Plan phase and fails
-# closed on it (see "Plan-review block" below).
+# task-decomposition at its approval gate. spec-execution checks it before the run starts and
+# fails closed on it (see "Plan-review block" below).
 plan_review:
   status: approve-ready              # approve-ready | approve-after-fixes | needs-rework
-  approved: true                     # OWNER sign-off — execute-spec gates on this
+  approved: true                     # OWNER sign-off — spec-execution gates on this
   reviewed: 2026-04-22               # ISO date the plan review was recorded
 
 tasks:
@@ -270,10 +270,12 @@ tasks:
     depends_on: [TASK-003]
     blocks: []
 
-# Waves (computed from the graph by the engine; shown here for review):
-#   w0: TASK-001, TASK-002 (no deps — run in parallel)
-#   w1: TASK-003 (after 001 + 002)
-#   w2: TASK-004 (after 003)
+# Execution order (a topological read of depends_on; shown here for review). Delivery is serial
+# by default, so this is the order tasks land on the integration branch — tasks on the same line
+# are the only ones a large spec could justify fanning out:
+#   1. TASK-001, TASK-002 (no deps)
+#   2. TASK-003 (after 001 + 002)
+#   3. TASK-004 (after 003)
 ```
 
 ### Phase-memory block
@@ -297,15 +299,17 @@ approval gate (the decomposition-stage half of the two-stage plan-review gate); 
 | Field | Type | Notes |
 |-------|------|-------|
 | `status` | enum | `approve-ready \| approve-after-fixes \| needs-rework`. The plan-review verdict. |
-| `approved` | boolean | OWNER sign-off. The skill stamps `false`; the owner flips it to `true`. `execute-spec` gates on this. |
+| `approved` | boolean | OWNER sign-off. The skill stamps `false`; the owner flips it to `true`. `spec-execution` gates on this. |
 | `reviewed` | ISO date | When the plan review was recorded. |
 
-The block is **additive** — `_index.yaml` files without it remain schema-valid. But the deterministic
-engine (`.claude/workflows/execute-spec.js`) **fails closed** on it: at the Plan phase, before
-spawning any executor, it HALTs unless `plan_review.approved === true` and `plan_review.status !==
-'needs-rework'`. A *missing* `plan_review` block halts exactly like an unapproved one — absent and
-unapproved are treated identically. (Existing `_index.yaml` files that predate the gate are
-back-filled with the block so the fail-closed behaviour does not retroactively block them.)
+The block is **additive** — `_index.yaml` files without it remain schema-valid. But the gate
+**fails closed** on it: before a delivery run touches anything it HALTs unless
+`plan_review.approved === true` and `plan_review.status !== 'needs-rework'`. A *missing*
+`plan_review` block halts exactly like an unapproved one — absent and unapproved are treated
+identically. The predicate lives in [`scripts/sdlc/plan-gate.mjs`](scripts/sdlc/plan-gate.mjs)
+(`node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml`), so the same check runs in a
+delivery run and in CI. (Existing `_index.yaml` files that predate the gate are back-filled with the
+block so the fail-closed behaviour does not retroactively block them.)
 
 ## Directory structure (updated)
 
@@ -343,23 +347,24 @@ Claude Code reads the spec and produces:
 
 This is reviewable. The team can say "TASK-003 is too big, split it" or "TASK-001 and TASK-002 can be one task" before any work starts.
 
-### 2. Dispatch (the deterministic engine)
+### 2. Delivery (spec-execution)
 
-The `spec-execution` engine reads `_index.yaml`, builds the wave graph, and dispatches every ready task automatically — you do not hand-dispatch one at a time:
+A delivery run reads `_index.yaml` and burns the graph down **one task at a time**, in dependency order, each landing on the integration branch before the next starts:
 
 ```
 Ready = tasks where all depends_on tasks are accepted/done
 ```
 
-For each ready `claude-code` task, the engine spawns a worktree-isolated local executor that reads the task file and implements it within the declared `touches`. `human`-routed tasks are deferred (surfaced for a human; they block integration until resolved). See the `spec-execution` skill.
+For each ready `claude-code` task, the delivery agent implements it inline within the declared `touches` — or, for a large spec with genuinely non-overlapping tasks, dispatches a worktree-isolated subagent. `human`-routed tasks are deferred (surfaced on the run's task list; they block integration until resolved). See the `spec-execution` skill.
 
 ### 3. Completion
 
-When a task's PR is accepted by the LLM review panel:
-1. The engine merges the task branch into the integration branch and sets `status: done` in `_index.yaml` and the task file (same commit)
-2. Linear issue status is updated
-3. The engine re-evaluates `_index.yaml` for newly-unblocked tasks
-4. The next wave runs
+When a task's own tests are green and its self-review is clean:
+1. The run merges the task branch into the integration branch, deletes the branch, and sets `status: done` in `_index.yaml` and the task file
+2. Linear issue status and the run's task list are updated
+3. The next task branches off the new integration tip
+
+The independent review panel runs once, at the end, against the assembled integration PR.
 
 ### 4. Re-planning
 
@@ -387,13 +392,13 @@ Two paths depending on what's wrong:
 
 ## How an executor uses task files
 
-The executor dispatched to a task works from the repo — the task file is its complete, self-contained brief:
+Whoever implements a task — the delivery agent itself, or a dispatched subagent — works from the repo, and the task file is the complete, self-contained brief:
 
 1. Reads its task file (`specs/tasks/SPEC-NNN/TASK-NNN-*.md`) for definition, acceptance criteria, `touches`, and constraints
 2. Reads `_index.yaml` to understand dependencies and where the task fits in the graph
 3. Reads the parent spec for broader context
 4. Reads linked ADRs for design constraints
-5. Stays within the declared `touches`, opens a PR to the integration branch, and populates each acceptance criterion's `evidence:` before review
+5. Stays within the declared `touches`, self-reviews the diff against the ACs and constraints, populates each acceptance criterion's `evidence:`, and opens a PR to the integration branch
 
 The repo owns the structured definition; Linear owns the live status and discussion. (The orchestrator, which has MCP access, mirrors task status to Linear — the executor itself need not.)
 

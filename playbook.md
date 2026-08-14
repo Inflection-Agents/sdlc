@@ -10,7 +10,7 @@ intent-triage → spec-authoring → task-decomposition │ spec-execution → r
         ── JUDGMENT PHASES: collaborative, gated ──  │  ── AUTONOMOUS ENGINE ──
 ```
 
-*Quality when it's cheap to assure it — then autonomous execution.* You and the team spend judgment on the front phases — the intent, the spec, and the task graph. Each ends at a hard sign-off gate. Once the spec is `active` and decomposed, you invoke one engine (`execute-spec`) and it drives execution to an integration PR with no further human attention. An LLM multi-lens panel reviews the code; a human merges the integration PR to `main`. The single source of truth for the phases is [`specs/sdlc-state-machine.yaml`](specs/sdlc-state-machine.yaml).
+*Quality when it's cheap to assure it — then autonomous delivery.* You and the team spend judgment on the front phases — the intent, the spec, and the task graph. Each ends at a hard sign-off gate. Once the spec is `active` and decomposed, you invoke one engine (`execute-spec`) and it drives execution to an integration PR with no further human attention. An LLM multi-lens panel reviews the code; a human merges the integration PR to `main`. The single source of truth for the phases is [`specs/sdlc-state-machine.yaml`](specs/sdlc-state-machine.yaml).
 
 ## Phase 0: Setup
 
@@ -51,26 +51,25 @@ intent-triage → spec-authoring → task-decomposition │ spec-execution → r
 
 1. Break the spec into an **AI-coherent task graph** — each task is one coherent unit of AI execution with a bounded, declared `touches` set (file globs), one workspace per task. **Size by coherence, not line count** (a coherent 800-line token layer is one task). The deliverable is *great instructions*, not small diffs.
 2. Set `risk` and `tier` hints; wire `depends_on`/`blocks`; ensure parallel tasks have non-overlapping `touches`
-3. Route each task (`agent: claude-code | human`) — routing is data the engine reads, not a hand-dispatch plan
+3. Route each task (`agent: claude-code | human`) — routing is data the delivery run reads, not a hand-dispatch plan
 4. **Sign-off gate:** the eng lead confirms granularity, boundaries, and dependencies; write the `phase:` block; create Linear issues
 
-## Phase 4: Execute (deterministic — autonomous)
+## Phase 4: Deliver (autonomous)
 
-**Who:** the `execute-spec` engine; **no human attention until the integration PR**
+**Who:** one agent running `spec-execution`; **no human attention required until the integration PR**
 
-Invoke the engine once:
-```
-Workflow({ name: 'execute-spec', args: { spec: 'SPEC-NNN' } })
-```
-It builds the wave graph from `depends_on`, then per task: dispatches a worktree-isolated executor → gates on a green **Tier-0** (lint/typecheck/unit) → dispatches **routed multi-lens reviewers** (lenses selected by `touches` from `review-constraints.yaml`) → runs a **fix loop (cap 3/task)** → merges each accepted task into `feat/SPEC-NNN`. Branches are id-derived, so a stopped run resumes wave-level on re-invoke. The only way it asks for help is to **escalate back into a judgment phase**: a `task:scope` blocker → `task-decomposition` re-plan; a `spec:*` blocker → `spec-amendment`.
+Say "implement SPEC-NNN". The run checks the fail-closed plan gate (`node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml`), arms a goal leash so it cannot stop half-done, opens a **visible task list**, and cuts `feat/spec-NNN`. Then, one task at a time in dependency order: implement inline → the task's own tests green → **self-review the diff** → PR into `feat/spec-NNN` → merge it → delete the branch → next task. Nothing lingers between tasks, and no task PR ever targets `main`. Fan-out to worktree-isolated subagents is the exception, for a large spec with genuinely non-overlapping tasks.
 
-## Phase 5: Review + Integrate (LLM review, human merge)
+The only way it asks for help is to **escalate back into a judgment phase**: a `task:scope` blocker → `task-decomposition` re-plan; a `spec:*` blocker → `spec-amendment`.
 
-**Who:** LLM panel reviews; a human merges
+## Phase 5: Validate + Integrate (LLM review, human merge)
 
-1. The engine runs the expensive integration verification (captured as EVIDENCE) and opens the integration PR `feat/SPEC-NNN → main`, with per-task verdicts and the Testing Evidence section
-2. An independent `integration-reviewer` checks the spec's **success criteria** (not just per-task ACs)
-3. **A human merges the integration PR.** The engine never merges to `main`.
+**Who:** the same run; an LLM panel reviews; a human merges
+
+1. **End-to-end validation runs once** — full build and test suite, the real pipeline where one exists, the app in a real browser for user-visible change, performance where it matters — captured as EVIDENCE
+2. The run opens the integration PR `feat/spec-NNN → main` with every success criterion mapped to its evidence
+3. A **multi-lens adversarial panel** is dispatched concurrently — `integration-reviewer` against the spec's **success criteria**, an adversarial `task-reviewer`, and every lens the registry fires across the whole diff — with each envelope validated (`scripts/sdlc/validate-review-envelope.mjs`). Blockers and majors are fixed at the root and **the panel is re-dispatched**, until none survive
+4. **A human merges the integration PR.** The agent never merges or pushes to `main`.
 
 ## Phase 6: Complete
 
@@ -117,10 +116,12 @@ See [triage.md](triage.md) for the full pipeline. During active development:
 
 ## Anti-patterns to watch
 
-- **Spec drift:** implementation diverges from spec and nobody updates either. Fix: spec review at each milestone; the engine escalates `spec:*` blockers to `spec-amendment`.
-- **Agent overload:** assigning tasks that need human judgment to agents. Fix: route those tasks `human` (deferred by the engine) in decomposition.
+- **Spec drift:** implementation diverges from spec and nobody updates either. Fix: spec review at each milestone; a delivery run escalates `spec:*` blockers to `spec-amendment` instead of quietly reinterpreting.
+- **Agent overload:** assigning tasks that need human judgment to agents. Fix: route those tasks `human` (deferred and surfaced) in decomposition.
 - **Sizing tasks for human review:** fragmenting one coherent change into many tiny "reviewable" PRs. Fix: a human is not the reviewer of record — size by coherence + bounded `touches`. Never reintroduce a ~300-line / one-PR-per-task rule.
-- **Hand-dispatching tasks:** running tasks one at a time instead of invoking the engine. Fix: get the decomposition right, then run `execute-spec` once.
+- **Ad-hoc implementation outside the process:** picking tasks off and building them without a goal leash, an integration branch, or a task list. Fix: enter `spec-execution` and let it own the run — the discipline is what makes the gate meaningful.
+- **Batching merges to the end:** letting task PRs pile up open. Fix: task N merges into `feat/spec-NNN` before task N+1 starts, so nothing is built on a stale base.
+- **Invisible progress:** burning a whole spec down without a task list anyone can follow. Fix: the run's task list is mandatory, and updated as each task lands.
 - **Skimping on the front phases:** rushing intent/spec/decomposition to "start coding." Fix: that is exactly where attention belongs — bad decomposition is the top cause of stalled runs.
-- **Invisible runs:** agent work happens but isn't logged. Fix: no merge without run metadata; enable `_execution.log.jsonl`.
+- **Invisible runs:** agent work happens but isn't logged. Fix: no merge without run metadata; optionally enable `_execution.log.jsonl` (SOP §9).
 - **Ticket creep:** falling back to Jira-style "create a ticket for everything." Fix: specs are the root, tasks are ephemeral.
