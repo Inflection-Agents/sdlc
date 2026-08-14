@@ -172,8 +172,43 @@ integration gate.**
       classifier. **This bullet is not backfilled to declare a clean result it has not seen**: every
       round's fixes are re-verified by dispatching the panel again in full, not by inspecting the
       diff, and the merge in decision 11 does not happen until a round returns with nothing left to
-      fix. As of this text, round 5's fixes are applied and pushed; the next step is confirming this
-      round holds before merge.
+      fix.
+
+      Round 6 followed the adversarial pass's own recommendation from round 5: a single narrow,
+      targeted verification of round 5's fixes specifically, not a full three-lens re-dispatch. It
+      found 1 blocker and 3 majors, all sharing one root cause the round-5 fix had itself
+      introduced: `expandFlagToken`'s cluster expansion treated ANY multi-character `-xy...` token
+      as a cluster of boolean short flags, which is wrong for gh's attached-value short flags
+      (`-b<value>`) — `-bready` was shredded into phantom `-r`/`-e`/`-a`/`-d`/`-y` flags, and the
+      phantom `-r` silently cancelled a genuine `--approve` right next to it (BLOCKER). The same gap
+      in kind, at three OTHER sites that read flags independently of the fixed one: `hasRepoFlag`
+      never adopted the round-5 normalization, so a clustered `-dR owner/repo` (valid per real
+      getopt/pflag cluster rules — only the last flag in a cluster may take a value) evaded the
+      cross-repo check (MAJOR); `extractPrNumber`'s leading-flag skip recognized only `--flag`/`-f`
+      TOKENS, not `--flag value` PAIRS with the value in a separate token, so `gh pr merge --body 42
+      --squash` and `gh pr merge -t 42 --squash` had their flag's VALUE read as the PR selector — the
+      in-code comment claiming this "fails closed" was factually backwards, since it actively
+      resolved the wrong PR rather than refusing to resolve one (MAJOR); and `flagValueAfter` never
+      recognized gh's attached short-flag body form (`-b"accept - lgtm"`, no space), even though
+      `hasRepoFlag` already handled the equivalent attached form for `-R` — a straight bypass of the
+      comment accept-verdict path (MAJOR). The common thread the reviewer named directly: round 5
+      introduced flag *normalization* but applied it at exactly one of the four sites that read
+      flags, and the normalizer itself did not model which flags take a value — so the fix, rather
+      than a fourth site-specific patch, was one shared, value-aware flag parser (`parseFlags`) that
+      `isAcceptMatch`/`hasFlag`, `flagValueAfter`, `hasRepoFlag`, and `extractPrNumber` all now read
+      from, so the four sites cannot independently drift out of sync with each other again. The
+      review also confirmed, independently: the round-5 wrapper-recursion removal left no dead code
+      (`CODE_EXEC_WRAPPERS`/`hasExecWrapper` fully gone), the round-5 test suite was not tautological
+      and the deleted eval/bash-c recursion test left no coverage gap, and this ADR's own round-5
+      audit trail matched the real diff with no drift. Two test-quality nits were also raised and
+      folded into the fix: the round-5 "clustered" test only exercised the `=`-attached form, not a
+      genuine cluster (`-ab`), and the last-wins `--body` test proved "not first-wins" but not
+      "last-wins" (no reverse-order assertion). Round 6's fix, plus these two test nits, is applied,
+      the shared-parser rewrite is covered by new tests reproducing all four findings, and the full
+      suite (106 tests) plus every validator is green. Per this ADR's own stated methodology — every
+      round's fixes are re-verified by an independently dispatched pass, not by inspecting the diff —
+      round 6's fix is not yet self-certified clean; a round 7 narrow verification of the shared
+      `parseFlags` rewrite specifically is the next step before merge.
     - This is an uncomfortable example on purpose: a rule that could not survive being applied to
       the change that wrote it would not be worth writing. Recording the trail plainly — including
       how many rounds it actually took, and that some fixes introduced their own new bypasses — is

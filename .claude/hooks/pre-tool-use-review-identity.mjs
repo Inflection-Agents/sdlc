@@ -35,11 +35,17 @@
 //     fix_loop comments, `--comment`)
 //   - any command with no `gh ... pr <verb>` action     → allow
 //
-// Stated scope, deliberately (five review rounds shaped this line): this
+// Stated scope, deliberately (six review rounds shaped this line): this
 // classifier catches the REALISTIC shape of a `gh pr` invocation — quoting,
 // backslash escaping, adjacency, path-qualified/attached flag spellings,
-// clustered short flags, repeated flags — the ordinary variation an agent
-// actually writes. It does NOT try to see through deliberate shell obfuscation:
+// clustered short flags (including a value-taking flag inside a cluster, e.g.
+// `-dR owner/repo`), repeated flags — the ordinary variation an agent
+// actually writes. All flag parsing (accept-verdict detection, `--body`
+// extraction, `-R`/`--repo` detection, PR-selector extraction) runs through
+// ONE shared parser (`parseFlags`) rather than four independent ad hoc scans,
+// after round 6 found that duplication let each site learn a different
+// partial picture of gh's flag grammar and reopen a bypass round 5 had
+// otherwise closed. It does NOT try to see through deliberate shell obfuscation:
 // a command built via substitution (`$(echo gh) pr merge 42`), wrapped in an
 // interpreter (`bash -c "gh pr merge 42"`), or hidden inside a file executed
 // indirectly (`bash some-script.sh`). An earlier version of this file DID try
@@ -260,52 +266,110 @@ function findAllVerbMatches(cmd) {
 }
 
 /**
- * The value passed to the LAST of `names` found among `tokens` (as `--flag
- * value` or `--flag=value`) — gh's own string flags are last-wins when
- * repeated, so scanning only the first occurrence let a later, real value
- * (e.g. a second `--body`) go unseen (PR #42 review, round 5). Used to scope
- * verdict-keyword scanning to the ACTUAL flag value (e.g. a comment body)
- * rather than the whole command line — scanning the whole line let unrelated
- * text (a `-t`/`-m` value, a trailing comment) inject or neutralize a verdict
- * keyword (PR #42 review, rounds 3-4).
+ * Short/long flags whose value can determine the outcome of THIS gate, so
+ * `parseFlags` below must know they take a value rather than treating what
+ * follows as a boolean flag or a positional selector. Round 6 review found
+ * round 5's independent, flag-by-flag patches (`expandFlagToken`'s cluster
+ * expansion, `flagValueAfter`, `extractPrNumber`'s leading-flag skip,
+ * `hasRepoFlag`) had each learned a DIFFERENT partial picture of gh's flag
+ * grammar, so an attached value (`-bready`), a clustered value-taking flag
+ * (`-dR owner/repo`), or a separate-token long-flag value (`--body 42`)
+ * broke exactly one of the four independently — not because any one fix was
+ * wrong, but because there was no single shared source of truth for "which
+ * flags take a value." `parseFlags` is that shared source now; every
+ * consumer below reads its output instead of re-deriving it.
+ */
+const VALUE_TAKING_SHORT_FLAGS = new Set(['b', 't', 'F', 'R'])
+const VALUE_TAKING_LONG_FLAGS = new Set(['--body', '--body-file', '--repo'])
+
+/**
+ * Parse `tokens` into `{ flags, positionals }`: `flags` is every flag
+ * occurrence found (`{ flag: '-x' | '--long', value: string | null }`, one
+ * entry per short flag even inside a cluster), `positionals` is every
+ * remaining bare token IN ORDER, with a value-taking flag's value never
+ * appearing in either list twice and never leaking into `positionals`.
+ *
+ * Handles, uniformly, so no call site has to: `--flag value`, `--flag=value`,
+ * `-f value`, `-fvalue` (attached), `-f=value`, and a clustered short-flag
+ * group where only the LAST flag in the cluster may take a value
+ * (`-dR owner/repo` == `-d -R owner/repo`, matching real getopt/pflag
+ * semantics — confirmed against gh 2.92.0) — either attached to the same
+ * token (`-dRowner/repo`) or as the next token.
+ */
+function parseFlags(tokens) {
+    const flags = []
+    const positionals = []
+    let i = 0
+    while (i < tokens.length) {
+        const t = tokens[i]
+        if (t.startsWith('--') && t.length > 2) {
+            const eq = t.indexOf('=')
+            if (eq !== -1) {
+                flags.push({ flag: t.slice(0, eq), value: t.slice(eq + 1) })
+                i += 1
+                continue
+            }
+            if (VALUE_TAKING_LONG_FLAGS.has(t) && i + 1 < tokens.length) {
+                flags.push({ flag: t, value: tokens[i + 1] })
+                i += 2
+                continue
+            }
+            flags.push({ flag: t, value: null })
+            i += 1
+            continue
+        }
+        if (t.startsWith('-') && t.length > 1 && t !== '--') {
+            const eq = t.indexOf('=')
+            const body = eq !== -1 ? t.slice(1, eq) : t.slice(1)
+            const attachedValue = eq !== -1 ? t.slice(eq + 1) : null
+            let consumedNextToken = false
+            for (let c = 0; c < body.length; c += 1) {
+                const ch = body[c]
+                if (VALUE_TAKING_SHORT_FLAGS.has(ch)) {
+                    const rest = body.slice(c + 1)
+                    if (attachedValue !== null) {
+                        flags.push({ flag: `-${ch}`, value: attachedValue })
+                    } else if (rest) {
+                        flags.push({ flag: `-${ch}`, value: rest })
+                    } else if (i + 1 < tokens.length) {
+                        flags.push({ flag: `-${ch}`, value: tokens[i + 1] })
+                        consumedNextToken = true
+                    } else {
+                        flags.push({ flag: `-${ch}`, value: null })
+                    }
+                    break // a value-taking flag ends the cluster
+                }
+                flags.push({ flag: `-${ch}`, value: null })
+            }
+            i += consumedNextToken ? 2 : 1
+            continue
+        }
+        positionals.push(t)
+        i += 1
+    }
+    return { flags, positionals }
+}
+
+/**
+ * The value passed to the LAST of `names` found among `tokens` — gh's own
+ * string flags are last-wins when repeated, so scanning only the first
+ * occurrence let a later, real value (e.g. a second `--body`) go unseen (PR
+ * #42 review, round 5). Used to scope verdict-keyword scanning to the ACTUAL
+ * flag value (e.g. a comment body) rather than the whole command line —
+ * scanning the whole line let unrelated text (a `-t`/`-m` value, a trailing
+ * comment) inject or neutralize a verdict keyword (PR #42 review, rounds 3-4).
  */
 function flagValueAfter(tokens, names) {
     let found = null
-    for (let i = 0; i < tokens.length; i += 1) {
-        const t = tokens[i]
-        if (names.includes(t)) {
-            found = tokens[i + 1] ?? null
-            continue
-        }
-        for (const name of names) {
-            if (t.startsWith(`${name}=`)) found = t.slice(name.length + 1)
-        }
+    for (const f of parseFlags(tokens).flags) {
+        if (names.includes(f.flag)) found = f.value
     }
     return found
 }
 
-/**
- * Normalize a flag token before comparing it against a canonical spelling:
- * strip a trailing `=value` (gh's boolean flags accept `--approve=true`,
- * `-a=true`) and split a clustered short-flag group (`-ab` == `-a -b`) into
- * its members. Returns the set of canonical flag forms this ONE token could
- * represent — usually one, more if it's a cluster.
- */
-function expandFlagToken(t) {
-    const bare = t.includes('=') && t.startsWith('-') ? t.slice(0, t.indexOf('=')) : t
-    if (/^-[a-zA-Z]{2,}$/.test(bare) && !bare.startsWith('--')) {
-        // A clustered short-flag group: `-ab` → `-a`, `-b`.
-        return bare
-            .slice(1)
-            .split('')
-            .map((c) => `-${c}`)
-    }
-    return [bare]
-}
-
 /** Does any token in `tokens` represent one of these canonical flag forms (any spelling)? */
 function hasFlag(tokens, canonicalForms) {
-    return tokens.some((t) => expandFlagToken(t).some((f) => canonicalForms.includes(f)))
+    return parseFlags(tokens).flags.some((f) => canonicalForms.includes(f.flag))
 }
 
 /** Is this single verb-match an accept-shaped action? */
@@ -350,19 +414,17 @@ function classify(command) {
  * later in the command is ever consulted: scanning further let a URL embedded in
  * a flag value (`-t "closes https://github.com/o/r/pull/7"`, a commit message,
  * `--body`) steer base resolution to an unrelated PR (PR #42 review, round 3).
+ *
+ * Uses `parseFlags`'s `positionals` rather than a raw leading-dash skip: a
+ * value-taking flag's SEPARATE-token value (`gh pr merge --body 42 --squash`,
+ * `gh pr merge -t 42 --squash`) is not a positional at all, and a naive skip
+ * that only recognized `--flag`/`-f` tokens (not `--flag value` pairs) was
+ * fooled into taking that value as the selector — the exact opposite of the
+ * "fails closed" behavior it was believed to have (PR #42 review, round 6).
  */
 function extractPrNumber(restTokens) {
-    const tokens = restTokens || []
-    // Skip leading flags: `gh pr merge --squash 42` is valid (flags-before-selector),
-    // and treating `--squash` as an unresolvable selector would deny the carve-out
-    // for a perfectly legitimate task merge (PR #42 review, round 5). This only
-    // recognizes `--flag` / `-f` tokens, not `--flag value` pairs with the value in
-    // a SEPARATE token — a flag whose value looks like a number or URL still fails
-    // closed here, which is the safe direction (denies the carve-out rather than
-    // risking a wrong resolution).
-    let i = 0
-    while (i < tokens.length && tokens[i].startsWith('-')) i += 1
-    const first = tokens[i]
+    const { positionals } = parseFlags(restTokens || [])
+    const first = positionals[0]
     if (!first) return null
     if (/^\d+$/.test(first)) return first
     const url = first.match(/^https?:\/\/github\.com\/[^/\s]+\/[^/\s]+\/pull\/(\d+)$/)
@@ -383,18 +445,17 @@ const INTEGRATION_BRANCH = /^feat\/spec-/i
 /**
  * Does this command carry a `-R`/`--repo` cross-repo flag, in any of gh's accepted
  * spellings: separate (`-R owner/repo`), attached short-flag (`-Rowner/repo` —
- * valid POSIX shorthand, confirmed against gh 2.92.0), or long (`--repo owner/repo`,
+ * valid POSIX shorthand, confirmed against gh 2.92.0), clustered with another
+ * short flag (`-dR owner/repo` == `-d -R owner/repo`), or long (`--repo owner/repo`,
  * `--repo=owner/repo`)? The base lookup below never queries the flagged repo, so
  * honoring ANY spelling here would resolve — or silently trust — the wrong repo's
- * PR. Token-based, not one regex: a single pattern covering both the separated and
- * attached `-R` forms without also matching an unrelated `-R*` flag is fragile: the
- * separated-only regex is exactly what missed the attached form the first time
- * (PR #42 review, round 3).
+ * PR. Delegates to the shared `parseFlags` rather than its own token matching: a
+ * hand-rolled check here is exactly what missed the attached form (round 3) and
+ * then the clustered form (round 6) — two different partial pictures of the same
+ * flag grammar `parseFlags` now owns once, for every caller.
  */
 function hasRepoFlag(tokens) {
-    return tokens.some(
-        (t) => t === '-R' || t === '--repo' || t.startsWith('--repo=') || (t.startsWith('-R') && t.length > 2 && !t.startsWith('--'))
-    )
+    return parseFlags(tokens).flags.some((f) => f.flag === '-R' || f.flag === '--repo')
 }
 
 /**

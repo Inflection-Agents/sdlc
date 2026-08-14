@@ -364,6 +364,9 @@ test('an =-attached or clustered verdict flag is still detected (round-5 bypass)
     // whether the flag was set, not the literal boolean value, so erring toward
     // "this might be an approve" is the safe direction here.
     assert.equal(runGate('gh pr review 42 --approve=false', { base: 'main' }), DENY)
+    // The genuinely CLUSTERED case (round-5's test only covered =-attached; a
+    // real `-ab` cluster was untested — round-6 nit).
+    assert.equal(runGate('gh pr review 42 -ab "no blockers"', { base: 'main' }), DENY)
 })
 
 test('a repeated --body takes the LAST value, matching gh (round-5 bypass)', () => {
@@ -372,6 +375,13 @@ test('a repeated --body takes the LAST value, matching gh (round-5 bypass)', () 
     assert.equal(
         runGate('gh pr comment 42 --body "no blockers found" --body "accept - lgtm"', { base: 'main' }),
         DENY
+    )
+    // The reverse order also has to be right — otherwise "not first-wins" and
+    // "last-wins" are indistinguishable (round-6 nit): a real accept FIRST,
+    // superseded by a later non-accept body, must NOT be flagged.
+    assert.equal(
+        runGate('gh pr comment 42 --body "accept - lgtm" --body "just a typo fix"', { base: 'main' }),
+        ALLOW
     )
 })
 
@@ -383,4 +393,53 @@ test('a flag before the PR number does not deny a legitimate task merge (round-5
     assert.equal(runGate('gh pr merge --squash 42', { base: 'feat/spec-1' }), ALLOW)
     // ...and still correctly denies when that same shape targets main.
     assert.equal(runGate('gh pr merge --squash 42', { base: 'main' }), DENY)
+})
+
+test('an attached short-flag value cannot cancel a genuine --approve (round-6 bypass)', () => {
+    // Round 5's cluster-expansion treated ANY multi-char `-xy...` token as a
+    // cluster of boolean flags, so `-bready` (an attached VALUE for -b, not a
+    // cluster) was shredded into phantom -r/-e/-a/-d/-y flags — and the phantom
+    // -r was read as --request-changes, cancelling a real --approve right next
+    // to it. This is the flip side of "an unrelated flag cannot neutralize a
+    // real --approve" (round-4): here the neutralizer was synthesized FROM the
+    // approve's own sibling token.
+    assert.equal(runGate('gh pr review 42 --approve -bready', { base: 'main' }), DENY)
+    assert.equal(runGate('gh pr review 42 --approve -bapproved', { base: 'main' }), DENY)
+    // The genuine separated form must keep working too.
+    assert.equal(runGate('gh pr review 42 -a -b ready', { base: 'main' }), DENY)
+})
+
+test('a clustered cross-repo flag does not get the carve-out (round-6 bypass)', () => {
+    // `-dR owner/repo` is `-d -R owner/repo` under real getopt/pflag cluster
+    // rules (only the LAST flag in a cluster may take a value) — hasRepoFlag's
+    // own hand-rolled matching never expanded clusters, so this cross-repo flag
+    // was invisible to the exact-token/attached-only check it used.
+    assert.equal(runGate('gh pr merge 7 --squash -dR owner/other-repo', { base: 'feat/spec-1' }), DENY)
+    assert.equal(runGate('gh pr merge 7 --squash -sdR owner/other-repo', { base: 'feat/spec-1' }), DENY)
+})
+
+test('a value-taking flag never donates its separate-token value as the PR selector (round-6 bypass)', () => {
+    // `extractPrNumber`'s leading-flag skip only recognized `--flag`/`-f` TOKENS,
+    // not `--flag value` PAIRS with the value in a separate token — so a
+    // value-taking flag's value (here, always "42") was read as the positional
+    // PR selector. The claim in the old comment that this "fails closed" was
+    // false: it actively resolved the WRONG PR. None of these name PR 42 as
+    // their real selector, so none should get the carve-out via base "main".
+    assert.equal(runGate('gh pr merge -b 42 --squash', { base: 'main' }), DENY)
+    assert.equal(runGate('gh pr merge --body 42 --squash', { base: 'main' }), DENY)
+    assert.equal(runGate('gh pr merge -t 42 --squash', { base: 'main' }), DENY)
+    // ...and a genuine bare selector alongside an unrelated value-taking flag
+    // still resolves and is exempted correctly.
+    assert.equal(runGate('gh pr merge 42 -t "release notes" --squash', { base: 'feat/spec-1' }), ALLOW)
+})
+
+test('the attached short-flag BODY form is still scanned for a verdict marker (round-6 bypass)', () => {
+    // `flagValueAfter` matched only exact `-b`/`--body` tokens, never gh's own
+    // attached short-flag form (`-b<value>`, no space) — even though hasRepoFlag
+    // already recognized the equivalent attached form for -R. A self-accept
+    // comment posted this way went undetected.
+    assert.equal(runGate('gh pr comment 42 -b"accept - lgtm"', { base: 'main' }), DENY)
+    assert.equal(runGate('gh pr comment 42 -baccept', { base: 'main' }), DENY)
+    // A non-accept attached body must still be a no-op.
+    assert.equal(runGate('gh pr comment 42 -bjust-fixing-a-typo', { base: 'main' }), ALLOW)
 })
