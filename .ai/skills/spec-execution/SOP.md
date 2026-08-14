@@ -230,7 +230,7 @@ Set the goal file to `status: escalated`, put the reason in `reason`, surface it
 - Amendment cap: `spec.version − 1 ≥ 3`.
 - A task that cannot land and cannot be fixed at the root.
 
-A crisp question early beats a wave burned on a guess.
+A crisp question early beats a task burned on a guess.
 
 ---
 

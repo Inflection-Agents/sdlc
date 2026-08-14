@@ -139,7 +139,7 @@ specs/
 | Problem | Fix |
 |---------|-----|
 | Skills not found | Re-run the repo's `setup-sdlc.sh` (or re-symlink) and restart your agent session. |
-| Hooks not firing | Confirm they're wired in `.claude/settings.json` (not `settings.local.json`) and that `node` is on PATH. Hooks are advisory — they log/nudge, they don't block. |
+| Hooks not firing | Confirm they're wired in `.claude/settings.json` (not `settings.local.json`) and that `node` is on PATH. Most hooks are advisory — they log/nudge, they don't block — except the delivery goal leash (`stop-handoff.mjs`'s `Stop` branch), which deliberately blocks while a run is active. |
 | State-machine / phase-memory validation fails | Run `node scripts/sdlc/validate-state-machine.mjs` and `node scripts/sdlc/validate-phase-memory.mjs` and fix the reported drift. |
 | A delivery run refuses to start | It needs a spec with `status: active`, a decomposed task graph (`specs/tasks/SPEC-NNN/_index.yaml`), and an approved `plan_review:` block — check with `node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml`. |
 | A session won't stop / keeps being blocked | A delivery goal leash is armed. Finish the run and set `status: met` in `.claude/.sdlc-goal-<session_id>`, set `status: escalated` if you are blocked on a human, or delete that file to disarm it. |

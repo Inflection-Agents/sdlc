@@ -15,21 +15,47 @@
 // an author accepting their own PR is never a legitimate review. There is NO
 // override hatch for this gate (it is a correctness rule, not a process gate).
 //
+// ONE exemption (ADR-003): a `gh pr merge` whose PR base resolves to a
+// `feat/spec-*` integration branch is the delivery executor merging its own
+// task PR — mandatory work, not a self-accept, and nothing reaches `main` that
+// way. The exemption requires ALL of: exactly one un-chained `gh ... pr <verb>`
+// action (including one hidden inside a code-execution wrapper — see
+// `findAllVerbMatches`), no `-R`/`--repo` anywhere, an unambiguously resolvable
+// PR selector (a bare number or a github.com pull URL, as the FIRST positional
+// token), and a base matching `feat/spec-*`. Any failure of any of these falls
+// through to the normal deny check below — see
+// `.claude/hooks/__tests__/review-identity-merge-carveout.test.mjs` for the
+// exact boundary.
+//
 // Scope: only the PR-review / verdict-posting Bash invocations
-//   (`gh pr review --approve`, `gh pr merge`, and `gh pr comment` whose body
-//    carries an accept verdict). Everything else is a no-op:
+//   (`gh pr review --approve`, `gh pr merge`, and `gh pr comment` whose
+//    `--body`/`-b` value carries an accept verdict). Everything else is a no-op:
 //   - reviewer ≠ author                                → allow
+//   - the merge carve-out above                         → allow
 //   - non-accept actions (request-changes / blocker /  → allow
 //     fix_loop comments, `--comment`)
-//   - any non-`gh pr` Bash command                     → allow
+//   - any command with no `gh ... pr <verb>` action     → allow
+//
+// What this gate does NOT and CANNOT catch: a `gh pr merge` hidden inside a
+// FILE executed indirectly (`bash some-script.sh`, where the actual gh call
+// lives in that file's contents) is invisible to any classifier of the Bash
+// tool-call TEXT, because the string "gh pr merge" never appears in what this
+// hook sees. Four review rounds progressively closed every bypass found in
+// how this hook reads the command line itself (quoting, escaping, flag
+// spellings, wrapper commands executing a quoted argument inline) — that is a
+// bounded, closeable problem. Indirection through an executed file is not; no
+// version of this file claims otherwise, and `SDLC_GUARD_MODE` defaults to
+// `warn` in every case, so none of this blocks anything until a repo opts into
+// `enforce`.
 //
 // Contract (Claude Code PreToolUse):
 //   - stdin: JSON `{ tool_name, tool_input, ... }`.
 //   - To BLOCK: exit code 2 with a human-readable reason on stderr.
 //   - To ALLOW: exit 0 (no-op). On any internal error we fail OPEN (exit 0).
 //
-// Deterministic + fast: no model call. The only I/O is `gh`/`git` lookups to
-// resolve the PR author and the authenticated reviewer identity, gated behind a
+// Deterministic + fast: no model call. The only I/O is the `gh pr view` base
+// lookup for the merge carve-out, plus `gh`/`git` lookups to resolve the PR
+// author and the authenticated reviewer identity — the latter gated behind a
 // check that an accept verdict was actually detected.
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
@@ -91,34 +117,45 @@ function parsePayload() {
  * Accept signals:
  *   - `gh pr review ... --approve` / `-a`
  *   - `gh pr merge ...`                      (accepting == merging)
- *   - `gh pr comment ...` whose body carries an accept verdict marker from the
- *     review-primitives action vocabulary: `accept`,
+ *   - `gh pr comment ...` whose `--body`/`-b` VALUE carries an accept verdict
+ *     marker from the review-primitives action vocabulary: `accept`,
  *     `batch_followup_and_accept`, `approve`, or `lgtm`.
  *
  * Explicit NON-accept (returns isAccept:false → no-op):
  *   - `gh pr review --request-changes` / `-r`
  *   - `gh pr review --comment` / `-c` with no approve
- *   - any comment whose verdict is `fix_loop` / `blocker` / `major`
+ *   - any comment whose body carries no accept marker
+ *
+ * NOT covered by this classifier — stated plainly rather than implied to be
+ * closed: a `gh pr merge` invocation hidden behind a script file
+ * (`bash some-script.sh`, where the actual `gh` call lives inside that file) is
+ * invisible to any string-based classifier of the Bash tool-call text, because
+ * the string "gh pr merge" never appears in what this hook sees. That is a
+ * fundamentally different, much larger problem (arbitrary indirection) than
+ * anything a command-line parser can close, and no version of this file claims
+ * otherwise.
  */
+
 /**
  * Minimal shell-word tokenizer. Splits on whitespace, treating a single- or
- * double-quoted span as ONE token regardless of the whitespace inside it (with
- * `\"` handled inside double quotes; single quotes take everything literally, as
- * in real shells).
+ * double-quoted span as ONE token regardless of the whitespace inside it
+ * (`\"` is honored inside double quotes; single quotes take everything
+ * literally, as in real shells). An unquoted backslash escapes the very next
+ * character (also real-shell behavior), so `\gh` tokenizes to `gh` and
+ * `gh p\r merge` tokenizes to the same three tokens as `gh pr merge`.
  *
- * Three rounds of this gate were bypassed by regex-on-the-raw-string tricks:
- * adjacency assumptions (`gh` ... `pr merge` not adjacent), a PR-shaped token
- * hiding inside a flag VALUE (`-t "...pull/7..."`), and a flag spelling the
- * regex didn't enumerate (`-Rowner/repo` attached). A real tokenizer removes an
- * entire class of these: once "gh", "pr", "merge", "42" are actual array
- * elements, a quoted commit message containing the substring "gh pr merge 999"
- * is ONE token (the whole quoted string), not three tokens that regex scanning
- * would have found and trusted.
+ * Four rounds of this gate were bypassed by regex-on-the-raw-string tricks, and
+ * then by two gaps in the FIRST tokenizer pass: adjacency assumptions (`gh` ...
+ * `pr merge` not adjacent), a PR-shaped token hiding inside a flag VALUE, an
+ * unenumerated flag spelling, an unhandled backslash escape (`\gh`, `g\h`), and
+ * verdict-flag detection that stayed on raw-string regex after the rest moved
+ * to tokens. Each fix closed the instance found, not the class — see
+ * `findAllVerbMatches` below for the piece that actually generalizes (searching
+ * inside quoted spans, not just splitting on them).
  *
- * Not a full shell grammar (no `$()`, no glob expansion, no `;`-in-quotes
- * awareness) — just enough to stop token-boundary tricks. `isSingleUnchainedGhAction`
- * still rejects shell metacharacters outright, which is the correct fail-closed
- * response to anything this tokenizer doesn't understand.
+ * Not a full shell grammar (no `$()` evaluation, no glob expansion) —
+ * `isSingleUnchainedGhAction` rejects shell metacharacters outright, the
+ * correct fail-closed response to anything this tokenizer doesn't understand.
  */
 function tokenize(cmd) {
     const tokens = []
@@ -140,11 +177,20 @@ function tokenize(cmd) {
             cur += c
             continue
         }
+        if (c === '\\' && i + 1 < s.length) {
+            // Unquoted backslash: escapes the next character literally, exactly
+            // as a real shell would. Without this, `\gh` and `gh p\r merge`
+            // tokenize as `\gh`/`p\r` — strings that are NOT `gh`/`pr` by exact
+            // comparison, so the whole gate silently skipped them.
+            cur += s[i + 1]
+            i += 1
+            continue
+        }
         if (c === '"' || c === "'") {
             quote = c
             continue
         }
-        if (/\s/.test(c)) {
+        if (/[ \t\n\r\f\v]/.test(c)) {
             if (cur) {
                 tokens.push(cur)
                 cur = ''
@@ -157,54 +203,118 @@ function tokenize(cmd) {
     return tokens
 }
 
+/** Is this token the `gh` command word — by basename, so `/usr/bin/gh` and `./gh` count too? */
+function isGhToken(t) {
+    const base = String(t).split('/').pop()
+    return base === 'gh'
+}
+
 /**
- * Find a `pr <verb>` subcommand among the command's tokens and return the verb
- * plus every token after it. `gh` and `pr` need NOT be adjacent — global flags
- * can sit between them (`gh --repo owner/repo pr merge 42`, `gh -Ro/r pr review
- * 42 --approve`, both valid gh syntax). An adjacency-requiring regex let such a
- * command skip classification ENTIRELY — not just the merge carve-out, the WHOLE
- * author≠reviewer gate, including an unrestricted self-merge to `main`
- * (PR #42 review, round 3).
+ * Command words whose argument they hand to an interpreter is CODE, not inert
+ * data — the set worth recursing into a quoted span for. Matched by basename,
+ * same as `isGhToken`, so `/bin/bash`/`./sh` count too.
  */
-function findVerb(cmd) {
+const CODE_EXEC_WRAPPERS = new Set(['eval', 'bash', 'sh', 'zsh', 'ksh', 'dash', 'source', 'perl', 'python', 'python3', 'ruby', 'node'])
+
+function hasExecWrapper(tokens) {
+    return tokens.some((t) => {
+        const base = String(t).split('/').pop()
+        return CODE_EXEC_WRAPPERS.has(base) || base === '.'
+    })
+}
+
+/**
+ * Find every `gh ... pr <verb>` action in a command, INCLUDING one hidden
+ * inside a quoted span that a code-execution wrapper (`bash -c "gh pr merge
+ * 42"`, `eval "gh pr merge 42"`) will actually run — a wrapped invocation would
+ * otherwise vanish completely, since `tokenize` treats quoted content as one
+ * opaque token and nothing looked inside it.
+ *
+ * Recursion is gated on `hasExecWrapper`: without a wrapper token present, a
+ * quoted span is just DATA (a commit message, a PR body) and must NOT be
+ * searched — recursing unconditionally treated `git commit -m "mentions gh pr
+ * merge 999"` as a real action and could deny an unrelated command outright
+ * (PR #42 review, round 4, a regression introduced by the first version of
+ * this recursive search). Bounded depth; fails toward finding MORE matches,
+ * never fewer, the safe direction for a carve-out that requires exactly one.
+ *
+ * This still cannot see a `gh` invocation that lives inside a FILE executed
+ * indirectly (`bash script.sh`) — see the header note above. It closes the
+ * "wrapped inline on this same command line" class, not indirection in general.
+ */
+function findAllVerbMatches(cmd, depth = 0) {
     const tokens = tokenize(cmd)
-    const ghIdx = tokens.indexOf('gh')
-    if (ghIdx === -1) return null
-    for (let i = ghIdx + 1; i < tokens.length - 1; i += 1) {
-        if (tokens[i] === 'pr' && (tokens[i + 1] === 'review' || tokens[i + 1] === 'comment' || tokens[i + 1] === 'merge')) {
-            return { verb: tokens[i + 1], restTokens: tokens.slice(i + 2), allTokens: tokens }
+    const matches = []
+    for (let i = 0; i < tokens.length - 1; i += 1) {
+        if (!isGhToken(tokens[i])) continue
+        for (let j = i + 1; j < tokens.length - 1; j += 1) {
+            if (tokens[j] === 'pr' && (tokens[j + 1] === 'review' || tokens[j + 1] === 'comment' || tokens[j + 1] === 'merge')) {
+                matches.push({ verb: tokens[j + 1], restTokens: tokens.slice(j + 2) })
+                break // one match per `gh` token is enough to prove "this command has a match"
+            }
+        }
+    }
+    if (depth < 2 && hasExecWrapper(tokens)) {
+        for (const t of tokens) {
+            // A token containing whitespace can only have come from a quoted
+            // span (bare tokens never contain whitespace).
+            if (/\s/.test(t)) matches.push(...findAllVerbMatches(t, depth + 1))
+        }
+    }
+    return matches
+}
+
+/**
+ * The value passed to the first of `names` found among `tokens` (as `--flag
+ * value` or `--flag=value`). Used to scope verdict-keyword scanning to the
+ * ACTUAL flag value (e.g. a comment body) rather than the whole command line —
+ * scanning the whole line let unrelated text (a `-t`/`-m` value, a trailing
+ * comment) inject or neutralize a verdict keyword (PR #42 review, rounds 3-4).
+ */
+function flagValueAfter(tokens, names) {
+    for (let i = 0; i < tokens.length; i += 1) {
+        const t = tokens[i]
+        if (names.includes(t)) return tokens[i + 1] ?? null
+        for (const name of names) {
+            if (t.startsWith(`${name}=`)) return t.slice(name.length + 1)
         }
     }
     return null
 }
 
+/** Is this single verb-match an accept-shaped action? */
+function isAcceptMatch({ verb, restTokens }) {
+    if (verb === 'merge') return true
+    if (verb === 'review') {
+        const hasApprove = restTokens.includes('--approve') || restTokens.includes('-a')
+        const requestsChanges = restTokens.includes('--request-changes') || restTokens.includes('-r')
+        return hasApprove && !requestsChanges
+    }
+    if (verb === 'comment') {
+        // Only the --body/-b VALUE is inspected — never the whole command — so
+        // an unrelated flag or trailing text cannot inject a verdict marker.
+        const body = flagValueAfter(restTokens, ['--body', '-b'])
+        if (!body) return false
+        // Ambiguous phrasing (both an accept AND a blocking word in the same
+        // body) resolves TOWARD accept. Over-flagging a legitimate blocking
+        // comment as a possible accept is just an annoying false deny (safe);
+        // under-flagging a crafted self-accept ("accept — no major issues")
+        // whose incidental "major" neutralized the real signal is the actual
+        // security hole this closes (PR #42 review, round 4).
+        return /\b(accept|batch_followup_and_accept|approve|lgtm)\b/i.test(body)
+    }
+    return false
+}
+
 function classify(command) {
     if (typeof command !== 'string') return { isVerdict: false }
-    const cmd = command
-    const found = findVerb(cmd)
-    if (!found) return { isVerdict: false }
-    const { verb, restTokens } = found
-
-    const isReview = verb === 'review'
-    const isComment = verb === 'comment'
-    const isMerge = verb === 'merge'
-
-    const requestsChanges = /(^|\s)(--request-changes|-r)(\s|=|$)/.test(cmd)
-    const hasApprove = /(^|\s)(--approve|-a)(\s|=|$)/.test(cmd)
-
-    const blockingVerdict = /\b(fix_loop|request[-_ ]?changes|blocker|major)\b/i.test(cmd)
-    const acceptVerdict = /\b(accept|batch_followup_and_accept|approve|lgtm)\b/i.test(cmd)
-
-    let isAccept = false
-    if (isReview) {
-        isAccept = hasApprove && !requestsChanges
-    } else if (isMerge) {
-        isAccept = true
-    } else if (isComment) {
-        isAccept = acceptVerdict && !blockingVerdict && !requestsChanges
-    }
-
-    return { isVerdict: true, isAccept, isMerge, prNumber: extractPrNumber(restTokens) }
+    const matches = findAllVerbMatches(command)
+    if (matches.length === 0) return { isVerdict: false }
+    const isAccept = matches.some(isAcceptMatch)
+    const mergeMatch = matches.find((m) => m.verb === 'merge')
+    const isMerge = !!mergeMatch
+    const prNumber = extractPrNumber((mergeMatch || matches[0]).restTokens)
+    return { isVerdict: true, isAccept, isMerge, prNumber }
 }
 
 /**
@@ -254,6 +364,22 @@ const INTEGRATION_BRANCH = /^feat\/spec-/i
  * separated-only regex is exactly what missed the attached form the first time
  * (PR #42 review, round 3).
  */
+/**
+ * Every token in the command, including tokens found by recursing into a quoted
+ * span — but ONLY when a code-execution wrapper is present (see
+ * `findAllVerbMatches`'s comment for why unconditional recursion is unsafe).
+ */
+function flattenAllTokens(cmd, depth = 0) {
+    const tokens = tokenize(cmd)
+    const all = [...tokens]
+    if (depth < 2 && hasExecWrapper(tokens)) {
+        for (const t of tokens) {
+            if (/\s/.test(t)) all.push(...flattenAllTokens(t, depth + 1))
+        }
+    }
+    return all
+}
+
 function hasRepoFlag(tokens) {
     return tokens.some(
         (t) => t === '-R' || t === '--repo' || t.startsWith('--repo=') || (t.startsWith('-R') && t.length > 2 && !t.startsWith('--'))
@@ -262,7 +388,8 @@ function hasRepoFlag(tokens) {
 
 /**
  * Does this command carry exactly ONE `gh ... pr <verb>` action, with no shell
- * chaining and no cross-repo flag anywhere in it?
+ * chaining and no cross-repo flag anywhere in it (including inside a wrapped
+ * invocation — see `findAllVerbMatches` / `flattenAllTokens`)?
  *
  * The carve-out authorizes a whole Bash command from a single resolved PR base, so
  * a compound command is a bypass: `gh pr merge 100 && gh pr merge 7` resolves only
@@ -270,21 +397,15 @@ function hasRepoFlag(tokens) {
  * Chaining metacharacters are checked on the RAW string, not the tokenized one —
  * this is deliberately the more paranoid direction: a metacharacter appearing
  * anywhere, even inside a quoted value, denies the carve-out, and the normal
- * author≠reviewer check still applies. `-R`/`--repo` (any spelling) targets a
- * different repository than the one the base lookup below queries, so it never
- * gets the carve-out either — it falls through to deny, the fail-closed direction.
+ * author≠reviewer check still applies. `-R`/`--repo` (any spelling, anywhere —
+ * including inside a wrapped command) targets a different repository than the
+ * one the base lookup below queries, so it never gets the carve-out either — it
+ * falls through to deny, the fail-closed direction.
  */
 function isSingleUnchainedGhAction(cmd) {
     if (/[;&|]{1,2}|\$\(|`|\n/.test(String(cmd))) return false
-    const tokens = tokenize(cmd)
-    let verbCount = 0
-    for (let i = 0; i < tokens.length - 1; i += 1) {
-        if (tokens[i] === 'pr' && (tokens[i + 1] === 'review' || tokens[i + 1] === 'comment' || tokens[i + 1] === 'merge')) {
-            verbCount += 1
-        }
-    }
-    if (verbCount !== 1) return false
-    if (hasRepoFlag(tokens)) return false
+    if (findAllVerbMatches(cmd).length !== 1) return false
+    if (hasRepoFlag(flattenAllTokens(cmd))) return false
     return true
 }
 

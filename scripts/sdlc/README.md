@@ -53,7 +53,7 @@ text is clamped and labeled untrusted. Covered by
 **`pre-tool-use-edit-write.mjs`** (PreToolUse, matcher `Edit|Write`) — the
 no-active-task gate. It blocks an edit to an implementation-code path when there
 is no active task context (the git branch does not match `claude/SPEC-…` |
-`task/…` | `spec/…` | `feat/SPEC-…`). Process-artifact paths (`specs/**`,
+`task/…` | `spec/…` | `feat/spec-…`). Process-artifact paths (`specs/**`,
 `.ai/**`, `.claude/**`, `docs/**`, root-level `*.md`, the state machine) are
 categorically exempt — authoring them *is* the SDLC. The generic rule is "if it
 is not a process artifact, it is implementation code," so no repo-specific
@@ -76,8 +76,13 @@ cannot be resolved or the mode is not `enforce`.
 PR — mandatory work, not a self-accept — and is allowed. Every other case denies:
 `main`/any other base, a chained or cross-repo command, an unresolvable PR
 selector, and every `gh pr review`/`gh pr comment` accept. There is no override
-for those. See `.claude/hooks/__tests__/review-identity-merge-carveout.test.mjs`
-for the exact boundary.
+for those. Command parsing runs on a hand-rolled shell-word tokenizer (quoting,
+escaping, and code-execution wrappers like `bash -c`/`eval` are all searched),
+not raw-string regex — four review rounds found distinct bypasses in the regex
+version. It still cannot see a `gh` invocation hidden inside a file executed
+indirectly (`bash script.sh`); no version of this hook claims otherwise. See
+`.claude/hooks/__tests__/review-identity-merge-carveout.test.mjs` for the exact
+boundary.
 
 ## Validators (`scripts/sdlc/`)
 

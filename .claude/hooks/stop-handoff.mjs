@@ -67,9 +67,12 @@
 //      so every rewrite of the goal file would otherwise reset the cap. A goal's
 //      `max_blocks` may only LOWER the bound, never raise it.
 //   3. It fails OPEN whenever the bound cannot be enforced: past the cap, on
-//      malformed/array/scalar JSON, when neither the counter nor the goal file can
-//      be written, and 24h after `armed_at` (not mtime — the hook rewrites the file
-//      on every block, so an mtime horizon could never expire a live leash).
+//      malformed/array/scalar JSON, when there is no path-safe session id to key a
+//      counter to, whenever the HOOK-OWNED counter cannot be written (the goal
+//      file is a display mirror and never counts as persistence — treating it as
+//      such was a fail-CLOSED bug, see readGoal/bumpGoalBlocks below), and 24h
+//      after `armed_at` (not mtime — the hook rewrites the file on every block, so
+//      an mtime horizon could never expire a live leash).
 //   4. Session keying is a boundary, not a convenience. `.sdlc-goal-current` is a
 //      one-shot ARMING name that the first real `Stop` CLAIMS by renaming it to the
 //      session-keyed name; it is never a leash shared across sessions. An unkeyed

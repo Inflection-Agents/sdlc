@@ -135,11 +135,21 @@ integration gate.**
       other two panels hit an infrastructure error mid-run and were redispatched — the retry
       surfaced a third, more severe bypass in the same carve-out (a `gh`/`pr` non-adjacency gap
       that skipped the *entire* author≠reviewer gate, not just the carve-out) plus 4 further
-      majors, and a separate 9-major doctrine pass, none of them a repeat of an earlier round's
-      finding. **This bullet is not backfilled to declare a clean result it has not seen**: every
+      majors, and a separate 9-major doctrine pass. In response the carve-out's command parser
+      was rewritten from regex-on-raw-string to a hand-rolled shell tokenizer, on the reasoning that
+      three consecutive rounds finding distinct bypasses in the same function meant the *approach*,
+      not the latest hole, needed fixing. Round 4 (dispatched against the tokenizer rewrite):
+      0 blockers from doctrine (7 majors, all doc-only) but 3 blockers from code-correctness and
+      adversarial — independently, both found that the rewrite itself introduced two regressions
+      (exact-string `gh` matching missed path-qualified/backslash-escaped forms; a wrapped
+      invocation via `eval`/`bash -c` hid the whole command inside one opaque quoted token) plus a
+      pre-existing hole in verdict-keyword detection that had never moved off raw-string regex.
+      Fixed with a recursive, wrapper-gated token search (`findAllVerbMatches`) rather than a fourth
+      patch. **This bullet is not backfilled to declare a clean result it has not seen**: every
       round's fixes are re-verified by dispatching the panel again in full, not by inspecting the
       diff, and the merge in decision 11 does not happen until a round returns with nothing left to
-      fix.
+      fix. As of this text, round 4's fixes are applied and pushed; a round 5 re-verification is the
+      next step before merge, not yet run.
     - This is an uncomfortable example on purpose: a rule that could not survive being applied to
       the change that wrote it would not be worth writing. Recording the trail plainly — including
       how many rounds it actually took, and that some fixes introduced their own new bypasses — is

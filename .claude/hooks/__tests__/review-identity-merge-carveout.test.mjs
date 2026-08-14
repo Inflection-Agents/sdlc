@@ -265,6 +265,61 @@ test('a genuine PR number is still found through quoted flag values elsewhere in
     assert.equal(runGate("gh pr merge 7 -m 'multi word body here' --squash", { base: 'feat/spec-1' }), ALLOW)
 })
 
+test('a path-qualified or backslash-escaped gh spelling is still recognized (round-4 bypass)', () => {
+    // All four are ordinary, working invocations of the SAME gh binary. Exact
+    // string equality with "gh" missed every one of them — the whole gate no-op'd,
+    // not just the carve-out.
+    assert.equal(runGate('/usr/bin/gh pr merge 42 --squash', { base: 'main' }), DENY)
+    assert.equal(runGate('\\gh pr merge 42 --squash', { base: 'main' }), DENY)
+    assert.equal(runGate('g\\h pr merge 42 --squash', { base: 'main' }), DENY)
+    assert.equal(runGate('gh p\\r merge 42 --squash', { base: 'main' }), DENY)
+    // ...and still resolves a legitimate task merge correctly through these forms.
+    assert.equal(runGate('/usr/bin/gh pr merge 7 --squash', { base: 'feat/spec-1' }), ALLOW)
+})
+
+test('a real invocation wrapped in eval/bash -c/sh -c is still found (round-4 bypass)', () => {
+    // The tokenizer treats a quoted span as one opaque token, so a wrapper that
+    // EXECUTES its argument as code must be recursed into, or the whole gh
+    // invocation vanishes inside what looks like inert quoted data.
+    assert.equal(runGate('eval "gh pr merge 42 --squash"', { base: 'main' }), DENY)
+    assert.equal(runGate('bash -c "gh pr merge 42 --squash"', { base: 'main' }), DENY)
+    assert.equal(runGate('sh -c "gh pr merge 42 --squash"', { base: 'main' }), DENY)
+    // ...and a wrapped legitimate task merge still resolves correctly.
+    assert.equal(runGate('bash -c "gh pr merge 7 --squash"', { base: 'feat/spec-1' }), ALLOW)
+})
+
+test('quoting the verdict flag itself does not defeat detection (round-4 bypass)', () => {
+    // `gh pr review 42 "--approve"` is argv-identical to the unquoted form for
+    // gh, but a raw-string regex requiring a whitespace/end boundary right after
+    // `--approve` fails to match with a `"` immediately following it.
+    assert.equal(runGate('gh pr review 42 "--approve"', { base: 'main' }), DENY)
+    assert.equal(runGate('gh pr review 42 --approve""', { base: 'main' }), DENY)
+})
+
+test('unrelated text in a flag value cannot neutralize a real --approve (round-4 bypass)', () => {
+    // --approve is a REAL, present flag token. A raw-string regex scanning the
+    // WHOLE command for "-r" as a substring found it inside the quoted --body
+    // text and incorrectly treated that as --request-changes, suppressing a
+    // genuine self-approval.
+    assert.equal(runGate('gh pr review 42 --approve --body "no -r blockers here"', { base: 'main' }), DENY)
+    assert.equal(runGate('gh pr review 42 -a --body "shipping; -r not needed"', { base: 'main' }), DENY)
+})
+
+test('a comment body with both an accept word and an incidental blocking word resolves toward accept (round-4 bypass)', () => {
+    // "accept - no major issues" contains the substring "major"; the old
+    // formula (acceptVerdict && !blockingVerdict) let that incidental word
+    // cancel a genuine accept marker. Ambiguous phrasing must resolve toward
+    // catching a possible self-accept, not away from it.
+    assert.equal(runGate('gh pr comment 42 --body "accept - no major issues"', { base: 'main' }), DENY)
+    assert.equal(runGate('gh pr comment 42 --body "lgtm, no major concerns"', { base: 'main' }), DENY)
+})
+
+test('verdict keywords outside the --body value do not count (scoped detection)', () => {
+    // "accept" appearing in an unrelated flag value (not the body) must not be
+    // read as a verdict marker — only the actual body text is inspected.
+    assert.equal(runGate('gh pr comment 42 --body "just fixing a typo" -R accept/repo', { base: 'feat/spec-1' }), ALLOW)
+})
+
 test('sweep: no combination of documented gh forms bypasses the carve-out onto a main-targeted merge', () => {
     // PR 42 targets `main`; the attacker's goal is to get ALLOW anyway. None of
     // these should succeed.

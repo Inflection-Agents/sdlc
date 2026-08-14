@@ -149,7 +149,7 @@ You are the implementer. Follow the same discipline you would demand of any agen
 
 Consistency across agents makes review easier:
 
-- Branch name: `claude/SPEC-NNN-TASK-NNN` — id-derived, so a resumed run reuses it rather than forking a second branch
+- Branch name: `claude/SPEC-NNN-TASK-NNN` — id-derived, so a resumed run recreates the same name rather than forking a differently-named one; the branch itself is deleted at merge, so resume is a read of `_index.yaml` status
 - Commit message: `SPEC-NNN: [concise description of change]`
 - PR title: `SPEC-NNN: [task title]`
 - PR target: the integration branch `feat/spec-NNN`, always. Nothing for a spec targets `main` except the one integration PR.

@@ -120,7 +120,7 @@ Read these sections in `.ai/project.md` before decomposing:
 1. **Assign each task a single workspace.** If a change touches dbt AND shared types AND an app, that's at least 3 tasks.
 2. **Follow change propagation patterns.** If project.md defines a pattern for the type of change you're making (e.g., "New field: data → apps"), follow its task ordering and boundary constraints.
 3. **Upstream before downstream.** Changes flow from producer to consumer: data → shared → apps. The dependency graph must reflect this.
-4. **Parallel where possible.** Consumer tasks that don't depend on each other run in parallel (e.g., dealer-app and admin-app both depend on shared, but not on each other).
+4. **Order sets the burn-down sequence.** Delivery is serial by default (ADR-003), so this ordering IS the execution order — tasks that genuinely share no state are candidates for the rare fan-out exception (e.g., dealer-app and admin-app both depend on shared, but not on each other), not the default expectation.
 
 ##### Step C: Write boundary constraints on boundary tasks
 
@@ -166,8 +166,8 @@ For each task, determine:
 
 Rules:
 - Dependencies are acyclic (no circular deps)
-- Minimize depth — flat is better than deep chains
-- If two tasks don't depend on each other, they can run in parallel
+- Minimal — only a real ordering constraint earns a dependency edge, since delivery burns the graph down serially and depth just sets that order (ADR-003)
+- Two tasks with no dependency between them are candidates for the rare fan-out exception, not a default expectation
 
 ### Step 4: Route each task
 

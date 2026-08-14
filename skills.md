@@ -213,7 +213,7 @@ Three modes:
 - Every executable task declares a non-empty `touches` set (file globs it may modify), bounded to one workspace; parallel tasks must have non-overlapping `touches`
 - `risk` and `tier` are set on every executable task (tier is a hint; the registry can only raise it)
 - `evidence:` field is created empty on every AC — the implementing agent fills it before PR review
-- Dependencies are explicit and minimal (maximize parallelism)
+- Dependencies are explicit and minimal (they set the serial burn-down order — ADR-003)
 - Every executable task has everything in the task file (no assumed context)
 
 **Interacts with:** `spec-authoring` (runs after spec is approved), `spec-execution` (runs before execution), `spec-amendment` (when re-planning is needed)
