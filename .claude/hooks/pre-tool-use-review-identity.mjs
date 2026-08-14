@@ -101,18 +101,81 @@ function parsePayload() {
  *   - any comment whose verdict is `fix_loop` / `blocker` / `major`
  */
 /**
- * Find the `pr <verb>` subcommand and everything after it. `gh` and `pr` need NOT
- * be adjacent — global flags can sit between them (`gh --repo owner/repo pr merge
- * 42`, `gh -Ro/r pr review 42 --approve`, both valid gh syntax). Requiring
- * adjacency let such a command skip classification ENTIRELY — not just the merge
- * carve-out, the WHOLE author≠reviewer gate, including an unrestricted self-merge
- * to `main` (PR #42 review, round 3, second occurrence of this bug class).
+ * Minimal shell-word tokenizer. Splits on whitespace, treating a single- or
+ * double-quoted span as ONE token regardless of the whitespace inside it (with
+ * `\"` handled inside double quotes; single quotes take everything literally, as
+ * in real shells).
+ *
+ * Three rounds of this gate were bypassed by regex-on-the-raw-string tricks:
+ * adjacency assumptions (`gh` ... `pr merge` not adjacent), a PR-shaped token
+ * hiding inside a flag VALUE (`-t "...pull/7..."`), and a flag spelling the
+ * regex didn't enumerate (`-Rowner/repo` attached). A real tokenizer removes an
+ * entire class of these: once "gh", "pr", "merge", "42" are actual array
+ * elements, a quoted commit message containing the substring "gh pr merge 999"
+ * is ONE token (the whole quoted string), not three tokens that regex scanning
+ * would have found and trusted.
+ *
+ * Not a full shell grammar (no `$()`, no glob expansion, no `;`-in-quotes
+ * awareness) — just enough to stop token-boundary tricks. `isSingleUnchainedGhAction`
+ * still rejects shell metacharacters outright, which is the correct fail-closed
+ * response to anything this tokenizer doesn't understand.
+ */
+function tokenize(cmd) {
+    const tokens = []
+    let cur = ''
+    let quote = null
+    const s = String(cmd)
+    for (let i = 0; i < s.length; i += 1) {
+        const c = s[i]
+        if (quote) {
+            if (c === quote) {
+                quote = null
+                continue
+            }
+            if (quote === '"' && c === '\\' && i + 1 < s.length) {
+                cur += s[i + 1]
+                i += 1
+                continue
+            }
+            cur += c
+            continue
+        }
+        if (c === '"' || c === "'") {
+            quote = c
+            continue
+        }
+        if (/\s/.test(c)) {
+            if (cur) {
+                tokens.push(cur)
+                cur = ''
+            }
+            continue
+        }
+        cur += c
+    }
+    if (cur) tokens.push(cur)
+    return tokens
+}
+
+/**
+ * Find a `pr <verb>` subcommand among the command's tokens and return the verb
+ * plus every token after it. `gh` and `pr` need NOT be adjacent — global flags
+ * can sit between them (`gh --repo owner/repo pr merge 42`, `gh -Ro/r pr review
+ * 42 --approve`, both valid gh syntax). An adjacency-requiring regex let such a
+ * command skip classification ENTIRELY — not just the merge carve-out, the WHOLE
+ * author≠reviewer gate, including an unrestricted self-merge to `main`
+ * (PR #42 review, round 3).
  */
 function findVerb(cmd) {
-    if (!/\bgh\b/.test(String(cmd))) return null
-    const m = String(cmd).match(/\bpr\s+(review|comment|merge)\b([^\n]*)/)
-    if (!m) return null
-    return { verb: m[1], rest: m[2] }
+    const tokens = tokenize(cmd)
+    const ghIdx = tokens.indexOf('gh')
+    if (ghIdx === -1) return null
+    for (let i = ghIdx + 1; i < tokens.length - 1; i += 1) {
+        if (tokens[i] === 'pr' && (tokens[i + 1] === 'review' || tokens[i + 1] === 'comment' || tokens[i + 1] === 'merge')) {
+            return { verb: tokens[i + 1], restTokens: tokens.slice(i + 2), allTokens: tokens }
+        }
+    }
+    return null
 }
 
 function classify(command) {
@@ -120,7 +183,7 @@ function classify(command) {
     const cmd = command
     const found = findVerb(cmd)
     if (!found) return { isVerdict: false }
-    const { verb, rest } = found
+    const { verb, restTokens } = found
 
     const isReview = verb === 'review'
     const isComment = verb === 'comment'
@@ -141,21 +204,20 @@ function classify(command) {
         isAccept = acceptVerdict && !blockingVerdict && !requestsChanges
     }
 
-    return { isVerdict: true, isAccept, isMerge, prNumber: extractPrNumber(rest) }
+    return { isVerdict: true, isAccept, isMerge, prNumber: extractPrNumber(restTokens) }
 }
 
 /**
- * Best-effort extraction of the PR number from the text AFTER the `pr <verb>`
+ * Best-effort extraction of the PR number from the TOKENS after the `pr <verb>`
  * match. gh accepts a bare number, a URL, or a branch as the selector — always as
  * the FIRST positional token right after the verb (gh's own convention). Nothing
  * later in the command is ever consulted: scanning further let a URL embedded in
  * a flag value (`-t "closes https://github.com/o/r/pull/7"`, a commit message,
  * `--body`) steer base resolution to an unrelated PR (PR #42 review, round 3).
  */
-function extractPrNumber(rest) {
-    const trimmed = String(rest ?? '').trim()
-    if (!trimmed) return null
-    const first = trimmed.split(/\s+/)[0]
+function extractPrNumber(restTokens) {
+    const first = (restTokens || [])[0]
+    if (!first) return null
     if (/^\d+$/.test(first)) return first
     const url = first.match(/^https?:\/\/github\.com\/[^/\s]+\/[^/\s]+\/pull\/(\d+)$/)
     if (url) return url[1]
@@ -192,21 +254,37 @@ const INTEGRATION_BRANCH = /^feat\/spec-/i
  * separated-only regex is exactly what missed the attached form the first time
  * (PR #42 review, round 3).
  */
-function hasRepoFlag(cmd) {
-    const tokens = String(cmd).split(/\s+/).filter(Boolean)
+function hasRepoFlag(tokens) {
     return tokens.some(
         (t) => t === '-R' || t === '--repo' || t.startsWith('--repo=') || (t.startsWith('-R') && t.length > 2 && !t.startsWith('--'))
     )
 }
 
+/**
+ * Does this command carry exactly ONE `gh ... pr <verb>` action, with no shell
+ * chaining and no cross-repo flag anywhere in it?
+ *
+ * The carve-out authorizes a whole Bash command from a single resolved PR base, so
+ * a compound command is a bypass: `gh pr merge 100 && gh pr merge 7` resolves only
+ * PR 100's base (a task branch) and would exempt the merge of PR 7 into `main`.
+ * Chaining metacharacters are checked on the RAW string, not the tokenized one —
+ * this is deliberately the more paranoid direction: a metacharacter appearing
+ * anywhere, even inside a quoted value, denies the carve-out, and the normal
+ * author≠reviewer check still applies. `-R`/`--repo` (any spelling) targets a
+ * different repository than the one the base lookup below queries, so it never
+ * gets the carve-out either — it falls through to deny, the fail-closed direction.
+ */
 function isSingleUnchainedGhAction(cmd) {
     if (/[;&|]{1,2}|\$\(|`|\n/.test(String(cmd))) return false
-    if ((String(cmd).match(/\bpr\s+(?:review|comment|merge)\b/g) || []).length !== 1) return false
-    // A cross-repo command targets a different repository than the one the base
-    // lookup below queries. Rather than propagate the flag (more surface to get
-    // subtly wrong), the carve-out simply refuses a cross-repo command — it falls
-    // through to the normal author≠reviewer check, the fail-closed direction.
-    if (hasRepoFlag(cmd)) return false
+    const tokens = tokenize(cmd)
+    let verbCount = 0
+    for (let i = 0; i < tokens.length - 1; i += 1) {
+        if (tokens[i] === 'pr' && (tokens[i + 1] === 'review' || tokens[i + 1] === 'comment' || tokens[i + 1] === 'merge')) {
+            verbCount += 1
+        }
+    }
+    if (verbCount !== 1) return false
+    if (hasRepoFlag(tokens)) return false
     return true
 }
 

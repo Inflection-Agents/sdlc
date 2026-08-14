@@ -233,3 +233,57 @@ test('the attached short-flag form -Rowner/repo is denied the carve-out (round-3
     assert.equal(runGate('gh pr merge 7 --squash -Rowner/repo', { base: 'feat/spec-1' }), DENY)
     assert.equal(runGate('gh pr merge 7 --squash --repo=owner/repo', { base: 'feat/spec-1' }), DENY)
 })
+
+test('a PR-shaped substring hidden inside ANY quoted value never counts as the real command (tokenizer)', () => {
+    // Regex-on-the-raw-string scanning treated a quoted commit message or flag
+    // value as fair game for finding "gh"/"pr"/a number. A real tokenizer makes a
+    // quoted span ONE token, so text inside it can never masquerade as the verb,
+    // the selector, or a second gh-pr action.
+    assert.equal(
+        runGate('gh pr merge 42 -m "unrelated note: gh pr merge 999 --squash"', { base: 'main' }),
+        DENY,
+        'quoted text mentioning a second merge must not be treated as a real second action'
+    )
+    assert.equal(
+        runGate("gh pr merge 42 -m 'pull/7 mentioned here, not a real selector'", { base: 'main' }),
+        DENY
+    )
+})
+
+test('a command with no REAL gh pr action, only a quoted mention of one, is untouched (not a verdict at all)', () => {
+    // `git commit -m "gh pr merge 999 --squash"` is a git commit whose message
+    // happens to contain that text — there is no gh invocation here whatsoever,
+    // so this is correctly a no-op (ALLOW), not a denied verdict. The tokenizer's
+    // job is to stop a QUOTED mention from being treated as a real second action
+    // inside an ACTUAL gh command (covered above), not to flag unrelated commands
+    // that merely reference gh syntax in a string.
+    assert.equal(runGate('git commit -m "gh pr merge 999 --squash" && true', { base: 'main' }), ALLOW)
+})
+
+test('a genuine PR number is still found through quoted flag values elsewhere in the command', () => {
+    assert.equal(runGate('gh pr merge 7 -m "release notes" --squash', { base: 'feat/spec-1' }), ALLOW)
+    assert.equal(runGate("gh pr merge 7 -m 'multi word body here' --squash", { base: 'feat/spec-1' }), ALLOW)
+})
+
+test('sweep: no combination of documented gh forms bypasses the carve-out onto a main-targeted merge', () => {
+    // PR 42 targets `main`; the attacker's goal is to get ALLOW anyway. None of
+    // these should succeed.
+    const attacks = [
+        'gh pr merge 42 --squash -t "closes https://github.com/o/r/pull/7"',
+        'gh pr merge 42 --squash -b "see https://github.com/o/r/pull/7"',
+        'gh --repo owner/repo pr merge 42 --squash',
+        'gh -Ro/r pr merge 42 --squash',
+        'gh pr merge 42 --squash -Rowner/repo',
+        'gh pr merge 42 --squash --repo=owner/repo',
+        'gh pr merge 42 --squash; gh pr merge 7 --squash',
+        'gh pr merge 42 --squash && gh pr merge 7 --squash',
+        'gh pr merge 42 --squash | cat',
+        'gh pr merge $(echo 42) --squash',
+        'gh pr merge `echo 42` --squash',
+        'gh pr merge 42 --squash -m "gh pr merge 7"',
+        'GH_TOKEN=x gh pr merge 42 --squash'
+    ]
+    for (const cmd of attacks) {
+        assert.equal(runGate(cmd, { base: 'main' }), DENY, `must deny: ${cmd}`)
+    }
+})
