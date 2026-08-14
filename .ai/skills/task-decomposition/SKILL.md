@@ -249,7 +249,7 @@ updated: YYYY-MM-DD
 - New tests required: yes/no, location
 ```
 
-The `evidence:` field is created empty (or omitted) at decomposition time — the decomposing agent doesn't know the proof yet. It is the implementing agent's responsibility to populate before opening the PR for review. Tier 0 CI gates on presence; Tier 1 review grades quality. See SPEC-004.
+The `evidence:` field is created empty (or omitted) at decomposition time — the decomposing agent doesn't know the proof yet. It is the implementing agent's responsibility to populate before opening the PR for review: its own self-review checks presence (there is no automatic pre-review gate since ADR-003), and the integration panel grades quality. See SPEC-004.
 
 **No placeholders in task files.** Every field must have actual content. If you don't know a verification command, investigate and find the right one.
 
@@ -320,7 +320,7 @@ Before presenting to the user, verify:
 
 - [ ] Every acceptance criterion from the spec is covered by at least one task
 - [ ] No circular dependencies in the graph
-- [ ] Maximum parallelism — tasks that CAN run in parallel DO run in parallel
+- [ ] No unnecessary dependency edges — the serial burn-down order is unambiguous, and any tasks that genuinely share no state are candidates for the rare fan-out exception
 - [ ] Each task is ONE coherent unit of AI execution (sized by coherence, not line count — no artificial fragmentation, no sprawling multi-concern tasks)
 - [ ] Every executable task declares a non-empty `touches` set, bounded to its single workspace
 - [ ] No two tasks that can run in parallel have overlapping `touches` (overlap → merge conflict → decomposition defect)
@@ -469,7 +469,7 @@ For each type of change:
 After all task file changes, rebuild the index. Verify:
 - [ ] No circular dependencies
 - [ ] No dangling references (task IDs that don't exist)
-- [ ] Maximum parallelism preserved — don't add unnecessary sequential dependencies
+- [ ] Burn-down order stays unambiguous — no dependency edge added that doesn't reflect a real ordering constraint
 - [ ] All monorepo rules still hold (one workspace per task, boundary constraints on boundary tasks)
 
 **Step R4: Review with the user.**
@@ -510,7 +510,7 @@ The boundary: if acceptance criteria, scope, or design change → spec-amendment
 | Sizing tasks by line count (~300 lines) | Size by coherence + bounded `touches`. A coherent 800-line token layer is one task. |
 | Executable task with no `touches` | Declare the file globs. An unbounded task has no changed-path audit at self-review, so it must not leave decomposition. |
 | Parallel tasks with overlapping `touches` | They'll conflict at merge. Re-scope so parallel tasks touch disjoint files, or add a dependency edge. |
-| Deep dependency chains — 8 tasks in sequence | Restructure to maximize parallelism. |
+| Deep dependency chains — 8 tasks in sequence | Fine — delivery is serial by default (ADR-003); only restructure if the chain hides tasks that are genuinely independent. |
 | Routing executable work to `human` | Only defer to `human` for genuine human decisions (architecture vision, tradeoffs, security review). Executable tasks go to `claude-code`. |
 | Routing human-decision work to `claude-code` | Architecture vision, priority/tradeoff calls, and security-sensitive review belong to `human`, not the executor. |
 | Missing acceptance criteria on tasks | Every task must have testable criteria. No "implement stuff." |

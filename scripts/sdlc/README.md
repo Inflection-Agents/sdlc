@@ -97,9 +97,10 @@ each `specs/tasks/SPEC-NNN/_index.yaml`. Absence of the block is compliant
 (additive/optional). When present, `current` and `next_action` must be a valid
 state-machine phase id or `none`; `next_trigger` and `updated` must be present;
 and the optional `exit_condition_met` / `handoff_surfaced` flags must be
-booleans. It exports `validatePhaseBlock` / `loadPhaseIds` / `parsePhaseBlock`
-for in-process tests. Run:
-`node scripts/sdlc/validate-phase-memory.mjs <_index.yaml> [...]`.
+booleans. An unmatched shell glob (no `specs/tasks/` yet on a fresh repo) is a
+clean no-op, not a failure — an explicit missing literal path still fails. It
+exports `validatePhaseBlock` / `loadPhaseIds` / `parsePhaseBlock` for in-process
+tests. Run: `node scripts/sdlc/validate-phase-memory.mjs <_index.yaml> [...]`.
 
 **`gen-handoffs.mjs`** — generates the phase-handoff documentation FROM the
 state machine so it never drifts from the source. It writes/refreshes a
@@ -112,11 +113,17 @@ Run: `node scripts/sdlc/gen-handoffs.mjs` (write) or
 
 **`plan-gate.mjs`** — the fail-closed plan-review gate (ADR-002, re-homed by
 ADR-003). Reads the top-level `plan_review:` block from one or more
-`specs/tasks/SPEC-NNN/_index.yaml` and exits 0 only when it is present,
-`approved: true`, and not `needs-rework`. A *missing* block halts exactly like an
-unapproved one. `spec-execution` runs it before a delivery run starts; run it in
-CI too. Exports `planApproved` / `parsePlanReviewBlock` / `checkPlanGate`. Run:
-`node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml`.
+`specs/tasks/SPEC-NNN/_index.yaml`. **Two modes:** the default checks
+**approval** — exits 0 only when the block is present, `approved: true`, and not
+`needs-rework` (a *missing* block halts exactly like an unapproved one); this is
+what `spec-execution` runs, per-spec, before a delivery run starts. `--presence-only`
+checks only that the block **exists**, run repo-wide in CI — approval is a
+per-spec, run-start question, so enforcing it on every PR would redden any PR
+touching a spec still mid-decomposition. An unmatched shell glob (no
+`specs/tasks/` yet on a fresh repo) is a clean no-op in either mode, not a
+failure — see `empty-glob.test.mjs`. Exports `planApproved` / `parsePlanReviewBlock`
+/ `checkPlanGate`. Run: `node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml`
+or `node scripts/sdlc/plan-gate.mjs --presence-only specs/tasks/*/_index.yaml`.
 
 **`reviewer-routing.mjs`** — lens → reviewer resolution (ADR-001, re-homed by
 ADR-003). The binding is data on the constraint that owns the lens

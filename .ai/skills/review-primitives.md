@@ -82,7 +82,7 @@ This is the **single, canonical** allowed-prefix set for `pr-reviewer` (Tier 1) 
 | `task:` | `task:scope` | Cross-skill signal (blocker): PR scope reveals the task was decomposed wrong; routes to `task-decomposition` (see SPEC-002). |
 | `task:` | `task:evidence-missing` | `major`: an AC's `evidence:` field is absent, or populated but insufficient. |
 | `spec:` | `spec:ambiguous-ac` / `spec:contradictory-ac` / `spec:wrong-design` / `spec:missing-section` | Cross-skill signals: implementation reveals the spec is wrong; route to `spec-amendment` (see SPEC-002). |
-| `spec:` | `spec:gap` | Blocker cross-skill signal routing to gap-capture (per SPEC-004 Design > 2); a reviewer raising `spec:gap` MUST assign severity `blocker` so the gap-capture handler intercepts it. |
+| `spec:` | `spec:gap` | A gap in the spec, recorded against it. Since ADR-003 there is no mechanical gap-capture handler to intercept a mandatory blocker — grade `spec:gap` on its actual severity (often a `nit` or `suggestion`) rather than forcing `blocker`; see the `spec-execution` skill §8. |
 | `inv:` | `inv:<INV-ID>` | Violation of a named review invariant from the constraints registry (`review-constraints.yaml`), e.g. `inv:INV-CORE-PURITY`. |
 | `design:` | `design:<token-or-component>` | Design-fidelity finding grounded in a design token or component (registry lens citation). |
 | `lens:` | `lens:<lens-name>` | Finding grounded in a registry review lens, e.g. `lens:a11y`, `lens:security`. |

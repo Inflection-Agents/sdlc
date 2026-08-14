@@ -325,7 +325,7 @@ Three modes:
 2. Finds the linked spec and task (from PR title `SPEC-NNN` / `TASK-NNN`)
 3. Reads the task file for acceptance criteria
 4. Reads linked ADRs for constraints
-5. Checks each acceptance criterion and its `evidence:` field (Tier 0: presence; Tier 1: quality)
+5. Checks each acceptance criterion and its `evidence:` field (presence is the executor's own self-review; this step grades quality)
 6. Enforces monorepo workspace scope and verify_workspaces coverage
 7. Consumes graded findings from `pr-reviewer` (JSON) and renders them as a human-readable review comment
 8. Derives the policy action from `review-primitives.md` (not freehand): `accept`, `batch_followup_and_accept`, `fix_loop`, or `escalate`

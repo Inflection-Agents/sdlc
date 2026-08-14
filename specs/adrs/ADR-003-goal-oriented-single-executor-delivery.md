@@ -127,15 +127,23 @@ integration gate.**
     - **Authorizing sentence** (verbatim, from the owner): *"Create a PR, run it through reviews
       and merge it."*
     - **Panel verdicts:** three independently dispatched panels (doctrine coherence, code
-      correctness, adversarial), re-dispatched across multiple rounds against the full branch each
-      time rather than spot-checked. Round 1 returned 9 blockers / 16 majors; round 2 returned 0
-      blockers / ~27 majors (including two bypasses in a fix round 1 itself introduced); this round
-      is the one this bullet is written for, and it is not backfilled — if a round returns an
-      unresolved blocker or major, this ADR does not claim to be merge-clean and the merge does not
-      happen until it is.
+      correctness, adversarial), re-dispatched across the full branch each round rather than
+      spot-checked. Round 1: 9 blockers / 16 majors. Round 2 (full re-review, not a diff of round
+      1's fixes): 0 blockers / ~27 majors, including two bypasses a round-1 fix had itself
+      introduced. Round 3: the adversarial pass found 1 blocker (the shipped CI workflow broke on
+      every freshly bootstrapped repo) and 1 carried-forward major (a merge-carve-out bypass); the
+      other two panels hit an infrastructure error mid-run and were redispatched — the retry
+      surfaced a third, more severe bypass in the same carve-out (a `gh`/`pr` non-adjacency gap
+      that skipped the *entire* author≠reviewer gate, not just the carve-out) plus 4 further
+      majors, and a separate 9-major doctrine pass, none of them a repeat of an earlier round's
+      finding. **This bullet is not backfilled to declare a clean result it has not seen**: every
+      round's fixes are re-verified by dispatching the panel again in full, not by inspecting the
+      diff, and the merge in decision 11 does not happen until a round returns with nothing left to
+      fix.
     - This is an uncomfortable example on purpose: a rule that could not survive being applied to
-      the change that wrote it would not be worth writing. Recording the trail plainly is safer
-      than shipping a rule the framework's own repo cannot demonstrate it follows.
+      the change that wrote it would not be worth writing. Recording the trail plainly — including
+      how many rounds it actually took, and that some fixes introduced their own new bypasses — is
+      safer than shipping a rule the framework's own repo cannot demonstrate it follows.
 
 12. **The delivery run is transparent.** It keeps a visible session task list — one entry per task in
     `_index.yaml`, plus end-to-end validation and the integration gate — marked `in_progress` before
@@ -267,11 +275,12 @@ omit — and because each is a candidate for a real gate later:
   across the run where the Workflow kept each context small.
 - **The framework now uses a route its own schema barely admits.** This change is an
   ADR-only process-artifact change: no spec, no decomposed tasks, no plan-review gate,
-  and it was merged by the agent that authored it on the owner's explicit instruction.
-  `spec-schema.md` documents that route (an ADR may carry `spec: none`), but the state
-  machine has no phase that produces a spec-less ADR, so the process for changing the
-  process is thinner than the process it defines. Accepted for now; a `process-change`
-  route is the honest follow-up.
+  directed to be merged by the authoring agent under decision 11's process-artifact
+  carve-out once the panel is clean and the merge is recorded. `spec-schema.md`
+  documents that route (an ADR may carry `spec: none`), but the state machine has no
+  phase that produces a spec-less ADR, so the process for changing the process is
+  thinner than the process it defines. Accepted for now; a `process-change` route is
+  the honest follow-up.
 - **Removing the `code-review` phase also removed its entry triggers**, so prompts like
   "review this PR" no longer match any phase in the `UserPromptSubmit` classifier.
   `pr-reviewer` remains reachable by its skill description, but the deterministic

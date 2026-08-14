@@ -28,8 +28,8 @@
 // Active-task context
 // -------------------
 // Deterministic: the current git branch matches one of the work-branch
-// prefixes (`claude/SPEC-…`, `task/…`, `spec/…`, `feat/SPEC-…`). The wave-based
-// execution loop creates `claude/SPEC-NNN-TASK-NNN` worktrees and a
+// prefixes (`claude/SPEC-…`, `task/…`, `spec/…`, `feat/SPEC-…`). A delivery run
+// (ADR-003) creates `claude/SPEC-NNN-TASK-NNN` task branches and one
 // `feat/SPEC-NNN` integration branch, both of which satisfy this.
 //
 // Logged override hatch

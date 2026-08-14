@@ -213,3 +213,23 @@ test('non-verdict commands are untouched', () => {
     assert.equal(runGate('git status', { base: 'main' }), ALLOW)
     assert.equal(runGate('gh pr review 7 --request-changes', { base: 'main' }), ALLOW)
 })
+
+test('a global flag between gh and pr does not skip classification (round-3 second bypass)', () => {
+    // `gh` and `pr <verb>` need not be adjacent — `--repo`/`-R` are valid GLOBAL
+    // flags that sit before the subcommand. Requiring adjacency let these skip the
+    // gate ENTIRELY, not just the carve-out: an unrestricted self-merge to `main`.
+    assert.equal(runGate('gh --repo owner/repo pr merge 7 --squash', { base: 'main' }), DENY)
+    assert.equal(runGate('gh -Rowner/repo pr review 7 --approve', { base: 'main' }), DENY)
+    assert.equal(runGate('gh -R owner/repo pr merge 7 --squash', { base: 'main' }), DENY)
+    // ...and a legitimate task merge with a global flag still resolves correctly
+    // once it's classified at all — the cross-repo flag itself still denies the
+    // carve-out (this is a cross-repo command), so it falls through to DENY too.
+    assert.equal(runGate('gh --repo owner/repo pr merge 7 --squash', { base: 'feat/spec-1' }), DENY)
+})
+
+test('the attached short-flag form -Rowner/repo is denied the carve-out (round-3 third bypass)', () => {
+    // gh accepts `-R` with its value attached, no space — POSIX short-flag
+    // shorthand. A regex that only matched the separated/`=` forms missed this.
+    assert.equal(runGate('gh pr merge 7 --squash -Rowner/repo', { base: 'feat/spec-1' }), DENY)
+    assert.equal(runGate('gh pr merge 7 --squash --repo=owner/repo', { base: 'feat/spec-1' }), DENY)
+})

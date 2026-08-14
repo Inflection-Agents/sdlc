@@ -61,7 +61,7 @@ Claude Code connects to Linear via MCP, making the agent a direct participant in
 
 - **One executor per spec:** the agent running the skill implements every task itself, keeping repo context across tasks instead of rebuilding it in a fresh agent per task. Fan-out to worktree-isolated subagents is an exception for large, genuinely independent work.
 - **Serial burn-down on one integration branch:** `feat/spec-NNN`, task N merged before task N+1 starts, nothing lingering between tasks, nothing reaching `main` except by merging that branch.
-- **Id-derived branches** (`claude/SPEC-NNN-TASK-NNN`) → a resumed run reuses the same branch rather than forking a second one.
+- **Id-derived branches** (`claude/SPEC-NNN-TASK-NNN`) → a resumed run recreates the same name rather than forking a differently-named one; the branch itself is deleted at merge, so resume is solely a read of `_index.yaml` status.
 - **A repo-side persistence leash:** `.claude/.sdlc-goal-<session_id>` + the `Stop` hook keep a run from stopping half-done. `met` and `escalated` are the only release words; the leash is bounded by a hook-owned counter, expires 24h after `armed_at`, and fails open whenever that bound cannot be enforced.
 - **Transparency by default:** a visible task list covering every task plus end-to-end validation and the gate, so the run is followable in-session.
 - **Machine-checkable gates around the judgment:** `plan-gate.mjs` (fail-closed entry), `reviewer-routing.mjs` (lens → reviewer, from the registry), `validate-review-envelope.mjs` (every verdict), `check-review-constraint-globs.mjs` (registry rows resolve).

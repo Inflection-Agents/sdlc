@@ -10,9 +10,8 @@
 //
 //   plan_review:
 //       approved: true            # the OWNER sets this; task-decomposition stamps false
-//       status: reviewed          # `needs-rework` vetoes the approval
-//       reviewer: spec-reviewer
-//       date: 2026-08-14
+//       status: approve-ready     # approve-ready | approve-after-fixes | needs-rework
+//       reviewed: 2026-08-14      # ISO date the plan review was recorded
 //
 // A MISSING block is treated exactly like an unapproved one — HALT. The block is
 // additive to the `_index.yaml` schema (files without it stay schema-valid); the

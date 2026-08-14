@@ -306,9 +306,12 @@ The block is **additive** — `_index.yaml` files without it remain schema-valid
 **fails closed** on it: before a delivery run touches anything it HALTs unless
 `plan_review.approved === true` and `plan_review.status !== 'needs-rework'`. A *missing*
 `plan_review` block halts exactly like an unapproved one — absent and unapproved are treated
-identically. The predicate lives in [`scripts/sdlc/plan-gate.mjs`](scripts/sdlc/plan-gate.mjs)
-(`node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml`), so the same check runs in a
-delivery run and in CI. (Existing `_index.yaml` files that predate the gate are back-filled with the
+identically. The predicate lives in [`scripts/sdlc/plan-gate.mjs`](scripts/sdlc/plan-gate.mjs).
+Two modes: the default checks **approval** (`node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml`)
+and is what `spec-execution` runs per-spec before a run starts; `--presence-only`
+checks only that the block exists and is what CI runs repo-wide (enforcing approval
+on every PR would redden one touching a spec still mid-decomposition). (Existing
+`_index.yaml` files that predate the gate are back-filled with the
 block so the fail-closed behaviour does not retroactively block them.)
 
 ## Directory structure (updated)

@@ -22,7 +22,7 @@
 // Exit 0 if every file is compliant; 1 otherwise (listing problems per file).
 // Exposes validatePhaseBlock(...) + loadPhaseIds(...) + parsePhaseBlock(...) as
 // a module so a fixture test can drive blocks without spawning a child process.
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -168,8 +168,17 @@ const looksLikeGlob = (s) => /[*?[\]]/.test(s)
 function parseArgs(argv) {
     const args = { machine: DEFAULT_MACHINE, files: [] }
     for (let i = 0; i < argv.length; i += 1) {
-        if (argv[i] === '--machine') args.machine = resolve(argv[(i += 1)])
-        else args.files.push(argv[i])
+        if (argv[i] === '--machine') {
+            const value = argv[i + 1]
+            if (value === undefined) {
+                console.error('usage: --machine requires a path argument')
+                process.exit(2)
+            }
+            args.machine = resolve(value)
+            i += 1
+        } else {
+            args.files.push(argv[i])
+        }
     }
     return args
 }
@@ -213,4 +222,21 @@ function main() {
     process.exit(failed ? 1 : 0)
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main()
+/**
+ * Is this module the process entry point? realpath BOTH sides — `import.meta.url`
+ * is already resolved by Node, so an unresolved `process.argv[1]` (a symlinked
+ * path, or a path needing percent-encoding like a space) would never match, and
+ * this CLI — wired into CI at `.github/workflows/sdlc-validate.yml` — would
+ * silently validate nothing and still exit 0.
+ */
+function isMain(metaUrl) {
+    const entry = process.argv[1]
+    if (!entry) return false
+    try {
+        return realpathSync(entry) === realpathSync(fileURLToPath(metaUrl))
+    } catch {
+        return resolve(entry) === fileURLToPath(metaUrl)
+    }
+}
+
+if (isMain(import.meta.url)) main()

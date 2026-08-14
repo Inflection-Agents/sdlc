@@ -100,15 +100,31 @@ function parsePayload() {
  *   - `gh pr review --comment` / `-c` with no approve
  *   - any comment whose verdict is `fix_loop` / `blocker` / `major`
  */
+/**
+ * Find the `pr <verb>` subcommand and everything after it. `gh` and `pr` need NOT
+ * be adjacent — global flags can sit between them (`gh --repo owner/repo pr merge
+ * 42`, `gh -Ro/r pr review 42 --approve`, both valid gh syntax). Requiring
+ * adjacency let such a command skip classification ENTIRELY — not just the merge
+ * carve-out, the WHOLE author≠reviewer gate, including an unrestricted self-merge
+ * to `main` (PR #42 review, round 3, second occurrence of this bug class).
+ */
+function findVerb(cmd) {
+    if (!/\bgh\b/.test(String(cmd))) return null
+    const m = String(cmd).match(/\bpr\s+(review|comment|merge)\b([^\n]*)/)
+    if (!m) return null
+    return { verb: m[1], rest: m[2] }
+}
+
 function classify(command) {
     if (typeof command !== 'string') return { isVerdict: false }
     const cmd = command
+    const found = findVerb(cmd)
+    if (!found) return { isVerdict: false }
+    const { verb, rest } = found
 
-    if (!/\bgh\s+pr\b/.test(cmd)) return { isVerdict: false }
-
-    const isReview = /\bgh\s+pr\s+review\b/.test(cmd)
-    const isComment = /\bgh\s+pr\s+comment\b/.test(cmd)
-    const isMerge = /\bgh\s+pr\s+merge\b/.test(cmd)
+    const isReview = verb === 'review'
+    const isComment = verb === 'comment'
+    const isMerge = verb === 'merge'
 
     const requestsChanges = /(^|\s)(--request-changes|-r)(\s|=|$)/.test(cmd)
     const hasApprove = /(^|\s)(--approve|-a)(\s|=|$)/.test(cmd)
@@ -125,27 +141,21 @@ function classify(command) {
         isAccept = acceptVerdict && !blockingVerdict && !requestsChanges
     }
 
-    return { isVerdict: isReview || isComment || isMerge, isAccept, isMerge, prNumber: extractPrNumber(cmd) }
+    return { isVerdict: true, isAccept, isMerge, prNumber: extractPrNumber(rest) }
 }
 
 /**
- * Best-effort extraction of the PR number from the gh command. gh accepts a
- * bare number, a URL, or a branch. We pull the first number-like positional
- * after `gh pr <verb>`. If none is present, gh resolves the PR from the current
- * branch — we mirror that by returning null and letting `gh pr view` resolve it.
+ * Best-effort extraction of the PR number from the text AFTER the `pr <verb>`
+ * match. gh accepts a bare number, a URL, or a branch as the selector — always as
+ * the FIRST positional token right after the verb (gh's own convention). Nothing
+ * later in the command is ever consulted: scanning further let a URL embedded in
+ * a flag value (`-t "closes https://github.com/o/r/pull/7"`, a commit message,
+ * `--body`) steer base resolution to an unrelated PR (PR #42 review, round 3).
  */
-function extractPrNumber(cmd) {
-    const m = cmd.match(/\bgh\s+pr\s+(?:review|comment|merge)\b([^\n]*)/)
-    if (!m) return null
-    const rest = m[1].trim()
-    if (!rest) return null
-    // ONLY the FIRST positional token after the verb — gh's own selector
-    // convention (`gh pr merge [<number> | <url> | <branch>] [flags...]`).
-    // Scanning the REST of the command for a PR-shaped token let a URL embedded
-    // in a flag value (`-t "closes https://github.com/o/r/pull/7"`, a commit
-    // message, `--body`) steer base resolution to an unrelated PR — a self-merge
-    // to `main` exempted off a task PR's base (PR #42 review, round 3).
-    const first = rest.split(/\s+/)[0]
+function extractPrNumber(rest) {
+    const trimmed = String(rest ?? '').trim()
+    if (!trimmed) return null
+    const first = trimmed.split(/\s+/)[0]
     if (/^\d+$/.test(first)) return first
     const url = first.match(/^https?:\/\/github\.com\/[^/\s]+\/[^/\s]+\/pull\/(\d+)$/)
     if (url) return url[1]
@@ -171,15 +181,32 @@ const INTEGRATION_BRANCH = /^feat\/spec-/i
  * for `gh pr merge 7 && gh pr review 8 --approve`. If the command does more than one
  * thing, it does not get the exemption.
  */
+/**
+ * Does this command carry a `-R`/`--repo` cross-repo flag, in any of gh's accepted
+ * spellings: separate (`-R owner/repo`), attached short-flag (`-Rowner/repo` —
+ * valid POSIX shorthand, confirmed against gh 2.92.0), or long (`--repo owner/repo`,
+ * `--repo=owner/repo`)? The base lookup below never queries the flagged repo, so
+ * honoring ANY spelling here would resolve — or silently trust — the wrong repo's
+ * PR. Token-based, not one regex: a single pattern covering both the separated and
+ * attached `-R` forms without also matching an unrelated `-R*` flag is fragile: the
+ * separated-only regex is exactly what missed the attached form the first time
+ * (PR #42 review, round 3).
+ */
+function hasRepoFlag(cmd) {
+    const tokens = String(cmd).split(/\s+/).filter(Boolean)
+    return tokens.some(
+        (t) => t === '-R' || t === '--repo' || t.startsWith('--repo=') || (t.startsWith('-R') && t.length > 2 && !t.startsWith('--'))
+    )
+}
+
 function isSingleUnchainedGhAction(cmd) {
     if (/[;&|]{1,2}|\$\(|`|\n/.test(String(cmd))) return false
-    if ((String(cmd).match(/\bgh\s+pr\s+(?:review|comment|merge)\b/g) || []).length !== 1) return false
-    // A cross-repo command (`-R owner/repo` / `--repo owner/repo`) targets a
-    // different repository than the one the base lookup below queries. Rather
-    // than propagate the flag (more surface to get subtly wrong), the carve-out
-    // simply refuses a cross-repo command — it falls through to the normal
-    // author≠reviewer check, which is the fail-closed direction.
-    if (/(^|\s)(-R|--repo)(\s|=)/.test(String(cmd))) return false
+    if ((String(cmd).match(/\bpr\s+(?:review|comment|merge)\b/g) || []).length !== 1) return false
+    // A cross-repo command targets a different repository than the one the base
+    // lookup below queries. Rather than propagate the flag (more surface to get
+    // subtly wrong), the carve-out simply refuses a cross-repo command — it falls
+    // through to the normal author≠reviewer check, the fail-closed direction.
+    if (hasRepoFlag(cmd)) return false
     return true
 }
 

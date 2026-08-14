@@ -62,3 +62,19 @@ test('check-review-constraint-globs still enforces through a symlinked path', ()
         rmSync(dir, { recursive: true, force: true })
     }
 })
+
+test('validate-phase-memory still fails a bad file through a symlinked path', () => {
+    // The fifth CLI in this suite — brought under the same isMain() realpath fix
+    // as its siblings one round late; a silent exit-0 here would mean CI validated
+    // nothing (PR #42 review, round 3).
+    const dir = mkdtempSync(join(tmpdir(), 'sdlc-phase-link-'))
+    const bad = join(dir, '_index.yaml')
+    writeFileSync(bad, 'spec: SPEC-1\nphase:\n  current: not-a-real-phase\n  next_action: none\n  next_trigger: x\n  updated: 2026-01-01\n', 'utf8')
+    try {
+        const res = viaSymlink('validate-phase-memory.mjs', [bad], '')
+        assert.equal(res.status, 1, 'a silent exit 0 here would mean CI validated nothing')
+        assert.match(res.stderr, /FAIL/)
+    } finally {
+        rmSync(dir, { recursive: true, force: true })
+    }
+})
