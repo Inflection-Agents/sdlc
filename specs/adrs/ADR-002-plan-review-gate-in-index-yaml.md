@@ -50,9 +50,22 @@ const planApproved = (pr) => !!pr && pr.approved === true && pr.status !== 'need
 A *missing* `plan_review` block is treated identically to an unapproved one — HALT. The block is additive to
 the `_index.yaml` schema (files without it stay schema-valid), but the engine fails closed on it.
 
+> **Re-homed by [ADR-003](ADR-003-goal-oriented-single-executor-delivery.md) (2026-08-14).** The
+> decision stands unchanged — the verdict lives in `_index.yaml` and the gate is fail-closed. Its
+> enforcement point moved: `planApproved` lives in
+> [`scripts/sdlc/plan-gate.mjs`](../../scripts/sdlc/plan-gate.mjs), checked by the `spec-execution`
+> skill (§1) before a delivery run touches anything and by the `SDLC` CI workflow
+> (`.github/workflows/sdlc-validate.yml`) — instead of by the deleted engine at its Plan phase.
+>
+> **One property genuinely weakened.** The engine could not physically dispatch an executor past an
+> unapproved gate. CI proves the stamp exists on every decomposed spec, but it runs on a PR, not at
+> the moment work begins — so a run that skips §1 is not physically stopped. The gate is
+> fail-closed and machine-checkable; it is no longer un-skippable. ADR-003 records this in its
+> mechanical→prose table.
+
 ## Consequences
 
-**Good.** The gate is structural and un-skippable. The verdict lives where `execute-spec` already reads,
+**Good.** The gate is structural and machine-checkable. (It was *un-skippable* while the engine enforced it before dispatch; see the ADR-003 re-homing note above for what that became.) The verdict lives where `execute-spec` already reads,
 post-decomposition, so it attests the spec *and* the plan that actually executes. Reuses the existing
 approval gate — no new phase, and no commitment to mechanizing the loop. Fail-closed means a forgotten review
 blocks loudly instead of passing silently.

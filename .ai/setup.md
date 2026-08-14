@@ -5,7 +5,7 @@ Everything a new developer (or new machine) needs to participate in the AI-nativ
 ## 1. Prerequisites
 
 - **GitHub account** with repo access.
-- **Node.js 18+** — required for the reference SDLC hooks under `.claude/hooks/` (`.mjs` ES modules) and the deterministic execution engine (`spec-execution`'s reference Workflow script at `.claude/workflows/execute-spec.js`, plus the validators under `scripts/sdlc/`). Check the receiving repo's `.nvmrc` / `engines` for any stricter requirement.
+- **Node.js 22+** — required for the reference SDLC hooks under `.claude/hooks/` (`.mjs` ES modules) and the validators under `scripts/sdlc/` (the registry glob check uses `fs.globSync`). Check the receiving repo's `.nvmrc` / `engines` for any stricter requirement.
 
 The receiving repo may impose additional toolchain requirements (e.g. `pnpm`, Python via `uv`, language-specific runtimes). Read its `.ai/project.md` and root `README.md` after this onboarding to install them.
 
@@ -20,9 +20,9 @@ Otherwise, run the SDLC's own bootstrap from this directory:
 ```
 
 This script:
-1. Checks prerequisites (Node.js for the hooks + engine, Git, GitHub CLI, Claude Code)
+1. Checks prerequisites (Node.js for the hooks + validators, Git, GitHub CLI, Claude Code)
 2. Scaffolds `specs/` and `.ai/`, and copies the spec/task templates
-3. Copies the spine: the state machine (`specs/sdlc-state-machine.yaml`), the reference hooks (`.claude/hooks/`), the execution Workflow (`.claude/workflows/execute-spec.js`), the review contracts (`.ai/skills/review-*.yaml` / `.json` / `.md`), and the validators (`scripts/sdlc/`)
+3. Copies the spine: the state machine (`specs/sdlc-state-machine.yaml`), the reference hooks (`.claude/hooks/`), the review contracts (`.ai/skills/review-*.yaml` / `.json` / `.md`), and the validators + gates (`scripts/sdlc/`)
 4. Wires the hooks into `.claude/settings.json` (advisory by default — and never clobbers an existing settings.json; it prints merge guidance instead)
 5. Links `.claude/skills` → `.ai/skills`
 6. Prints next steps (the MCP + Linear-label setup below, and the customizations to fill in)
@@ -44,7 +44,7 @@ The SDLC is agent-agnostic. You can use Claude Code, Gemini CLI, or both. We rec
 1. **Install:** follow the [Gemini CLI installation guide](https://github.com/google/generative-ai-docs).
 2. **Superpowers (recommended):** `gemini install-skill brainstorming verification-before-completion`.
 
-> **Executors.** Task execution is handled by the deterministic engine's worktree-isolated local executor (`claude-code`) — there is no separate cloud executor to install. The framework is executor-agnostic in principle, so a different executor backend could be added later, but none ships by default.
+> **Executors.** There is nothing extra to install: the agent running `spec-execution` implements the tasks itself, dispatching worktree-isolated subagents only as an exception for a large spec (ADR-003). There is no cloud executor and no separate engine.
 
 ## 4. Wire skills into your agents
 
@@ -55,29 +55,31 @@ If the repo ships SDLC skills under `.ai/skills/` (the standard location — see
 
 The repo's bootstrap script usually handles this. Restart your agent session after wiring so it reloads the skill index.
 
-## 4b. The execution spine (state machine, hooks, engine)
+## 4b. The delivery spine (state machine, hooks, gates)
 
-The autonomous half of the SDLC runs on a deterministic spine. The bootstrap script copies and wires it; this is what it sets up and how to confirm it.
+The autonomous half of the SDLC runs on a small spine of machine-checkable pieces. The bootstrap script copies and wires it; this is what it sets up and how to confirm it.
 
 - **State machine** — `specs/sdlc-state-machine.yaml` is the single source of truth for phases, entry triggers, exit conditions, and per-workspace domain-skill routing. The `.ai/sdlc.md` narrative and each skill's `## Handoff` footer are generated/validated from it.
 - **Reference hooks** — `.claude/hooks/` (`.mjs`, Node-based), wired via **`.claude/settings.json`** so they travel with the repo (NOT `settings.local.json`). **Advisory by default** — they nudge, they don't block:
   - `user-prompt-submit.mjs` — classify the prompt to its current phase
-  - `stop-handoff.mjs` (Stop + SubagentStop) — advisory next-phase handoff at a phase exit
+  - `stop-handoff.mjs` (Stop + SubagentStop) — advisory next-phase handoff at a phase exit, **and the delivery goal leash** on `Stop`: while `.claude/.sdlc-goal-<session_id>` is `status: active` it blocks a premature stop and feeds back the run's exit criteria (bounded, fails open)
   - `pre-tool-use-edit-write.mjs` — flag implementation-code edits with no active task context
   - `pre-tool-use-review-identity.mjs` — flag an author reviewing their own PR
-- **Execution engine** — `.claude/workflows/execute-spec.js`, the reference Workflow script that `spec-execution` invokes: `Workflow({ name: 'execute-spec', args: { spec: 'SPEC-NNN' } })`.
+- **Delivery gates** — `scripts/sdlc/plan-gate.mjs` (the fail-closed plan-review gate a run checks before it starts), `scripts/sdlc/validate-review-envelope.mjs` (every reviewer verdict is validated through it), `scripts/sdlc/reviewer-routing.mjs` (lens → reviewer, from the registry), `scripts/sdlc/check-review-constraint-globs.mjs` (registry rows must resolve to real files).
 - **Review contracts** — `.ai/skills/review-primitives.md`, `review-constraints.yaml`, `review-envelope.schema.json`.
+
+There is **no execution engine to install.** A deterministic `execute-spec` Workflow script used to sit here; it was measured and retired (ADR-003). `spec-execution` is itself the engine.
 
 ## 5. Linear labels
 
 Create these labels in your Linear workspace (if they don't already exist):
-- `claude-code` — for tasks executed by the deterministic engine's local executor (the default)
+- `claude-code` — for tasks the delivery run implements (the default)
 - `human` — for tasks requiring a human decision
 
 ## 6. Verify
 
 ```bash
-# Node is present (hooks + execution engine need it)
+# Node is present (hooks + validators need it)
 node --version
 
 # State machine is valid (phases, triggers, transitions, domain routing)
@@ -109,11 +111,11 @@ claude "list my Linear teams"
 .claude/
 ├── settings.json   ← wires the hooks (travels with the repo)
 ├── hooks/          ← advisory SDLC hooks (.mjs)
-├── workflows/      ← execute-spec.js — the deterministic execution engine
 └── skills → ../.ai/skills   ← symlink; Claude Code loads skills from here
 
-scripts/sdlc/       ← validators: validate-state-machine.mjs, validate-phase-memory.mjs,
-                       gen-handoffs.mjs
+scripts/sdlc/       ← validators + gates: validate-state-machine.mjs, validate-phase-memory.mjs,
+                       gen-handoffs.mjs, plan-gate.mjs, reviewer-routing.mjs,
+                       validate-review-envelope.mjs, check-review-constraint-globs.mjs
 
 specs/
 ├── sdlc-state-machine.yaml  ← single source of truth for phases + transitions
@@ -129,17 +131,18 @@ specs/
 1. **Start a session:** `claude` or `gemini`.
 2. **Check work:** the orchestrator reads Linear for your assigned tasks.
 3. **Judgment phases (with the user):** intent-triage → spec-authoring → task-decomposition. This is where human attention goes.
-4. **Execution (autonomous):** invoke the engine once the spec is `active` and decomposed — `Workflow({ name: 'execute-spec', args: { spec: 'SPEC-NNN' } })`. It runs the wave loop, LLM multi-lens review, fix-loop, and opens the integration PR. A human merges it to `main`.
-5. **For spec changes mid-flight:** the engine escalates `spec:*` back to `spec-amendment`; update the spec in a PR.
+4. **Delivery (autonomous):** once the spec is `active`, decomposed and plan-approved, say "implement SPEC-NNN". The run arms its goal leash, tracks a visible task list, burns the tasks down serially onto `feat/spec-NNN`, validates end-to-end once, and opens one integration PR graded by an adversarial panel. A human merges it to `main`.
+5. **For spec changes mid-flight:** the run escalates `spec:*` back to `spec-amendment`; update the spec in a PR.
 
 ## 9. Troubleshooting
 
 | Problem | Fix |
 |---------|-----|
 | Skills not found | Re-run the repo's `setup-sdlc.sh` (or re-symlink) and restart your agent session. |
-| Hooks not firing | Confirm they're wired in `.claude/settings.json` (not `settings.local.json`) and that `node` is on PATH. Hooks are advisory — they log/nudge, they don't block. |
+| Hooks not firing | Confirm they're wired in `.claude/settings.json` (not `settings.local.json`) and that `node` is on PATH. Most hooks are advisory — they log/nudge, they don't block — except the delivery goal leash (`stop-handoff.mjs`'s `Stop` branch), which deliberately blocks while a run is active. |
 | State-machine / phase-memory validation fails | Run `node scripts/sdlc/validate-state-machine.mjs` and `node scripts/sdlc/validate-phase-memory.mjs` and fix the reported drift. |
-| `execute-spec` won't run | Needs Node and a spec with `status: active` plus a decomposed task graph (`specs/tasks/SPEC-NNN/_index.yaml`). |
+| A delivery run refuses to start | It needs a spec with `status: active`, a decomposed task graph (`specs/tasks/SPEC-NNN/_index.yaml`), and an approved `plan_review:` block — check with `node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml`. |
+| A session won't stop / keeps being blocked | A delivery goal leash is armed. Finish the run and set `status: met` in `.claude/.sdlc-goal-<session_id>`, set `status: escalated` if you are blocked on a human, or delete that file to disarm it. |
 | Claude Code can't reach Linear | Check MCP config: `claude mcp list` — is `linear` listed? |
 | CI fails on spec validation | Check frontmatter against schema in `spec-schema.md` |
 | Linear labels missing | Ensure `claude-code` and `human` exist in your Linear workspace. |

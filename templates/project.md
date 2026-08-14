@@ -42,7 +42,7 @@ Changes to a workspace require testing all its downstream consumers.
 
 ### Agent eligibility by workspace
 
-Whether the engine's executor can run a task in this workspace unattended, or it must be deferred to a human (`agent: human`). Workspaces needing credentials, a live DB, or interactive judgment stay human-run.
+Whether a delivery run can execute a task in this workspace unattended, or it must be deferred to a human (`agent: human`). Workspaces needing credentials, a live DB, or interactive judgment stay human-run.
 
 | Workspace | Agent-executable? | Notes |
 |-----------|-------------------|-------|

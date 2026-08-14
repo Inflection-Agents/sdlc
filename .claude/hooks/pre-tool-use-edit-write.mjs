@@ -28,9 +28,9 @@
 // Active-task context
 // -------------------
 // Deterministic: the current git branch matches one of the work-branch
-// prefixes (`claude/SPEC-…`, `task/…`, `spec/…`, `feat/SPEC-…`). The wave-based
-// execution loop creates `claude/SPEC-NNN-TASK-NNN` worktrees and a
-// `feat/SPEC-NNN` integration branch, both of which satisfy this.
+// prefixes (`claude/SPEC-…`, `task/…`, `spec/…`, `feat/spec-…`). A delivery run
+// (ADR-003) creates `claude/SPEC-NNN-TASK-NNN` task branches and one
+// `feat/spec-NNN` integration branch, both of which satisfy this.
 //
 // Logged override hatch
 // ---------------------
@@ -177,7 +177,7 @@ function currentBranch(root) {
 
 /**
  * Is there an active task context? Deterministic: the branch matches one of the
- * work-branch prefixes (claude/SPEC-… | task/… | spec/… | feat/SPEC-…).
+ * work-branch prefixes (claude/SPEC-… | task/… | spec/… | feat/spec-…).
  */
 function hasActiveTask(root) {
     const branch = currentBranch(root)
@@ -254,7 +254,7 @@ function main() {
             `BLOCKED by the no-active-task implementation-code gate (SDLC phase spine).\n` +
                 `File: ${rel}\n` +
                 `This is an implementation-code path and no active task context was detected ` +
-                `(branch does not match claude/SPEC-… | task/… | spec/… | feat/SPEC-…).\n` +
+                `(branch does not match claude/SPEC-… | task/… | spec/… | feat/spec-…).\n` +
                 `Start a task (create a work branch) so the change is anchored to the SDLC, or — ` +
                 `for a genuine exception — add an \`out-of-process: <reason>\` line to your prompt; ` +
                 `the override is recorded (visible, never silent) and the edit then proceeds.`

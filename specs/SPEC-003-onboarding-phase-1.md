@@ -158,3 +158,17 @@ Same shape as skills.md:
 - `bootstrap.sh` rewrite is a single-file change; revert restores the broken-but-known behavior.
 - The symlink/copy is the only runtime change; reverting is `rm .claude/skills && cp -r .ai/skills .claude/skills` or vice versa.
 - No data migration required.
+
+## Changelog
+
+### v1.1 — 2026-08-14 (ADR-003 reconciliation)
+
+Success criterion #3 required README.md, skills.md and skill-architecture.md to "reference the
+graded review and wave-based execution models". [ADR-003](adrs/ADR-003-goal-oriented-single-executor-delivery.md)
+retires wave-based execution, so as written that criterion is now unsatisfiable — those docs
+correctly describe goal-oriented single-executor delivery instead.
+
+**Read criterion #3 as:** the onboarding docs reference the graded review model and the
+*current* execution model. The graded-review half is unchanged. No task in this spec is
+affected; this is a wording reconciliation, not a scope change, recorded here rather than left
+to fail silently at spec-completion.

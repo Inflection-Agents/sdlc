@@ -9,9 +9,9 @@ Current and target tooling architecture for the AI-native SDLC.
 | Intent/spec | Confluence (separate, weakly linked)     | Schema-enforced markdown in repo with CI validation         | Schema-enforced markdown in repo |
 | Work graph  | Jira (over-flexible, custom fields)      | Event-sourced graph with typed edges                        | Linear (issues + relations) |
 | Process spine | Tribal knowledge / wiki                | Executable state machine + phase memory + enforcement hooks | `specs/sdlc-state-machine.yaml` + per-spec `phase:` block + `.claude/hooks/` (Node) |
-| Orchestration | Humans assign + chase                   | Deterministic engine (pure-core/effects-at-edges)           | `execute-spec` Workflow script (`.claude/workflows/execute-spec.js`) |
-| Execution   | Humans only                              | Agents as first-class assignees with run telemetry          | Worktree-isolated local executors dispatched **by the engine** (parallel per wave) |
-| Review      | Human PR review                          | LLM multi-lens panel, routed by change surface              | Routed reviewers (lenses from `review-constraints.yaml`); human merges integration PR |
+| Orchestration | Humans assign + chase                   | One agent delivering against a stated goal, with a machine-readable floor | `spec-execution` skill + goal leash (`.claude/hooks/stop-handoff.mjs`) |
+| Execution   | Humans only                              | Agents as first-class assignees with run telemetry          | One executor, serial burn-down onto `feat/spec-NNN`, tracked on a visible task list (worktree-isolated subagents by exception) |
+| Review      | Human PR review                          | LLM multi-lens panel, routed by change surface              | Self-review per task, then a routed adversarial panel on the integration PR (lenses from `review-constraints.yaml`); human merges it |
 | CI/CD       | Jenkins/Actions                          | Same, plus eval pipelines                                   | GitHub Actions              |
 | Reporting   | Jira dashboards (story points, velocity) | Graph queries (cost/feature, defect/spec, agent throughput) | Linear insights + manual    |
 
@@ -55,29 +55,32 @@ Linear's MCP server enables agents to:
 
 Claude Code connects to Linear via MCP, making the agent a direct participant in the work graph rather than operating through a human proxy.
 
-## Execution engine (decided)
+## Delivery model (decided)
 
-`spec-execution` is a **deterministic Workflow engine**, not an agent improvising — reference implementation at [`.claude/workflows/execute-spec.js`](.claude/workflows/execute-spec.js).
+`spec-execution` **is** the engine — a policy an agent applies with judgment above a machine-readable floor, not a fixed pipeline. A deterministic Workflow engine held this slot first and was retired after live measurement ([ADR-003](specs/adrs/ADR-003-goal-oriented-single-executor-delivery.md)); the residual per-task ceremony, not the orchestration layer, was the cost.
 
-- **Pure-core / effects-at-the-edges:** routing, tier resolution, lens selection, verdict folding, branch naming, and wave planning are total functions; only thin `agent()` wrappers touch a model. The run is reproducible and auditable.
-- **Idempotent, id-derived branches** (`claude/SPEC-NNN-TASK-NNN`, integration `feat/SPEC-NNN`) → re-runs reuse the same branch/PR; resume is wave-level.
-- **Executors are interchangeable workers behind it:** the engine dispatches one worktree-isolated local executor per task. The engine is agent-agnostic — specialization is data on the task, not a named backend.
+- **One executor per spec:** the agent running the skill implements every task itself, keeping repo context across tasks instead of rebuilding it in a fresh agent per task. Fan-out to worktree-isolated subagents is an exception for large, genuinely independent work.
+- **Serial burn-down on one integration branch:** `feat/spec-NNN`, task N merged before task N+1 starts, nothing lingering between tasks, nothing reaching `main` except by merging that branch.
+- **Id-derived branches** (`claude/SPEC-NNN-TASK-NNN`) → a resumed run recreates the same name rather than forking a differently-named one; the branch itself is deleted at merge, so resume is solely a read of `_index.yaml` status.
+- **A repo-side persistence leash:** `.claude/.sdlc-goal-<session_id>` + the `Stop` hook keep a run from stopping half-done. `met` and `escalated` are the only release words; the leash is bounded by a hook-owned counter, expires 24h after `armed_at`, and fails open whenever that bound cannot be enforced.
+- **Transparency by default:** a visible task list covering every task plus end-to-end validation and the gate, so the run is followable in-session.
+- **Machine-checkable gates around the judgment:** `plan-gate.mjs` (fail-closed entry), `reviewer-routing.mjs` (lens → reviewer, from the registry), `validate-review-envelope.mjs` (every verdict), `check-review-constraint-globs.mjs` (registry rows resolve).
 - **Runtime requirement:** Node.js (also runs the reference hooks).
 
 ## Review layer (decided)
 
 The reviewer of record for code is an **LLM multi-lens panel**, not a human.
 
-- **Routed by change surface:** lenses = `baseLenses(workspace) ∪ {constraints in [`review-constraints.yaml`](.ai/skills/review-constraints.yaml) whose `when` matches the task's `touches`}`. Matched constraint severity resolves the review tier.
-- **One reviewer-output schema:** [`review-envelope.schema.json`](.ai/skills/review-envelope.schema.json) (severity blocker/major/nit/suggestion, altitude, grounded criteria). The engine validates every envelope before routing on it; malformed/abstained → escalate.
+- **Routed by change surface:** lenses = `baseLenses(workspace) ∪ {constraints in [`review-constraints.yaml`](.ai/skills/review-constraints.yaml) whose `when` matches the change}`. Matched constraint severity resolves the review tier. The registry is evaluated **in full at the integration gate**, across the whole diff — per-task matching on a narrowly declared `touches` set is unreliable in both directions.
+- **One reviewer-output schema:** [`review-envelope.schema.json`](.ai/skills/review-envelope.schema.json) (severity blocker/major/nit/suggestion, altitude, grounded criteria). Every envelope is validated by [`scripts/sdlc/validate-review-envelope.mjs`](scripts/sdlc/validate-review-envelope.mjs) before anything routes on it — exit 0 fold, 2 abstained, 3 malformed/ungrounded; the latter two escalate and never read as a clean accept.
 - **Contract:** [`review-primitives.md`](.ai/skills/review-primitives.md) — severity spine, grounding rules, severity→action policy.
-- **Tier-0 first:** cheap per-workspace lint/typecheck/unit gate runs before any reviewer is dispatched (the largest token-cost optimization). Humans gate the inputs and merge the integration PR.
+- **Cheap gates first, expensive review once:** a task is gated by its own tests plus the executor's self-review; the independent panel is spent once, on the assembled integration diff, where it can see cross-task interactions. Humans gate the inputs and merge the integration PR.
 
 ## Process spine (decided)
 
 - **State machine:** [`specs/sdlc-state-machine.yaml`](specs/sdlc-state-machine.yaml) is the single source of truth for phases, triggers, exit conditions, and per-workspace domain-skill routing. The `.ai/sdlc.md` narrative and skill `## Handoff` footers are generated/validated from it (`scripts/sdlc/gen-handoffs.mjs`, `validate-state-machine.mjs`).
 - **Phase memory:** each `specs/tasks/SPEC-NNN/_index.yaml` may carry an additive `phase:` block (`{current, next_action, next_trigger, exit_condition_met, updated}`) so the process is resumable.
-- **Reference hooks (Node, advisory by default):** `.claude/hooks/` — prompt→phase classifier, phase-exit handoff, edit-without-task guard, review-identity guard. Wired via `.claude/settings.json` so they travel with the repo.
+- **Reference hooks (Node, advisory by default):** `.claude/hooks/` — prompt→phase classifier, phase-exit handoff **and the delivery goal leash**, edit-without-task guard, review-identity guard. Wired via `.claude/settings.json` so they travel with the repo.
 
 ## Spec layer (decided)
 

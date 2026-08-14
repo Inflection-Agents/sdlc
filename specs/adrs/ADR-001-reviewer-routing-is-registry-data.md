@@ -44,6 +44,13 @@ A constraint with no `agent:` is graded by the generic `task-reviewer`; integrat
 graded by `integration-reviewer` at the integration gate and carry no `agent:`. The hardcoded
 `SPECIAL_REVIEWER`/`lensToAgent` is deleted.
 
+> **Re-homed by [ADR-003](ADR-003-goal-oriented-single-executor-delivery.md) (2026-08-14).** The
+> decision stands unchanged — the lens→reviewer binding is registry data. Its consumer moved: with
+> `execute-spec.js` deleted, `agentForLens` lives in
+> [`scripts/sdlc/reviewer-routing.mjs`](../../scripts/sdlc/reviewer-routing.mjs) (importable, unit-tested,
+> callable as `node scripts/sdlc/reviewer-routing.mjs <lens>`), and the resolver is invoked by the agent
+> dispatching the review panel at the integration gate rather than by an engine per task.
+
 ## Consequences
 
 **Good.** Adding or re-routing a specialist is a one-line registry edit, no engine change. Lens firing and

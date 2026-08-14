@@ -5,12 +5,13 @@ Clear boundaries between what AI agents do and what humans do at each stage of t
 ## The shape: humans up front + at the merge; agents in the middle
 
 ```
-intent-triage → spec-authoring → task-decomposition │ spec-execution → review → spec-completion
-  HUMAN + LLM     HUMAN + LLM       HUMAN + LLM       │   AGENT ENGINE   LLM PANEL  HUMAN + LLM
+intent-triage → spec-authoring → task-decomposition │ spec-execution → spec-completion
+  HUMAN + LLM     HUMAN + LLM       HUMAN + LLM       │  ONE EXECUTOR     HUMAN + LLM
+                                                      │  + panel at the gate
    ── collaborative, gated: human attention ──        │  ── autonomous: no human attention ──   ↑ merge
 ```
 
-*Quality when it's cheap to assure it — then autonomous execution.* Scarce human attention is spent **up front** (intent, spec, decomposition) — where quality is cheapest to assure, before any code exists — and **at the merge** (a human merges the integration PR). In between, the engine executes and an **LLM multi-lens panel is the reviewer of record for code**. Humans set intent and give great *instructions*; humans are not the PR reviewers.
+*Quality when it's cheap to assure it — then autonomous delivery.* Scarce human attention is spent **up front** (intent, spec, decomposition) — where quality is cheapest to assure, before any code exists — and **at the merge** (a human merges the integration PR). In between, the engine executes and an **LLM multi-lens panel is the reviewer of record for code**. Humans set intent and give great *instructions*; humans are not the PR reviewers.
 
 ## Front-phase collaboration (multi-team, human + LLM)
 
@@ -24,7 +25,7 @@ The front phases are **collaborative judgment phases** where multiple humans con
 | **Stakeholders** | Raise needs | Review intent; confirm the spec solves their problem | — |
 | **LLM (agent)** | Capture, normalize, prioritize-assist | Draft the spec; `spec-reviewer` grades it pre-gate | Build the AI-coherent task graph, declare `touches`/`risk`/`tier`/routing, self-review |
 
-The collective deliverable is a **signed-off spec + an AI-coherent task graph** — complete, unambiguous *instructions* that let the engine run deterministically. Getting this right is the highest-leverage human work in the SDLC; bad decomposition is the top cause of a stalled or escalated run.
+The collective deliverable is a **signed-off spec + an AI-coherent task graph** — complete, unambiguous *instructions* that let one executor deliver the spec without stalling or escalating. Getting this right is the highest-leverage human work in the SDLC; bad decomposition is the top cause of a stalled or escalated run.
 
 ## Role matrix
 
@@ -33,9 +34,9 @@ The collective deliverable is a **signed-off spec + an AI-coherent task graph** 
 | **Discovery / intent** | Capture + normalize intents, research prior art, summarize feedback, prioritize-assist | Define the problem worth solving, set priority, validate with users |
 | **Spec writing** | Draft specs from conversations, link ADRs, `spec-reviewer` grades the draft | Refine intent, decide in/out of scope, **sign off** to make the spec active |
 | **Decomposition** | Build the AI-coherent task graph (bounded `touches`, routing), self-review, identify risks/deps | Confirm boundaries + dependencies + routing, **sign off** the task graph |
-| **Execution** | The engine dispatches executors that write code/tests, open PRs, populate evidence | Nothing until the integration PR (the autonomous half) |
-| **Code review** | **LLM multi-lens panel is the reviewer of record** — Tier-0 gate, routed lenses, integration-reviewer vs success criteria | — (humans gate inputs, not PRs) |
-| **Integration** | Engine runs integration verification (EVIDENCE), opens the integration PR | **Merge the integration PR to `main`** (the engine never does) |
+| **Delivery** | One agent implements every task itself — code/tests, self-review, a short-lived PR per task onto the integration branch, evidence populated — tracked on a visible task list | Nothing until the integration PR (the autonomous half); the task list is there to follow along if you want to |
+| **Code review** | **In-run**: executor self-review per task, then the **LLM multi-lens adversarial panel** on the integration PR — routed lenses, validated envelopes, integration-reviewer vs success criteria | — (humans gate inputs, not per-task PRs) |
+| **Integration** | Runs end-to-end validation once (EVIDENCE), opens the integration PR, loops the panel until clean, leaves it open | **Merge the integration PR to `main`** (the agent never does) |
 | **Completion** | Verify success criteria end-to-end, propose terminal state | Confirm completion, own the call |
 | **Triage** | Capture signals, normalize bug specs, attempt reproduction, classify | Confirm bugs, prioritize, decide tradeoffs |
 | **Deploy** | Execute deployment steps, monitor rollout | Approve releases, decide rollback |
@@ -44,7 +45,7 @@ The collective deliverable is a **signed-off spec + an AI-coherent task graph** 
 ## What stays human forever
 
 - **Intent + instructions** — deciding what the system *should* do and writing the unambiguous spec + task graph that defines it (the front-phase sign-off gates)
-- **The integration merge** — a human merges the integration PR to `main`; the engine never does
+- **The integration merge** — a human merges the integration PR to `main`; the agent never does, and no phrasing in a request creates an exception
 - **Judgment calls on tradeoffs** — ship vs fix, customer X vs customer Y, tech debt vs velocity
 - **Stakeholder relationships** — talking to the affected user, negotiating with other teams
 - **Accountability** — severity, SLA, "who owns this"
@@ -52,15 +53,16 @@ The collective deliverable is a **signed-off spec + an AI-coherent task graph** 
 
 ## Agent roles in the autonomous half
 
-Execution is not one agent — it is a deterministic **engine** dispatching specialized agent roles. The local agent's job here is to invoke the engine and handle its escalations; the rest is the script's.
+Delivery is **one executor plus a review panel at the end** — not a fan-out of agents per task. The local agent runs `spec-execution`, and that skill *is* the engine.
 
 | Agent role | Responsibility |
 |------------|----------------|
-| **Orchestrator engine** | The deterministic `execute-spec` Workflow: plans waves, gates on Tier-0, routes review, runs the fix loop, merges into the integration branch, opens the integration PR. Pure-core/effects-at-edges. |
-| **Executor** | Implements one task against its `touches`, self-verifies, opens/updates its PR, populates each AC's evidence. The engine's worktree-isolated local executor. |
-| **Tester / Tier-0** | The cheap, attributable per-task gate (lint, typecheck, unit). No reviewer runs while it is red. |
-| **Reviewers (multi-lens panel)** | The reviewer of record for code. `task-reviewer` (folded generic lenses) + specialist reviewers (e.g. invariants, design-fidelity) selected by `touches`. Emit graded, grounded envelopes. |
+| **Delivery agent (executor)** | Checks the plan gate, arms the goal leash, keeps the visible task list, cuts `feat/spec-NNN`, implements every task against its `touches`, verifies, **self-reviews its own diff**, merges each task onto the branch, validates end-to-end once, and opens the integration PR. |
+| **Dispatched executor (exception)** | Same brief (`.ai/AGENTS.md`), for a large spec with genuinely non-overlapping tasks. Always `isolation: "worktree"`; same merge discipline. |
+| **Reviewers (multi-lens panel)** | The reviewer of record for code, dispatched at the integration gate. `task-reviewer` (folded generic lenses) + specialist reviewers (e.g. invariants, security, design-fidelity) selected from the registry across the whole diff. Emit graded, grounded envelopes; never fix. |
 | **Integration-reviewer** | Independent review of the integration PR against the spec's **success criteria**, not just per-task ACs. |
+
+The self-review inside a task is the deliberate exception to author≠reviewer independence, and it is bought back in full at the gate, where every verdict comes from a separately dispatched reviewer.
 
 ## Agent operating model
 
@@ -75,7 +77,7 @@ Think of the agent as a **very fast, tireless junior engineer who drafts well fr
 - Draft specs, plans, and bug reports
 
 ### Agent constraints
-- Cannot merge without human approval
+- Cannot merge or push to `main` — the integration PR is the human's, always (task PRs into `feat/spec-NNN` the delivery agent merges itself)
 - Cannot deploy without human approval
 - Cannot close bugs without human confirmation
 - Cannot make priority decisions

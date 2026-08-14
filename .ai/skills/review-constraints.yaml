@@ -1,20 +1,32 @@
 # Review constraints registry — AI-native SDLC
 #
-# The deterministic engine (.claude/workflows/execute-spec.js) selects a task's review lenses as:
-#     lenses = baseLenses(workspace)  ∪  { lens of each constraint whose `when` matches the task }
-# and resolves the task's review TIER from constraint severity:
+# Review lenses are selected as:
+#     lenses = baseLenses(workspace)  ∪  { lens of each constraint whose `when` matches the change }
+# and the review TIER a change earns follows constraint severity:
 #     a matched blocker → fortified · a matched major → at least standard (express vetoed)
+# Since ADR-003 this is READ BY THE AGENT composing the panel at the integration gate, not
+# resolved by code. It can only raise rigor: a task's declared `tier: express` never shrinks
+# the panel.
+#
+# Per ADR-003 this registry is evaluated IN FULL at the integration gate, across the whole diff —
+# not per task, where matching against one task's narrowly declared `touches` is unreliable in both
+# directions (a broad `**` glob trips constraints it should not; concrete paths miss ones they should).
 #
 # `when` matches if ANY of: a `touches` glob overlaps the task's `touches`; the task's
 # workspace is in `workspace`; or the task declares the `task_has` field.
-# `scope: task` constraints run per-task; `scope: integration` run once at the integration gate.
+# `scope:` names WHAT a row grades, not when it runs. Both scopes are evaluated at the
+# integration gate, against the whole diff: `scope: task` rows grade task-level concerns
+# (a boundary, a convention, a risky surface a change touched) and are graded by their
+# `agent:`; `scope: integration` rows grade whole-spec concerns and are graded by the
+# `integration-reviewer`. Match `when.touches` against the PR's changed paths — there is
+# no per-task evaluation pass any more (ADR-003).
 #
-# Lens → reviewer routing is DATA, not code: each task-scope constraint's optional `agent:` field
-# is the single source of truth, read by the engine (.claude/workflows/execute-spec.js). Defaults:
-# a constraint with no `agent:` ⇒ the generic `task-reviewer`; a `scope: integration` constraint
-# ⇒ the `integration-reviewer` at the integration gate (the engine's task-scope resolver does not
-# route integration lenses, so they carry no `agent:`). Adding a specialist for a lens is a one-line
-# `agent:` edit here — no engine change. Cite findings by the constraint `cite` prefix
+# Lens → reviewer routing is DATA, not code (ADR-001): each task-scope constraint's optional
+# `agent:` field is the single source of truth, resolved by scripts/sdlc/reviewer-routing.mjs
+# (`node scripts/sdlc/reviewer-routing.mjs <lens>`). Defaults: a constraint with no `agent:` ⇒ the
+# generic `task-reviewer`; a `scope: integration` constraint ⇒ the `integration-reviewer` at the
+# gate (integration lenses carry no `agent:`). Adding a specialist for a lens is a one-line
+# `agent:` edit here — no code change. Cite findings by the constraint `cite` prefix
 # (see review-primitives.md > Grounding rules for the allowed prefixes).
 #
 # ─────────────────────────────────────────────────────────────────────────────────────────────

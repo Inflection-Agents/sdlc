@@ -62,7 +62,7 @@ No automation. The agents are the sync layer.
 - Reads Linear for status updates → updates task files if needed
 - Reviews PRs → updates Linear issue with results
 
-**The engine's executor (local worktree agent):**
+**The delivery agent (or, exceptionally, a worktree-isolated subagent):**
 - Reads task files from repo for definition
 - Updates Linear issue status as tasks move through the execution loop
 - Commits task file status updates in the same PR as implementation

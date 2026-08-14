@@ -26,7 +26,14 @@ echo ""
 info "Checking prerequisites..."
 
 if command -v node &> /dev/null; then
-  ok "Node.js $(node --version)"
+  NODE_MAJOR="$(node --version | sed 's/^v//' | cut -d. -f1)"
+  if [ "$NODE_MAJOR" -ge 22 ] 2>/dev/null; then
+    ok "Node.js $(node --version)"
+  else
+    # scripts/sdlc/check-review-constraint-globs.mjs uses fs.globSync (Node 22+).
+    fail "Node.js $(node --version) is too old — the SDLC validators need v22+."
+    exit 1
+  fi
 else
   fail "Node.js not found. Install it: https://nodejs.org/"
   exit 1
@@ -144,7 +151,7 @@ if git rev-parse --git-dir &> /dev/null 2>&1; then
     ok ".claude/skills already present"
   fi
 
-  # ── Spine + engine: state machine, workflow, hooks, review contracts, validators ──
+  # ── Spine: state machine, hooks, review contracts, validators + gates ──
 
   # Copy the SDLC state machine (single source of truth for phases/handoffs)
   if [ ! -f "$REPO_ROOT/specs/sdlc-state-machine.yaml" ]; then
@@ -155,18 +162,6 @@ if git rev-parse --git-dir &> /dev/null 2>&1; then
     fi
   else
     ok "specs/sdlc-state-machine.yaml exists"
-  fi
-
-  # Copy the deterministic execution Workflow engine
-  if [ ! -f "$REPO_ROOT/.claude/workflows/execute-spec.js" ]; then
-    if [ -f "$SCRIPT_DIR/.claude/workflows/execute-spec.js" ]; then
-      info "Copying spec-execution Workflow engine..."
-      mkdir -p "$REPO_ROOT/.claude/workflows"
-      cp "$SCRIPT_DIR/.claude/workflows/execute-spec.js" "$REPO_ROOT/.claude/workflows/execute-spec.js"
-      ok "Copied .claude/workflows/execute-spec.js — the deterministic execution engine"
-    fi
-  else
-    ok ".claude/workflows/execute-spec.js exists"
   fi
 
   # Copy advisory hooks (must travel with the repo, hence .claude/hooks/)
@@ -181,8 +176,23 @@ if git rev-parse --git-dir &> /dev/null 2>&1; then
         HOOKS_COPIED=true
       fi
     done
+    # The goal leash is the one hook that BLOCKS. Its fixture tests are its only
+    # mechanical bound, so a repo that gets the hook must get the tests too.
+    if [ -d "$SCRIPT_DIR/.claude/hooks/__tests__" ]; then
+      mkdir -p "$REPO_ROOT/.claude/hooks/__tests__"
+      for hook_test in "$SCRIPT_DIR/.claude/hooks/__tests__/"*.mjs; do
+        [ -e "$hook_test" ] || continue
+        test_name="$(basename "$hook_test")"
+        # Same "only if absent" rule as the hooks themselves. Copying unconditionally
+        # would drop NEW fixtures next to an OLD hook on a re-run — the red,
+        # partial-upgrade state the warning below tells the user to avoid.
+        if [ ! -f "$REPO_ROOT/.claude/hooks/__tests__/$test_name" ]; then
+          cp "$hook_test" "$REPO_ROOT/.claude/hooks/__tests__/$test_name"
+        fi
+      done
+    fi
     if [ "$HOOKS_COPIED" = true ]; then
-      ok "Copied SDLC hooks to .claude/hooks/ (advisory by default)"
+      ok "Copied SDLC hooks to .claude/hooks/ (advisory by default; goal-leash tests in __tests__/)"
     else
       ok ".claude/hooks/ already populated"
     fi
@@ -222,15 +232,83 @@ if git rev-parse --git-dir &> /dev/null 2>&1; then
     fi
   fi
 
-  # Copy SDLC validators into scripts/sdlc/
-  if [ -d "$SCRIPT_DIR/scripts/sdlc" ]; then
-    if [ ! -d "$REPO_ROOT/scripts/sdlc" ]; then
-      info "Copying SDLC validators..."
-      mkdir -p "$REPO_ROOT/scripts/sdlc"
-      cp -r "$SCRIPT_DIR/scripts/sdlc/"* "$REPO_ROOT/scripts/sdlc/"
-      ok "Copied scripts/sdlc/ validators (state machine, phase memory, handoffs)"
+  # ── Upgrading an existing bootstrap ──
+  #
+  # Every copy step above is guarded by "only if absent", so re-running this script on
+  # a repo bootstrapped from an OLDER version of the framework changes nothing — it
+  # keeps its old hooks and skills. That is deliberate (never clobber local edits), but
+  # it means an upgrade is a manual, deliberate act. Detect the most consequential
+  # mismatch and say so loudly.
+  if [ -f "$REPO_ROOT/.claude/workflows/execute-spec.js" ]; then
+    warn "This repo still has .claude/workflows/execute-spec.js — the RETIRED execution engine (ADR-003)."
+    echo "  You are on a pre-ADR-003 bootstrap. To upgrade:"
+    echo "    1. rm .claude/workflows/execute-spec.js   (git history keeps it)"
+    echo "    2. Replace .ai/skills/spec-execution/ with this framework's SKILL.md + SOP.md"
+    echo "    3. Replace .claude/hooks/stop-handoff.mjs (it now carries the goal leash) and"
+    echo "       copy .claude/hooks/__tests__/ alongside it"
+    echo "    4. Copy the new scripts/sdlc/ gates: plan-gate.mjs, reviewer-routing.mjs,"
+    echo "       validate-review-envelope.mjs, check-review-constraint-globs.mjs"
+    echo "    5. Remove the code-review phase from specs/sdlc-state-machine.yaml and re-run"
+    echo "       node scripts/sdlc/gen-handoffs.mjs"
+    echo ""
+    echo "  Partial upgrades are the dangerous case: the new skill arms a goal file that an"
+    echo "  OLD stop-handoff.mjs never reads, so the run has no persistence enforcement while"
+    echo "  the docs say it does. Upgrade the skill and the hook together."
+    echo ""
+  fi
+
+  # Copy the CI workflow that runs the gates. Without it, a consuming repo has the
+  # validators but nothing runs them — and the "and by CI" half of every re-homed
+  # guarantee (ADR-002, ADR-003) would be true only in the upstream framework.
+  if [ -f "$SCRIPT_DIR/.github/workflows/sdlc-validate.yml" ]; then
+    mkdir -p "$REPO_ROOT/.github/workflows"
+    if [ ! -f "$REPO_ROOT/.github/workflows/sdlc-validate.yml" ]; then
+      cp "$SCRIPT_DIR/.github/workflows/sdlc-validate.yml" "$REPO_ROOT/.github/workflows/sdlc-validate.yml"
+      ok "Copied .github/workflows/sdlc-validate.yml — runs the SDLC tests, validators and gates"
     else
-      ok "scripts/sdlc/ directory exists"
+      ok ".github/workflows/sdlc-validate.yml exists"
+    fi
+  fi
+
+  # Per-session SDLC state must never be committed: a goal file carries the run's
+  # statement and exit criteria, and an unkeyed one readable by another session is an
+  # unauthenticated directive channel into an autonomous loop (ADR-003).
+  IGNORE_FILE="$REPO_ROOT/.gitignore"
+  if ! grep -q "\.sdlc-goal" "$IGNORE_FILE" 2>/dev/null; then
+    info "Adding .claude/.sdlc-* ignore rules..."
+    {
+      printf '\n# Per-session SDLC state written by the hooks (goal leash, counters, overrides)\n'
+      printf '.claude/.sdlc-goal*\n.claude/.sdlc-goalblocks-*\n.claude/.sdlc-override*\n.claude/.sdlc-handoff-*\n'
+    } >> "$IGNORE_FILE"
+    ok "Added .claude/.sdlc-* ignore rules to .gitignore"
+  else
+    ok ".gitignore already ignores .claude/.sdlc-* state"
+  fi
+
+  # Copy SDLC validators into scripts/sdlc/ — per file, "only if absent". A
+  # whole-directory guard (only copy if scripts/sdlc/ doesn't exist AT ALL) left a
+  # pre-ADR-003 repo with NONE of the new gates: the directory already existed with
+  # just the older validators, so the new plan-gate.mjs / reviewer-routing.mjs /
+  # validate-review-envelope.mjs / check-review-constraint-globs.mjs were silently
+  # skipped — while .github/workflows/ and .claude/hooks/__tests__/ (below) WERE
+  # copied, since those directories were genuinely new. That combination shipped a
+  # CI workflow invoking gates that were not there. Copying per file closes the gap
+  # without ever overwriting a repo's own edits to an existing file.
+  if [ -d "$SCRIPT_DIR/scripts/sdlc" ]; then
+    mkdir -p "$REPO_ROOT/scripts/sdlc"
+    SDLC_SCRIPTS_COPIED=false
+    for sdlc_file in "$SCRIPT_DIR/scripts/sdlc/"*; do
+      [ -f "$sdlc_file" ] || continue
+      sdlc_name="$(basename "$sdlc_file")"
+      if [ ! -f "$REPO_ROOT/scripts/sdlc/$sdlc_name" ]; then
+        cp "$sdlc_file" "$REPO_ROOT/scripts/sdlc/$sdlc_name"
+        SDLC_SCRIPTS_COPIED=true
+      fi
+    done
+    if [ "$SDLC_SCRIPTS_COPIED" = true ]; then
+      ok "Copied scripts/sdlc/ validators + delivery gates (state machine, phase memory, handoffs, plan gate, reviewer routing, envelope validation, registry globs)"
+    else
+      ok "scripts/sdlc/ already has every file this bootstrap ships"
     fi
   fi
 else
@@ -249,12 +327,17 @@ echo "  2. Install Superpowers in Claude Code: /plugin install superpowers@claud
 echo "  3. Ensure Linear labels exist: claude-code, human"
 echo "  4. Write your first spec: cp specs/templates/spec.md specs/SPEC-001-name.md"
 echo ""
-echo "Configure the spine + engine:"
+echo "Configure the spine:"
 echo "  5. Fill in .ai/skills/review-constraints.yaml with your repo's real review"
 echo "     lenses and invariants (the shipped constraints are generic examples)"
 echo "  6. Customize specs/sdlc-state-machine.yaml domain_routing to map your"
 echo "     repo's workspaces to owners/reviewers"
-echo "  7. Hooks in .claude/hooks/ are ADVISORY by default (they warn, not block)."
-echo "     Review .claude/settings.json and tighten them once you trust the flow."
+echo "  7. Hooks in .claude/hooks/ are ADVISORY by default (they warn, not block) —"
+echo "     EXCEPT the delivery goal leash in stop-handoff.mjs, which blocks on Stop"
+echo "     by design (bounded, fail-open; released by met/escalated or deleting the goal file)."
+echo "     Review .claude/settings.json and tighten the others once you trust the flow."
 echo "  8. Validate the spine: node scripts/sdlc/validate-state-machine.mjs"
+echo "     and check the registry rows resolve: node scripts/sdlc/check-review-constraint-globs.mjs"
+echo "  9. If this repo uses vitest/jest: exclude .claude/hooks/__tests__/ from its config —"
+echo "     those are node:test files (run via 'node --test'), not your test runner's."
 echo ""

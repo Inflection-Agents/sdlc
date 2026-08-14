@@ -1,26 +1,27 @@
-// PR-side prefix parity test (SPEC-006 / TASK-210).
+// PR-side prefix parity test (SPEC-006 / TASK-210, re-anchored by ADR-003).
 //
 // The canonical PR-side allowed-prefix set is owned by review-primitives.md's
-// "PR-side canonical prefix table" (SPEC-001 contract). Two consumers MUST stay
-// in lockstep with it:
-//   - the engine: .claude/workflows/execute-spec.js  -> ALLOWED_PREFIX array literal
-//   - the schema: .ai/skills/review-envelope.schema.json -> properties.criterion.description
+// "PR-side canonical prefix table". Its consumers MUST stay in lockstep with it:
+//   - the schema:    .ai/skills/review-envelope.schema.json -> properties.criterion.description
+//   - the validator: scripts/sdlc/validate-review-envelope.mjs -> PR_SIDE_PREFIXES
+//   - the reviewer:  .ai/skills/pr-reviewer/SKILL.md -> the GROUNDING block
 //
-// This test parses the PR-side prefix set from each of the three sources WITHOUT
-// importing the engine (a Workflow-runtime script, not importable) and asserts the
-// three are set-equal. Any divergence fails loudly so the contract cannot drift.
+// The third leg used to be the retired execute-spec Workflow's ALLOWED_PREFIX
+// literal; ADR-003 deleted that engine and the envelope validator inherited the
+// role of the runtime enforcer, so parity is asserted against it instead. Any
+// divergence fails loudly so the contract cannot drift.
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+import { PR_SIDE_PREFIXES } from './validate-review-envelope.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..', '..') // scripts/sdlc -> repo root
 
 const PRIMITIVES = join(REPO, '.ai', 'skills', 'review-primitives.md')
-const ENGINE = join(REPO, '.claude', 'workflows', 'execute-spec.js')
 const SCHEMA = join(REPO, '.ai', 'skills', 'review-envelope.schema.json')
 const PRREVIEWER = join(REPO, '.ai', 'skills', 'pr-reviewer', 'SKILL.md')
 
@@ -52,14 +53,12 @@ function parsePrimitives(md) {
     return set
 }
 
-// (b) execute-spec.js — pull the ALLOWED_PREFIX array literal and extract its string entries.
-function parseEngine(js) {
-    const m = js.match(/const\s+ALLOWED_PREFIX\s*=\s*\[([^\]]*)\]/)
-    assert.ok(m, 'ALLOWED_PREFIX array literal not found in execute-spec.js')
-    const set = new Set()
-    for (const lit of m[1].matchAll(/['"]([^'"]+)['"]/g)) set.add(lit[1])
-    assert.ok(set.size > 0, 'parsed zero prefixes from ALLOWED_PREFIX')
-    return set
+// (b) the runtime enforcer — the envelope validator's exported PR_SIDE_PREFIXES.
+//     This is the set an ungrounded blocking finding is actually rejected against,
+//     so it is the leg that must never silently diverge from the doc.
+function parseValidator(prefixes) {
+    assert.ok(Array.isArray(prefixes) && prefixes.length > 0, 'PR_SIDE_PREFIXES is not a non-empty array')
+    return new Set(prefixes)
 }
 
 // (c) review-envelope.schema.json — read criterion.description and parse the explicit
@@ -82,15 +81,15 @@ function parseSchema(jsonText) {
     return set
 }
 
-test('PR-side prefix set is identical across review-primitives.md, ALLOWED_PREFIX, and the schema', () => {
+test('PR-side prefix set is identical across review-primitives.md, the validator, and the schema', () => {
     const fromPrimitives = parsePrimitives(read(PRIMITIVES))
-    const fromEngine = parseEngine(read(ENGINE))
+    const fromValidator = parseValidator(PR_SIDE_PREFIXES)
     const fromSchema = parseSchema(read(SCHEMA))
 
     assert.deepEqual(
-        sorted(fromEngine),
+        sorted(fromValidator),
         sorted(fromPrimitives),
-        `ALLOWED_PREFIX diverges from review-primitives.md PR-side table.\n  primitives: ${sorted(fromPrimitives)}\n  engine:     ${sorted(fromEngine)}`
+        `validate-review-envelope.mjs PR_SIDE_PREFIXES diverges from review-primitives.md PR-side table.\n  primitives: ${sorted(fromPrimitives)}\n  validator:  ${sorted(fromValidator)}`
     )
     assert.deepEqual(
         sorted(fromSchema),
@@ -101,8 +100,8 @@ test('PR-side prefix set is identical across review-primitives.md, ALLOWED_PREFI
 
 // (d) pr-reviewer/SKILL.md — the GROUNDING block instructs reviewers which prefixes to cite.
 //     It must cite the canonical PR-side set in colon form and must NOT instruct a legacy bare
-//     form (AC-NNN / ADR-NNN / sdlc-code-standards:) that the engine's ALLOWED_PREFIX rejects —
-//     otherwise a reviewer obeying its own skill gets escalated as ungrounded (SPEC-006 AC).
+//     form (AC-NNN / ADR-NNN / sdlc-code-standards:) that the validator rejects — otherwise a
+//     reviewer obeying its own skill gets escalated as ungrounded (SPEC-006 AC).
 function groundingBlock(md) {
     const g = md.indexOf('GROUNDING')
     assert.notEqual(g, -1, 'GROUNDING block not found in pr-reviewer/SKILL.md')
@@ -120,20 +119,19 @@ test('pr-reviewer GROUNDING cites the canonical PR-side prefixes in colon form, 
     }
     // regression guard: no BARE legacy form (AC-NNN not as ac:AC-NNN, ADR-NNN not as adr:ADR-NNN,
     // and no sdlc-code-standards: — replaced by std:). Lookbehind exempts the canonical colon form.
-    assert.ok(!/(?<!ac:)AC-NNN/.test(block), 'pr-reviewer GROUNDING still instructs the bare legacy form AC-NNN (engine rejects it)')
-    assert.ok(!/(?<!adr:)ADR-NNN/.test(block), 'pr-reviewer GROUNDING still instructs the bare legacy form ADR-NNN (engine rejects it)')
+    assert.ok(!/(?<!ac:)AC-NNN/.test(block), 'pr-reviewer GROUNDING still instructs the bare legacy form AC-NNN (the validator rejects it)')
+    assert.ok(!/(?<!adr:)ADR-NNN/.test(block), 'pr-reviewer GROUNDING still instructs the bare legacy form ADR-NNN (the validator rejects it)')
     assert.ok(!block.includes('sdlc-code-standards:'), 'pr-reviewer GROUNDING still instructs sdlc-code-standards: (replaced by std:)')
 })
 
-test('every PR-side canonical prefix is accepted by ALLOWED_PREFIX (startsWith semantics)', () => {
+test('every PR-side canonical prefix is accepted by the validator (startsWith semantics)', () => {
     const fromPrimitives = parsePrimitives(read(PRIMITIVES))
-    const allowed = [...parseEngine(read(ENGINE))]
     // A sample criterion for each prefix must be grounded by some allowed prefix.
     for (const p of fromPrimitives) {
         const sample = `${p}example`
         assert.ok(
-            allowed.some((a) => sample.startsWith(a)),
-            `canonical prefix ${p} is NOT accepted by ALLOWED_PREFIX (${allowed.join(', ')})`
+            PR_SIDE_PREFIXES.some((a) => sample.startsWith(a)),
+            `canonical prefix ${p} is NOT accepted by PR_SIDE_PREFIXES (${PR_SIDE_PREFIXES.join(', ')})`
         )
     }
 })

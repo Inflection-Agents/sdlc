@@ -21,11 +21,18 @@ Severity is **assigned by the reviewer**, not by the orchestrator. The orchestra
 
 ---
 
-## PR-side Tier 0 — mechanical gates (pre-review checks)
+## Mechanical presence checks (before grading)
 
-These checks are mechanical presence checks only; they run before Tier 1 grading begins. A PR that fails any Tier 0 gate is returned immediately without a full review.
+ADR-003 retired the automatic pre-review **Tier-0 gate** along with per-task review: there is
+no longer a stage that returns a PR unreviewed. What survives is the check itself, re-homed to
+the two places that now do the reading:
 
-- every AC has a non-empty `evidence:` field (presence check only; quality is Tier 1's job per `task:evidence-missing`)
+- **The executor's self-review**, before it opens a task PR: every AC has a non-empty
+  `evidence:` field. An empty one is the executor's own defect to fix, not a reviewer's to find.
+- **The integration gate**, before grading: a reviewer that finds evidence absent raises
+  `task:evidence-missing` rather than silently grading around it.
+
+Presence is the mechanical part; quality is graded (`task:evidence-missing`, major).
 
 ---
 
@@ -57,11 +64,11 @@ Reviewers must find the consequence in this catalog before raising a `blocker` o
 
 ## Grounding rules
 
-Every finding MUST cite its source in the `criterion` field of the output schema. All prefixes use the engine-parseable lowercase `prefix:` colon form; a citation is grounded when it starts with one of the allowed prefixes for the reviewer's role (`criterion.startsWith(prefix)`).
+Every finding MUST cite its source in the `criterion` field of the output schema. All prefixes use the machine-parseable lowercase `prefix:` colon form; a citation is grounded when it starts with one of the allowed prefixes for the reviewer's role (`criterion.startsWith(prefix)`).
 
 #### PR-side canonical prefix table
 
-This is the **single, canonical** allowed-prefix set for `pr-reviewer` (Tier 1) and all Tier 2 PR specialists. It is the SPEC-001-owned contract that the engine (`execute-spec.js` `ALLOWED_PREFIX`) and the review envelope schema (`review-envelope.schema.json` `criterion`) align to (per SPEC-006). Every allowed PR-side prefix and its meaning:
+This is the **single, canonical** allowed-prefix set for `pr-reviewer` (Tier 1) and all Tier 2 PR specialists. It is the contract that the envelope validator (`scripts/sdlc/validate-review-envelope.mjs` `PR_SIDE_PREFIXES` — which rejects an ungrounded blocking finding at runtime) and the review envelope schema (`review-envelope.schema.json` `criterion`) align to; `scripts/sdlc/prefix-parity.test.mjs` fails if any of the three drift. Every allowed PR-side prefix and its meaning:
 
 | Prefix | Form | Meaning |
 |---|---|---|
@@ -73,9 +80,9 @@ This is the **single, canonical** allowed-prefix set for `pr-reviewer` (Tier 1) 
 | `monorepo:` | `monorepo:verify-coverage` | Blocker: PR fails tests in any `verify_workspaces`. |
 | `task:` | `task:blocks:<id>` | Finding grounds in a `blocks:` relationship declared in the task frontmatter. |
 | `task:` | `task:scope` | Cross-skill signal (blocker): PR scope reveals the task was decomposed wrong; routes to `task-decomposition` (see SPEC-002). |
-| `task:` | `task:evidence-missing` | Tier 1 `major`: an AC's `evidence:` field is populated but insufficient (Tier 0 only checks presence). |
+| `task:` | `task:evidence-missing` | `major`: an AC's `evidence:` field is absent, or populated but insufficient. |
 | `spec:` | `spec:ambiguous-ac` / `spec:contradictory-ac` / `spec:wrong-design` / `spec:missing-section` | Cross-skill signals: implementation reveals the spec is wrong; route to `spec-amendment` (see SPEC-002). |
-| `spec:` | `spec:gap` | Blocker cross-skill signal routing to gap-capture (per SPEC-004 Design > 2); a reviewer raising `spec:gap` MUST assign severity `blocker` so the gap-capture handler intercepts it. |
+| `spec:` | `spec:gap` | A gap in the spec, recorded against it. Since ADR-003 there is no mechanical gap-capture handler to intercept a mandatory blocker — grade `spec:gap` on its actual severity (often a `nit` or `suggestion`) rather than forcing `blocker`; see the `spec-execution` skill §8. |
 | `inv:` | `inv:<INV-ID>` | Violation of a named review invariant from the constraints registry (`review-constraints.yaml`), e.g. `inv:INV-CORE-PURITY`. |
 | `design:` | `design:<token-or-component>` | Design-fidelity finding grounded in a design token or component (registry lens citation). |
 | `lens:` | `lens:<lens-name>` | Finding grounded in a registry review lens, e.g. `lens:a11y`, `lens:security`. |

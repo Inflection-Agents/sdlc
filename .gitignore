@@ -1,1 +1,7 @@
 .claude/worktrees/
+
+# Per-session SDLC state written by the hooks (goal leash, block counters, overrides)
+.claude/.sdlc-goal*
+.claude/.sdlc-goalblocks-*
+.claude/.sdlc-override*
+.claude/.sdlc-handoff-*

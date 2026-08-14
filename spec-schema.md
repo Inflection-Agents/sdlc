@@ -20,7 +20,6 @@ supersedes: SPEC-000            # optional, previous version's id
 initiative: INI-003             # links to Linear initiative
 owner: franklin                 # human who owns intent
 workspaces: [dealer-app, shared] # which workspace members this spec affects (monorepo)
-integration_strategy: branch | direct  # optional
 created: 2026-04-22
 updated: 2026-04-22
 tags: [auth, security]          # free-form, used for search/grouping
@@ -42,14 +41,15 @@ linear_project: PRJ-XYZ         # Linear project id, for bidirectional linking
 | `created` | yes | no | ISO date. |
 | `updated` | yes | yes | ISO date. Updated on every material change. |
 | `workspaces` | no | yes | Array of workspace names from `.ai/project.md`. Omit for single-app repos. Informs task decomposition scope. |
-| `integration_strategy` | no | yes | Optional. Allowed values: `branch` \| `direct`. When set to `branch`, spec-execution uses the feat/spec-NNN integration branch pattern. When set to `direct`, spec-execution merges task PRs directly to main. When unset, spec-execution computes the strategy from spec properties via a documented heuristic (see spec-execution skill Phase 1 resolution step). Schema validation rejects any value other than `branch` or `direct`. See SPEC-005 for design. |
+| `integration_strategy` | — | — | **Retired by ADR-003.** The integration branch `feat/spec-NNN` is now unconditional: every spec cuts one, and nothing reaches `main` except by merging it. The field is ignored where it still appears on an older spec; `direct` mode no longer exists. |
 | `tags` | no | yes | Array of strings. |
 | `linear_project` | no | yes | Set when the Linear project is created. |
 
 **Plan-review verdict.** The plan-review gate's verdict for a spec is not recorded in the spec
 frontmatter — it lives in the `plan_review:` block of the spec's `specs/tasks/SPEC-NNN/_index.yaml`
 (owned by `task-schema.md`), since the plan being attested is the spec *and* its decomposition. That
-block is what `execute-spec` reads at the Plan phase and fails closed on.
+block is what a delivery run checks before it starts, and fails closed on
+(`node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml`).
 
 ## Body structure
 
@@ -174,12 +174,32 @@ ADRs are lighter. Same directory, same frontmatter pattern.
 id: ADR-001
 title: "Use PostgreSQL for event store"
 status: proposed | accepted | superseded | rejected
-spec: SPEC-001                  # the spec this decision supports
+spec: SPEC-001 | none           # the spec this decision supports; `none` for a process-only ADR
 date: 2026-04-22
 author: franklin
 superseded_by: ADR-005          # optional
 ---
 ```
+
+**`spec: none` — the process-only ADR route.** Most ADRs support a spec. A decision that
+changes the SDLC *itself* — retiring an execution model, moving where a gate lives — often
+has no owning spec, and inventing one would misattribute it. Such an ADR sets `spec: none`
+and is authored directly, then reviewed by an independent panel like any other change.
+
+**Scope.** The route covers the framework's own artifacts: `specs/**`, `.ai/**`, `.claude/**`,
+`scripts/sdlc/**`, `.github/workflows/**`, `bootstrap.sh`, and the root docs — process
+machinery, including the code that enforces process. A change touching *product* code needs a
+spec. (An earlier draft of this paragraph listed only the doc paths, which would not have
+admitted ADR-003, the very change that defined the route — the allowlist is written to match
+what such a change actually touches.)
+
+**Merge.** The owner merges, or explicitly directs an agent to, under the conditions in ADR-003
+decision 11 (the owner names the merge, an independent panel is clean, and the authorization is
+recorded). ADR-003 is the worked example.
+
+**The honest gap:** the state machine has no phase that produces one of these, so this is a
+documented convention rather than a gated phase — the process for changing the process is
+thinner than the process it defines.
 
 Body follows the standard ADR format:
 

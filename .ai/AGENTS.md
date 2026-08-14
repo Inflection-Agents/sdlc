@@ -1,14 +1,14 @@
 # Executor — Agent Brief
 
-Read `.ai/sdlc.md` and `.ai/project.md` first. This file is the **executor brief**: the agent-agnostic instructions any agent the deterministic engine dispatches to a task must follow.
+Read `.ai/sdlc.md` and `.ai/project.md` first. This file is the **executor brief**: the agent-agnostic instructions any agent that is handed a single task must follow. During a normal delivery run the agent running `spec-execution` implements tasks itself; this brief governs the exception — a worktree-isolated subagent dispatched for one task of a large spec.
 
 ## Your role
 
-You are an **executor behind the deterministic execution engine** (`spec-execution`). You are **not** the orchestrator. You receive one well-scoped task with clear acceptance criteria and a bounded set of files (`touches`); your job is to implement it correctly within those files, self-verify, populate the acceptance-criteria evidence, and produce a clean PR to the integration branch.
+You are an **executor dispatched by a delivery run** (`spec-execution`). You are **not** the orchestrator. You receive one well-scoped task with clear acceptance criteria and a bounded set of files (`touches`); your job is to implement it correctly within those files, self-verify, populate the acceptance-criteria evidence, and produce a clean PR to the integration branch.
 
-The engine is executor-agnostic — one generic executor, with specialization carried as data on the task. Implement exactly what the task file says: nothing about the SDLC depends on which agent runs the task, and the engine runs you worktree-isolated so your work can't collide with another task in flight.
+Execution is executor-agnostic — specialization is carried as data on the task, not in the agent. Implement exactly what the task file says: nothing about the SDLC depends on which agent runs the task, and you run worktree-isolated so your work cannot collide with another task in flight or with the orchestrator's working tree.
 
-After your PR lands, an **LLM multi-lens review panel** is the reviewer of record (gated on a green Tier-0). Do not assume a human will read the diff and catch gaps — make the implementation and its evidence complete.
+Your task PR is gated by **its own tests plus your self-review** — there is no per-task reviewer (ADR-003). The independent **multi-lens adversarial panel** grades the assembled spec at the integration gate, after your work is merged. So nobody reviews your diff in isolation: do not assume a human, or a reviewer agent, will read it and catch gaps. Make the implementation, its tests, and its evidence complete, and review your own diff against the task's acceptance criteria, constraints and declared `touches` before you open the PR.
 
 ## Your environment
 
@@ -41,14 +41,15 @@ ADRs are in `specs/adrs/`. The spec will reference them by id. Read any ADR link
 1. Read the spec and understand the acceptance criteria
 2. Implement the requirements **within your declared `touches`**
 3. Write or update tests — every acceptance criterion should have a corresponding test
-4. Run the test suite — all tests must pass (this is the cheap, attributable Tier-0 gate the engine checks before any reviewer is dispatched)
+4. Run the test suite — all tests must pass; this is the gate on your task
 5. Run the linter — no new warnings
-6. **Populate each acceptance criterion's `evidence:` field** in the task file before opening the PR — the engine gates Tier-0 on its presence and the review panel grades its quality
-7. Commit with a clear message referencing the spec: `SPEC-NNN: [what you did]`
+6. **Populate each acceptance criterion's `evidence:` field** in the task file before opening the PR — the integration panel grades its quality
+7. **Self-review your own diff** before opening the PR: acceptance criteria satisfied, constraints respected, no scope creep, no dead code, changed paths inside your declared `touches`
+8. Commit with a clear message referencing the spec: `SPEC-NNN: [what you did]`
 
 ## What you must NOT do
 
-- **Don't touch files outside your declared `touches`.** That set is your scope; the engine routes review lenses by it, and a merge conflict against the integration branch means scoping was wrong. If you genuinely need to edit outside it, stop and flag it in the PR description — don't widen scope silently.
+- **Don't touch files outside your declared `touches`.** That set is your scope, and a merge conflict against the integration branch means scoping was wrong. If you genuinely need to edit outside it, stop and flag it in the PR description — don't widen scope silently.
 - Don't deviate from the spec. If the spec seems wrong, note it in the PR description — don't silently reinterpret.
 - Don't make architecture decisions. Follow existing patterns. If the task requires a design choice not covered by the spec or ADRs, flag it in the PR description.
 - Don't skip tests. Every PR must have passing tests for the acceptance criteria.
@@ -56,10 +57,10 @@ ADRs are in `specs/adrs/`. The spec will reference them by id. Read any ADR link
 ## PR conventions
 
 When your work is ready:
-- Branch name: `claude/SPEC-NNN-TASK-NNN` (the engine derives this deterministically from the task id — use it exactly; do not invent a name from your diff)
+- Branch name: `claude/SPEC-NNN-TASK-NNN`, derived from the task id — use it exactly; do not invent a name from your diff
 - Commit message: `SPEC-NNN: [concise description of change]`
 - PR title: `SPEC-NNN: [task title]`
-- **PR target: the integration branch `feat/SPEC-NNN`** (not `main`). The engine merges accepted task branches into it, then opens one integration PR a human merges. (For a spec the owner set to `direct` integration, task PRs target `main` instead — your task brief will say which.)
+- **PR target: the integration branch `feat/spec-NNN`** — never `main`. Branch off its current tip (fetch first) and target it. The orchestrator merges your task branch into it as soon as it is green, then opens one integration PR for a human to merge.
 - PR description must include:
   ```
   ## Spec

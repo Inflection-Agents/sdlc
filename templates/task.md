@@ -3,13 +3,13 @@ id: TASK-NNN
 spec: SPEC-NNN
 title: ""
 status: pending
-agent: claude-code | human   # routing; the deterministic engine treats `human` as deferred
+agent: claude-code | human   # routing; a delivery run defers `human` tasks and surfaces them
 workspace:                      # primary workspace (see .ai/project.md) — one workspace per task
 touches:                        # REQUIRED for executable tasks: file globs this task may modify
   - src/path/to/area/**
   - src/path/to/file.ts
 risk: low                       # low | medium | high — author hint; raises review tier
-tier: standard                  # express | standard | fortified — review-intensity HINT (engine resolves the real tier)
+tier: standard                  # express | standard | fortified — review-intensity HINT (the registry can only raise it)
 verify_workspaces: []           # workspaces whose tests must pass — include consumers if touching shared code
 depends_on: []
 blocks: []
@@ -52,4 +52,5 @@ updated: YYYY-MM-DD
 
 ## Verification
 
-<!-- Tier-0 gate commands (lint/typecheck/test), whether new tests are required, and where. -->
+<!-- The task's own gate: lint/typecheck/test commands for this workspace, whether new tests are
+     required, and where. Plus any changed-path audit the task's constraints imply. -->

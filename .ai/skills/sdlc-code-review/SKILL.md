@@ -145,7 +145,7 @@ For each acceptance criterion in the task file, read the `evidence:` field:
 - `evidence: "npm test -- --grep 'AC-001': 3 passing (42ms)"` — includes command + output excerpt
 - `evidence: "grep output: <paste>"` — includes the actual artifact
 
-Note: `evidence:` presence (empty vs populated) is a Tier 0 CI gate (per SPEC-004 / `review-primitives.md`). This step grades **content quality** on populated fields — it is a Tier 1 concern.
+Note: `evidence:` presence (empty vs populated) is checked by the executor's own self-review, not a CI gate — ADR-003 retired the automatic pre-review gate along with per-task review. This step grades **content quality** on populated fields.
 
 ### Step 9: Consume graded findings from pr-reviewer
 

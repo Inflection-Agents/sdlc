@@ -263,7 +263,7 @@ This phase is **spec-completion** in the SDLC state machine (`specs/sdlc-state-m
 
 **Preconditions:**
 
-- all tasks for the spec are done or nearly done
+- all tasks for the spec are done or nearly done and the integration PR is merged — the delivery run's independent integration review already graded the success criteria, so completion does not re-grade (when the PR was opened outside a delivery run, with no integration-reviewer verdict on the record, verify the success criteria here)
 
 **Exit condition:** spec success criteria verified end-to-end and spec status set to a terminal state
 

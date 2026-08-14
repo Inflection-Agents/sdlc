@@ -21,7 +21,8 @@ phase:
   next_action: none
   next_trigger: "none"
   exit_condition_met: true   # 5/5 success criteria verified; spec status -> completed (terminal)
-  updated: 2026-06-23
+  handoff_surfaced: true     # terminal handoff surfaced 2026-08-14; without this the Stop hook re-blocks every session
+  updated: 2026-08-14
 
 tasks:
   - id: TASK-205
