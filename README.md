@@ -62,7 +62,7 @@ The SDLC is codified in `.ai/` so agents understand the process. Copy into each 
 |------|-------------|---------|
 | `.ai/project.md` | All agents + humans | Project-specific context: repo structure, commands, conventions, data architecture |
 | `.ai/sdlc.md` | All agents | Agent-agnostic process: phase model, spec system, task lifecycle, boundaries, escalation |
-| `.ai/CLAUDE.md` | Claude Code (or any local agent) | Local orchestrator config: MCP access, invoking the execution engine, the spine (state machine, hooks) |
+| `.ai/CLAUDE.md` | Claude Code (or any local agent) | Local orchestrator config: MCP access, delivering a spec through `spec-execution`, the spine (state machine, hooks) |
 | `.ai/AGENTS.md` | Any agent handed a single task | Generic executor brief: read the task file, stay within declared `touches`, verify, self-review, open a PR to the integration branch, populate AC evidence |
 | `.ai/setup.md` | Humans | Onboarding guide: prerequisites (incl. Node for hooks/validators), install steps, verification |
 | `.ai/skills/` | Skill-aware agents | The SDLC skills + the runtime review contracts; `spec-execution` (policy) and its `SOP.md` (procedures) |
@@ -80,7 +80,7 @@ The local agent is the **orchestrator and the executor**: it shepherds a spec th
 ```
 
 The bootstrap script:
-1. Checks prerequisites (Node.js — required for the hooks and the execution engine — Git, GitHub CLI)
+1. Checks prerequisites (Node.js — required for the hooks and the `scripts/sdlc/` validators — Git, GitHub CLI)
 2. Checks for Claude Code
 3. Creates `specs/` and `.ai/` in the repo if missing
 4. Copies spec templates, the state machine, the reference hooks, the validators + delivery gates, and the review contracts; wires `.claude/settings.json`

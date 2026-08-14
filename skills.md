@@ -8,8 +8,8 @@ The SDLC splits into **judgment up front, autonomous delivery behind** (see `.ai
 
 ```
 intent-triage → spec-authoring → task-decomposition │ spec-execution → spec-completion
-  (human+LLM)     (human+LLM)       (human+LLM)      │  (DETERMINISTIC)    (LLM)      (human+LLM)
-        ── JUDGMENT PHASES: collaborative, gated ──  │  ── AUTONOMOUS ENGINE ──
+  (human+LLM)     (human+LLM)       (human+LLM)      │  (AUTONOMOUS)     (human+LLM)
+        ── JUDGMENT PHASES: collaborative, gated ──  │  ── DELIVERY ──
 ```
 
 | Group | Skills | Reviewer of record |
@@ -59,7 +59,7 @@ Intent arrives ("I want to build X", "we need to fix Y", brain dump)
 |----------------|------------|-------------|
 | `brainstorming` | `spec-authoring` (Phase 1) | Existing skill does generic design exploration. SDLC skill absorbs the discipline (hard gates, one question at a time, propose approaches) and adds SDLC-specific outputs: workspace scoping, ADR identification, acceptance criteria. |
 | `writing-plans` | `spec-authoring` (Phase 2) + `task-decomposition` | Existing skill writes generic plans. SDLC skills produce structured specs + task files with frontmatter, dependency graphs, and Linear integration. |
-| `executing-plans` | `spec-execution` | Existing skill executes locally in batches. SDLC skill drives the full spec lifecycle: wave-based dispatch, tiered review, fix-loop, integration PR. |
+| `executing-plans` | `spec-execution` | Existing skill executes locally in batches. SDLC skill drives the full spec lifecycle: goal leash, visible task list, serial burn-down onto one integration branch, one adversarial gate. |
 | `requesting-code-review` | `sdlc-code-review` | Existing skill does generic review. SDLC skill reviews against spec acceptance criteria, ADR constraints, and coding standards. |
 | `writing-skills` + `skill-creator` | `create-domain-skill` | Existing skills handle how to write good skills. SDLC skill adds the wiring: project.md updates, workspace mapping, interface documentation. |
 

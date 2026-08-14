@@ -1,0 +1,49 @@
+name: SDLC
+
+# The framework's own gates, run on the framework. Every check here is one a
+# consuming repo is told to rely on, so if any of them is red HERE, the reference
+# is shipping a gate it does not itself pass.
+#
+# ADR-003 concentrates delivery rigor at one integration gate and re-homes the
+# engine's contracts into scripts/sdlc/. That only means anything if something
+# actually runs them — before this workflow existed, nothing did.
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+    workflow_dispatch:
+
+jobs:
+    validate:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  # fs.globSync (used by check-review-constraint-globs.mjs) needs 22+.
+                  node-version: '22'
+
+            - name: Tests — validators, delivery gates, and the goal leash
+              run: node --test scripts/sdlc/*.test.mjs .claude/hooks/__tests__/*.test.mjs
+
+            - name: State machine is structurally and referentially valid
+              run: node scripts/sdlc/validate-state-machine.mjs
+
+            - name: Generated handoff footers match the state machine
+              run: node scripts/sdlc/gen-handoffs.mjs --check
+
+            - name: Phase-memory blocks are valid
+              run: node scripts/sdlc/validate-phase-memory.mjs specs/tasks/*/_index.yaml
+
+            - name: Plan-review gate is stamped on every decomposed spec
+              # The fail-closed gate a delivery run checks before it starts (ADR-002).
+              # Running it here is what makes "and by CI" a true statement.
+              run: node scripts/sdlc/plan-gate.mjs specs/tasks/*/_index.yaml
+
+            - name: Review-constraint globs resolve
+              # WARN mode on purpose: this repo ships an illustrative registry whose
+              # example rows deliberately match nothing. A consuming repo replaces the
+              # rows and switches this to --enforce.
+              run: node scripts/sdlc/check-review-constraint-globs.mjs

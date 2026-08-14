@@ -125,7 +125,7 @@ function classify(command) {
         isAccept = acceptVerdict && !blockingVerdict && !requestsChanges
     }
 
-    return { isVerdict: isReview || isComment || isMerge, isAccept, prNumber: extractPrNumber(cmd) }
+    return { isVerdict: isReview || isComment || isMerge, isAccept, isMerge, prNumber: extractPrNumber(cmd) }
 }
 
 /**
@@ -149,6 +149,38 @@ function extractPrNumber(cmd) {
 
 function gh(args) {
     return execFileSync('gh', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+}
+
+/**
+ * Branches that are a spec's INTEGRATION branch — the merge target ADR-003 requires
+ * the executor to merge its own task PRs into.
+ */
+const INTEGRATION_BRANCH = /^feat\/spec-/i
+
+/**
+ * Is this merge a task PR landing on a spec integration branch?
+ *
+ * ADR-003 splits one rule into two. Merging a task PR into `feat/spec-NNN` is
+ * MANDATORY work for the delivery executor — it merges its own PR, immediately, and
+ * nothing reaches `main` that way. Merging the integration PR into `main` is the
+ * human's, always. This gate only ever meant the second one; without the base check
+ * it denies the first, and in `enforce` mode a delivery run cannot get past task 1.
+ *
+ * Fails CLOSED for this carve-out specifically: if the base cannot be resolved we
+ * return false and the normal author≠reviewer check applies, so an unresolvable base
+ * never widens the exemption.
+ */
+function mergesIntoIntegrationBranch(prNumber) {
+    const injected = process.env.SDLC_REVIEW_GATE_BASE
+    if (injected != null) return INTEGRATION_BRANCH.test(injected)
+    const args = ['pr', 'view']
+    if (prNumber) args.push(prNumber)
+    args.push('--json', 'baseRefName')
+    try {
+        return INTEGRATION_BRANCH.test(JSON.parse(gh(args))?.baseRefName ?? '')
+    } catch {
+        return false
+    }
 }
 
 // Test seam: fixtures inject identities via env so tests are deterministic and
@@ -224,7 +256,11 @@ const DENY_REASON =
     'The resolved reviewer identity equals the PR author — an author may not post ' +
     'an accept/approve verdict (or merge) on their own PR.\n' +
     'Dispatch an INDEPENDENT reviewer (different identity) to grade and accept this ' +
-    'PR. There is no override for this gate.'
+    'PR. There is no override for this gate.\n' +
+    'NOTE (ADR-003): merging a TASK PR into a spec integration branch (`feat/spec-NNN`) ' +
+    'is exempt — that is the delivery executor landing its own task, and nothing reaches ' +
+    '`main` by it. This deny means the PR targets `main` (or its base could not be ' +
+    'resolved), which is the human\'s merge, always.'
 
 function main() {
     if (GUARD_MODE === 'off') allow() // emergency kill-switch: no-op, no I/O
@@ -237,10 +273,15 @@ function main() {
 
     const command =
         payload.tool_input?.command ?? payload.toolInput?.command ?? payload.tool_input?.cmd
-    const { isVerdict, isAccept, prNumber } = classify(command)
+    const { isVerdict, isAccept, isMerge, prNumber } = classify(command)
 
     // No-op for anything that isn't an accept/non-blocking PR verdict.
     if (!isVerdict || !isAccept) allow()
+
+    // ADR-003 carve-out: a task PR merging into `feat/spec-NNN` is the delivery
+    // executor doing its job, not an author self-accepting. Nothing reaches `main`
+    // that way. An integration PR into `main` stays denied.
+    if (isMerge && mergesIntoIntegrationBranch(prNumber)) allow()
 
     // Resolve identities only now (gated behind a detected accept).
     let author, reviewer

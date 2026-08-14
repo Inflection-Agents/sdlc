@@ -164,6 +164,10 @@ payment risk (hard stop); a decision that is the owner's; the same integration f
 panel rounds; the amendment cap (`spec.version − 1 ≥ 3`); a task that cannot land and cannot be
 fixed at the root.
 
+Two signals route to a judgment phase rather than halting the run: a `task:scope` blocker goes to
+`task-decomposition` for a re-plan, and a `spec:*` blocker goes to `spec-amendment`. A `spec:gap`
+finding is captured as a gap against the spec and does **not** license widening the current task.
+
 ## Token discipline
 
 Read the spec, the task index and each task **once**, batched — never re-read what you have read.

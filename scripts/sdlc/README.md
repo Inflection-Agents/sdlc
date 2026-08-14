@@ -130,7 +130,10 @@ Exports `validateEnvelope` / `PR_SIDE_PREFIXES`. Run:
 **`check-review-constraint-globs.mjs`** — resolvability gate for the review
 registry. Every `when.touches` glob should match at least one real file: a dead
 glob silently advertises coverage that can never fire, which matters more now that
-the registry is the only mechanical review floor. **Warn by default** (the shipped
+the registry is the review floor the panel is graded against. (Note what this does and
+does not prove: it checks that a row's globs RESOLVE, not that a reviewer consulted the
+row — nothing mechanical evaluates the registry since ADR-003 retired the engine's
+selector.) **Warn by default** (the shipped
 registry is illustrative); pass `--enforce` in CI once a repo has replaced the
 example rows. Run: `node scripts/sdlc/check-review-constraint-globs.mjs [--enforce]`.
 

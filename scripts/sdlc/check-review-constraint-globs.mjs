@@ -33,12 +33,12 @@
  * once a repo has replaced them with its own, and wire that form into CI.
  *
  * Usage:
- *   node scripts/sdlc/check-review-constraint-globs.mjs [--enforce] [--registry <path>]
+ *   node scripts/sdlc/check-review-constraint-globs.mjs [--enforce] [--registry <path>] [--root <dir>]
  *
  * Exit 0 when every glob resolves (or in warn mode), 1 on an unresolvable glob
  * under --enforce.
  */
-import { globSync, readFileSync } from 'node:fs'
+import { globSync, readFileSync, realpathSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -61,6 +61,7 @@ export function parseRegistryTouches(text) {
     const rows = []
     let current = null
     let inTouchesBlock = false
+    let inFlowList = false
     const pushLiterals = (s, target) => {
         for (const m of String(s).matchAll(/["']([^"']+)["']/g)) target.push(m[1])
     }
@@ -70,6 +71,7 @@ export function parseRegistryTouches(text) {
             if (current) rows.push(current)
             current = { id: item[1].trim().replace(/^["']|["']$/g, ''), touches: [] }
             inTouchesBlock = false
+            inFlowList = false
             continue
         }
         if (!current) continue
@@ -86,11 +88,34 @@ export function parseRegistryTouches(text) {
             inTouchesBlock = false
             continue
         }
+        // A flow list that spans lines (`touches: [` … `]`). Without this the row
+        // parses to zero globs and is silently dropped — under-reporting coverage is
+        // the same defect class this checker exists to catch.
+        const openFlow = line.match(/^\s*touches\s*:\s*\[(.*)$/)
+        if (openFlow) {
+            pushLiterals(openFlow[1], current.touches)
+            inTouchesBlock = false
+            inFlowList = !/\]/.test(openFlow[1])
+            continue
+        }
+        if (inFlowList) {
+            pushLiterals(line, current.touches)
+            if (/\]/.test(line)) inFlowList = false
+            continue
+        }
         if (/^\s*touches\s*:\s*$/.test(line)) {
             inTouchesBlock = true
             continue
         }
         if (inTouchesBlock) {
+            // A bare `touches:` may be followed by `- item` lines OR by a flow list
+            // whose opening bracket sits on the next line.
+            if (line.trim().startsWith('[')) {
+                pushLiterals(line, current.touches)
+                inFlowList = !/\]/.test(line)
+                inTouchesBlock = false
+                continue
+            }
             const entry = line.match(/^\s*-\s*(.+)$/)
             if (entry) {
                 current.touches.push(entry[1].trim().replace(/^["']|["']$/g, ''))
@@ -100,7 +125,7 @@ export function parseRegistryTouches(text) {
         }
     }
     if (current) rows.push(current)
-    return rows.filter((r) => r.touches.length > 0)
+    return rows
 }
 
 /** Does this glob match at least one real file under `root`? */
@@ -129,8 +154,17 @@ export function findDeadGlobs(rows, root = REPO_ROOT) {
 
 function main(argv) {
     let registry = REGISTRY_FILE
+    let root = REPO_ROOT
     const rIdx = argv.indexOf('--registry')
-    if (rIdx !== -1) registry = argv[rIdx + 1]
+    if (rIdx !== -1) {
+        registry = argv[rIdx + 1]
+        // Resolve globs against the registry's OWN repo, not this one — otherwise
+        // pointing the checker at another repo reports every row dead (or alive)
+        // off the wrong tree.
+        root = resolve(dirname(registry), '..', '..')
+    }
+    const rootIdx = argv.indexOf('--root')
+    if (rootIdx !== -1) root = resolve(argv[rootIdx + 1])
     const enforce = argv.includes('--enforce') || process.env.REVIEW_GLOBS_MODE === 'enforce'
 
     let text
@@ -140,8 +174,18 @@ function main(argv) {
         process.stderr.write(`check-review-constraint-globs: cannot read ${registry}: ${err.message}\n`)
         process.exit(enforce ? 1 : 0)
     }
-    const rows = parseRegistryTouches(text)
-    const dead = findDeadGlobs(rows, REPO_ROOT)
+    const all = parseRegistryTouches(text)
+    const rows = all.filter((r) => r.touches.length > 0)
+    // Never drop a row silently. A row this parser could not read is indistinguishable
+    // from a row with no path selector, and under-reporting coverage is the same
+    // defect class this checker exists to catch.
+    const unread = all.filter((r) => r.touches.length === 0)
+    for (const r of unread) {
+        process.stderr.write(
+            `· ${r.id}: no when.touches globs read (workspace/task_has-only row, or a YAML shape this reader does not handle)\n`
+        )
+    }
+    const dead = findDeadGlobs(rows, root)
 
     if (dead.length === 0) {
         process.stdout.write(
@@ -159,5 +203,25 @@ function main(argv) {
     process.exit(enforce ? 1 : 0)
 }
 
-const invokedDirectly = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+
+/**
+ * Is this module the process entry point? Compares realpath to realpath —
+ * `import.meta.url` is already resolved by Node, so an unresolved `process.argv[1]`
+ * (any symlinked path or symlinked ancestor directory) would never match, silently
+ * turning this CLI into a no-op that still exits 0.
+ */
+function isMain(metaUrl) {
+    const entry = process.argv[1]
+    if (!entry) return false
+    try {
+        return realpathSync(entry) === realpathSync(fileURLToPath(metaUrl))
+    } catch {
+        return resolve(entry) === fileURLToPath(metaUrl)
+    }
+}
+// realpathSync BOTH sides: `import.meta.url` is already realpath'd by Node, so
+// comparing it against an unresolved argv[1] makes the guard fail — and a failed
+// guard here is SILENT (the CLI exits 0 having done nothing, which callers read as
+// success). Invoking through a symlinked ancestor directory reproduced exactly that.
+const invokedDirectly = isMain(import.meta.url)
 if (invokedDirectly) main(process.argv.slice(2))

@@ -164,7 +164,7 @@ The task file is the executor's zero-prior-context brief. Everything an executor
 
 **Spec:** SPEC-NNN (see specs/SPEC-NNN-name.md)
 **Linear issue:** [ID]
-**Branch from:** the integration branch (feat/SPEC-NNN)
+**Branch from:** the integration branch (feat/spec-NNN)
 
 ## Context
 [Brief context: why this task exists, what it's part of]

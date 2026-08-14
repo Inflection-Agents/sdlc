@@ -11,7 +11,12 @@
 #
 # `when` matches if ANY of: a `touches` glob overlaps the task's `touches`; the task's
 # workspace is in `workspace`; or the task declares the `task_has` field.
-# `scope: task` constraints run per-task; `scope: integration` run once at the integration gate.
+# `scope:` names WHAT a row grades, not when it runs. Both scopes are evaluated at the
+# integration gate, against the whole diff: `scope: task` rows grade task-level concerns
+# (a boundary, a convention, a risky surface a change touched) and are graded by their
+# `agent:`; `scope: integration` rows grade whole-spec concerns and are graded by the
+# `integration-reviewer`. Match `when.touches` against the PR's changed paths — there is
+# no per-task evaluation pass any more (ADR-003).
 #
 # Lens → reviewer routing is DATA, not code (ADR-001): each task-scope constraint's optional
 # `agent:` field is the single source of truth, resolved by scripts/sdlc/reviewer-routing.mjs

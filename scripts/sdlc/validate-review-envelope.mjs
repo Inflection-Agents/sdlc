@@ -40,7 +40,7 @@
  *   3  malformed / ungrounded      → contract violation: re-dispatch or escalate
  *   1  usage / internal error
  */
-import { readFileSync } from 'node:fs'
+import { readFileSync, realpathSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -90,8 +90,16 @@ function checkProperty(name, value, sub) {
     return null
 }
 
-/** The grounded citation a finding carries, if any. */
-const critOf = (f) => (f && (f.criterion || f.citation)) || ''
+/**
+ * The grounded citation a finding carries, if any. Coerced to a string: `criterion`
+ * is type-flagged but not skipped, so an object or number here would otherwise throw
+ * a TypeError out of `startsWith` — turning a contract violation (exit 3) into a
+ * crash (exit 1), and making the exported validator throw at an in-process caller.
+ */
+const critOf = (f) => {
+    const c = f && (f.criterion ?? f.citation)
+    return typeof c === 'string' ? c : ''
+}
 
 /**
  * Validate a parsed envelope object against the canonical schema.
@@ -185,7 +193,18 @@ function main() {
         process.exit(EXIT_MALFORMED)
     }
 
-    const { ok, abstained, errors } = validateEnvelope(env)
+    let ok, abstained, errors
+    try {
+        ;({ ok, abstained, errors } = validateEnvelope(env))
+    } catch (err) {
+        // An envelope that breaks the validator is a malformed envelope, not a clean
+        // review. Never let an internal error read as anything but a contract violation.
+        console.error(
+            `✖ CONTRACT VIOLATION — the envelope could not be validated (${err?.message ?? err}).\n` +
+                '  Re-dispatch the reviewer or escalate; do NOT treat this as a clean review.'
+        )
+        process.exit(EXIT_MALFORMED)
+    }
     if (!ok) {
         console.error('✖ CONTRACT VIOLATION — envelope does not satisfy the canonical schema:')
         for (const e of errors) console.error(`  - ${e}`)
@@ -204,6 +223,26 @@ function main() {
     process.exit(EXIT_VALID)
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
+
+/**
+ * Is this module the process entry point? Compares realpath to realpath —
+ * `import.meta.url` is already resolved by Node, so an unresolved `process.argv[1]`
+ * (any symlinked path or symlinked ancestor directory) would never match, silently
+ * turning this CLI into a no-op that still exits 0.
+ */
+function isMain(metaUrl) {
+    const entry = process.argv[1]
+    if (!entry) return false
+    try {
+        return realpathSync(entry) === realpathSync(fileURLToPath(metaUrl))
+    } catch {
+        return resolve(entry) === fileURLToPath(metaUrl)
+    }
+}
+
+// A failed guard here is the worst kind: the CLI exits 0 having validated nothing,
+// and per the SOP exit 0 means "fold the findings" — so a garbage envelope would
+// read as a clean accept, the exact silent-accept path this file exists to close.
+if (isMain(import.meta.url)) {
     main()
 }

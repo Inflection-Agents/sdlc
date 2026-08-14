@@ -26,7 +26,14 @@ echo ""
 info "Checking prerequisites..."
 
 if command -v node &> /dev/null; then
-  ok "Node.js $(node --version)"
+  NODE_MAJOR="$(node --version | sed 's/^v//' | cut -d. -f1)"
+  if [ "$NODE_MAJOR" -ge 22 ] 2>/dev/null; then
+    ok "Node.js $(node --version)"
+  else
+    # scripts/sdlc/check-review-constraint-globs.mjs uses fs.globSync (Node 22+).
+    fail "Node.js $(node --version) is too old — the SDLC validators need v22+."
+    exit 1
+  fi
 else
   fail "Node.js not found. Install it: https://nodejs.org/"
   exit 1
@@ -169,8 +176,14 @@ if git rev-parse --git-dir &> /dev/null 2>&1; then
         HOOKS_COPIED=true
       fi
     done
+    # The goal leash is the one hook that BLOCKS. Its fixture tests are its only
+    # mechanical bound, so a repo that gets the hook must get the tests too.
+    if [ -d "$SCRIPT_DIR/.claude/hooks/__tests__" ]; then
+      mkdir -p "$REPO_ROOT/.claude/hooks/__tests__"
+      cp -R "$SCRIPT_DIR/.claude/hooks/__tests__/." "$REPO_ROOT/.claude/hooks/__tests__/" 2>/dev/null || true
+    fi
     if [ "$HOOKS_COPIED" = true ]; then
-      ok "Copied SDLC hooks to .claude/hooks/ (advisory by default)"
+      ok "Copied SDLC hooks to .claude/hooks/ (advisory by default; goal-leash tests in __tests__/)"
     else
       ok ".claude/hooks/ already populated"
     fi
@@ -210,6 +223,21 @@ if git rev-parse --git-dir &> /dev/null 2>&1; then
     fi
   fi
 
+  # Per-session SDLC state must never be committed: a goal file carries the run's
+  # statement and exit criteria, and an unkeyed one readable by another session is an
+  # unauthenticated directive channel into an autonomous loop (ADR-003).
+  IGNORE_FILE="$REPO_ROOT/.gitignore"
+  if ! grep -q "\.sdlc-goal" "$IGNORE_FILE" 2>/dev/null; then
+    info "Adding .claude/.sdlc-* ignore rules..."
+    {
+      printf '\n# Per-session SDLC state written by the hooks (goal leash, counters, overrides)\n'
+      printf '.claude/.sdlc-goal*\n.claude/.sdlc-goalblocks-*\n.claude/.sdlc-override*\n.claude/.sdlc-handoff-*\n'
+    } >> "$IGNORE_FILE"
+    ok "Added .claude/.sdlc-* ignore rules to .gitignore"
+  else
+    ok ".gitignore already ignores .claude/.sdlc-* state"
+  fi
+
   # Copy SDLC validators into scripts/sdlc/
   if [ -d "$SCRIPT_DIR/scripts/sdlc" ]; then
     if [ ! -d "$REPO_ROOT/scripts/sdlc" ]; then
@@ -230,6 +258,31 @@ echo ""
 echo "========================================="
 echo "  Setup complete"
 echo "========================================="
+  # ── Upgrading an existing bootstrap ──
+  #
+  # Every copy step above is guarded by "only if absent", so re-running this script on
+  # a repo bootstrapped from an OLDER version of the framework changes nothing — it
+  # keeps its old hooks and skills. That is deliberate (never clobber local edits), but
+  # it means an upgrade is a manual, deliberate act. Detect the most consequential
+  # mismatch and say so loudly.
+  if [ -f "$REPO_ROOT/.claude/workflows/execute-spec.js" ]; then
+    warn "This repo still has .claude/workflows/execute-spec.js — the RETIRED execution engine (ADR-003)."
+    echo "  You are on a pre-ADR-003 bootstrap. To upgrade:"
+    echo "    1. rm .claude/workflows/execute-spec.js   (git history keeps it)"
+    echo "    2. Replace .ai/skills/spec-execution/ with this framework's SKILL.md + SOP.md"
+    echo "    3. Replace .claude/hooks/stop-handoff.mjs (it now carries the goal leash) and"
+    echo "       copy .claude/hooks/__tests__/ alongside it"
+    echo "    4. Copy the new scripts/sdlc/ gates: plan-gate.mjs, reviewer-routing.mjs,"
+    echo "       validate-review-envelope.mjs, check-review-constraint-globs.mjs"
+    echo "    5. Remove the code-review phase from specs/sdlc-state-machine.yaml and re-run"
+    echo "       node scripts/sdlc/gen-handoffs.mjs"
+    echo ""
+    echo "  Partial upgrades are the dangerous case: the new skill arms a goal file that an"
+    echo "  OLD stop-handoff.mjs never reads, so the run has no persistence enforcement while"
+    echo "  the docs say it does. Upgrade the skill and the hook together."
+    echo ""
+  fi
+
 echo ""
 echo "Next steps:"
 echo "  1. Fill in .ai/project.md with your repo structure, commands, and conventions"

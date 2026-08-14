@@ -5,8 +5,9 @@ Clear boundaries between what AI agents do and what humans do at each stage of t
 ## The shape: humans up front + at the merge; agents in the middle
 
 ```
-intent-triage → spec-authoring → task-decomposition │ spec-execution → review → spec-completion
-  HUMAN + LLM     HUMAN + LLM       HUMAN + LLM       │   AGENT ENGINE   LLM PANEL  HUMAN + LLM
+intent-triage → spec-authoring → task-decomposition │ spec-execution → spec-completion
+  HUMAN + LLM     HUMAN + LLM       HUMAN + LLM       │  ONE EXECUTOR     HUMAN + LLM
+                                                      │  + panel at the gate
    ── collaborative, gated: human attention ──        │  ── autonomous: no human attention ──   ↑ merge
 ```
 
@@ -24,7 +25,7 @@ The front phases are **collaborative judgment phases** where multiple humans con
 | **Stakeholders** | Raise needs | Review intent; confirm the spec solves their problem | — |
 | **LLM (agent)** | Capture, normalize, prioritize-assist | Draft the spec; `spec-reviewer` grades it pre-gate | Build the AI-coherent task graph, declare `touches`/`risk`/`tier`/routing, self-review |
 
-The collective deliverable is a **signed-off spec + an AI-coherent task graph** — complete, unambiguous *instructions* that let the engine run deterministically. Getting this right is the highest-leverage human work in the SDLC; bad decomposition is the top cause of a stalled or escalated run.
+The collective deliverable is a **signed-off spec + an AI-coherent task graph** — complete, unambiguous *instructions* that let one executor deliver the spec without stalling or escalating. Getting this right is the highest-leverage human work in the SDLC; bad decomposition is the top cause of a stalled or escalated run.
 
 ## Role matrix
 

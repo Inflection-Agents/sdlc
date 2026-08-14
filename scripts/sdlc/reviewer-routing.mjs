@@ -20,7 +20,7 @@
 //
 // Exits 0 always (an unmapped lens is a valid answer: `task-reviewer`), 1 only
 // when the registry cannot be read.
-import { readFileSync } from 'node:fs'
+import { readFileSync, realpathSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -66,14 +66,26 @@ export function parseConstraints(text) {
     const out = []
     let inList = false
     let current = null
+    // Indent of an open block scalar (`check: >` / `check: |`). Every line more
+    // indented than its key belongs to that block and is PROSE, not YAML. Without
+    // this, a `check:` paragraph containing a line that starts `agent: ...` silently
+    // overwrote the constraint's real routing — free-text hijacking a reviewer.
+    let blockIndent = null
     const KEYS = new Set(['id', 'lens', 'agent', 'scope', 'severity'])
+    const indentOf = (l) => l.match(/^(\s*)/)[1].length
     for (const line of lines) {
         if (/^constraints\s*:/.test(line)) {
             inList = true
             continue
         }
         if (!inList) continue
-        if (/^\S/.test(line)) break // a new top-level key ends the list
+        if (blockIndent !== null) {
+            if (line.trim() === '' || indentOf(line) > blockIndent) continue // still inside the block
+            blockIndent = null // dedented out of it
+        }
+        // Only a real top-level key ends the list — a column-0 `- id:` item is a
+        // legal (if unusual) YAML style and must still be read.
+        if (/^[A-Za-z_]/.test(line)) break
         const item = line.match(/^\s*-\s*id\s*:\s*(.+)$/)
         if (item) {
             if (current) out.push(current)
@@ -81,8 +93,13 @@ export function parseConstraints(text) {
             continue
         }
         if (!current) continue
-        const kv = line.match(/^\s{2,}([a-z_]+)\s*:\s*(.*)$/i)
-        if (kv && KEYS.has(kv[1]) && kv[2].trim() !== '') current[kv[1]] = scalar(kv[2])
+        const kv = line.match(/^\s*([a-z_]+)\s*:\s*(.*)$/i)
+        if (!kv) continue
+        if (/^[>|]/.test(kv[2].trim())) {
+            blockIndent = indentOf(line) // a block scalar opens here
+            continue
+        }
+        if (KEYS.has(kv[1]) && kv[2].trim() !== '') current[kv[1]] = scalar(kv[2])
     }
     if (current) out.push(current)
     return out.filter((c) => c.id)
@@ -120,5 +137,25 @@ function main(argv) {
     process.exit(0)
 }
 
-const invokedDirectly = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+
+/**
+ * Is this module the process entry point? Compares realpath to realpath —
+ * `import.meta.url` is already resolved by Node, so an unresolved `process.argv[1]`
+ * (any symlinked path or symlinked ancestor directory) would never match, silently
+ * turning this CLI into a no-op that still exits 0.
+ */
+function isMain(metaUrl) {
+    const entry = process.argv[1]
+    if (!entry) return false
+    try {
+        return realpathSync(entry) === realpathSync(fileURLToPath(metaUrl))
+    } catch {
+        return resolve(entry) === fileURLToPath(metaUrl)
+    }
+}
+// realpathSync BOTH sides: `import.meta.url` is already realpath'd by Node, so
+// comparing it against an unresolved argv[1] makes the guard fail — and a failed
+// guard here is SILENT (the CLI exits 0 having done nothing, which callers read as
+// success). Invoking through a symlinked ancestor directory reproduced exactly that.
+const invokedDirectly = isMain(import.meta.url)
 if (invokedDirectly) main(process.argv.slice(2))

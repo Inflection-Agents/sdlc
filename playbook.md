@@ -5,12 +5,12 @@ How to run the AI-native SDLC on a real project. Start here when kicking off a n
 ## The shape: collaborate up front, then run
 
 ```
-intent-triage → spec-authoring → task-decomposition │ spec-execution → review → spec-completion
-  (human+LLM)     (human+LLM)       (human+LLM)      │  (DETERMINISTIC)   (LLM)    (human+LLM)
-        ── JUDGMENT PHASES: collaborative, gated ──  │  ── AUTONOMOUS ENGINE ──
+intent-triage → spec-authoring → task-decomposition │ spec-execution → spec-completion
+  (human+LLM)     (human+LLM)       (human+LLM)      │  (AUTONOMOUS)     (human+LLM)
+        ── JUDGMENT PHASES: collaborative, gated ──  │  ── DELIVERY ──
 ```
 
-*Quality when it's cheap to assure it — then autonomous delivery.* You and the team spend judgment on the front phases — the intent, the spec, and the task graph. Each ends at a hard sign-off gate. Once the spec is `active` and decomposed, you invoke one engine (`execute-spec`) and it drives execution to an integration PR with no further human attention. An LLM multi-lens panel reviews the code; a human merges the integration PR to `main`. The single source of truth for the phases is [`specs/sdlc-state-machine.yaml`](specs/sdlc-state-machine.yaml).
+*Quality when it's cheap to assure it — then autonomous delivery.* You and the team spend judgment on the front phases — the intent, the spec, and the task graph. Each ends at a hard sign-off gate. Once the spec is `active`, decomposed and plan-approved, you say "implement SPEC-NNN" and one agent delivers the whole spec — serially, on one integration branch, behind a visible task list — with no further human attention until the integration PR. Review happens in-run: a self-review per task, then an LLM multi-lens adversarial panel on that PR. A human merges it to `main`. The single source of truth for the phases is [`specs/sdlc-state-machine.yaml`](specs/sdlc-state-machine.yaml).
 
 ## Phase 0: Setup
 

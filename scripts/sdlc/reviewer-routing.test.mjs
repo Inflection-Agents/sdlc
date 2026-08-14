@@ -49,8 +49,11 @@ constraints:
     agent: invariants-reviewer
     severity: blocker
     check: >
-      A folded block scalar that mentions agent: nothing and lens: nothing
-      across several lines.
+      A folded block scalar whose own lines START with routing-looking keys:
+      agent: not-a-real-reviewer
+      lens: hijacked
+      severity: nit
+      Free text inside a check must never overwrite the row's routing.
     cite: "inv:INV-ONE"
 
   - id: INV-TWO
@@ -60,6 +63,30 @@ constraints:
     severity: blocker
     cite: "inv:INV-TWO"
 `
+
+test('a check: block scalar cannot hijack the row it documents', () => {
+    // The fixture's `check:` paragraph contains lines that begin `agent:` / `lens:` /
+    // `severity:`. Prose must never reroute a reviewer.
+    const parsed = parseConstraints(REGISTRY)
+    const one = parsed.find((c) => c.id === 'INV-ONE')
+    assert.equal(one.agent, 'invariants-reviewer', 'block-scalar text overwrote the real agent')
+    assert.equal(one.lens, 'core-purity', 'block-scalar text overwrote the real lens')
+    assert.equal(one.severity, 'blocker')
+    assert.equal(agentForLens(parsed, 'hijacked'), 'task-reviewer', 'a hijacked lens must not exist')
+})
+
+test('a column-0 list style still parses (a real top-level key ends the list)', () => {
+    const flat = `constraints:
+- id: INV-FLAT
+  lens: flat-lens
+  agent: flat-reviewer
+exempt:
+  - something
+`
+    const parsed = parseConstraints(flat)
+    assert.equal(parsed.length, 1)
+    assert.equal(agentForLens(parsed, 'flat-lens'), 'flat-reviewer')
+})
 
 test('parseConstraints reads the routing fields and ignores nested/blocked ones', () => {
     const parsed = parseConstraints(REGISTRY)

@@ -17,7 +17,7 @@
 // CLAUDE_PROJECT_DIR, so nothing depends on this repo's live files.
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { test } from 'node:test'
@@ -222,5 +222,105 @@ test('the goal file mirrors blocks_used and preserves armed_at across blocks', (
 test('no goal file at all is a plain no-op', () => {
     withRoot((root) => {
         assert.equal(runHook(root, { session_id: 's1', hook_event_name: 'Stop' }), null)
+    })
+})
+
+// ─── Regression coverage for the PR #42 review panel's findings ──────────────
+
+test('an unwritable hook-owned counter fails OPEN, even when the goal file is writable', () => {
+    withRoot((root) => {
+        writeGoal(root, '.sdlc-goal-s1', activeGoal())
+        // First block creates the counter; then make it unwritable and keep the goal
+        // file rewritable — the state that previously blocked 30/30 with no cap.
+        assert.equal(runHook(root, { session_id: 's1', hook_event_name: 'Stop' })?.decision, 'block')
+        chmodSync(join(root, '.claude', '.sdlc-goalblocks-s1'), 0o444)
+        writeGoal(root, '.sdlc-goal-s1', activeGoal()) // agent rewrites, dropping blocks_used
+        assert.equal(
+            runHook(root, { session_id: 's1', hook_event_name: 'Stop' }),
+            null,
+            'an unpersistable count means an unreachable cap — the leash must release'
+        )
+    })
+})
+
+test('no session id means no leash at all (the bound cannot exist)', () => {
+    withRoot((root) => {
+        writeGoal(root, '.sdlc-goal-current', activeGoal())
+        assert.equal(runHook(root, { hook_event_name: 'Stop' }), null)
+        assert.equal(runHook(root, { session_id: '', hook_event_name: 'Stop' }), null)
+        assert.equal(runHook(root, { session_id: 42, hook_event_name: 'Stop' }), null)
+    })
+})
+
+test('a session id that is not path-safe is refused', () => {
+    withRoot((root) => {
+        writeGoal(root, '.sdlc-goal-current', activeGoal())
+        assert.equal(runHook(root, { session_id: '../../etc/x', hook_event_name: 'Stop' }), null)
+        assert.ok(
+            !existsSync(join(root, '.claude', 'etc')),
+            'a traversing session id must never become a write target'
+        )
+    })
+})
+
+test('`met` is exact — a hedged status does not release the leash', () => {
+    for (const status of ['met-ish', 'met partially', 'met: mostly', 'metadata']) {
+        withRoot((root) => {
+            writeGoal(root, '.sdlc-goal-s1', activeGoal({ status }))
+            assert.equal(
+                runHook(root, { session_id: 's1', hook_event_name: 'Stop' })?.decision,
+                'block',
+                `status "${status}" must NOT end the run`
+            )
+        })
+    }
+})
+
+test('an array payload is not a valid Stop and never arms the leash', () => {
+    withRoot((root) => {
+        writeGoal(root, '.sdlc-goal-current', activeGoal())
+        const res = spawnSync('node', [HOOK], {
+            input: '[]',
+            env: { ...process.env, CLAUDE_PROJECT_DIR: root },
+            encoding: 'utf8'
+        })
+        assert.equal(res.status, 0)
+        assert.equal(res.stdout.trim(), '')
+        assert.ok(existsSync(join(root, '.claude', '.sdlc-goal-current')), 'the arming file must not be claimed')
+    })
+})
+
+test('an unexpected hook event is not leashed (allow-list, not deny-list)', () => {
+    withRoot((root) => {
+        writeGoal(root, '.sdlc-goal-s1', activeGoal())
+        assert.equal(runHook(root, { session_id: 's1', hook_event_name: 'PreCompact' }), null)
+    })
+})
+
+test('the exported predicates are importable without running the hook', async () => {
+    // Importing must not consume stdin or exit — the module-hygiene claim itself.
+    const mod = await import('../stop-handoff.mjs')
+    assert.equal(mod.goalMaxBlocks({ max_blocks: 1e9 }), mod.GOAL_MAX_BLOCKS)
+    assert.equal(mod.goalMaxBlocks({ max_blocks: 3 }), 3)
+    assert.equal(mod.goalIsActive({ status: 'active' }, 0), true)
+    assert.equal(mod.goalIsActive({ status: 'met' }, 0), false)
+    assert.equal(mod.goalIsActive({ status: 'met-ish' }, 0), true)
+    assert.equal(mod.goalIsActive({ status: 'escalated — security' }, 0), false)
+    assert.equal(mod.goalIsActive({ status: 'active' }, mod.GOAL_MAX_BLOCKS), false)
+    assert.match(mod.renderGoalBlock({ spec: 'SPEC-1', exit_criteria: ['x'] }, 1), /untrusted/)
+})
+
+test('the hook still runs when invoked through a symlinked directory', () => {
+    withRoot((root) => {
+        const linkDir = join(root, 'link')
+        symlinkSync(join(HERE, '..'), linkDir, 'dir')
+        writeGoal(root, '.sdlc-goal-s1', activeGoal())
+        const res = spawnSync('node', [join(linkDir, 'stop-handoff.mjs')], {
+            input: JSON.stringify({ session_id: 's1', hook_event_name: 'Stop' }),
+            env: { ...process.env, CLAUDE_PROJECT_DIR: root },
+            encoding: 'utf8'
+        })
+        assert.equal(res.status, 0)
+        assert.match(res.stdout, /goal leash/, 'a symlinked entry path must not silently disable the hook')
     })
 })

@@ -174,12 +174,21 @@ ADRs are lighter. Same directory, same frontmatter pattern.
 id: ADR-001
 title: "Use PostgreSQL for event store"
 status: proposed | accepted | superseded | rejected
-spec: SPEC-001                  # the spec this decision supports
+spec: SPEC-001 | none           # the spec this decision supports; `none` for a process-only ADR
 date: 2026-04-22
 author: franklin
 superseded_by: ADR-005          # optional
 ---
 ```
+
+**`spec: none` — the process-only ADR route.** Most ADRs support a spec. A decision that
+changes the SDLC *itself* — retiring an execution model, moving where a gate lives — often
+has no owning spec, and inventing one would misattribute it. Such an ADR sets `spec: none`
+and is authored directly, reviewed by an independent panel like any other change, and
+merged by the owner. It touches process-artifact paths only (`specs/**`, `.ai/**`,
+`.claude/**`, root docs); a change that also touches implementation code needs a spec.
+ADR-003 is the worked example. Note the honest gap: the state machine has no phase that
+produces one of these, so the route is a documented convention rather than a gated phase.
 
 Body follows the standard ADR format:
 

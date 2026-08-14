@@ -156,7 +156,10 @@ integration gate.**
     | `integration_strategy: direct` (SPEC-005) | **DROP** (decision 6) | The integration branch is now unconditional. |
     | Wave-level resume from committed status | **KEEP, weaker** | Branches remain id-derived (`claude/SPEC-NNN-TASK-NNN`), so a resumed run reuses them; resume is now per task, by reading `_index.yaml` status. |
     | `_execution.log.jsonl` telemetry | **KEEP as optional** (SOP §9) | Recommended, never a gate. See the Negative section: a delivery run is otherwise uninstrumented. |
-    | Branch-always / amendment cap / author≠reviewer independence | **KEEP** | These governed the human loop, not the engine. Independence now binds at the gate. |
+    | Branch-always / amendment cap / author≠reviewer independence | **KEEP, with one carve-out** | These governed the human loop, not the engine. Independence now binds at the gate. The carve-out is mechanical: `pre-tool-use-review-identity.mjs` classifies any `gh pr merge` as an author self-accept, which would deny the task merges §4 now *requires* — so it learned the base-branch distinction (a merge into `feat/spec-*` is exempt; a merge into `main` is not, and an unresolvable base is not). |
+    | Tier resolution (`tier()`, blocker/major veto) | **KEEP as judgment at the gate** | No code resolves a tier any more. `tier:` and `risk:` stay task inputs, and the registry can still only raise the review intensity a change earns — but that is now the panel-composing agent's reading, not a function. A declared `tier: express` never shrinks the gate panel. |
+    | `spec:gap` → gap-capture routing | **KEEP as an escalation** (skill §8) | The signal survives as one of the escalation routes; there is no separate mechanical gap-capture handler in this framework, and none is implied. |
+    | Per-task `_index.yaml` status commit + resume | **KEEP, simplified** | Status is flipped as each task merges, so a resumed run reads `_index.yaml` and continues at the first unfinished task. |
 
 15. **The state machine keeps the phase id `spec-execution`; the `code-review` phase is removed.**
     Review happens in-run — self-review per task, adversarial panel at the gate — so there is no
@@ -181,6 +184,19 @@ integration gate.**
 - The policy lives in the repo instead of the owner's typing, and the run self-arms its own leash.
 - One execution path. No dormant second engine to drift.
 - Merging is unambiguous: the human merges one PR, always.
+
+**Guarantees that moved from mechanical to prose.** The engine enforced these in code;
+nothing enforces them now except an agent following the skill. They are listed here
+because a guarantee that silently changes kind is the most expensive thing an ADR can
+omit — and because each is a candidate for a real gate later:
+
+| Guarantee | Was | Is now | Bounded by |
+| --- | --- | --- | --- |
+| The plan-review gate runs before any work | Engine HALT before dispatch | The skill's §1 step, plus the CI job | `scripts/sdlc/plan-gate.mjs` in CI — but a run that skips §1 is not stopped, and under `claude -p` the leash is inert too |
+| `isolation: "worktree"` on every file-writing subagent | Passed in code on every dispatch | Prose in four documents | Nothing. The failure is destructive and was observed live (a non-isolated subagent stashed a foreground session's uncommitted edits). With fan-out now rare, it is also the rule least likely to be remembered |
+| Every reviewer envelope is validated | Engine validated before routing | The skill runs `validate-review-envelope.mjs` | The validator exists and is tested; invoking it is discretionary |
+| The constraints registry is evaluated | Engine computed `lensesFor(touches)` | An agent reads the YAML at the gate | `check-review-constraint-globs.mjs` proves the rows are *resolvable*, not that they were *consulted* |
+| A task's `touches` is non-empty | Engine refused to run the task | A decomposition-time rule | `task-decomposition` self-review; nothing at delivery time |
 
 **Negative / accepted**
 
@@ -213,6 +229,17 @@ integration gate.**
   in-framework: the Workflow run record is gone and the JSONL log is optional. Countervailing and
   unanalyzed: the leash keeps one session alive for a whole spec, so orchestrator context accumulates
   across the run where the Workflow kept each context small.
+- **The framework now uses a route its own schema barely admits.** This change is an
+  ADR-only process-artifact change: no spec, no decomposed tasks, no plan-review gate,
+  and it was merged by the agent that authored it on the owner's explicit instruction.
+  `spec-schema.md` documents that route (an ADR may carry `spec: none`), but the state
+  machine has no phase that produces a spec-less ADR, so the process for changing the
+  process is thinner than the process it defines. Accepted for now; a `process-change`
+  route is the honest follow-up.
+- **Removing the `code-review` phase also removed its entry triggers**, so prompts like
+  "review this PR" no longer match any phase in the `UserPromptSubmit` classifier.
+  `pr-reviewer` remains reachable by its skill description, but the deterministic
+  routing nudge for an ad-hoc PR review is gone.
 - **Historical specs describe the engine as canonical.** SPEC-002, SPEC-005 and SPEC-006 are records
   of past decisions and are left intact; this ADR is the reconciliation. ADR-001 and ADR-002 stand —
   their decisions were about where policy lives, not about the engine — and each carries a re-homing

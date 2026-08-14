@@ -26,7 +26,7 @@
 //   node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml [...]
 //
 // Exits 0 when every given plan is approved, 1 otherwise (diagnostics on stderr).
-import { readFileSync } from 'node:fs'
+import { readFileSync, realpathSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -132,5 +132,25 @@ function main(argv) {
     process.exit(ok ? 0 : 1)
 }
 
-const invokedDirectly = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+
+/**
+ * Is this module the process entry point? Compares realpath to realpath —
+ * `import.meta.url` is already resolved by Node, so an unresolved `process.argv[1]`
+ * (any symlinked path or symlinked ancestor directory) would never match, silently
+ * turning this CLI into a no-op that still exits 0.
+ */
+function isMain(metaUrl) {
+    const entry = process.argv[1]
+    if (!entry) return false
+    try {
+        return realpathSync(entry) === realpathSync(fileURLToPath(metaUrl))
+    } catch {
+        return resolve(entry) === fileURLToPath(metaUrl)
+    }
+}
+// realpathSync BOTH sides: `import.meta.url` is already realpath'd by Node, so
+// comparing it against an unresolved argv[1] makes the guard fail — and a failed
+// guard here is SILENT (the CLI exits 0 having done nothing, which callers read as
+// success). Invoking through a symlinked ancestor directory reproduced exactly that.
+const invokedDirectly = isMain(import.meta.url)
 if (invokedDirectly) main(process.argv.slice(2))

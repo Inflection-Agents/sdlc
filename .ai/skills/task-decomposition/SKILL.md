@@ -9,7 +9,7 @@ description: Use when a spec has status active and needs to be broken into execu
 
 Break an active spec into a dependency graph of independently-executable tasks. Each task gets a structured file in the repo and a corresponding Linear issue.
 
-**This is a judgment phase — human + LLM, with a hard sign-off gate.** Task decomposition is one of the front-loaded phases where scarce human attention belongs: getting the breakdown, the boundaries, and the instructions right here is cheap, and it is what makes the downstream `spec-execution` engine able to run **deterministically and autonomously**. Bad decomposition is the single most common cause of a stalled or escalated execution run.
+**This is a judgment phase — human + LLM, with a hard sign-off gate.** Task decomposition is one of the front-loaded phases where scarce human attention belongs: getting the breakdown, the boundaries, and the instructions right here is cheap, and it is what lets the downstream `spec-execution` run **cheaply and without escalating** — your graph's dependency order is its execution order. Bad decomposition is the single most common cause of a stalled or escalated execution run.
 
 **This is a rigid skill.** Follow the steps exactly. No shortcuts.
 
@@ -38,7 +38,7 @@ The reviewer of record for code in this SDLC is an **LLM multi-lens panel**, not
 ## Critical gates (from writing-plans discipline)
 
 1. **No placeholders.** Every task file must contain actual acceptance criteria, actual constraints, actual verification commands. "TBD," "TODO," "similar to TASK-N," and empty sections are plan failures.
-2. **AI-coherent tasks with declared `touches`.** Each task is one coherent unit of AI execution with a bounded, explicitly declared `touches` set (file globs it may modify). Size by coherence, not line count. The deterministic engine refuses to run an executable task that declares no `touches`.
+2. **AI-coherent tasks with declared `touches`.** Each task is one coherent unit of AI execution with a bounded, explicitly declared `touches` set (file globs it may modify). Size by coherence, not line count. An executable task that declares no `touches` cannot be bounded, and the executor's self-review has no changed-path audit to run — so it is a hard error here, not something discovered mid-run.
 3. **Exact paths and context.** Task files must specify which files to modify, which patterns to follow, which test commands to run. Assume the implementing agent has zero codebase context.
 4. **Mandatory self-review.** After creating all task files, verify: every spec acceptance criterion is covered, no circular dependencies, _index.yaml matches task files, every executable task has a non-empty `touches`, and no two parallel tasks have overlapping `touches`.
 
@@ -87,7 +87,7 @@ Split along these lines:
 - **One workspace per task.** Hard rule (see Monorepo decomposition). A task's `touches` stay within a single workspace.
 - **Bounded, declared `touches`.** You must be able to write down the file globs the task may modify. If you can't bound them, the task is too vague — sharpen it, don't ship it.
 - **Independently testable.** Each task has tests/verification that can pass without other tasks being done.
-- **Minimal dependencies.** Maximize parallelism. If tasks CAN run in parallel, they SHOULD — and parallel tasks must have **non-overlapping `touches`** (overlap means a merge conflict, which the engine treats as a decomposition defect).
+- **Minimal dependencies.** Delivery is serial by default, so dependencies set the burn-down order — keep them minimal so that order is unambiguous. Tasks that genuinely could run in parallel must still have **non-overlapping `touches`** (overlap means a merge conflict, which is a decomposition defect, not something to hand-resolve) — that is also what makes the fan-out exception available for a large spec.
 
 **The sizing questions** (ask these instead of "is this ~300 lines?"):
 - Is this one coherent thing an executor can hold in its head and finish in one session?
@@ -346,7 +346,7 @@ This is the **decomposition-stage half of the two-stage plan-review gate** (the 
 `spec-authoring` Step 10a, which runs `spec-reviewer` over the draft spec before sign-off). "The plan"
 is the spec *and* its decomposition; this gate attests the decomposition — DAG acyclicity, no
 same-wave `touches` collisions, and AC groundedness (the dimensions Step 8 self-review enumerates) —
-and records a durable verdict the execution engine gates on.
+and records a durable verdict `spec-execution` gates on via `scripts/sdlc/plan-gate.mjs`.
 
 Present the decomposition. For each task, show:
 - What it does
@@ -508,7 +508,7 @@ The boundary: if acceptance criteria, scope, or design change → spec-amendment
 |---------|-----|
 | Fragmenting one coherent change into many tiny tasks "so each PR is small" | Stop sizing for human review. Make it one AI-coherent task with complete instructions. |
 | Sizing tasks by line count (~300 lines) | Size by coherence + bounded `touches`. A coherent 800-line token layer is one task. |
-| Executable task with no `touches` | Declare the file globs. The engine refuses to run a task with empty `touches`. |
+| Executable task with no `touches` | Declare the file globs. An unbounded task has no changed-path audit at self-review, so it must not leave decomposition. |
 | Parallel tasks with overlapping `touches` | They'll conflict at merge. Re-scope so parallel tasks touch disjoint files, or add a dependency edge. |
 | Deep dependency chains — 8 tasks in sequence | Restructure to maximize parallelism. |
 | Routing executable work to `human` | Only defer to `human` for genuine human decisions (architecture vision, tradeoffs, security review). Executable tasks go to `claude-code`. |

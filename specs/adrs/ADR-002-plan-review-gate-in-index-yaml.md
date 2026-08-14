@@ -53,9 +53,15 @@ the `_index.yaml` schema (files without it stay schema-valid), but the engine fa
 > **Re-homed by [ADR-003](ADR-003-goal-oriented-single-executor-delivery.md) (2026-08-14).** The
 > decision stands unchanged — the verdict lives in `_index.yaml` and the gate is fail-closed. Its
 > enforcement point moved: `planApproved` lives in
-> [`scripts/sdlc/plan-gate.mjs`](../../scripts/sdlc/plan-gate.mjs) and is checked by the `spec-execution`
-> skill (§1) before a delivery run touches anything, and by CI — instead of by the deleted engine at its
-> Plan phase.
+> [`scripts/sdlc/plan-gate.mjs`](../../scripts/sdlc/plan-gate.mjs), checked by the `spec-execution`
+> skill (§1) before a delivery run touches anything and by the `SDLC` CI workflow
+> (`.github/workflows/sdlc-validate.yml`) — instead of by the deleted engine at its Plan phase.
+>
+> **One property genuinely weakened.** The engine could not physically dispatch an executor past an
+> unapproved gate. CI proves the stamp exists on every decomposed spec, but it runs on a PR, not at
+> the moment work begins — so a run that skips §1 is not physically stopped. The gate is
+> fail-closed and machine-checkable; it is no longer un-skippable. ADR-003 records this in its
+> mechanical→prose table.
 
 ## Consequences
 

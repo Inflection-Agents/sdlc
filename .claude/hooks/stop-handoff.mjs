@@ -90,6 +90,7 @@ import {
     existsSync,
     readdirSync,
     readFileSync,
+    realpathSync,
     renameSync,
     statSync,
     unlinkSync,
@@ -134,7 +135,11 @@ function parsePayload() {
     }
     if (!raw.trim()) return null
     try {
-        return JSON.parse(raw)
+        const parsed = JSON.parse(raw)
+        // Only a plain object is a payload. An array is truthy and would otherwise be
+        // treated as a valid `Stop` with no session id.
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
+        return parsed
     } catch {
         return null
     }
@@ -157,10 +162,24 @@ export const GOAL_MAX_BLOCKS = 12
  */
 export const GOAL_TERMINAL_STATUSES = new Set(['met', 'escalated'])
 
+/**
+ * How each terminal status is matched. `met` must be EXACT (a hedged `met-ish` must
+ * not end a run); `escalated` matches on its first token so a reason can follow.
+ */
+export const GOAL_STATUS_MATCHING = { met: 'exact', escalated: 'first-token' }
+
 /** Max chars of agent-authored goal text echoed back into a block reason. */
 const GOAL_TEXT_CAP = 400
 /** Max exit criteria echoed back into a block reason. */
 const GOAL_CRITERIA_CAP = 12
+
+/**
+ * A session id we are willing to build a filesystem path from. The id arrives in the
+ * hook payload; interpolating it unvalidated would let a value containing `../`
+ * choose the write target for the goal file and its counter.
+ */
+const SAFE_SESSION_ID = /^[A-Za-z0-9_-]{1,128}$/
+const safeSessionId = (id) => (typeof id === 'string' && SAFE_SESSION_ID.test(id) ? id : null)
 
 /** Hook-owned block counter for a session (`.claude/.sdlc-goalblocks-<id>`). */
 function goalCounterPath(root, sessionId) {
@@ -249,21 +268,24 @@ function gcStaleGoals(root) {
  * Returns { path, goal } or null when there is no readable, well-formed goal.
  */
 export function readGoal(root, sessionId) {
-    const keyed = sessionId ? join(root, '.claude', `.sdlc-goal-${sessionId}`) : null
+    const id = safeSessionId(sessionId)
+    // No usable session id ⇒ no session-keyed counter ⇒ the hook-owned bound cannot
+    // exist, and the only surviving count would be the one the leashed agent writes.
+    // That is an unbounded leash, so refuse to hold one at all — fail open, which is
+    // this hook's designed failure direction. It also means an unkeyed goal file can
+    // never leash a session that does not own it.
+    if (!id) return null
+    const keyed = join(root, '.claude', `.sdlc-goal-${id}`)
     const current = join(root, '.claude', '.sdlc-goal-current')
     let path = null
-    if (keyed && existsSync(keyed)) {
+    if (existsSync(keyed)) {
         path = keyed
     } else if (existsSync(current)) {
-        if (keyed) {
-            try {
-                renameSync(current, keyed) // claim: now private to this session
-                path = keyed
-            } catch {
-                path = current // could not claim → read in place, do not leak further
-            }
-        } else {
-            path = current
+        try {
+            renameSync(current, keyed) // claim: now private to this session
+            path = keyed
+        } catch {
+            return null // cannot claim ⇒ cannot own ⇒ do not leash off a shared file
         }
     }
     if (!path) return null
@@ -314,15 +336,18 @@ export function goalBlocksUsed(root, sessionId, goal) {
 /** Is this goal still holding the leash (not terminal, not over its cap)? */
 export function goalIsActive(goal, used = 0) {
     if (!goal || typeof goal !== 'object') return false
-    // Match on the FIRST TOKEN, not the whole string: the skill tells the agent to
-    // set `status: escalated` with the reason, so `escalated — security risk` and
-    // `escalated: owner call` are natural emissions. Escalation is the one path that
-    // must always work, so be lenient in that direction.
-    const status = String(goal.status ?? 'active')
+    // Asymmetric on purpose. ESCALATED is lenient — matched on the first token —
+    // because the skill tells the agent to set `status: escalated` with the reason, so
+    // `escalated — security risk` and `escalated: owner call` are natural emissions,
+    // and surfacing a HALT is the one path that must never be swallowed.
+    // MET is EXACT. First-token matching there let `met-ish` / `met-partially` release
+    // the leash on a run that is not actually done — leniency in the direction of
+    // stopping early, which is precisely what the leash exists to prevent.
+    const raw = String(goal.status ?? 'active')
         .trim()
         .toLowerCase()
-        .split(/[\s:—–-]+/)[0]
-    if (GOAL_TERMINAL_STATUSES.has(status)) return false
+    if (raw === 'met') return false
+    if (raw.split(/[\s:—–-]+/)[0] === 'escalated') return false
     return used < goalMaxBlocks(goal)
 }
 
@@ -337,17 +362,22 @@ export function goalIsActive(goal, used = 0) {
 function bumpGoalBlocks(root, sessionId, path, goal, used) {
     const next = used + 1
     const counter = goalCounterPath(root, sessionId)
+    // The HOOK-OWNED counter is the ONLY thing that counts as persistence. Accepting
+    // the goal-file mirror as proof was a fail-CLOSED bug: with an unwritable counter
+    // and an agent that rewrites its goal each turn, the count never advances and the
+    // leash blocks forever (reproduced at 30/30 blocks). The mirror is display only —
+    // the agent can rewrite it, so it can never bound the agent.
     let persisted = false
     if (counter) {
         try {
             appendFileSync(counter, `${new Date().toISOString()}\n`, 'utf8')
             persisted = true
         } catch {
-            /* fall through to the goal-file mirror */
+            /* unpersistable count ⇒ unreachable cap ⇒ the caller must fail open */
         }
     }
-    // Mirror into the goal file atomically — a truncated goal file would lose the
-    // agent's own statement/criteria. Never fatal.
+    // Mirror into the goal file atomically, for the agent to see. Never fatal, and
+    // never evidence of persistence.
     try {
         const body = JSON.stringify(
             { ...goal, blocks_used: next, armed_at: goal.armed_at ?? new Date().toISOString() },
@@ -357,7 +387,6 @@ function bumpGoalBlocks(root, sessionId, path, goal, used) {
         const tmp = `${path}.tmp`
         writeFileSync(tmp, body, 'utf8')
         renameSync(tmp, path)
-        persisted = true
     } catch {
         /* advisory hook: ignore */
     }
@@ -611,11 +640,12 @@ function main() {
     // IS bounded by the hook-owned counter, and fails open the moment that bound
     // cannot be enforced.
     //
-    // ONLY on `Stop`: this script is wired to SubagentStop too, and a subagent must
-    // never be leashed by the session's goal — it does not own the goal, a
-    // read-only reviewer subagent cannot flip `status`, and each subagent stop would
-    // spend the parent's budget.
-    if (event !== 'SubagentStop') {
+    // ONLY on `Stop`, matched as an ALLOW-LIST: this script is wired to SubagentStop
+    // too, and a subagent must never be leashed by the session's goal — it does not
+    // own the goal, a read-only reviewer subagent cannot flip `status`, and each
+    // subagent stop would spend the parent's budget. A deny-list (`!== 'SubagentStop'`)
+    // would silently leash an absent or future event name too.
+    if (event === 'Stop') {
         const active = readGoal(root, sessionId)
         if (active) {
             const used = goalBlocksUsed(root, sessionId, active.goal)
@@ -642,10 +672,25 @@ function main() {
     block(renderHandoff(exit.specId, handoff))
 }
 
+/**
+ * Is this module the process entry point? realpath BOTH sides — `import.meta.url` is
+ * already resolved by Node, so an unresolved `process.argv[1]` (a symlinked path or a
+ * symlinked ancestor directory) would never match and the hook would silently never
+ * run: no handoff, and no goal leash at all.
+ */
+function isMain(metaUrl) {
+    const entry = process.argv[1]
+    if (!entry) return false
+    try {
+        return realpathSync(entry) === realpathSync(fileURLToPath(metaUrl))
+    } catch {
+        return resolve(entry) === fileURLToPath(metaUrl)
+    }
+}
+
 // Run only when executed as the hook itself. Importing this file (a unit test
 // exercising the exported goal-leash predicates) must not consume stdin or exit.
-const invokedDirectly = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-if (invokedDirectly) {
+if (isMain(import.meta.url)) {
     try {
         main()
     } catch {
