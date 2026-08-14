@@ -67,7 +67,7 @@ The SDLC is codified in the repo so any agent can understand it. Three-tier arch
 - The spine: state machine, per-spec phase memory, reference hooks
 - Phase-by-phase responsibilities (intent, spec drafting, decomposition/routing, completion)
 
-**`.ai/AGENTS.md`** is the **executor brief** — the agent-agnostic instructions any agent handed a single task follows (during a normal run the orchestrator is that agent; the brief also governs a dispatched subagent):
+**`.ai/AGENTS.md`** is the **executor brief** — the agent-agnostic instructions a dispatched, worktree-isolated subagent follows (the exception, not the normal path; during a normal serial run the orchestrator implements each task itself, per the `spec-execution` skill and its SOP, not this brief):
 - Read the task file and the linked spec/ADRs before writing code
 - Stay strictly within the task's declared `touches` set
 - Self-verify (the task's own tests + lint) and self-review the diff before opening a PR

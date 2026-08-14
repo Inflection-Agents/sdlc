@@ -265,8 +265,10 @@ function gcStaleGoals(root) {
  *     CLAIM it by renaming it to our keyed name (first Stop wins; the file is then
  *     invisible to every other session). This lets the skill arm a goal without
  *     knowing its own session id, which it generally cannot resolve;
- *   - with no session id we cannot claim, so we read `.sdlc-goal-current` in place
- *     (the degenerate single-session case).
+ *   - with NO usable session id, there is no hook-owned counter to bound the
+ *     leash, so we refuse to hold one at all — return null (fail open) rather
+ *     than reading `.sdlc-goal-current` in place. An unbounded leash is a worse
+ *     failure than a session that briefly runs without one.
  *
  * Returns { path, goal } or null when there is no readable, well-formed goal.
  */

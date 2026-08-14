@@ -77,10 +77,16 @@ PR — mandatory work, not a self-accept — and is allowed. Every other case de
 `main`/any other base, a chained or cross-repo command, an unresolvable PR
 selector, and every `gh pr review`/`gh pr comment` accept. There is no override
 for those. Command parsing runs on a hand-rolled shell-word tokenizer (quoting,
-escaping, and code-execution wrappers like `bash -c`/`eval` are all searched),
-not raw-string regex — four review rounds found distinct bypasses in the regex
-version. It still cannot see a `gh` invocation hidden inside a file executed
-indirectly (`bash script.sh`); no version of this hook claims otherwise. See
+escaping, flag-spelling normalization), not raw-string regex — five review
+rounds found distinct bypasses, three in the regex version and two more the
+tokenizer rewrite introduced on its own. It deliberately does NOT try to see
+through deliberate shell obfuscation (an invocation built via command
+substitution, wrapped in an interpreter, or hidden inside a file executed
+indirectly) — an earlier version tried to catch inline wrapper commands and
+review found that unsound in both directions (an incomplete allowlist AND
+false denials on unrelated commands); catching genuine adversarial obfuscation
+of an arbitrary shell command is not a bounded problem for a string classifier,
+and `SDLC_GUARD_MODE` defaults to `warn` regardless. See
 `.claude/hooks/__tests__/review-identity-merge-carveout.test.mjs` for the exact
 boundary.
 

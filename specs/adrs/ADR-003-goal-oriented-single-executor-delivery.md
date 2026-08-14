@@ -145,11 +145,35 @@ integration gate.**
       invocation via `eval`/`bash -c` hid the whole command inside one opaque quoted token) plus a
       pre-existing hole in verdict-keyword detection that had never moved off raw-string regex.
       Fixed with a recursive, wrapper-gated token search (`findAllVerbMatches`) rather than a fourth
-      patch. **This bullet is not backfilled to declare a clean result it has not seen**: every
+      patch. Round 5: 0 blockers from doctrine (2 majors, doc-only) but 3 blockers plus 2 majors
+      from code-correctness, converging with 1 major from adversarial on the SAME root cause —
+      boolean verdict flags (`--approve`/`-a`/`--request-changes`/`-r`) were still exact-token
+      matches, missing gh's `=`-attached (`--approve=true`) and clustered-shorthand (`-ab`) forms,
+      which would have let a self-approval through undetected. Code-correctness additionally found
+      that the round-4 wrapper-recursion feature was unsound in BOTH directions at once: its
+      interpreter allowlist could never be complete (`awk`, `csh`, `tclsh`, `env -S`, and any
+      unenumerated interpreter still hid a wrapped invocation), and it produced false DENIALS on
+      unrelated commands that merely named a wrapper while quoting text that happened to mention
+      "gh pr merge". The adversarial pass, explicitly asked whether the process had converged,
+      answered candidly: no — the same file had one more real, closeable gap (the flag-normalization
+      bug, found independently by both lenses) — but recommended a **narrow targeted fix, not
+      another full multi-lens round**, since the remaining surface was enumerable rather than
+      open-ended. It also named a genuine proportionality concern: five rounds of scrutiny went to a
+      hook that ships inert by default (`SDLC_GUARD_MODE: warn`), while the goal leash — which DOES
+      block by default — had comparatively less adversarial attention. Recorded, not chased further
+      in this pass; see the intents backlog. Round 5's fix: normalized flag-token comparison
+      (stripping `=value`, expanding clustered short flags) closes the converging finding, a
+      last-wins fix to repeated `--body` closes a related gap, `extractPrNumber` now skips leading
+      flags before the PR-selector token (a real functionality bug — `gh pr merge --squash 42` was
+      incorrectly denied the carve-out), and the wrapper-recursion feature was REMOVED rather than
+      patched a third time — replaced with an explicit, honest scope statement in the hook's own
+      header: this classifier defends against the realistic shape of an ordinary `gh pr` invocation,
+      not against deliberate shell obfuscation, which is not a bounded problem for a string
+      classifier. **This bullet is not backfilled to declare a clean result it has not seen**: every
       round's fixes are re-verified by dispatching the panel again in full, not by inspecting the
       diff, and the merge in decision 11 does not happen until a round returns with nothing left to
-      fix. As of this text, round 4's fixes are applied and pushed; a round 5 re-verification is the
-      next step before merge, not yet run.
+      fix. As of this text, round 5's fixes are applied and pushed; the next step is confirming this
+      round holds before merge.
     - This is an uncomfortable example on purpose: a rule that could not survive being applied to
       the change that wrote it would not be worth writing. Recording the trail plainly — including
       how many rounds it actually took, and that some fixes introduced their own new bypasses — is

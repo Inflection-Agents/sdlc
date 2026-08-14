@@ -277,15 +277,26 @@ test('a path-qualified or backslash-escaped gh spelling is still recognized (rou
     assert.equal(runGate('/usr/bin/gh pr merge 7 --squash', { base: 'feat/spec-1' }), ALLOW)
 })
 
-test('a real invocation wrapped in eval/bash -c/sh -c is still found (round-4 bypass)', () => {
-    // The tokenizer treats a quoted span as one opaque token, so a wrapper that
-    // EXECUTES its argument as code must be recursed into, or the whole gh
-    // invocation vanishes inside what looks like inert quoted data.
-    assert.equal(runGate('eval "gh pr merge 42 --squash"', { base: 'main' }), DENY)
-    assert.equal(runGate('bash -c "gh pr merge 42 --squash"', { base: 'main' }), DENY)
-    assert.equal(runGate('sh -c "gh pr merge 42 --squash"', { base: 'main' }), DENY)
-    // ...and a wrapped legitimate task merge still resolves correctly.
-    assert.equal(runGate('bash -c "gh pr merge 7 --squash"', { base: 'feat/spec-1' }), ALLOW)
+test('a command wrapped in an interpreter is OUT OF SCOPE by design (round-5 scope decision)', () => {
+    // An earlier version of this hook tried to recurse into a quoted span when a
+    // code-execution wrapper (bash -c / eval) was present. Round 5 review found
+    // that unsound in BOTH directions: the wrapper allowlist could never be
+    // complete (awk/csh/tclsh/bun/fish/env -S all still hid the call), AND it
+    // false-denied unrelated commands that merely named a wrapper while quoting
+    // text that happened to mention "gh pr merge". The hook now deliberately does
+    // NOT try to see through this class of obfuscation — see the file header.
+    // These correctly ALLOW: not a bypass, a stated scope boundary.
+    assert.equal(runGate('eval "gh pr merge 42 --squash"', { base: 'main' }), ALLOW)
+    assert.equal(runGate('bash -c "gh pr merge 42 --squash"', { base: 'main' }), ALLOW)
+    assert.equal(runGate('sh -c "gh pr merge 42 --squash"', { base: 'main' }), ALLOW)
+})
+
+test('an unrelated command naming a wrapper and quoting a gh mention is not falsely denied (round-5 regression)', () => {
+    // The wrapper-recursion approach this replaced would have flagged these as
+    // real actions purely because they name an interpreter AND quote text that
+    // mentions "gh pr merge" — a false positive on ordinary, unrelated commands.
+    assert.equal(runGate('python analyze.py --note "gh pr merge 42 was the fix"', { base: 'main' }), ALLOW)
+    assert.equal(runGate('git commit -m "fix: gh pr merge flow" && node build.js', { base: 'main' }), ALLOW)
 })
 
 test('quoting the verdict flag itself does not defeat detection (round-4 bypass)', () => {
@@ -341,4 +352,35 @@ test('sweep: no combination of documented gh forms bypasses the carve-out onto a
     for (const cmd of attacks) {
         assert.equal(runGate(cmd, { base: 'main' }), DENY, `must deny: ${cmd}`)
     }
+})
+
+test('an =-attached or clustered verdict flag is still detected (round-5 bypass)', () => {
+    // gh accepts --approve=<bool> and clusters short flags (-ab == -a -b). Exact
+    // token equality with "--approve"/"-a" missed all of these.
+    assert.equal(runGate('gh pr review 42 --approve=true', { base: 'main' }), DENY)
+    assert.equal(runGate('gh pr review 42 -a=true', { base: 'main' }), DENY)
+    assert.equal(runGate('gh pr review 42 --approve=1', { base: 'main' }), DENY)
+    // Even an explicit =false is treated as the flag being present — gh keys off
+    // whether the flag was set, not the literal boolean value, so erring toward
+    // "this might be an approve" is the safe direction here.
+    assert.equal(runGate('gh pr review 42 --approve=false', { base: 'main' }), DENY)
+})
+
+test('a repeated --body takes the LAST value, matching gh (round-5 bypass)', () => {
+    // gh's string flags are last-wins when repeated. Scanning only the first
+    // occurrence let a real accept marker in a later --body go unseen.
+    assert.equal(
+        runGate('gh pr comment 42 --body "no blockers found" --body "accept - lgtm"', { base: 'main' }),
+        DENY
+    )
+})
+
+test('a flag before the PR number does not deny a legitimate task merge (round-5 bypass)', () => {
+    // `gh pr merge --squash 42` is valid gh syntax (flags-before-selector).
+    // Treating "--squash" as an unresolvable selector denied the carve-out for a
+    // perfectly legitimate task merge — the ADR-003 failure mode of "a delivery
+    // run cannot get past task 1".
+    assert.equal(runGate('gh pr merge --squash 42', { base: 'feat/spec-1' }), ALLOW)
+    // ...and still correctly denies when that same shape targets main.
+    assert.equal(runGate('gh pr merge --squash 42', { base: 'main' }), DENY)
 })
