@@ -324,7 +324,7 @@ Before presenting to the user, verify:
 - [ ] Each task is ONE coherent unit of AI execution (sized by coherence, not line count — no artificial fragmentation, no sprawling multi-concern tasks)
 - [ ] Every executable task declares a non-empty `touches` set, bounded to its single workspace
 - [ ] No two tasks that can run in parallel have overlapping `touches` (overlap → merge conflict → decomposition defect)
-- [ ] `risk` and `tier` are set on every executable task (tier is a hint; the registry can only raise it)
+- [ ] `risk` and `tier` are set on every executable task — hints read by the agent composing the integration panel; the registry can only raise the rigor they earn, never lower it
 - [ ] Every executable task has everything in the task file (no assumed context)
 - [ ] Every task has at least one acceptance criterion with Given/When/Then
 - [ ] `_index.yaml` matches the individual task files
@@ -345,7 +345,7 @@ Before presenting to the user, verify:
 This is the **decomposition-stage half of the two-stage plan-review gate** (the spec-stage half is
 `spec-authoring` Step 10a, which runs `spec-reviewer` over the draft spec before sign-off). "The plan"
 is the spec *and* its decomposition; this gate attests the decomposition — DAG acyclicity, no
-same-wave `touches` collisions, and AC groundedness (the dimensions Step 8 self-review enumerates) —
+`touches` collisions between parallel-eligible tasks, and AC groundedness (the dimensions Step 8 self-review enumerates) —
 and records a durable verdict `spec-execution` gates on via `scripts/sdlc/plan-gate.mjs`.
 
 Present the decomposition. For each task, show:

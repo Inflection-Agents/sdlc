@@ -77,7 +77,7 @@ Think of the agent as a **very fast, tireless junior engineer who drafts well fr
 - Draft specs, plans, and bug reports
 
 ### Agent constraints
-- Cannot merge without human approval
+- Cannot merge or push to `main` — the integration PR is the human's, always (task PRs into `feat/spec-NNN` the delivery agent merges itself)
 - Cannot deploy without human approval
 - Cannot close bugs without human confirmation
 - Cannot make priority decisions

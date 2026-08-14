@@ -50,3 +50,15 @@ test('reviewer-routing still answers through a symlinked path', () => {
     assert.equal(res.status, 0)
     assert.match(res.stdout.trim(), /reviewer$/, 'a silent no-op would print nothing')
 })
+
+test('check-review-constraint-globs still enforces through a symlinked path', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'sdlc-globs-link-'))
+    const reg = join(dir, 'review-constraints.yaml')
+    writeFileSync(reg, 'constraints:\n  - id: DEAD\n    when: { touches: ["nowhere/**"] }\n', 'utf8')
+    try {
+        const res = viaSymlink('check-review-constraint-globs.mjs', ['--enforce', '--registry', reg], '')
+        assert.equal(res.status, 1, 'a silent exit 0 here would pass a dead registry as healthy')
+    } finally {
+        rmSync(dir, { recursive: true, force: true })
+    }
+})

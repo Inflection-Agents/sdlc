@@ -125,6 +125,11 @@ runnable, name it and say why.
 
 ## 6. The integration gate — where the rigor lives
 
+**A pending `human`-routed task blocks this gate.** Deferring one is legitimate; opening the
+integration PR while it is still open is not — surface it and stop, or get the human decision
+first. "Deferred with a reason" satisfies the exit criteria only once that reason has been
+surfaced and accepted.
+
 Open `feat/spec-NNN -> main` carrying the evidence and every spec success criterion mapped to how it
 was verified. Then dispatch a **full multi-lens adversarial panel** — concurrently, one message,
 clean contexts, no `Edit`/`Write` — and **loop until no blocker or major survives**, re-dispatching

@@ -312,25 +312,22 @@ export function goalMaxBlocks(goal) {
 }
 
 /**
- * How many blocks this goal has already spent. The authority is the HOOK-OWNED
- * counter file, not the goal file: the agent rewrites the goal file, so trusting
- * it lets every rewrite reset the cap to zero and block forever. Take the max of
- * both so neither a reset nor a missing sidecar can lower the count.
+ * How many blocks this goal has already spent. The hook-owned counter file is the
+ * ONLY authority. The goal file's `blocks_used` is a display mirror written by the
+ * leashed agent, so reading it — even as a `max()` — hands the agent a third
+ * release word: `{"status":"active","blocks_used":99}` no-ops the leash on the very
+ * first Stop. `met` and `escalated` are the only ways out.
  */
-export function goalBlocksUsed(root, sessionId, goal) {
-    let sidecar = 0
+export function goalBlocksUsed(root, sessionId) {
     const path = goalCounterPath(root, sessionId)
-    if (path && existsSync(path)) {
-        try {
-            sidecar = readFileSync(path, 'utf8')
-                .split('\n')
-                .filter((l) => l.trim()).length
-        } catch {
-            sidecar = 0
-        }
+    if (!path || !existsSync(path)) return 0
+    try {
+        return readFileSync(path, 'utf8')
+            .split('\n')
+            .filter((l) => l.trim()).length
+    } catch {
+        return 0
     }
-    const declared = Number.isFinite(goal?.blocks_used) ? Math.max(0, goal.blocks_used) : 0
-    return Math.max(sidecar, declared)
 }
 
 /** Is this goal still holding the leash (not terminal, not over its cap)? */
@@ -632,7 +629,10 @@ function main() {
     gcStaleGoals(root) // expire our own abandoned goal state (best-effort)
 
     const sessionId = payload.session_id ?? payload.sessionId ?? null
-    const event = String(payload.hook_event_name ?? payload.hookEventName ?? 'Stop')
+    // Default to '' , not 'Stop': the allow-list below must exclude an absent event
+    // name too, or a payload missing the field would leash a subagent (this script is
+    // wired to SubagentStop as well).
+    const event = String(payload.hook_event_name ?? payload.hookEventName ?? '')
 
     // Goal leash takes precedence over the phase-exit handoff: while a delivery
     // goal is unmet there is no handoff to surface yet. Deliberately NOT gated on
@@ -648,7 +648,7 @@ function main() {
     if (event === 'Stop') {
         const active = readGoal(root, sessionId)
         if (active) {
-            const used = goalBlocksUsed(root, sessionId, active.goal)
+            const used = goalBlocksUsed(root, sessionId)
             if (goalIsActive(active.goal, used)) {
                 const next = bumpGoalBlocks(root, sessionId, active.path, active.goal, used)
                 // next === null ⇒ the count could not be persisted, so the cap is

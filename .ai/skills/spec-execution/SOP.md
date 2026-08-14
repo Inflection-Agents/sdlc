@@ -50,7 +50,13 @@ gh pr create --base feat/spec-NNN --title "SPEC-NNN TASK-NNN: <title>" --body "<
 # wait for CI green, then:
 gh pr merge <n> --squash --delete-branch
 
-# 6. Mark status: done in specs/tasks/SPEC-NNN/_index.yaml, then start the next task
+# 6. Flip status: done in specs/tasks/SPEC-NNN/_index.yaml — then COMMIT AND PUSH it to
+#    feat/spec-NNN immediately, before starting the next task.
+#
+#    The retired engine wrote the merge and the status flip in one commit, so a crash
+#    always left a consistent index. Two steps cannot be atomic — so close the window
+#    rather than widening it. A run interrupted between them leaves a merged task still
+#    reading `pending`, and a resumed run will try to do it again.
 ```
 
 **Do not start task N+1 until task N is merged into `feat/spec-NNN`.** Every later task branches off

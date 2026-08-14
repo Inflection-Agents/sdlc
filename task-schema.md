@@ -99,7 +99,7 @@ A task that creates a whole design-token layer (6+ files) is ONE task because it
 |-------|----------|-------|
 | `touches` | yes (executable tasks) | Flat list of file globs this task may modify. The single most important field: it bounds the task, drives review-lens routing (`review-constraints.yaml`), and makes "a merge conflict means the decomposition's file-scoping was wrong" a hard guarantee. `human`-routed tasks may omit it. |
 | `risk` | no | `low \| medium \| high`. Author's complexity hint. `high` forces the `fortified` review tier. |
-| `tier` | no | `express \| standard \| fortified`. Review-intensity HINT, resolved against the constraints registry — a change that trips a registry **blocker** is `fortified` regardless of the hint; a declared-`low`-risk, well-scoped task that trips nothing may be `express`. The registry can only raise the tier, never lower it. |
+| `tier` | no | `express \| standard \| fortified`. Review-intensity HINT **read by the agent composing the integration panel** (ADR-003 — no code resolves a tier since the engine was retired). It can only ever raise the rigor a change earns: a change tripping a registry **blocker** is treated as `fortified` whatever the hint says, and a declared `express` never shrinks the gate panel. |
 
 **Rules:**
 - `touches` must stay within the task's single workspace.
@@ -124,13 +124,13 @@ The `evidence:` field appears on each acceptance criterion:
 
 | State | Meaning |
 |-------|---------|
-| Field absent or empty string | Not populated (Tier 0: PR review blocked) |
-| Field present with non-empty content | Populated (Tier 0 passes; Tier 1 grades quality) |
+| Field absent or empty string | Not populated — the executor's self-review must fix this before the task PR opens; a reviewer that meets it at the gate raises `task:evidence-missing` |
+| Field present with non-empty content | Populated; the gate panel grades its quality |
 
 **Rules:**
 - `evidence:` is **optional at task creation** — the decomposing agent omits it or leaves it empty.
-- `evidence:` **MUST be populated before PR review enters.** The implementing agent fills it with concrete proof: test output, command results, or a description of what was manually verified.
-- Tier 0 presence check and Tier 1 content quality grading are defined in SPEC-001 and SPEC-004. The `pr-reviewer` raises `task:evidence-missing` (major) if content is absent or clearly insufficient.
+- `evidence:` **MUST be populated before the task PR opens.** The implementing agent fills it with concrete proof: test output, command results, or a description of what was manually verified — and checks it during self-review (`spec-execution` SOP §4).
+- There is no automatic pre-review gate any more (ADR-003 retired Tier-0 with per-task review). `pr-reviewer` raises `task:evidence-missing` (major) at the integration gate if content is absent or clearly insufficient.
 - Existing task files without `evidence:` remain valid — the field is additive only.
 
 ### Monorepo fields

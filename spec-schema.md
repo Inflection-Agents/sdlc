@@ -184,11 +184,22 @@ superseded_by: ADR-005          # optional
 **`spec: none` — the process-only ADR route.** Most ADRs support a spec. A decision that
 changes the SDLC *itself* — retiring an execution model, moving where a gate lives — often
 has no owning spec, and inventing one would misattribute it. Such an ADR sets `spec: none`
-and is authored directly, reviewed by an independent panel like any other change, and
-merged by the owner. It touches process-artifact paths only (`specs/**`, `.ai/**`,
-`.claude/**`, root docs); a change that also touches implementation code needs a spec.
-ADR-003 is the worked example. Note the honest gap: the state machine has no phase that
-produces one of these, so the route is a documented convention rather than a gated phase.
+and is authored directly, then reviewed by an independent panel like any other change.
+
+**Scope.** The route covers the framework's own artifacts: `specs/**`, `.ai/**`, `.claude/**`,
+`scripts/sdlc/**`, `.github/workflows/**`, `bootstrap.sh`, and the root docs — process
+machinery, including the code that enforces process. A change touching *product* code needs a
+spec. (An earlier draft of this paragraph listed only the doc paths, which would not have
+admitted ADR-003, the very change that defined the route — the allowlist is written to match
+what such a change actually touches.)
+
+**Merge.** The owner merges, or explicitly directs an agent to, under the conditions in ADR-003
+decision 11 (the owner names the merge, an independent panel is clean, and the authorization is
+recorded). ADR-003 is the worked example.
+
+**The honest gap:** the state machine has no phase that produces one of these, so this is a
+documented convention rather than a gated phase — the process for changing the process is
+thinner than the process it defines.
 
 Body follows the standard ADR format:
 

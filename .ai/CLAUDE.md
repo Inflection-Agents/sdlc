@@ -69,16 +69,16 @@ Rule of thumb:
 
 The Agent tool automatically cleans up the worktree if the agent makes no changes; otherwise it returns the worktree path + branch in its result so you can inspect and merge.
 
-### Bookkeeping PRs auto-merge on a narrow allowlist
+### Bookkeeping PRs can auto-merge on a narrow allowlist (optional, not shipped)
 
-SDLC-metadata catch-up after task/spec merges (status flips, Linear-issue backlinks, `_index.yaml` updates, `spec-index.json` entries, `intents.md` lifecycle moves) is mechanical, small, and deterministic. Those PRs auto-merge via `.github/workflows/auto-merge-sdlc-bookkeeping.yml` when they meet all of:
+SDLC-metadata catch-up after task/spec merges (status flips, Linear-issue backlinks, `_index.yaml` updates, `spec-index.json` entries, `intents.md` lifecycle moves) is mechanical, small, and deterministic — a good candidate for auto-merge. **This framework does not ship that workflow**; the pattern below is a recipe a consuming repo can adopt by adding its own `.github/workflows/auto-merge-sdlc-bookkeeping.yml` gated on the `SDLC` workflow. It applies when a PR meets all of:
 
 - Title starts with `sdlc: bookkeeping`
 - Branch name starts with `sdlc/bookkeeping-`
 - Every changed file is in the allowlist (`specs/tasks/SPEC-*/TASK-*.md`, `specs/tasks/SPEC-*/_index.yaml`, `specs/intents.md`, `specs/spec-index.json`, `specs/SPEC-*.md`)
 - Total diff ≤ 100 lines (additions + deletions)
 
-**Design note on gating.** The workflow triggers on `workflow_run` after the main `CI` workflow completes with `conclusion: success`. That's the CI gate — we do NOT use GitHub's native `--auto` flag. Reason: `--auto` requires branch protection to have anything to wait on, and branch protection is a paid-tier feature on private repos. The `workflow_run`-after-CI pattern gives us the same "merge after CI passes" behavior with no plan dependency.
+**Design note on gating.** Trigger on `workflow_run` after the repo's validation workflow (here, the one named `SDLC` in `.github/workflows/sdlc-validate.yml`) completes with `conclusion: success`. That's the CI gate — we do NOT use GitHub's native `--auto` flag. Reason: `--auto` requires branch protection to have anything to wait on, and branch protection is a paid-tier feature on private repos. The `workflow_run`-after-CI pattern gives us the same "merge after CI passes" behavior with no plan dependency.
 
 When creating bookkeeping PRs yourself, follow the title + branch conventions above so the workflow picks them up automatically. If your PR doesn't match the pattern, it's reviewed normally — no harm, no bypass.
 
@@ -191,7 +191,7 @@ You have direct dialogue with the user. Use it — but in the judgment phases, w
 
 - **Ambiguous spec:** resolve it during spec-authoring. Don't guess at intent.
 - **Wrong spec:** flag it. Propose the fix via `spec-amendment`. Don't silently reinterpret.
-- **Spec gap discovered during implementation:** route a `spec:gap` to gap-capture and a `spec:*` blocker to `spec-amendment`. Don't scope-creep the current task.
+- **Spec gap discovered during implementation:** record the `spec:gap` against the spec and route a `spec:*` blocker to `spec-amendment`. Don't scope-creep the current task.
 
 ### Review
 

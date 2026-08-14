@@ -158,6 +158,31 @@ function gh(args) {
 const INTEGRATION_BRANCH = /^feat\/spec-/i
 
 /**
+ * Does this command carry exactly ONE `gh pr` action, with no shell chaining?
+ *
+ * The carve-out authorizes a whole Bash command from a single resolved PR base, so a
+ * compound command is a bypass: `gh pr merge 100 && gh pr merge 7` resolves only
+ * PR 100's base (a task branch) and would exempt the merge of PR 7 into `main`. Same
+ * for `gh pr merge 7 && gh pr review 8 --approve`. If the command does more than one
+ * thing, it does not get the exemption.
+ */
+function isSingleUnchainedGhAction(cmd) {
+    if (/[;&|]{1,2}|\$\(|`|\n/.test(String(cmd))) return false
+    return (String(cmd).match(/\bgh\s+pr\s+(?:review|comment|merge)\b/g) || []).length === 1
+}
+
+/**
+ * The PR selector must be one we can resolve UNAMBIGUOUSLY. `gh pr merge` also accepts
+ * a branch name or a shell variable; with those, `extractPrNumber` returns null and the
+ * base lookup silently falls back to the CURRENT BRANCH's PR — a different PR whose
+ * base may well be a task branch. Only a bare number or a github.com pull URL counts.
+ */
+function hasResolvablePrSelector(cmd, prNumber) {
+    if (prNumber) return true
+    return /github\.com\/[^\s]+\/pull\/\d+/.test(String(cmd))
+}
+
+/**
  * Is this merge a task PR landing on a spec integration branch?
  *
  * ADR-003 splits one rule into two. Merging a task PR into `feat/spec-NNN` is
@@ -171,8 +196,14 @@ const INTEGRATION_BRANCH = /^feat\/spec-/i
  * never widens the exemption.
  */
 function mergesIntoIntegrationBranch(prNumber) {
+    // Test seam, deliberately narrow: only honored when the identity seams are ALSO
+    // injected, which never happens in production. Read unconditionally, an exported
+    // SDLC_REVIEW_GATE_BASE=feat/spec-x would exempt every merge including the
+    // integration PR into `main`.
     const injected = process.env.SDLC_REVIEW_GATE_BASE
-    if (injected != null) return INTEGRATION_BRANCH.test(injected)
+    if (injected != null && process.env.SDLC_REVIEW_GATE_AUTHOR_LOGIN != null) {
+        return INTEGRATION_BRANCH.test(injected)
+    }
     const args = ['pr', 'view']
     if (prNumber) args.push(prNumber)
     args.push('--json', 'baseRefName')
@@ -281,7 +312,19 @@ function main() {
     // ADR-003 carve-out: a task PR merging into `feat/spec-NNN` is the delivery
     // executor doing its job, not an author self-accepting. Nothing reaches `main`
     // that way. An integration PR into `main` stays denied.
-    if (isMerge && mergesIntoIntegrationBranch(prNumber)) allow()
+    //
+    // Every precondition must hold, and each failure falls THROUGH to the normal
+    // author≠reviewer check (deny), never around it: exactly one un-chained `gh pr`
+    // action, an unambiguously resolvable PR selector, and a base matching
+    // `feat/spec-*`.
+    if (
+        isMerge &&
+        isSingleUnchainedGhAction(command) &&
+        hasResolvablePrSelector(command, prNumber) &&
+        mergesIntoIntegrationBranch(prNumber)
+    ) {
+        allow()
+    }
 
     // Resolve identities only now (gated behind a detected accept).
     let author, reviewer

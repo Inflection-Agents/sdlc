@@ -180,7 +180,16 @@ if git rev-parse --git-dir &> /dev/null 2>&1; then
     # mechanical bound, so a repo that gets the hook must get the tests too.
     if [ -d "$SCRIPT_DIR/.claude/hooks/__tests__" ]; then
       mkdir -p "$REPO_ROOT/.claude/hooks/__tests__"
-      cp -R "$SCRIPT_DIR/.claude/hooks/__tests__/." "$REPO_ROOT/.claude/hooks/__tests__/" 2>/dev/null || true
+      for hook_test in "$SCRIPT_DIR/.claude/hooks/__tests__/"*.mjs; do
+        [ -e "$hook_test" ] || continue
+        test_name="$(basename "$hook_test")"
+        # Same "only if absent" rule as the hooks themselves. Copying unconditionally
+        # would drop NEW fixtures next to an OLD hook on a re-run — the red,
+        # partial-upgrade state the warning below tells the user to avoid.
+        if [ ! -f "$REPO_ROOT/.claude/hooks/__tests__/$test_name" ]; then
+          cp "$hook_test" "$REPO_ROOT/.claude/hooks/__tests__/$test_name"
+        fi
+      done
     fi
     if [ "$HOOKS_COPIED" = true ]; then
       ok "Copied SDLC hooks to .claude/hooks/ (advisory by default; goal-leash tests in __tests__/)"
@@ -223,6 +232,44 @@ if git rev-parse --git-dir &> /dev/null 2>&1; then
     fi
   fi
 
+  # ── Upgrading an existing bootstrap ──
+  #
+  # Every copy step above is guarded by "only if absent", so re-running this script on
+  # a repo bootstrapped from an OLDER version of the framework changes nothing — it
+  # keeps its old hooks and skills. That is deliberate (never clobber local edits), but
+  # it means an upgrade is a manual, deliberate act. Detect the most consequential
+  # mismatch and say so loudly.
+  if [ -f "$REPO_ROOT/.claude/workflows/execute-spec.js" ]; then
+    warn "This repo still has .claude/workflows/execute-spec.js — the RETIRED execution engine (ADR-003)."
+    echo "  You are on a pre-ADR-003 bootstrap. To upgrade:"
+    echo "    1. rm .claude/workflows/execute-spec.js   (git history keeps it)"
+    echo "    2. Replace .ai/skills/spec-execution/ with this framework's SKILL.md + SOP.md"
+    echo "    3. Replace .claude/hooks/stop-handoff.mjs (it now carries the goal leash) and"
+    echo "       copy .claude/hooks/__tests__/ alongside it"
+    echo "    4. Copy the new scripts/sdlc/ gates: plan-gate.mjs, reviewer-routing.mjs,"
+    echo "       validate-review-envelope.mjs, check-review-constraint-globs.mjs"
+    echo "    5. Remove the code-review phase from specs/sdlc-state-machine.yaml and re-run"
+    echo "       node scripts/sdlc/gen-handoffs.mjs"
+    echo ""
+    echo "  Partial upgrades are the dangerous case: the new skill arms a goal file that an"
+    echo "  OLD stop-handoff.mjs never reads, so the run has no persistence enforcement while"
+    echo "  the docs say it does. Upgrade the skill and the hook together."
+    echo ""
+  fi
+
+  # Copy the CI workflow that runs the gates. Without it, a consuming repo has the
+  # validators but nothing runs them — and the "and by CI" half of every re-homed
+  # guarantee (ADR-002, ADR-003) would be true only in the upstream framework.
+  if [ -f "$SCRIPT_DIR/.github/workflows/sdlc-validate.yml" ]; then
+    mkdir -p "$REPO_ROOT/.github/workflows"
+    if [ ! -f "$REPO_ROOT/.github/workflows/sdlc-validate.yml" ]; then
+      cp "$SCRIPT_DIR/.github/workflows/sdlc-validate.yml" "$REPO_ROOT/.github/workflows/sdlc-validate.yml"
+      ok "Copied .github/workflows/sdlc-validate.yml — runs the SDLC tests, validators and gates"
+    else
+      ok ".github/workflows/sdlc-validate.yml exists"
+    fi
+  fi
+
   # Per-session SDLC state must never be committed: a goal file carries the run's
   # statement and exit criteria, and an unkeyed one readable by another session is an
   # unauthenticated directive channel into an autonomous loop (ADR-003).
@@ -258,31 +305,6 @@ echo ""
 echo "========================================="
 echo "  Setup complete"
 echo "========================================="
-  # ── Upgrading an existing bootstrap ──
-  #
-  # Every copy step above is guarded by "only if absent", so re-running this script on
-  # a repo bootstrapped from an OLDER version of the framework changes nothing — it
-  # keeps its old hooks and skills. That is deliberate (never clobber local edits), but
-  # it means an upgrade is a manual, deliberate act. Detect the most consequential
-  # mismatch and say so loudly.
-  if [ -f "$REPO_ROOT/.claude/workflows/execute-spec.js" ]; then
-    warn "This repo still has .claude/workflows/execute-spec.js — the RETIRED execution engine (ADR-003)."
-    echo "  You are on a pre-ADR-003 bootstrap. To upgrade:"
-    echo "    1. rm .claude/workflows/execute-spec.js   (git history keeps it)"
-    echo "    2. Replace .ai/skills/spec-execution/ with this framework's SKILL.md + SOP.md"
-    echo "    3. Replace .claude/hooks/stop-handoff.mjs (it now carries the goal leash) and"
-    echo "       copy .claude/hooks/__tests__/ alongside it"
-    echo "    4. Copy the new scripts/sdlc/ gates: plan-gate.mjs, reviewer-routing.mjs,"
-    echo "       validate-review-envelope.mjs, check-review-constraint-globs.mjs"
-    echo "    5. Remove the code-review phase from specs/sdlc-state-machine.yaml and re-run"
-    echo "       node scripts/sdlc/gen-handoffs.mjs"
-    echo ""
-    echo "  Partial upgrades are the dangerous case: the new skill arms a goal file that an"
-    echo "  OLD stop-handoff.mjs never reads, so the run has no persistence enforcement while"
-    echo "  the docs say it does. Upgrade the skill and the hook together."
-    echo ""
-  fi
-
 echo ""
 echo "Next steps:"
 echo "  1. Fill in .ai/project.md with your repo structure, commands, and conventions"

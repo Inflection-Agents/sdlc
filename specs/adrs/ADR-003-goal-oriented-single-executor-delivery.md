@@ -105,8 +105,26 @@ integration gate.**
     independently dispatched, clean contexts, every envelope validated — with the constraints
     registry evaluated **in full across the whole diff**, looped until no blocker or major survives.
 
-11. **The integration PR is left open for the human.** The agent never merges or pushes to `main`,
-    and never self-approves. There is no phrasing in a user message that creates an exception.
+11. **The integration PR is left open for the human.** *Within a spec delivery run*, the agent
+    never merges or pushes to `main` and never self-approves. There is no phrasing in a user
+    message that creates an exception, and "finish it", "don't come back until it's done" or
+    "run autonomously until the PR is ready to merge" are emphatically not authorization — the
+    last one asks for the opposite.
+
+    **Scope, stated precisely, because the absolute reading is one the framework cannot itself
+    follow.** This rule governs the delivery path: work produced by a `spec-execution` run,
+    where the agent authored the change and no independent human has read it. It is not a claim
+    that no agent may ever complete a merge on a human's behalf. A **process-artifact change**
+    (the `spec: none` route in `spec-schema.md`) sits outside a delivery run, and an owner may
+    direct an agent to merge one — but only when all of: the owner's own message names the merge
+    itself; an independent review panel has graded the PR with no surviving blocker or major; and
+    the merge is recorded with the authorizing sentence and the panel's verdict, so the authority
+    is auditable after the fact. Anything less is the delivery rule, unchanged.
+
+    ADR-003 itself is the worked example, and an uncomfortable one: it was authored, reviewed by
+    three independently dispatched panels across two rounds, and merged by its author on the
+    owner's explicit instruction. Recording that plainly is better than shipping a rule the
+    framework visibly breaks on its first use.
 
 12. **The delivery run is transparent.** It keeps a visible session task list — one entry per task in
     `_index.yaml`, plus end-to-end validation and the integration gate — marked `in_progress` before
@@ -128,9 +146,11 @@ integration gate.**
       `blocks_used`, because the goal template carries no counter and every rewrite would otherwise
       reset the cap. `max_blocks` may only **lower** the bound, never raise it.
     - It **fails open** whenever the bound cannot be enforced: past the cap, on malformed / array /
-      scalar JSON, when neither the counter nor the goal file can be written, and 24h after
-      `armed_at` (not mtime — the hook rewrites the file on every block, so an mtime horizon could
-      never expire an actively-blocking leash).
+      scalar JSON, when there is no path-safe `session_id` to key a counter to, and whenever the
+      hook-owned counter cannot be written — the goal file is a display mirror and never counts as
+      persistence, since treating it as such was a fail-CLOSED bug. Also 24h after `armed_at` (not
+      mtime — the hook rewrites the file on every block, so an mtime horizon could never expire an
+      actively-blocking leash).
     - **Session keying is a security boundary.** An unkeyed, world-readable goal file is an
       unauthenticated directive channel into an autonomous loop. `.sdlc-goal-current` is a one-shot
       arming name the first real `Stop` claims by renaming; echoed goal text is length-clamped,
@@ -154,7 +174,7 @@ integration gate.**
     | Mandatory Tier-0 `tester` gate | **DROP** (accepted loss) | Verification folds into the executor. There is no automatic pre-review gate, because there is no per-task review to gate. |
     | `validateContract` as an executing gate | **DROP as an executing gate** | Decomposition-time validation is unaffected — a task with no `touches` is a decomposition defect, caught there, not discovered mid-run. |
     | `integration_strategy: direct` (SPEC-005) | **DROP** (decision 6) | The integration branch is now unconditional. |
-    | Wave-level resume from committed status | **KEEP, weaker** | Branches remain id-derived (`claude/SPEC-NNN-TASK-NNN`), so a resumed run reuses them; resume is now per task, by reading `_index.yaml` status. |
+    | Wave-level resume from committed status | **KEEP, much weaker** | Resume is solely a read of `_index.yaml` status: task branches are deleted at merge (decision 7), so there is none to reuse, and the status flip is no longer atomic with the merge. |
     | `_execution.log.jsonl` telemetry | **KEEP as optional** (SOP §9) | Recommended, never a gate. See the Negative section: a delivery run is otherwise uninstrumented. |
     | Branch-always / amendment cap / author≠reviewer independence | **KEEP, with one carve-out** | These governed the human loop, not the engine. Independence now binds at the gate. The carve-out is mechanical: `pre-tool-use-review-identity.mjs` classifies any `gh pr merge` as an author self-accept, which would deny the task merges §4 now *requires* — so it learned the base-branch distinction (a merge into `feat/spec-*` is exempt; a merge into `main` is not, and an unresolvable base is not). |
     | Tier resolution (`tier()`, blocker/major veto) | **KEEP as judgment at the gate** | No code resolves a tier any more. `tier:` and `risk:` stay task inputs, and the registry can still only raise the review intensity a change earns — but that is now the panel-composing agent's reading, not a function. A declared `tier: express` never shrinks the gate panel. |
@@ -193,10 +213,14 @@ omit — and because each is a candidate for a real gate later:
 | Guarantee | Was | Is now | Bounded by |
 | --- | --- | --- | --- |
 | The plan-review gate runs before any work | Engine HALT before dispatch | The skill's §1 step, plus the CI job | `scripts/sdlc/plan-gate.mjs` in CI — but a run that skips §1 is not stopped, and under `claude -p` the leash is inert too |
-| `isolation: "worktree"` on every file-writing subagent | Passed in code on every dispatch | Prose in four documents | Nothing. The failure is destructive and was observed live (a non-isolated subagent stashed a foreground session's uncommitted edits). With fan-out now rare, it is also the rule least likely to be remembered |
+| `isolation: "worktree"` on every file-writing subagent | Passed in code on every dispatch | Prose, repeated across the skill, the SOP, `.ai/CLAUDE.md`, `.ai/AGENTS.md`, `agent-orchestration.md` and `roles.md` | Nothing. The failure is destructive and was observed live (a non-isolated subagent stashed a foreground session's uncommitted edits). With fan-out now rare, it is also the rule least likely to be remembered |
 | Every reviewer envelope is validated | Engine validated before routing | The skill runs `validate-review-envelope.mjs` | The validator exists and is tested; invoking it is discretionary |
 | The constraints registry is evaluated | Engine computed `lensesFor(touches)` | An agent reads the YAML at the gate | `check-review-constraint-globs.mjs` proves the rows are *resolvable*, not that they were *consulted* |
 | A task's `touches` is non-empty | Engine refused to run the task | A decomposition-time rule | `task-decomposition` self-review; nothing at delivery time |
+| **The agent never merges or pushes to `main`** (decision 11) | Nothing — the engine had no code path to `main` at all | Prose, in every doc | **Almost nothing.** `pre-tool-use-review-identity.mjs` defaults to `warn`, only pattern-matches `gh pr`, and fails open when an identity cannot be resolved — and `git push origin main` is not covered. The most load-bearing rule here is the least enforced |
+| A pending `human`-routed task blocks integration | Engine skipped integration while one was pending | Prose in the skill's exit criteria | Nothing mechanical. The criterion reads "done or explicitly deferred with a reason", so the run must surface a deferral rather than be stopped by it |
+| Task merge + `_index.yaml` status flip were one commit | Engine wrote both in a single commit, so a crash left a consistent index | Two SOP steps | Nothing. A run interrupted between them leaves a merged task reading `pending`; SOP §2 step 6 now says to commit and push the flip immediately after the merge |
+| Dependency-graph sanity (cycles, unknown dependencies) | Engine threw before any work started | A decomposition-time checklist item | Nothing yet — the DAG-acyclicity validator is still "forthcoming" in `scripts/sdlc/README.md` |
 
 **Negative / accepted**
 
@@ -221,8 +245,8 @@ omit — and because each is a candidate for a real gate later:
   is bound by: it writes its own `exit_criteria` and can set `status: met`, and the hook only reads
   `status` — it cannot verify a criterion. The defense is prose plus visibility: the exit criteria
   and their evidence are surfaced in the integration PR body, the task list, and the final handoff,
-  and a human still merges. Mechanically it is bounded by 14 fixture tests
-  (`.claude/hooks/__tests__/stop-handoff-goal-leash.test.mjs`).
+  and a human still merges. Mechanically it is bounded by the fixture suite in
+  `.claude/hooks/__tests__/stop-handoff-goal-leash.test.mjs`.
 - **Under `claude -p` the leash is inert** — Stop hooks do not fire in non-interactive mode, so the
   exit criteria bind by prose only there.
 - **A delivery run is uninstrumented by default**, so this ADR's cost claim cannot be re-measured
@@ -240,6 +264,14 @@ omit — and because each is a candidate for a real gate later:
   "review this PR" no longer match any phase in the `UserPromptSubmit` classifier.
   `pr-reviewer` remains reachable by its skill description, but the deterministic
   routing nudge for an ad-hoc PR review is gone.
+- **The runtime floor rises from Node 18 to Node 22** for every adopter, because
+  `check-review-constraint-globs.mjs` uses `fs.globSync`; `bootstrap.sh` now hard-fails below 22
+  rather than letting a validator crash later. Cheap to reverse — the only 22+ dependency is one
+  warn-mode validator.
+- **SPEC-003 is `active` and one of its success criteria is now unsatisfiable**: it requires
+  README/skills/skill-architecture to "reference the graded review and wave-based execution
+  models", and this ADR retires wave-based execution. Recorded in that spec's Changelog rather
+  than left to fail silently.
 - **Historical specs describe the engine as canonical.** SPEC-002, SPEC-005 and SPEC-006 are records
   of past decisions and are left intact; this ADR is the reconciliation. ADR-001 and ADR-002 stand —
   their decisions were about where policy lives, not about the engine — and each carries a re-homing

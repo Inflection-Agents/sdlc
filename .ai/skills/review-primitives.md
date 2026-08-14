@@ -21,11 +21,18 @@ Severity is **assigned by the reviewer**, not by the orchestrator. The orchestra
 
 ---
 
-## PR-side Tier 0 — mechanical gates (pre-review checks)
+## Mechanical presence checks (before grading)
 
-These checks are mechanical presence checks only; they run before Tier 1 grading begins. A PR that fails any Tier 0 gate is returned immediately without a full review.
+ADR-003 retired the automatic pre-review **Tier-0 gate** along with per-task review: there is
+no longer a stage that returns a PR unreviewed. What survives is the check itself, re-homed to
+the two places that now do the reading:
 
-- every AC has a non-empty `evidence:` field (presence check only; quality is Tier 1's job per `task:evidence-missing`)
+- **The executor's self-review**, before it opens a task PR: every AC has a non-empty
+  `evidence:` field. An empty one is the executor's own defect to fix, not a reviewer's to find.
+- **The integration gate**, before grading: a reviewer that finds evidence absent raises
+  `task:evidence-missing` rather than silently grading around it.
+
+Presence is the mechanical part; quality is graded (`task:evidence-missing`, major).
 
 ---
 
@@ -73,7 +80,7 @@ This is the **single, canonical** allowed-prefix set for `pr-reviewer` (Tier 1) 
 | `monorepo:` | `monorepo:verify-coverage` | Blocker: PR fails tests in any `verify_workspaces`. |
 | `task:` | `task:blocks:<id>` | Finding grounds in a `blocks:` relationship declared in the task frontmatter. |
 | `task:` | `task:scope` | Cross-skill signal (blocker): PR scope reveals the task was decomposed wrong; routes to `task-decomposition` (see SPEC-002). |
-| `task:` | `task:evidence-missing` | Tier 1 `major`: an AC's `evidence:` field is populated but insufficient (Tier 0 only checks presence). |
+| `task:` | `task:evidence-missing` | `major`: an AC's `evidence:` field is absent, or populated but insufficient. |
 | `spec:` | `spec:ambiguous-ac` / `spec:contradictory-ac` / `spec:wrong-design` / `spec:missing-section` | Cross-skill signals: implementation reveals the spec is wrong; route to `spec-amendment` (see SPEC-002). |
 | `spec:` | `spec:gap` | Blocker cross-skill signal routing to gap-capture (per SPEC-004 Design > 2); a reviewer raising `spec:gap` MUST assign severity `blocker` so the gap-capture handler intercepts it. |
 | `inv:` | `inv:<INV-ID>` | Violation of a named review invariant from the constraints registry (`review-constraints.yaml`), e.g. `inv:INV-CORE-PURITY`. |

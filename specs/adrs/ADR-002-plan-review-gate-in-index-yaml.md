@@ -65,7 +65,7 @@ the `_index.yaml` schema (files without it stay schema-valid), but the engine fa
 
 ## Consequences
 
-**Good.** The gate is structural and un-skippable. The verdict lives where `execute-spec` already reads,
+**Good.** The gate is structural and machine-checkable. (It was *un-skippable* while the engine enforced it before dispatch; see the ADR-003 re-homing note above for what that became.) The verdict lives where `execute-spec` already reads,
 post-decomposition, so it attests the spec *and* the plan that actually executes. Reuses the existing
 approval gate — no new phase, and no commitment to mechanizing the loop. Fail-closed means a forgotten review
 blocks loudly instead of passing silently.

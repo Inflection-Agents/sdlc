@@ -24,8 +24,18 @@
 //
 // Usage:
 //   node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml [...]
+//   node scripts/sdlc/plan-gate.mjs --presence-only specs/tasks/*/_index.yaml
 //
-// Exits 0 when every given plan is approved, 1 otherwise (diagnostics on stderr).
+// Two modes, because the two questions are different:
+//   default          — is this plan APPROVED? The question a delivery run asks about
+//                      the ONE spec it is about to execute.
+//   --presence-only  — does this plan carry a `plan_review:` block at all? The question
+//                      CI can ask repo-wide. A spec mid-decomposition legitimately sits
+//                      at `approved: false` until the owner signs off, so enforcing
+//                      approval across every spec on every PR would turn every
+//                      unrelated PR red and create pressure to rubber-stamp the flag.
+//
+// Exits 0 when every given plan passes the selected check, 1 otherwise.
 import { readFileSync, realpathSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -110,13 +120,24 @@ export function checkPlanGate(path) {
 }
 
 function main(argv) {
-    if (argv.length === 0) {
-        process.stderr.write('usage: node scripts/sdlc/plan-gate.mjs <_index.yaml> [...]\n')
+    const presenceOnly = argv.includes('--presence-only')
+    const paths = argv.filter((a) => a !== '--presence-only')
+    if (paths.length === 0) {
+        process.stderr.write('usage: node scripts/sdlc/plan-gate.mjs [--presence-only] <_index.yaml> [...]\n')
         process.exit(1)
     }
     let ok = true
-    for (const path of argv) {
+    for (const path of paths) {
         const res = checkPlanGate(path)
+        if (presenceOnly) {
+            if (res.block) {
+                process.stdout.write(`plan-gate: block present ${res.path} (approved: ${res.block.approved})\n`)
+            } else {
+                ok = false
+                process.stderr.write(`plan-gate: MISSING plan_review block — ${res.path}\n`)
+            }
+            continue
+        }
         if (res.approved) {
             process.stdout.write(`plan-gate: APPROVED ${res.path}\n`)
         } else {
@@ -126,7 +147,9 @@ function main(argv) {
     }
     if (!ok) {
         process.stderr.write(
-            'Run plan review, then set plan_review.approved: true (status must not be needs-rework).\n'
+            presenceOnly
+                ? 'Every decomposed spec needs a plan_review: block (task-decomposition stamps it).\n'
+                : 'Run plan review, then set plan_review.approved: true (status must not be needs-rework).\n'
         )
     }
     process.exit(ok ? 0 : 1)

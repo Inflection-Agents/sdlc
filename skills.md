@@ -270,7 +270,7 @@ Three modes:
 6. Runs **end-to-end validation once** before the gate, with attached evidence
 7. Opens ONE integration PR and dispatches a **multi-lens adversarial panel** — independently, clean contexts, every envelope validated (`scripts/sdlc/validate-review-envelope.mjs`), the registry evaluated across the whole diff — looping until no blocker or major survives
 8. Leaves the PR open — **a human merges; the agent never does** — and hands off to `spec-completion`
-9. Escalates rather than grinding: `task:scope` → task-decomposition re-plan; `spec:gap` → gap-capture; `spec:*` → spec-amendment (amendment cap); security/data-loss/owner calls → hard stop
+9. Escalates rather than grinding: `task:scope` → task-decomposition re-plan; `spec:*` → spec-amendment (amendment cap); a `spec:gap` is recorded against the spec and never licenses widening the current task; security/data-loss/owner calls → hard stop
 
 **Optional telemetry:** `specs/tasks/SPEC-NNN/_execution.log.jsonl` — one JSONL event per action, append-only, restart-safe (SOP §9). Recommended, not a gate.
 

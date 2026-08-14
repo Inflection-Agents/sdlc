@@ -2,8 +2,11 @@
 #
 # Review lenses are selected as:
 #     lenses = baseLenses(workspace)  ∪  { lens of each constraint whose `when` matches the change }
-# and the review TIER resolves from constraint severity:
+# and the review TIER a change earns follows constraint severity:
 #     a matched blocker → fortified · a matched major → at least standard (express vetoed)
+# Since ADR-003 this is READ BY THE AGENT composing the panel at the integration gate, not
+# resolved by code. It can only raise rigor: a task's declared `tier: express` never shrinks
+# the panel.
 #
 # Per ADR-003 this registry is evaluated IN FULL at the integration gate, across the whole diff —
 # not per task, where matching against one task's narrowly declared `touches` is unreliable in both

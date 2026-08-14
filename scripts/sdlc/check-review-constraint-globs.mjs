@@ -62,10 +62,26 @@ export function parseRegistryTouches(text) {
     let current = null
     let inTouchesBlock = false
     let inFlowList = false
+    // Indent of an open block scalar (`check: >` / `check: |`). Its lines are PROSE.
+    // Without this, a check paragraph containing a line like `- id: SOMETHING` forks a
+    // phantom row that steals the real row's globs — which would then be reported as
+    // "no globs read" while its dead glob is attributed to a constraint that does not
+    // exist. Same defect this checker exists to catch, one level up.
+    let blockIndent = null
+    const indentOf = (l) => l.match(/^(\s*)/)[1].length
     const pushLiterals = (s, target) => {
         for (const m of String(s).matchAll(/["']([^"']+)["']/g)) target.push(m[1])
     }
     for (const line of lines) {
+        if (blockIndent !== null) {
+            if (line.trim() === '' || indentOf(line) > blockIndent) continue
+            blockIndent = null
+        }
+        const opensBlock = line.match(/^\s*[a-z_]+\s*:\s*[>|]/i)
+        if (opensBlock) {
+            blockIndent = indentOf(line)
+            continue
+        }
         const item = line.match(/^\s*-\s*id\s*:\s*(.+)$/)
         if (item) {
             if (current) rows.push(current)

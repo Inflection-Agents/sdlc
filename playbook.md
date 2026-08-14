@@ -108,7 +108,7 @@ See [triage.md](triage.md) for the full pipeline. During active development:
 | Tasks completed per cycle | Linear | Throughput |
 | Agent vs human task ratio | Linear labels | Agent adoption |
 | Cost per task (tokens) | Run logs | Efficiency |
-| Fix-loop iterations per task | `_execution.log.jsonl` | Decomposition/instruction quality |
+| Panel rounds per integration PR | `_execution.log.jsonl` | Decomposition/instruction quality |
 | Escalations per spec (re-plan / amendment) | Run logs | Front-phase quality |
 | Bug density per spec | Linear relations | Spec quality |
 | Regression rate by author type | Git + CI | Agent code quality |
