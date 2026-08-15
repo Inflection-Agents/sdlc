@@ -1,0 +1,48 @@
+{
+  "network": "AUS1",
+  "note": "Illustrative inventory derived from the AUS1 Junos MOP. No secrets here — each device carries a secret_ref POINTER; the actual credential is resolved from the vault/env at connect time.",
+  "devices": [
+    {
+      "id": "ER1.AUS1", "role": "edge-router", "vendor": "juniper", "os": "junos",
+      "site": "AUS1", "model": "MX304", "redundancy": "dual-RE",
+      "mgmt": { "ip": "50.115.88.41", "oob": "Console1.AUS1" },
+      "secret_ref": "vault://net/aus1#edge"
+    },
+    {
+      "id": "ER2.AUS1", "role": "edge-router", "vendor": "juniper", "os": "junos",
+      "site": "AUS1", "model": "MX304", "redundancy": "dual-RE",
+      "mgmt": { "ip": "65.56.106.30", "oob": "Console1.AUS1" },
+      "secret_ref": "vault://net/aus1#edge"
+    },
+    {
+      "id": "FW1.AUS1", "role": "firewall", "vendor": "juniper", "os": "junos",
+      "site": "AUS1", "model": "SRX", "redundancy": "chassis-cluster",
+      "mgmt": { "ip": "130.250.0.10", "oob": "Console1.AUS1" },
+      "secret_ref": "vault://net/aus1#fw"
+    },
+    {
+      "id": "CSW1.AUS1", "role": "switch", "vendor": "juniper", "os": "junos",
+      "site": "AUS1", "model": "EX4600",
+      "mgmt": { "ip": "130.250.0.11", "oob": "Console1.AUS1" },
+      "secret_ref": "vault://net/aus1#switch"
+    },
+    {
+      "id": "VM-SW1.AUS1", "role": "switch", "vendor": "juniper", "os": "junos",
+      "site": "AUS1", "model": "QFX5110",
+      "mgmt": { "ip": "130.250.0.12", "oob": "Console1.AUS1" },
+      "secret_ref": "vault://net/aus1#switch"
+    },
+    {
+      "id": "CAS1.AUS1", "role": "aggregation", "vendor": "juniper", "os": "junos",
+      "site": "AUS1",
+      "mgmt": { "ip": "130.250.0.21", "oob": "Console1.AUS1" },
+      "secret_ref": "vault://net/aus1#switch"
+    },
+    {
+      "id": "CAS2.AUS1", "role": "aggregation", "vendor": "juniper", "os": "junos",
+      "site": "AUS1",
+      "mgmt": { "ip": "130.250.0.22", "oob": "Console1.AUS1" },
+      "secret_ref": "vault://net/aus1#switch"
+    }
+  ]
+}

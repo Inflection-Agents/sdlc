@@ -1,0 +1,14 @@
+# Core connector (inventory/credentials/transport-mock/runner/baselines) is
+# stdlib-only and runs offline — selftest.py needs nothing here.
+#
+# Install these to talk to real devices and/or run the MCP server:
+
+scrapli>=2024.1.30          # SSH/telnet transport, multi-vendor (real device I/O)
+scrapli-community>=2024.1.30 # extra platforms (nokia_sros, etc.)
+mcp>=1.2.0                  # the MCP server surface (netcli.server)
+
+# Optional:
+# pyyaml>=6.0               # to load a YAML topology map (JSON works without it)
+# netmiko>=4.3.0            # alternative CLI transport (widest legacy/telnet coverage)
+# nornir>=3.4.0            # inventory + concurrency for large bulk jobs
+# napalm>=5.0.0            # normalized getters where structured output is preferred
