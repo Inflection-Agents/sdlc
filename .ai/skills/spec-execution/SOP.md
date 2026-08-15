@@ -151,6 +151,16 @@ If you do fan out:
   merges — fan-out never makes the run less visible.
 - Clean up every worktree when the group finishes.
 
+Two tasks qualify for concurrent worktree-isolated execution iff all four hold: (a) neither task
+appears in the other's `depends_on` transitive closure; (b) both tasks declare a non-empty
+`touches` — a task declaring none of `touches`/`routing`/`tier`/`risk` has genuinely unknown scope,
+so unknown scope is treated as not disjoint (stays serial), never as vacuously disjoint; (c) with
+both `touches` sets non-empty, they are disjoint under a bidirectional glob-overlap test — a
+narrowly declared concrete path on one side and a broad `**` glob on the other can still cover the
+same files, so test both directions, not just a literal string match; (d) if the spec is
+contract-managed (task PRs declare `produces`/`consumes`), neither task `produces` a contract the
+other `consumes`. Any pair failing any one of the four stays serial.
+
 Two tasks that touch the same file are not parallel candidates, whatever the dependency graph says.
 
 ---
@@ -170,6 +180,28 @@ reviewed. Not per task. Attach the output as evidence; never claim one ran witho
   and after, report the numbers.
 
 If a validation is genuinely not runnable, name it and say why in the PR body. Do not silently skip.
+
+---
+
+### 6.1 Simplify pass — once, before the gate
+
+After the last task merges and §6's end-to-end validation passes, and before the panel's first
+dispatch (§7.2) — not on every §7.3 fix-loop iteration — dispatch a code-simplification agent
+(`isolation: "worktree"`, mandatory — a shared working tree risks the agent's `git checkout` /
+`stash` / `reset` discarding in-flight edits) against a fresh worktree checked out from the
+integration branch's current tip.
+
+If the pass makes any change, fast-forward (or cherry-pick) that single commit from the worktree
+onto the integration branch directly, then remove the worktree. No task branch, no task PR, no
+self-review-then-PR cycle.
+
+When it does, re-run whichever §6 checks that change could have affected — at minimum the
+repo-wide build, any data/transform pipeline check for a dbt-touching (or equivalent) spec, and
+the browser-driven pixel-level verification for any spec touching a user-visible surface — on the
+post-simplify tip, before the panel's first dispatch.
+
+If no code-simplification agent is available in a given executing session, skip the step and say
+so in the integration PR body — the same "genuinely not runnable" fallback §6 already uses.
 
 ---
 

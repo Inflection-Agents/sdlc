@@ -69,6 +69,10 @@ Now dig deeper. One question at a time. Target the gaps:
 
 This is cheaper to catch here than during task decomposition, and much cheaper than discovering it when two PRs conflict at merge time.
 
+**Open-PR id check:** `specs/spec-index.json` and a `specs/` directory listing are both generated from `main` and will not show an id already claimed on an unmerged branch or open PR. Before finalizing a new SPEC id, also run `gh pr list --state open --limit 200 --json number,title,headRefName --jq '.[] | select(.title + .headRefName | test("SPEC-<N>"))'` (substituting the candidate id) to check for an open PR already claiming it; if found, increment past it and re-check.
+
+**Live-correction capture:** If the owner corrects a factual assumption you stated (not merely answers a clarifying question), append a dated note to the intent this spec formalizes in `specs/intents.md`, or mint a new captured intent if the correction reveals an unrelated gap. Open (not merge) this as its own small PR before continuing Phase 1, on whatever bookkeeping branch/lane this repo uses for out-of-band doc updates — opening it is what's within your control; the merge can happen on its own timeline. Do not commit this directly to `main`, and do not rely on remembering to write it down later.
+
 **Monorepo scoping:** If `.ai/project.md` defines workspaces:
 - Which workspaces does this affect?
 - Does it cross workspace boundaries?
@@ -82,6 +86,10 @@ Before proposing solutions, understand what exists:
 - Check `specs/adrs/` — any relevant architecture decisions that constrain the design?
 - Check recent git history in affected areas — any in-flight work that could collide?
 - If domain skills exist for the affected workspaces, read them for technology-specific context
+
+Every non-trivial factual claim reported to the owner, and every such claim that makes it into the spec body, must carry an inline citation — the exact command, file path, or file:line that grounds it — written into the artifact itself. A claim is **non-trivial** (and requires a citation) if it contains: (1) a numeral or count; (2) a file, symbol, script, or command name asserted to exist or not exist; (3) an assertion of current system state ("X is unused," "Y is dead," "Z is enabled," "none/all/every..."); (4) a claim about what another spec, ADR, or invariant says or requires; (5) a claim that something exists, is merged, or has landed — which must name the git ref it was checked against, since "not on `main`" and "does not exist anywhere" are different claims and must not be conflated; or (6) a status field (e.g. `status: deferred`, `status: superseded`) cited as if it also states the reason or cause behind that status — the evidence/rationale field beside it is a separate claim and must be checked independently, not inferred from the status value alone. Connective prose, section transitions, restatements of the user's own stated intent, and narration about this spec-authoring process itself (a review round's findings, a peer session's report, a revision's own history) are exempt — these assert no repo or system state, so there is nothing for an external command to check them against. A claim meeting this test with no citation is not made — investigate first.
+
+Before citing any spec or ADR as current: (1) check its `status` field — `active`/`draft` may be current as-is; `superseded`/`cancelled`/`deprecated`/`archived` is **stale**, continue to step 2; every other value (`done`/`completed`/`snapshot`, or any non-canonical status) is **closed but current** — immutable to further editing, but its contract is in force, so cite it freely rather than treating closed as stale. (2) For a stale record, check its own `superseded_by` field, if it carries one, and follow it to the target, then **re-run step 1 on the target** — a superseded record's successor can itself be superseded, so repeat until reaching a non-stale terminal or a dead end. (3) At any point where the record carries no `superseded_by`, reverse-search: `grep -l '^supersedes: <this-id>' specs/SPEC-*.md specs/adrs/ADR-*.md` to find what replaced it; if nothing is found, treat the topic as having no current successor and say so explicitly rather than silently citing a stale record as current.
 
 Report findings to the user: "I looked at the current code and found X. There's also ADR-003 which constrains Y."
 
@@ -138,6 +146,8 @@ The user picks an approach (or a hybrid, or rejects all and gives new direction)
 Check `specs/spec-index.json` for the highest existing SPEC ID. Increment by 1.
 
 Format: `SPEC-NNN` (zero-padded to 3 digits).
+
+**Open-PR id check:** `specs/spec-index.json` and a `specs/` directory listing are both generated from `main` and will not show an id already claimed on an unmerged branch or open PR. Before finalizing a new SPEC id, also run `gh pr list --state open --limit 200 --json number,title,headRefName --jq '.[] | select(.title + .headRefName | test("SPEC-<N>"))'` (substituting the candidate id) to check for an open PR already claiming it; if found, increment past it and re-check.
 
 ### Step 7: Write the spec
 
@@ -257,6 +267,7 @@ Before presenting the spec to the user, verify:
 - [ ] For refactors: migration section has a rollback plan
 - [ ] All Phase 1 agreements are captured — nothing lost in translation from brainstorming to spec
 - [ ] The Design / Migration sections do not instruct violations of `sdlc-code-standards` — no "leave X deprecated for N cycles," "skip the test because Y," or similar that would override the universal floor. If a genuine exception is needed, the spec documents the exact reason. Spec-level decisions cannot un-enforce universal standards.
+- [ ] Every non-trivial factual claim in this spec (per the Step 3 non-trivial test) carries an inline citation in the spec body — not asserted from memory, and not left in the drafting conversation where no future reader or reviewer can check it (`spec-reviewer` is seeded only by the artifacts listed in its Inputs, never the author's reasoning).
 
 ### Step 10: Review the spec with the user
 

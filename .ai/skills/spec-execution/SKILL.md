@@ -16,7 +16,8 @@ policy; the SOP is the how.
 
 ```
 cut feat/spec-NNN  →  task → verify → self-review → PR → merge → next task  →  validate e2e once
-                          (one at a time, nothing lingers)                   →  ONE integration PR
+                          (one at a time, nothing lingers)                   →  simplify pass (SOP Section 6.1)
+                                                                             →  ONE integration PR
                                                                              →  adversarial panel,
                                                                                 loop till clean
                                                                              →  leave open for human

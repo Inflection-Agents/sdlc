@@ -100,3 +100,24 @@ constraints:
       Producer and consumer contracts stay in parity (run the repo's contract-drift check);
       additive/optional changes preserve compatibility; a breaking shape change bumps the version.
     cite: "inv:INV-CONTRACT-PARITY"
+
+  # ── EXAMPLE: standing integration-gate checklist items, not tied to any one glob ──────────
+  - id: INTEG-NO-VACUOUS-TEST
+    scope: integration
+    lens: integration
+    severity: major
+    cite: "standing review-lens checklist"
+    check: >
+      For every test added or modified in this diff, confirm it actually fails against the
+      pre-fix code (or an equivalent deliberately-broken variant) — a test that passes
+      unconditionally proves nothing about the change it claims to cover.
+
+  - id: INTEG-REGRESSION-PROVEN
+    scope: integration
+    lens: integration
+    severity: major
+    cite: "standing review-lens checklist"
+    check: >
+      For any failing check the author claims is pre-existing (not introduced by this diff),
+      independently confirm it also fails at the merge-base commit before accepting the claim —
+      do not take "pre-existing" on the author's word.
