@@ -22,6 +22,15 @@ it filters devices, runs role-appropriate baselines for a router / switch /
 firewall, does a concurrent baseline across the edge routers, and asserts the
 credential guardrails. 13 checks, zero dependencies.
 
+```bash
+python3 difftest.py
+```
+
+The diff test proves the **baseline diff** on a realistic before/after pair: it
+catches the material change (config swap, a downed BGP peer, an OSPF route-count
+drop, a new alarm, a code-version change) and **suppresses the volatile noise**
+(uptime and timestamps ticking). 10 checks, zero dependencies.
+
 ## Architecture
 
 ```
@@ -36,7 +45,11 @@ credential guardrails. 13 checks, zero dependencies.
                      transport.py                        server.py
               MockTransport (offline)              MCP tools: list_devices,
               ScrapliTransport (real SSH/telnet)   run_commands, run_many,
-                                                   baseline_device, baseline_devices
+                                                   baseline_device, baseline_devices,
+                                                   snapshot, diff
+                            │
+     snapshots.py  ◄────────┘   save/load a capture as JSON
+     diff.py       ◄────────────  two captures -> drift report (signal vs noise)
 ```
 
 - **`inventory.py`** — loads the topology map's `devices:` block; filter by
@@ -50,6 +63,11 @@ credential guardrails. 13 checks, zero dependencies.
 - **`baselines.py`** — role → baseline command set, transcribed from the
   `net-login-and-baseline` skill (Junos router/switch/firewall + a Cisco set).
 - **`runner.py`** — orchestration, with `ThreadPoolExecutor` for connect-to-many.
+- **`snapshots.py`** — persist a capture to JSON (named by device/label/timestamp).
+- **`diff.py`** — two captures → drift report. Config is a set/delete line diff;
+  known commands (BGP, route counts, alarms, version, cluster, sessions) are
+  compared as **metrics**; everything else is normalized (volatile fields masked)
+  then line-diffed. Severity per command: `ok < notable < alert`.
 - **`server.py`** — the MCP server exposing the tools.
 
 ## Run the MCP server (mock)
@@ -86,9 +104,24 @@ MCP tools exposed: `list_devices`, `run_commands`, `run_many`, `baseline_device`
 - The OOB/console path is **recorded** per device (for the change-safety lifeline)
   but never auto-connected.
 
+## The before/after loop (drift report)
+
+```
+snapshot ER1  --label before   →  snapshots/ER1.AUS1_before_<ts>.json
+   ...make the change...
+snapshot ER1  --label after    →  snapshots/ER1.AUS1_after_<ts>.json
+diff before.json after.json    →  drift report (only material change; noise suppressed)
+```
+
+The diff classifies each command `ok / notable / alert` and rolls up to an overall
+verdict. Config changes come out as exact set/delete lines; a downed BGP peer, a
+route-count drop, a new alarm, or a version change come out as `alert`; counters,
+uptimes and timestamps are masked so they never raise a false positive.
+
 ## Status
 
-Prototype. The mock path is proven end-to-end by `selftest.py`. The Scrapli path
-is wired but untested against live gear (by design — no production access here).
-Next: a real vault backend, structured parsing of captured output (NAPALM/Genie),
-and the before/after **diff** that turns two baselines into a drift report.
+Prototype. The mock path — including the **baseline diff** — is proven end-to-end
+by `selftest.py` (13 checks) and `difftest.py` (10 checks). The Scrapli path is
+wired but untested against live gear (by design — no production access here).
+Next: a real vault backend, and structured parsing of captured output
+(NAPALM/Genie) so the diff compares typed fields instead of text where available.

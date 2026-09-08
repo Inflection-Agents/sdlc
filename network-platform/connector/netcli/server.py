@@ -24,7 +24,9 @@ import os
 
 from . import inventory as inv_mod
 from .credentials import CredentialResolver
+from .diff import diff_sessions, render_text
 from .runner import baseline, baseline_many, run, run_on_many
+from .snapshots import load_capture, save_capture, snapshot_path
 
 
 def _load_inventory() -> inv_mod.Inventory:
@@ -92,7 +94,25 @@ def build_server():  # pragma: no cover - requires the mcp package
         return [s.as_dict() for s in
                 baseline_many(inv, resolver, devs, mock=_mock(), max_concurrency=_max_conc())]
 
+    @mcp.tool()
+    def snapshot(host: str, label: str = "baseline") -> dict:
+        """Baseline one device and save the capture to a snapshot file; returns the path."""
+        cap = baseline(inv, resolver, host, mock=_mock()).as_dict()
+        path = save_capture(cap, snapshot_path(_snapshot_dir(), cap["device_id"], label))
+        return {"path": path, "device_id": cap["device_id"], "ok": cap["ok"],
+                "commands": len(cap["results"])}
+
+    @mcp.tool()
+    def diff(before_path: str, after_path: str, show_ok: bool = False) -> dict:
+        """Diff two saved snapshots into a drift report (structured + rendered text)."""
+        cap = diff_sessions(load_capture(before_path), load_capture(after_path))
+        return {"report": cap.as_dict(), "rendered": render_text(cap, show_ok=show_ok)}
+
     return mcp
+
+
+def _snapshot_dir() -> str:
+    return os.environ.get("NETCLI_SNAPSHOT_DIR", "snapshots")
 
 
 def main() -> None:  # pragma: no cover
