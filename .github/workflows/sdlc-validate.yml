@@ -45,6 +45,12 @@ jobs:
               # (ADR-002), which is the moment it actually matters.
               run: node scripts/sdlc/plan-gate.mjs --presence-only specs/tasks/*/_index.yaml specs/archive/tasks/*/_index.yaml
 
+            - name: Archive boundary is correct (no expired spec in the live corpus)
+              # Corpus-wide and enforcing. Green because the arming commit arranged the
+              # corpus; it goes red when a spec reaches a terminal status and is not moved,
+              # or when an archived spec is reopened and not restored.
+              run: node scripts/sdlc/archive-specs.mjs --check
+
             - name: No superseded decision cited as current in always-loaded context
               # Corpus-wide, no `if:` scope. Every other gate here grades changed files,
               # which is exactly how a stale citation survives: the defect sits in a file
