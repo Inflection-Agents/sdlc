@@ -93,6 +93,12 @@ Cut `feat/spec-NNN` from `main` before the first task. **Every change for this s
 and nothing reaches `main` except by merging that branch.** No task PR targets `main`, no direct
 commits to `main`, ever.
 
+Alongside it, create `specs/tasks/SPEC-NNN/DECISIONS.md` from `templates/decisions.md`. This is not
+optional bookkeeping: §8's narrow escalation bar is only safe because almost every judgment call
+gets decided and logged rather than asked, and this log is what makes that reviewable after the fact
+instead of invisible. One entry per task appended after it merges; an `EXECUTIVE DECISION` or
+`SPEC DEVIATION` heading the moment either happens, not batched at the end.
+
 ## 4. Burn the tasks down — serially, by default
 
 **You implement each task inline.** One at a time, in dependency order:
