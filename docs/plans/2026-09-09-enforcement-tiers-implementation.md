@@ -860,6 +860,12 @@ Create `scripts/sdlc/archive-specs.test.mjs` importing `archivable` and `LIVE_ST
 - Clause 2: a spec in `adrBoundIds` is exempt even when `completed`.
 - `superseded` and `cancelled` are archivable, because replaced is not protected.
 - A null or unreadable status is treated as live, not archived.
+- **A companion sub-document must not drag its parent's task tree behind the fence.** A file carrying
+  `parent_spec` (rather than its own `id`) is a companion; the task tree is resolved from the
+  FILENAME's id, so archiving a companion on its own would archive a LIVE parent's tasks with no
+  warning. Upstream shipped this as a blocker and fixed it in `71eaa135f`. This repo has no companion
+  specs today (`grep -l parent_spec specs/*.md` is empty), so add the exclusion as a guard plus a
+  fixture test rather than as a fix to an observed failure.
 - **Status is read from the leading frontmatter block ONLY.** `specs/SPEC-004-artifact-completeness-ports.md:98`
   carries a template line `status: open | resolved | wontfix` in its BODY, so a naive `^status:` grep
   returns two values for that file. Add a test that a document whose frontmatter says `active` and whose
@@ -1258,6 +1264,11 @@ Create `scripts/sdlc/complete-spec.test.mjs` importing `uncheckedCriteria` and `
 - An unchecked criterion blocks completion and names the criterion in `blocking`.
 - `superseded` and `cancelled` are left alone: both return `completable: false` even with every box checked, because replaced is not finished.
 - A spec with no `## Success criteria` section refuses rather than guessing.
+- **An EMPTY `## Success criteria` section refuses.** Zero criteria is not zero unchecked criteria,
+  and this is the one input the gate exists to hold on. Upstream shipped this as a blocker and fixed
+  it in `71eaa135f`; a section present but containing no `- [ ]` / `- [x]` items must return
+  `completable: false`.
+- Criteria inside a fenced code block are not real criteria and must not be counted.
 
 ```bash
 node --test scripts/sdlc/complete-spec.test.mjs
