@@ -274,7 +274,7 @@ integration gate.**
     | Reviewer-envelope schema validation | **PORT** → `scripts/sdlc/validate-review-envelope.mjs` | Unowned, a malformed envelope folds to zero findings and reads as a clean accept — the silent-accept path. Exit 0 valid / 2 abstained / 3 malformed-or-ungrounded. |
     | `ALLOWED_PREFIX` grounding check | **PORT** → the same validator (`PR_SIDE_PREFIXES`) | A blocking finding with an ungrounded citation is a contract violation. `prefix-parity.test.mjs` re-anchors to validator ↔ `review-primitives.md` ↔ schema. |
     | Severity→action routing policy | **KEEP** (`review-primitives.md`) | The policy was never in the engine; only its invoker was. The invoker is now the dispatching agent. |
-    | Capped fix loop (≤3) | **KEEP per task, judgment at the gate** | Per-task fix loops are gone with per-task review. At the gate there is no round cap: the same finding surviving two rounds escalates. |
+    | Capped fix loop (≤3) | **SUPERSEDED by ADR-004 at the gate** | Per-task fix loops are gone with per-task review. At the gate there is no round cap: the same finding surviving two rounds escalates. **ADR-004 (2026-09-09) reverses this row only: the gate is capped at three rounds and survivors are disclosed.** |
     | Mandatory Tier-0 `tester` gate | **DROP** (accepted loss) | Verification folds into the executor. There is no automatic pre-review gate, because there is no per-task review to gate. |
     | `validateContract` as an executing gate | **DROP as an executing gate** | Decomposition-time validation is unaffected — a task with no `touches` is a decomposition defect, caught there, not discovered mid-run. |
     | `integration_strategy: direct` (SPEC-005) | **DROP** (decision 6) | The integration branch is now unconditional. |
