@@ -32,7 +32,7 @@ node --test scripts/sdlc/*.test.mjs .claude/hooks/__tests__/*.test.mjs
 **Commit trailer for every commit in this plan:**
 
 ```
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 ```
 
 ---
@@ -85,7 +85,7 @@ SPEC-004 and SPEC-005 read completed in their own frontmatter and active in
 the index; SPEC-006 had no row. Corpus-wide gates cannot arm on a corpus that
 disagrees with itself.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
 ## Task 2: Mark ADR-001 and ADR-002 accepted
@@ -125,7 +125,7 @@ git commit -m "sdlc: ADR-001 and ADR-002 are accepted, not proposed
 Both describe mechanisms shipped in scripts/sdlc/ under SPEC-006, which is
 completed. A proposed ADR describing production code is a stale record.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -189,7 +189,7 @@ things while fixing nine'.
 ADR-003's superseded_by stays empty on purpose: one row is reversed, not the
 decision. Survivors are disclosed in the PR body rather than ground on.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
 ## Task 4: Change the exit condition at its source and regenerate
@@ -252,7 +252,7 @@ The exit condition is the source; .ai/sdlc.md and the SKILL.md handoff region
 are generated from it. Adds the ADR-004 cap and the disclosure requirement, and
 drops the superseded 'surviving two panel rounds' halt trigger.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
 ## Task 5: Hand-edit the five non-generated sites
@@ -340,7 +340,7 @@ The trigger lived in eight places: two regenerated from the state machine, one
 in the ADR record, and these five. The hook's copy is split across two
 template-literal lines, so a grep for the whole phrase does not find it.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
 ## Task 6: Reconcile `review-primitives.md` with the shipped `altitude` field
@@ -413,7 +413,7 @@ SPEC-001 is completed and therefore closed to amendment, so this lands as a v1.3
 Changelog annotation under the extension pattern review-primitives.md:41
 authorizes.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
 ## Task 7: Express the lens fold as registry data
@@ -475,7 +475,7 @@ One dispatch per distinct resolved agent. Which lenses fold is a property of the
 registry's agent: field, so adding or exempting a specialist stays the one-line
 registry edit ADR-001 made it.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
 ## Task 8: Add the `DECISIONS.md` template and declare it in the schema
@@ -538,7 +538,7 @@ git commit -m "sdlc: per-run decision log - template, schema entry, and the skil
 The narrowed escalation bar trades asking for deciding-and-logging. Without the
 log that trade is invisible, so the log is the half that makes it reviewable.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -655,7 +655,7 @@ globToRe and applicableConstraints join the existing dependency-free registry
 reader rather than forking a second one. Integration-scope rows are excluded: a
 single edit is not the artifact they grade.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
 ## Task 10: Wire injection into the write-time hook
@@ -773,7 +773,7 @@ before matching runs, so injection fires here on scripts/ and bootstrap.sh and
 little else. The value is in consuming repos, which is why the next commit adds
 a canary rather than trusting it silently.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
 ## Task 11: CI canary so injection cannot degrade to a silent no-op
@@ -828,7 +828,7 @@ The feature is advisory and swallows its own errors, so a moved module or a
 renamed registry key would disable it permanently with no signal. The canary
 asserts a known row reaches a known path.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -902,7 +902,7 @@ SPEC-002 and SPEC-006, and the ids are derived at runtime rather than listed.
 Archived specs nest at specs/archive/specs/ so the pruned-directory rule covers
 them; a flat layout leaks to rg -g '*.md'.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
 ## Task 13: `resolve.mjs` — keep the archive addressable
@@ -951,7 +951,7 @@ The fence only pays if the archive stays addressable, and ids are how the corpus
 refers to itself. Reads the filesystem directly, so ripgrep's ignore rules do not
 apply.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
 ## Task 14: Arm it, and carry the collateral in the same commit
@@ -1065,7 +1065,7 @@ rewritten, and the two workflow globs extended to the archive root. Both gates
 pass on an unmatched glob by design, so a shrunken input set would have produced
 no CI signal at all.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
 ## Task 15: Point readers at the resolver
@@ -1114,7 +1114,7 @@ git commit -m "sdlc: document the resolver everywhere the corpus points at an id
 
 An addressing scheme nothing references is not an addressing scheme.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -1186,7 +1186,7 @@ passes. Walks with lstat so the .claude/skills symlink is not double-counted.
 Warn-only because this repo has no superseded ADRs, so it grades an empty set.
 Consuming repos switch it to --enforce.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
 ## Task 17: `archive-specs --check` as an enforcing gate
@@ -1227,7 +1227,7 @@ git commit -m "sdlc: enforce the archive boundary corpus-wide
 Unscoped on purpose. Every other check here grades changed files, which is
 exactly how an expired document in a file nobody touches survives.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
 ## Task 18: `complete-spec.mjs` — the grading half only
@@ -1281,7 +1281,7 @@ land such a change, so a writer here would produce bookkeeping PRs nobody merges
 
 superseded and cancelled are left alone; replaced is not finished.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
 ## Task 19: Merge-time workflow that comments the verdict back
@@ -1331,7 +1331,7 @@ Gates on pull_request.head.ref. head_ref is not a field on the webhook payload;
 it casts to '' and the job silently never runs, which is the bug upstream shipped
 and fixed in 597a180a7.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
 ---
