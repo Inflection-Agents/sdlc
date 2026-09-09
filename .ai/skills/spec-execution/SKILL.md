@@ -166,9 +166,9 @@ When every exit criterion holds — verified, not assumed:
 ## 8. Escalate instead of spinning
 
 Set `status: escalated`, put why in `reason`, surface it, stop. Escalate on: security, data-loss or
-payment risk (hard stop); a decision that is the owner's; the same integration finding surviving two
-panel rounds; the amendment cap (`spec.version − 1 ≥ 3`); a task that cannot land and cannot be
-fixed at the root.
+payment risk (hard stop); a decision that is the owner's; the amendment cap
+(`spec.version − 1 ≥ 3`); a task that cannot land and cannot be fixed at the root. The gate itself
+is capped at three rounds (ADR-004) and survivors are disclosed, not escalated.
 
 Two signals route to a judgment phase rather than halting the run: a `task:scope` blocker goes to
 `task-decomposition` for a re-plan, and a `spec:*` blocker goes to `spec-amendment`. A `spec:gap`

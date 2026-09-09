@@ -236,14 +236,21 @@ with `node scripts/sdlc/validate-review-envelope.mjs <file>` — exit `0` fold t
 abstained (escalate), `3` malformed or absent (re-dispatch or escalate). A malformed envelope is
 never a clean review. Severity → action is `review-primitives.md`; do not freehand it.
 
-### 7.3 Loop until merge-ready
+### 7.3 Loop until merge-ready — at most three rounds
 
 Fix blockers and majors at the root, then **re-dispatch the panel** — not a spot-check of the fix.
-Repeat until no blocker or major survives. Nits and suggestions can be recorded in the PR body and
-accepted.
+Repeat until no blocker or major survives, or until round 3 completes.
 
-There is no fix-round cap here; the cap is judgment. If the same finding survives two rounds, or a
-round reveals the spec itself is wrong, escalate instead of grinding.
+**The cap is three rounds (ADR-004).** A fourth round is not run. Whatever blocker or major
+survives round 3 goes into a `## Disclosed, not fixed` section of the integration PR body: one
+line per finding, naming its criterion, its location, and why it was not closed. The PR is still
+left open for the human, who now decides with the survivors visible rather than after an
+unbounded grind.
+
+If a round reveals the spec itself is wrong, that is a `spec:*` finding and routes to
+`spec-amendment`, not to another round.
+
+Nits and suggestions can be recorded in the PR body and accepted.
 
 ### 7.4 Stop
 
@@ -258,7 +265,6 @@ Set the goal file to `status: escalated`, put the reason in `reason`, surface it
 
 - Security, data-loss or payment risk — hard stop.
 - A decision that is the owner's: priority, scope, a tradeoff the spec does not settle.
-- The same integration finding surviving two full panel rounds.
 - Amendment cap: `spec.version − 1 ≥ 3`.
 - A task that cannot land and cannot be fixed at the root.
 
