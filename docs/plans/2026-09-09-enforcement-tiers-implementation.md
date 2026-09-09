@@ -860,6 +860,10 @@ Create `scripts/sdlc/archive-specs.test.mjs` importing `archivable` and `LIVE_ST
 - Clause 2: a spec in `adrBoundIds` is exempt even when `completed`.
 - `superseded` and `cancelled` are archivable, because replaced is not protected.
 - A null or unreadable status is treated as live, not archived.
+- **Status is read from the leading frontmatter block ONLY.** `specs/SPEC-004-artifact-completeness-ports.md:98`
+  carries a template line `status: open | resolved | wontfix` in its BODY, so a naive `^status:` grep
+  returns two values for that file. Add a test that a document whose frontmatter says `active` and whose
+  body contains a second `status:` line is NOT archivable.
 
 ```bash
 node --test scripts/sdlc/archive-specs.test.mjs
@@ -870,6 +874,8 @@ Expected: FAIL, module not found.
 **Step 2: Implement the pure core first**
 
 Export `LIVE_STATUSES`, `archivable(specs, protections)`, plus `collectCitedIds(root)` and `collectAdrBoundIds(root)` that build the two protection sets by reading `.ai/skills/**` and `specs/adrs/*.md`.
+
+Read status by matching the leading `---` block first and searching for `status:` inside it, never with a bare `^status:` scan of the whole file. Same rule for the ADR `spec:` field in `collectAdrBoundIds`.
 
 Modes: default moves with `git mv` (which stages the rename itself), `--check` exits 1 listing misplaced specs, `--dry-run` prints the plan. Archived specs go to `specs/archive/specs/` and task trees to `specs/archive/tasks/SPEC-NNN/`. The extra `specs/` level is deliberate: it makes the pruned-directory rule cover archived spec bodies so a `rg -g '*.md'` override cannot surface them.
 
