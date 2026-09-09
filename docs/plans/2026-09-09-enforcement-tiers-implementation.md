@@ -1135,7 +1135,9 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 **Context.** Scoped by blast radius, not by document. A superseded ADR cited as current in an always-loaded path is a hard failure; the same citation in a spec body or a test name is reported and passes, because tests and comments legitimately name retired ADRs as historical labels, and a gate that cries wolf gets deleted.
 
-**Honest status:** in a 3-ADR repo with nothing superseded, this gate is vacuously green and cannot go red until someone supersedes an ADR. It ships warn-only for that reason, following the precedent already at `sdlc-validate.yml:52-58`. It becomes meaningful in a consuming repo.
+**Status after Task 3.** ADR-003 now carries a superseded row pointing at ADR-004, so this gate has exactly one real input to grade and is no longer vacuous. It therefore ships **enforcing on always-loaded paths**: a superseded decision cited as current in `.ai/**` or a skill fails the build. The blast-radius split is unchanged — the same citation in a spec body or a test name still only reports.
+
+If it goes red on first run, that is the gate working: some skill is citing ADR-003's rejected row as live authority, which is the defect it exists to catch. Fix the citation, do not weaken the gate.
 
 **Step 1: Write the failing tests**
 
@@ -1157,7 +1159,7 @@ Export `blastRadius(path)` returning `'fail'` or `'report'`, and `isAcknowledged
 
 Walk the corpus with `lstatSync`, not `statSync`, and skip symlinked directories. `.claude/skills` is a symlink to `.ai/skills` in this repo, and a symlink-following walk reports every skill finding twice under two paths for one underlying file.
 
-`--enforce` makes `report` findings fail too. Default is warn.
+Default behaviour fails on a `fail`-radius hit and exits 0 on `report`-radius hits. `--strict` additionally fails on `report` hits, for a consuming repo that wants the tighter setting.
 
 **Step 3: Run**
 
@@ -1173,9 +1175,10 @@ Expected: tests pass; the corpus run reports whatever it finds and exits 0.
 Add to `.github/workflows/sdlc-validate.yml` with no `if:` scope, commented in the style of the block at lines 49-53:
 
 ```yaml
-            - name: No superseded decision cited as current (warn — this repo has no superseded ADRs yet)
-              # Reports, never fails. Vacuously green until an ADR is superseded; a
-              # consuming repo switches this to --enforce once its corpus has history.
+            - name: No superseded decision cited as current in always-loaded context
+              # Fails on a stale citation in .ai/** or a skill; reports only for a spec
+              # body or a test name, where naming a retired ADR is legitimate history.
+              # ADR-003's superseded row is this gate's first real input.
               run: node scripts/sdlc/check-stale-citations.mjs
 ```
 
@@ -1189,8 +1192,8 @@ A superseded decision cited as current in always-loaded context is the failure
 worth catching; the same citation in a spec body or a test name is history and
 passes. Walks with lstat so the .claude/skills symlink is not double-counted.
 
-Warn-only because this repo has no superseded ADRs, so it grades an empty set.
-Consuming repos switch it to --enforce.
+Enforcing: ADR-003's superseded row is its first real input, so the reference
+no longer ships a corpus-wide gate it has never seen go red.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
