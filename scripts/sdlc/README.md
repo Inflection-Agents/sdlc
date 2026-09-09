@@ -172,6 +172,18 @@ schema ↔ the `pr-reviewer` GROUNDING block). `node --test
 .claude/hooks/__tests__/*.test.mjs` covers the goal leash and the merge
 carve-out. Both suites are dependency-free and hermetic.
 
+## `archive-specs.mjs` and `resolve.mjs`
+
+`archive-specs.mjs` moves specs whose status has reached a terminal value under
+`specs/archive/`, with their task trees, using `git mv`. Two denylist clauses,
+both derived at runtime: a spec a live skill names, and a spec that is the `spec:`
+binding of a non-archived ADR. Modes: default moves, `--check` exits 1 when the
+boundary is wrong (this is the CI gate), `--dry-run` prints the plan.
+
+`resolve.mjs` maps an id to its file, live or archived, reading the filesystem
+directly so ripgrep's ignore rules do not apply. It is what keeps the fence a
+filter rather than a trap: ids are how the corpus refers to itself.
+
 ## Forthcoming validators
 
 The framework also intends to ship (documented here as forthcoming) a

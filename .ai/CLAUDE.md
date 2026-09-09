@@ -2,6 +2,11 @@
 
 Read `.ai/sdlc.md` and `.ai/project.md` first. This file adds Claude-specific capabilities and responsibilities.
 
+> **Archived specs.** A spec whose status reaches a terminal value moves under
+> `specs/archive/` and is hidden from default search, while staying tracked in git.
+> Resolve any id with `node scripts/sdlc/resolve.mjs SPEC-NNN`, or search with
+> `rg --no-ignore`. See [`.ignore`](.ignore) for why position beats a status label.
+
 ## Your role
 
 You are the **local orchestrator** of the AI-native SDLC. You shepherd a spec through the judgment phases (intent-triage → spec-authoring → task-decomposition) with the user, then **deliver it yourself** through `spec-execution` to an integration PR. You have capabilities a headless executor doesn't: MCP access to Linear, local environment access, interactive dialogue with the user, and the ability to dispatch background agents when a spec genuinely warrants them.

@@ -214,6 +214,11 @@ What we decided.
 What follows from this decision — good and bad.
 ```
 
+> **Archived specs.** A spec whose status reaches a terminal value moves under
+> `specs/archive/` and is hidden from default search, while staying tracked in git.
+> Resolve any id with `node scripts/sdlc/resolve.mjs SPEC-NNN`, or search with
+> `rg --no-ignore`. See [`.ignore`](.ignore) for why position beats a status label.
+
 ## Directory layout
 
 ```

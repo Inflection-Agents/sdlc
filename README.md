@@ -27,6 +27,11 @@ intent-triage → spec-authoring → task-decomposition │ spec-execution → s
 
 The single source of truth for the phases is [`specs/sdlc-state-machine.yaml`](specs/sdlc-state-machine.yaml); the per-spec `phase:` block in each `_index.yaml` records where a spec is and makes the process resumable.
 
+> **Archived specs.** A spec whose status reaches a terminal value moves under
+> `specs/archive/` and is hidden from default search, while staying tracked in git.
+> Resolve any id with `node scripts/sdlc/resolve.mjs SPEC-NNN`, or search with
+> `rg --no-ignore`. See [`.ignore`](.ignore) for why position beats a status label.
+
 ## Documents
 
 | Doc | Purpose |
