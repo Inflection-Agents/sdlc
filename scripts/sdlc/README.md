@@ -172,6 +172,22 @@ schema ↔ the `pr-reviewer` GROUNDING block). `node --test
 .claude/hooks/__tests__/*.test.mjs` covers the goal leash and the merge
 carve-out. Both suites are dependency-free and hermetic.
 
+## `check-stale-citations.mjs`
+
+Corpus-wide, no changed-file scope: the defect this catches sits in files nobody is
+editing. Scoped by blast radius — a wholly superseded decision cited as current in
+always-loaded context (`.ai/**`, `.claude/{agents,hooks,skills}/**`) fails the build;
+the same citation in a spec body, a plan or a test only reports. `--strict` fails on
+both. Detection is frontmatter-only (`superseded_by`), so a row-level reversal is out
+of scope: no automated check can tell which of an ADR's rows a citation relies on.
+
+## `complete-spec.mjs`
+
+Grades whether a spec's `## Success criteria` are all checked. Exit 0 completable,
+1 not, 2 on a bad argument or missing spec. It never writes — whether the evidence
+substantiates a criterion is judgment. An empty criteria section refuses, because zero
+criteria is not zero unchecked criteria.
+
 ## `archive-specs.mjs` and `resolve.mjs`
 
 `archive-specs.mjs` moves specs whose status has reached a terminal value under

@@ -81,19 +81,30 @@ function deny(reason) {
     process.exit(BLOCK)
 }
 
+/** Guidance is unbounded (a downstream repo supplies its own registry prose). */
+const MAX_GUIDANCE = 8192
+
 function allow(guidance) {
-    if (guidance) {
-        process.stdout.write(
-            JSON.stringify({
-                hookSpecificOutput: {
-                    hookEventName: 'PreToolUse',
-                    permissionDecision: 'allow',
-                    additionalContext: guidance
-                }
-            })
-        )
-    }
-    process.exit(ALLOW)
+    if (!guidance) process.exit(ALLOW)
+
+    const clamped =
+        guidance.length > MAX_GUIDANCE
+            ? guidance.slice(0, MAX_GUIDANCE) + '\n… (truncated; see review-constraints.yaml)'
+            : guidance
+
+    // process.exit() discards an unflushed pipe write, and stdout to a pipe is async on
+    // POSIX - a large payload was truncated mid-string, so the hook emitted malformed
+    // JSON. Set exitCode and return instead, letting the runtime drain stdout.
+    process.stdout.write(
+        JSON.stringify({
+            hookSpecificOutput: {
+                hookEventName: 'PreToolUse',
+                permissionDecision: 'allow',
+                additionalContext: clamped
+            }
+        })
+    )
+    process.exitCode = ALLOW
 }
 
 /**
@@ -286,13 +297,13 @@ async function main() {
 
     // Implementation-code edit with no active task context.
     if (isImplementationCode(rel)) {
-        if (hasActiveTask(root)) allow(await constraintGuidance(rel, root)) // active task → fine
+        if (hasActiveTask(root)) return allow(await constraintGuidance(rel, root)) // active task → fine
 
         // No active task. Honor a logged override if present.
         const reason = readOverride(root, sessionId)
         if (reason) {
             recordBypass(root, { sessionId, rel, reason })
-            allow(await constraintGuidance(rel, root))
+            return allow(await constraintGuidance(rel, root))
         }
 
         deny(
@@ -309,7 +320,7 @@ async function main() {
     // Process-artifact and out-of-repo paths are never gated — but the author still
     // gets the laws for the path, which is the only place injection fires in a repo
     // that is mostly process artifacts.
-    allow(await constraintGuidance(rel, root))
+    return allow(await constraintGuidance(rel, root))
 }
 
 main().catch(() => allow()) // fail open

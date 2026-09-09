@@ -8,7 +8,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -35,9 +35,10 @@ const edit = (path, sessionId = 'injection-test') => ({
     cwd: ROOT
 })
 
-// A path the SHIPPED registry actually registers a constraint against. If the
-// registry's illustrative rows are ever replaced, this is the line to update.
-const MATCHED_PATH = 'packages/shared/src/core/example.ts'
+// A REAL path in this repo that the shipped registry registers a constraint against.
+// It was previously a fictional `packages/shared/...` path, which proved the wiring but
+// never the shipped behaviour: injection fired on zero real files.
+const MATCHED_PATH = 'scripts/sdlc/resolve.mjs'
 
 test('CANARY: the shipped registry and the matcher agree on a real path', () => {
     // The whole feature is advisory and swallows its own errors, so a moved module,
@@ -55,6 +56,8 @@ test('an override-bypassed edit gets the registered laws as additionalContext', 
     // branch with no active task, which is what CI runs on.
     const sessionId = `injection-${process.pid}`
     const overrideFile = join(ROOT, '.claude', `.sdlc-override-${sessionId}`)
+    const logFile = join(ROOT, '.claude', '.sdlc-override-log')
+    const priorLog = existsSync(logFile) ? readFileSync(logFile, 'utf8') : null
     writeFileSync(overrideFile, 'testing constraint injection')
     try {
         const out = run(edit(MATCHED_PATH, sessionId))
@@ -63,10 +66,13 @@ test('an override-bypassed edit gets the registered laws as additionalContext', 
         assert.equal(parsed.hookSpecificOutput.hookEventName, 'PreToolUse')
         assert.equal(parsed.hookSpecificOutput.permissionDecision, 'allow')
         assert.match(parsed.hookSpecificOutput.additionalContext, /cite:/)
-        assert.match(parsed.hookSpecificOutput.additionalContext, /INV-CORE-PURITY/)
+        assert.match(parsed.hookSpecificOutput.additionalContext, /SDLC-GATE-TESTED/)
     } finally {
         rmSync(overrideFile, { force: true })
-        rmSync(join(ROOT, '.claude', '.sdlc-override-log'), { force: true })
+        // The bypass log is an audit trail the hook's own docstring calls "visible,
+        // never silent" - restore whatever was there rather than deleting it.
+        if (priorLog === null) rmSync(logFile, { force: true })
+        else writeFileSync(logFile, priorLog)
     }
 })
 

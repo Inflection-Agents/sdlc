@@ -19,7 +19,7 @@
  *   node scripts/sdlc/check-stale-citations.mjs            # fail on always-loaded hits
  *   node scripts/sdlc/check-stale-citations.mjs --strict   # fail on reported hits too
  */
-import { existsSync, lstatSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -28,6 +28,9 @@ const read = (p) => readFileSync(p, 'utf8')
 
 /** Paths loaded into an agent's context on every run, where a stale citation acts. */
 const ALWAYS_LOADED = [/^\.ai\//, /^\.claude\/(agents|hooks|skills)\//, /^(AGENTS|CLAUDE|GEMINI)\.md$/]
+
+/** Tests name retired decisions as fixtures and labels; that is history, not a defect. */
+const IS_TEST = /(^|\/)__tests__\/|\.test\.[cm]?[jt]s$/
 
 /** Where an id's own supersession record lives; grading it against itself is noise. */
 const SELF_RECORD = /^specs\/adrs\//
@@ -42,13 +45,20 @@ const SELF_RECORD = /^specs\/adrs\//
 export function blastRadius(rel) {
     const p = String(rel).replace(/\\/g, '/')
     if (SELF_RECORD.test(p)) return 'skip'
+    if (IS_TEST.test(p)) return 'report'
     if (ALWAYS_LOADED.some((re) => re.test(p))) return 'fail'
     return 'report'
 }
 
-/** A citation that names its successor is acknowledged, not stale. */
+/**
+ * A citation that names its successor on the same line is acknowledged, not stale.
+ *
+ * Anchored on a word boundary so `ADR-4` does not acknowledge inside `ADR-40`, the
+ * same boundary discipline `resolve.mjs` applies to id matching.
+ */
 export function isAcknowledged(line, staleId, successorId) {
-    return String(line).includes(successorId)
+    const esc = String(successorId).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    return new RegExp(`\\b${esc}\\b`).test(String(line))
 }
 
 /**
@@ -168,6 +178,22 @@ function main(argv) {
     process.stdout.write(`stale-citation check OK (${superseded.size} superseded decision(s) tracked)\n`)
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-    main(process.argv.slice(2))
+/**
+ * Whether this file was invoked directly.
+ *
+ * `import.meta.url` is already realpath'd by Node; `process.argv[1]` is not, so a raw
+ * comparison silently turns the CLI into a no-op that still exits 0 when invoked
+ * through a symlinked path or symlinked ancestor directory. This repo fixed that once
+ * already; `cli-invocation.test.mjs` is the regression suite.
+ */
+function isMain(metaUrl) {
+    const entry = process.argv[1]
+    if (!entry) return false
+    try {
+        return realpathSync(entry) === realpathSync(fileURLToPath(metaUrl))
+    } catch {
+        return resolve(entry) === fileURLToPath(metaUrl)
+    }
 }
+
+if (isMain(import.meta.url)) main(process.argv.slice(2))

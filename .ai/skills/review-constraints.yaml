@@ -42,6 +42,22 @@ baseLenses:
   _default: [ac-completeness, conventions, adversarial]
 
 constraints:
+  # ── A row that matches THIS repo, so write-time injection is exercised end to end ─────────
+  # Every other row below is illustrative and matches nothing here, which meant the
+  # feature's only proof was a fictional path. Replace or delete this row in a consuming
+  # repo; keep one row that matches a real path so the canary stays meaningful.
+  - id: SDLC-GATE-TESTED
+    scope: task
+    when: { touches: ["scripts/sdlc/**", ".claude/hooks/**"] }
+    lens: conventions
+    agent: task-reviewer
+    severity: major
+    check: >
+      A gate or hook here is a contract other repos copy. It must fail loudly rather than
+      silently: guard direct invocation with isMain() (see cli-invocation.test.mjs), and
+      never let a catch turn a broken dependency into a passing no-op.
+    cite: "std:gate-fails-loudly"
+
   # ── EXAMPLE: a hard architectural invariant on a "pure core" / shared package ──────────────
   - id: INV-CORE-PURITY
     scope: task

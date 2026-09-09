@@ -24,7 +24,7 @@
  *   node scripts/sdlc/archive-specs.mjs --dry-run  # print the plan only
  */
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -244,10 +244,23 @@ function main(argv) {
     process.stdout.write(`archived ${toArchive.length} spec(s), restored ${toRestore.length}.\n`)
 }
 
-if (import.meta.url === pathToFileURLSafe(process.argv[1])) main(process.argv.slice(2))
-
-/** `pathToFileURL` without the import, so this file stays runnable and importable. */
-function pathToFileURLSafe(p) {
-    if (!p) return ''
-    return new URL(`file://${resolve(p)}`).href
+/**
+ * Whether this file was invoked directly.
+ *
+ * `import.meta.url` is already realpath'd by Node; `process.argv[1]` is not, so a raw
+ * comparison silently turns the CLI into a no-op that still exits 0 when invoked
+ * through a symlinked path or symlinked ancestor directory. This repo fixed that once
+ * already; `cli-invocation.test.mjs` is the regression suite.
+ */
+function isMain(metaUrl) {
+    const entry = process.argv[1]
+    if (!entry) return false
+    try {
+        return realpathSync(entry) === realpathSync(fileURLToPath(metaUrl))
+    } catch {
+        return resolve(entry) === fileURLToPath(metaUrl)
+    }
 }
+
+if (isMain(import.meta.url)) main(process.argv.slice(2))
+

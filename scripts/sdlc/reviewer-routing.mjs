@@ -64,7 +64,10 @@ function scalar(raw) {
  * Returns [] on anything it cannot read.
  */
 export function parseConstraints(text) {
-    const lines = String(text).split('\n')
+    // Normalize CRLF once: every row regex below ends `$` without the `m` flag, so on a
+    // Windows checkout (core.autocrlf=true) not one line would match and the registry
+    // would silently parse to zero rows.
+    const lines = String(text).replace(/\r\n?/g, '\n').split('\n')
     const out = []
     let inList = false
     let current = null
@@ -127,7 +130,7 @@ export function enrich(rows, text) {
     const extras = parseRowExtras(text)
     return rows.map((c) => ({
         ...c,
-        when: { ...(c.when ?? {}), touches: touchesById.get(c.id) ?? [] },
+        when: { ...(c.when ?? {}), touches: touchesById.get(c.id) ?? c.when?.touches ?? [] },
         check: c.check ?? extras.get(c.id)?.check ?? null,
         cite: c.cite ?? extras.get(c.id)?.cite ?? null
     }))
@@ -144,11 +147,12 @@ export function enrich(rows, text) {
  */
 export function parseRowExtras(text) {
     const out = new Map()
-    const lines = String(text).split('\n')
+    const lines = String(text).replace(/\r\n?/g, '\n').split('\n')
     const indentOf = (l) => l.match(/^(\s*)/)[1].length
     let id = null
     let collecting = null
     let keyIndent = 0
+    let skipIndent = null
     const row = (i) => {
         if (!out.has(i)) out.set(i, { check: null, cite: null })
         return out.get(i)
@@ -158,6 +162,10 @@ export function parseRowExtras(text) {
         collecting = null
     }
     for (const line of lines) {
+        if (skipIndent !== null) {
+            if (line.trim() === '' || indentOf(line) > skipIndent) continue
+            skipIndent = null
+        }
         if (collecting) {
             if (line.trim() === '' || indentOf(line) > keyIndent) {
                 if (line.trim() !== '') collecting.push(line.trim())
@@ -171,10 +179,18 @@ export function parseRowExtras(text) {
             id = item[1].trim().replace(/^["']|["']$/g, '')
             continue
         }
-        const opens = line.match(/^(\s*)check\s*:\s*[>|]/)
-        if (opens && id) {
-            keyIndent = opens[1].length
-            collecting = []
+        const opensAny = line.match(/^(\s*)[a-z_]+\s*:\s*[>|]/i)
+        if (opensAny) {
+            const isCheck = /^\s*check\s*:/.test(line)
+            if (isCheck && id) {
+                keyIndent = opensAny[1].length
+                collecting = []
+            } else {
+                // Any OTHER block scalar is prose too. Without this, a `cite:` line
+                // inside a `notes: |` block is captured as the row's citation - and a
+                // reviewer grounds a blocker on that value.
+                skipIndent = opensAny[1].length
+            }
             continue
         }
         const cite = line.match(/^\s*cite\s*:\s*(.+)$/)
@@ -196,9 +212,16 @@ export function parseRowExtras(text) {
 export const globToRe = (g) =>
     new RegExp(
         '^' +
-            g.replace(/\*\*|\*|[.+^${}()|[\]\\?]/g, (m) =>
-                m === '**' ? '.*' : m === '*' ? '[^/]*' : '\\' + m
-            ) +
+            // A LEADING `**/` matches zero or more segments, which is what git,
+            // minimatch and fs.globSync all do. Compiling it as `.*\/` would require at
+            // least one directory, so `**/domain/**` would miss a root-level `domain/`
+            // while check-review-constraint-globs (which uses globSync) called the same
+            // glob healthy - two engines disagreeing about the same registry row.
+            g.replace(/^\*\*\//, '\u0000')
+                .replace(/\*\*|\*|[.+^${}()|[\]\\?]/g, (m) =>
+                    m === '**' ? '.*' : m === '*' ? '[^/]*' : '\\' + m
+                )
+                .replace(/\u0000/, '(?:.*\\/)?') +
             '$'
     )
 
@@ -214,7 +237,7 @@ export const applicableConstraints = (rows, relPath) =>
     (Array.isArray(rows) ? rows : []).filter((c) => {
         if ((c?.scope ?? 'task') !== 'task') return false
         const globs = c?.when?.touches
-        return Array.isArray(globs) && globs.some((g) => globToRe(g).test(relPath))
+        return Array.isArray(globs) && globs.some((g) => typeof g === 'string' && globToRe(g).test(relPath))
     })
 
 function main(argv) {

@@ -17,7 +17,7 @@
  * Usage:
  *   node scripts/sdlc/complete-spec.mjs SPEC-003    # exit 0 completable, 1 not
  */
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -34,13 +34,20 @@ const GRADABLE = new Set(['active'])
  * documentation block decide whether a spec is done.
  */
 function criteriaSection(body) {
-    const lines = String(body).split('\n')
+    // Strip fences from the WHOLE document before locating the heading. Doing it after
+    // the slice defeats the purpose twice over: a fenced template heading above the
+    // real section is found first, and a fence opened inside the section but closed
+    // after the next `##` is orphaned by the slice, so the strip becomes a no-op and
+    // its example criteria are graded.
+    const lines = String(body)
+        .replace(/\r\n?/g, '\n')
+        .replace(/```[\s\S]*?```/g, '')
+        .split('\n')
     const start = lines.findIndex((l) => /^##\s+Success criteria\s*$/i.test(l.trim()))
     if (start === -1) return null
     const rest = lines.slice(start + 1)
     const end = rest.findIndex((l) => /^##\s+/.test(l))
-    const section = (end === -1 ? rest : rest.slice(0, end)).join('\n')
-    return section.replace(/```[\s\S]*?```/g, '')
+    return (end === -1 ? rest : rest.slice(0, end)).join('\n')
 }
 
 /** Every unchecked `- [ ]` item in the success-criteria section, text only. */
@@ -106,7 +113,8 @@ function frontmatterStatus(text) {
 function findSpec(id) {
     for (const dir of [join(ROOT, 'specs'), join(ROOT, 'specs', 'archive', 'specs')]) {
         if (!existsSync(dir)) continue
-        const hit = readdirSync(dir).find((f) => new RegExp(`^${id}[-.]`, 'i').test(f) && f.endsWith('.md'))
+        const esc = String(id).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const hit = readdirSync(dir).find((f) => new RegExp(`^${esc}[-.]`, 'i').test(f) && f.endsWith('.md'))
         if (hit) return join(dir, hit)
     }
     return null
@@ -134,6 +142,22 @@ function main(argv) {
     if (!r.completable) process.exit(1)
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-    main(process.argv.slice(2))
+/**
+ * Whether this file was invoked directly.
+ *
+ * `import.meta.url` is already realpath'd by Node; `process.argv[1]` is not, so a raw
+ * comparison silently turns the CLI into a no-op that still exits 0 when invoked
+ * through a symlinked path or symlinked ancestor directory. This repo fixed that once
+ * already; `cli-invocation.test.mjs` is the regression suite.
+ */
+function isMain(metaUrl) {
+    const entry = process.argv[1]
+    if (!entry) return false
+    try {
+        return realpathSync(entry) === realpathSync(fileURLToPath(metaUrl))
+    } catch {
+        return resolve(entry) === fileURLToPath(metaUrl)
+    }
 }
+
+if (isMain(import.meta.url)) main(process.argv.slice(2))

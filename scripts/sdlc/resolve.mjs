@@ -14,7 +14,7 @@
  *   node scripts/sdlc/resolve.mjs SPEC-004         # -> path, status, archived?
  *   node scripts/sdlc/resolve.mjs ADR-004 --print  # -> path plus file contents
  */
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
 import { dirname, join, relative, resolve as resolvePath } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -68,10 +68,11 @@ function walk(dir, onFile, depth = 6) {
         // repo, and a following walk would read the same file under two paths.
         let st
         try {
-            st = statSync(p)
+            st = lstatSync(p)
         } catch {
             continue
         }
+        if (st.isSymbolicLink()) continue
         if (st.isDirectory()) walk(p, onFile, depth - 1)
         else onFile(p, entry)
     }
@@ -115,6 +116,22 @@ function main(argv) {
     }
 }
 
-if (process.argv[1] && resolvePath(process.argv[1]) === fileURLToPath(import.meta.url)) {
-    main(process.argv.slice(2))
+/**
+ * Whether this file was invoked directly.
+ *
+ * `import.meta.url` is already realpath'd by Node; `process.argv[1]` is not, so a raw
+ * comparison silently turns the CLI into a no-op that still exits 0 when invoked
+ * through a symlinked path or symlinked ancestor directory. This repo fixed that once
+ * already; `cli-invocation.test.mjs` is the regression suite.
+ */
+function isMain(metaUrl) {
+    const entry = process.argv[1]
+    if (!entry) return false
+    try {
+        return realpathSync(entry) === realpathSync(fileURLToPath(metaUrl))
+    } catch {
+        return resolvePath(entry) === fileURLToPath(metaUrl)
+    }
 }
+
+if (isMain(import.meta.url)) main(process.argv.slice(2))
