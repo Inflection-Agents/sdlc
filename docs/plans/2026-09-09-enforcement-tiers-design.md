@@ -85,7 +85,7 @@ all. `ADR-001` and `ADR-002` are `status: proposed` while the spec they describe
   `SKILL.md:169-170`, `agent-orchestration.md:274`, and the live hook branch at
   `stop-handoff.mjs:421-422`.
 - Reconcile `review-primitives.md` with the shipped `altitude` semantics, plus a
-  Changelog v1.2 annotation on SPEC-001 following the extension pattern at
+  Changelog v1.3 annotation on SPEC-001 following the extension pattern at
   `SPEC-001:332-338`.
 - Express the fold at `SOP.md:220-232` as one dispatch per distinct resolved agent.
 - `DECISIONS.md` template, plus a `spec-schema.md` entry declaring it.
