@@ -26,6 +26,8 @@ import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(__dirname, '..', '..')
+import { parseRegistryTouches } from './check-review-constraint-globs.mjs'
+
 export const DEFAULT_REGISTRY = join(REPO_ROOT, '.ai', 'skills', 'review-constraints.yaml')
 
 /** The reviewer a lens with no registered specialist folds into. */
@@ -107,7 +109,79 @@ export function parseConstraints(text) {
 
 /** Read + parse the registry. Throws only if the file cannot be read. */
 export function loadConstraints(registryPath = DEFAULT_REGISTRY) {
-    return parseConstraints(readFileSync(registryPath, 'utf8'))
+    const text = readFileSync(registryPath, 'utf8')
+    return enrich(parseConstraints(text), text)
+}
+
+/**
+ * Join the routing rows with the two fields a write-time reader needs and
+ * `parseConstraints` deliberately does not read: the `when.touches` globs and the
+ * `check:` block scalar.
+ *
+ * Touches come from `parseRegistryTouches`, which already handles both the flow and
+ * block YAML forms and the block-scalar hazard. Parsing them a second time here is
+ * exactly the two-copies drift ADR-001 deleted the hardcoded lens map to prevent.
+ */
+export function enrich(rows, text) {
+    const touchesById = new Map(parseRegistryTouches(text).map((r) => [r.id, r.touches]))
+    const extras = parseRowExtras(text)
+    return rows.map((c) => ({
+        ...c,
+        when: { ...(c.when ?? {}), touches: touchesById.get(c.id) ?? [] },
+        check: c.check ?? extras.get(c.id)?.check ?? null,
+        cite: c.cite ?? extras.get(c.id)?.cite ?? null
+    }))
+}
+
+/**
+ * The `check:` block scalar and the `cite:` scalar per constraint id.
+ *
+ * `parseConstraints` skips block scalars because a `check:` paragraph containing a
+ * line like `agent: x` would otherwise hijack a constraint's routing, and it reads
+ * only routing keys so its output shape stays pinned. That is right for routing and
+ * wrong for a reader that wants the prose, so this reads both deliberately — and
+ * never lets a line inside an open block become a key.
+ */
+export function parseRowExtras(text) {
+    const out = new Map()
+    const lines = String(text).split('\n')
+    const indentOf = (l) => l.match(/^(\s*)/)[1].length
+    let id = null
+    let collecting = null
+    let keyIndent = 0
+    const row = (i) => {
+        if (!out.has(i)) out.set(i, { check: null, cite: null })
+        return out.get(i)
+    }
+    const flush = () => {
+        if (id && collecting && collecting.length) row(id).check = collecting.join(' ').trim()
+        collecting = null
+    }
+    for (const line of lines) {
+        if (collecting) {
+            if (line.trim() === '' || indentOf(line) > keyIndent) {
+                if (line.trim() !== '') collecting.push(line.trim())
+                continue
+            }
+            flush()
+        }
+        const item = line.match(/^\s*-\s*id\s*:\s*(.+)$/)
+        if (item) {
+            flush()
+            id = item[1].trim().replace(/^["']|["']$/g, '')
+            continue
+        }
+        const opens = line.match(/^(\s*)check\s*:\s*[>|]/)
+        if (opens && id) {
+            keyIndent = opens[1].length
+            collecting = []
+            continue
+        }
+        const cite = line.match(/^\s*cite\s*:\s*(.+)$/)
+        if (cite && id) row(id).cite = cite[1].trim().replace(/^["']|["']$/g, '')
+    }
+    flush()
+    return out
 }
 
 /**

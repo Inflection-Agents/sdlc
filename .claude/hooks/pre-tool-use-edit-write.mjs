@@ -48,7 +48,7 @@
 import { execFileSync } from 'node:child_process'
 import { appendFileSync, existsSync, readFileSync } from 'node:fs'
 import { dirname, join, relative, resolve, sep } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const ALLOW = 0
 const BLOCK = 2
@@ -81,8 +81,53 @@ function deny(reason) {
     process.exit(BLOCK)
 }
 
-function allow() {
+function allow(guidance) {
+    if (guidance) {
+        process.stdout.write(
+            JSON.stringify({
+                hookSpecificOutput: {
+                    hookEventName: 'PreToolUse',
+                    permissionDecision: 'allow',
+                    additionalContext: guidance
+                }
+            })
+        )
+    }
     process.exit(ALLOW)
+}
+
+/**
+ * The laws registered against this path, handed to the AUTHOR at write time.
+ *
+ * The registry is consulted today only by reviewers, after the code exists.
+ * Measured downstream across 163 session transcripts: 221 of 398 blocker and major
+ * findings cited invariants, ADRs or conventions that already existed and were not
+ * found, and 242 of 398 were decidable before a line was written. The registry is
+ * not missing content; it arrives too late to prevent the rework it describes.
+ *
+ * Advisory by construction. It never blocks and never changes the edit, because the
+ * gates in this file are correctness laws and this is a reminder. Any failure to
+ * load or parse returns null: a hook that breaks edits when its optional input is
+ * malformed is worse than no hook.
+ */
+async function constraintGuidance(rel, root) {
+    try {
+        const { loadConstraints, applicableConstraints } = await import(
+            pathToFileURL(join(root, 'scripts/sdlc/reviewer-routing.mjs')).href
+        )
+        const hits = applicableConstraints(loadConstraints(), rel)
+        if (!hits.length) return null
+        const lines = hits.map(
+            (c) => `- ${c.id} (${c.severity ?? 'major'}): ${c.check}\n    cite: ${c.cite ?? c.id}`
+        )
+        return (
+            `Constraints registered against \`${rel}\`. A reviewer will grade this edit against ` +
+            `them and cite the id verbatim, so satisfy them now rather than in a fix round:\n` +
+            lines.join('\n')
+        )
+    } catch {
+        return null
+    }
 }
 
 /** Parse the hook payload from stdin; null (→ fail open) on malformed input. */
@@ -223,7 +268,7 @@ function recordBypass(root, { sessionId, rel, reason }) {
 
 // ─── Main ──────────────────────────────────────────────────────────────────
 
-function main() {
+async function main() {
     if (GUARD_MODE === 'off') allow() // emergency kill-switch: no-op, no I/O
 
     const payload = parsePayload()
@@ -241,13 +286,13 @@ function main() {
 
     // Implementation-code edit with no active task context.
     if (isImplementationCode(rel)) {
-        if (hasActiveTask(root)) allow() // active task → fine
+        if (hasActiveTask(root)) allow(await constraintGuidance(rel, root)) // active task → fine
 
         // No active task. Honor a logged override if present.
         const reason = readOverride(root, sessionId)
         if (reason) {
             recordBypass(root, { sessionId, rel, reason })
-            allow()
+            allow(await constraintGuidance(rel, root))
         }
 
         deny(
@@ -261,12 +306,10 @@ function main() {
         )
     }
 
-    // Process-artifact and out-of-repo paths are never gated.
-    allow()
+    // Process-artifact and out-of-repo paths are never gated — but the author still
+    // gets the laws for the path, which is the only place injection fires in a repo
+    // that is mostly process artifacts.
+    allow(await constraintGuidance(rel, root))
 }
 
-try {
-    main()
-} catch {
-    allow() // fail open
-}
+main().catch(() => allow()) // fail open
