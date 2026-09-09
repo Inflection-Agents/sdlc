@@ -110,6 +110,39 @@ export function loadConstraints(registryPath = DEFAULT_REGISTRY) {
     return parseConstraints(readFileSync(registryPath, 'utf8'))
 }
 
+/**
+ * Glob to RegExp. `**` crosses path separators, `*` does not, and every other
+ * regex metacharacter is escaped so a literal dot cannot act as a wildcard.
+ *
+ * One pass, because the alternation tries `**` before `*`. Do NOT rewrite this as
+ * chained .replace() calls with a placeholder between the `**` and `*` passes: the
+ * placeholder must be a byte no glob can contain, and every such byte is a control
+ * character that corrupts whatever file it is written into.
+ */
+export const globToRe = (g) =>
+    new RegExp(
+        '^' +
+            g.replace(/\*\*|\*|[.+^${}()|[\]\\?]/g, (m) =>
+                m === '**' ? '.*' : m === '*' ? '[^/]*' : '\\' + m
+            ) +
+            '$'
+    )
+
+/**
+ * The task-scope constraints registered against one file path.
+ *
+ * `scope: integration` rows grade a whole spec diff at the gate, so a single edit
+ * is not the artifact they grade and they are excluded. A row with no
+ * `when.touches` (workspace- or task_has-gated) cannot be matched against a bare
+ * path and is skipped rather than treated as a match.
+ */
+export const applicableConstraints = (rows, relPath) =>
+    (Array.isArray(rows) ? rows : []).filter((c) => {
+        if ((c?.scope ?? 'task') !== 'task') return false
+        const globs = c?.when?.touches
+        return Array.isArray(globs) && globs.some((g) => globToRe(g).test(relPath))
+    })
+
 function main(argv) {
     const args = [...argv]
     let registry = DEFAULT_REGISTRY

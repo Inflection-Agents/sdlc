@@ -7,7 +7,13 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { agentForLens, loadConstraints, parseConstraints } from './reviewer-routing.mjs'
+import {
+    agentForLens,
+    applicableConstraints,
+    globToRe,
+    loadConstraints,
+    parseConstraints
+} from './reviewer-routing.mjs'
 
 // fixture: a constraints array as parsed from review-constraints.yaml.
 const constraints = [
@@ -110,4 +116,58 @@ test('the shipped registry parses and every declared agent resolves through it',
         assert.ok(c.lens, `constraint ${c.id} declares no lens`)
         if (c.agent) assert.equal(agentForLens(parsed, c.lens), c.agent)
     }
+})
+
+// ── Path matching for write-time constraint injection (SPEC-007 M2) ────────────
+
+test('globToRe: ** crosses path separators, * does not', () => {
+    assert.ok(globToRe('packages/**/core.ts').test('packages/a/b/core.ts'))
+    assert.ok(globToRe('src/*.ts').test('src/a.ts'))
+    assert.equal(globToRe('src/*.ts').test('src/a/b.ts'), false)
+})
+
+test('globToRe: a literal dot is not a wildcard', () => {
+    assert.equal(globToRe('src/a.ts').test('src/axts'), false)
+})
+
+test('globToRe: bare ** matches nested paths', () => {
+    assert.ok(globToRe('**').test('a/b/c.ts'))
+    assert.ok(globToRe('scripts/**').test('scripts/sdlc/x.mjs'))
+})
+
+test('globToRe: emits no control characters', () => {
+    // A placeholder-based multi-pass implementation needs a byte no glob can
+    // contain, and every such byte is a control character.
+    assert.equal(/[\x00-\x1f]/.test(globToRe('a/**/b*.ts').source), false)
+})
+
+test('applicableConstraints: returns task-scope rows whose touches match', () => {
+    const rows = [
+        { id: 'A', scope: 'task', when: { touches: ['scripts/**'] }, check: 'a', severity: 'major' },
+        { id: 'B', scope: 'task', when: { touches: ['apps/**'] }, check: 'b', severity: 'major' }
+    ]
+    assert.deepEqual(
+        applicableConstraints(rows, 'scripts/sdlc/x.mjs').map((c) => c.id),
+        ['A']
+    )
+})
+
+test('applicableConstraints: integration-scope rows never match a single edit', () => {
+    const rows = [{ id: 'I', scope: 'integration', when: { touches: ['**'] }, check: 'i' }]
+    assert.deepEqual(applicableConstraints(rows, 'anything.ts'), [])
+})
+
+test('applicableConstraints: a row with no when.touches is skipped, not thrown on', () => {
+    const rows = [{ id: 'W', scope: 'task', when: { workspace: ['app'] }, check: 'w' }]
+    assert.deepEqual(applicableConstraints(rows, 'anything.ts'), [])
+})
+
+test('applicableConstraints: a row with no scope defaults to task', () => {
+    const rows = [{ id: 'D', when: { touches: ['scripts/**'] }, check: 'd' }]
+    assert.deepEqual(applicableConstraints(rows, 'scripts/x.mjs').map((c) => c.id), ['D'])
+})
+
+test('applicableConstraints: a non-array input yields no matches rather than throwing', () => {
+    assert.deepEqual(applicableConstraints(null, 'x.ts'), [])
+    assert.deepEqual(applicableConstraints(undefined, 'x.ts'), [])
 })
