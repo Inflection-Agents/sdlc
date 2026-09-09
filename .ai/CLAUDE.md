@@ -3,9 +3,11 @@
 Read `.ai/sdlc.md` and `.ai/project.md` first. This file adds Claude-specific capabilities and responsibilities.
 
 > **Archived specs.** A spec whose status reaches a terminal value moves under
-> `specs/archive/` and is hidden from default search, while staying tracked in git.
+> `specs/archive/` and is hidden from default search, while staying tracked in git —
+> unless a live skill cites it or a non-archived ADR binds it, which holds it in the
+> live corpus on purpose.
 > Resolve any id with `node scripts/sdlc/resolve.mjs SPEC-NNN`, or search with
-> `rg --no-ignore`. See [`.ignore`](.ignore) for why position beats a status label.
+> `rg --no-ignore`. See [`.ignore`](../.ignore) for why position beats a status label.
 
 ## Your role
 
@@ -200,7 +202,7 @@ You have direct dialogue with the user. Use it — but in the judgment phases, w
 
 ### Review
 
-**Review happens in-run, not as a downstream phase.** Inside a delivery run, a task is gated by its own tests plus your **self-review** — there is no per-task reviewer fan-out (ADR-003) — and the single integration PR is then graded by a **multi-lens adversarial panel** (`pr-reviewer` grades; `sdlc-code-review` renders the human-readable comment), independently dispatched, every envelope validated, verdicts routed by `review-primitives.md`, looped until no blocker or major survives. The same skills serve an ad-hoc PR review outside a delivery run. Humans merge the integration PR.
+**Review happens in-run, not as a downstream phase.** Inside a delivery run, a task is gated by its own tests plus your **self-review** — there is no per-task reviewer fan-out (ADR-003) — and the single integration PR is then graded by a **multi-lens adversarial panel** (`pr-reviewer` grades; `sdlc-code-review` renders the human-readable comment), independently dispatched, every envelope validated, verdicts routed by `review-primitives.md`, looped until no blocker or major survives, to a maximum of three rounds (ADR-004). The same skills serve an ad-hoc PR review outside a delivery run. Humans merge the integration PR.
 
 ## Executors
 

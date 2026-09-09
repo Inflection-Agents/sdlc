@@ -23,7 +23,8 @@ end-to-end validation, ONCE, with attached evidence
   ↓
 ONE integration PR (feat/spec-NNN → main)
      → multi-lens adversarial panel, independently dispatched, every envelope validated
-     → fix at the root, re-dispatch the panel, loop until no blocker or major survives
+     → fix at the root, re-dispatch the panel, loop until no blocker or major survives —
+       at most three rounds (ADR-004); a survivor is disclosed in the PR body, not ground on
   ↓
 LEAVE IT OPEN — a human merges
 ```

@@ -139,7 +139,8 @@ surfaced and accepted.
 
 Open `feat/spec-NNN -> main` carrying the evidence and every spec success criterion mapped to how it
 was verified. Then dispatch a **full multi-lens adversarial panel** — concurrently, one message,
-clean contexts, no `Edit`/`Write` — and **loop until no blocker or major survives**, re-dispatching
+clean contexts, no `Edit`/`Write` — and **loop until no blocker or major survives, to a maximum of
+three rounds (ADR-004)**, re-dispatching
 the panel each round rather than spot-checking the fix. Panel composition, lens routing and the
 exit codes are in SOP §7.
 

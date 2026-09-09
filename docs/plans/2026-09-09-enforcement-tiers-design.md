@@ -60,8 +60,13 @@ this repo.
 
 **D5. Archiving arms with a two-clause denylist.** A spec is exempt if a live skill
 or contract file names it as spec of record, or if it is the `spec:` binding of a
-non-archived ADR. That protects SPEC-001 (`review-primitives.md:5`), SPEC-002, and
-SPEC-006 (bound by ADR-001 and ADR-002). Day-one archive set: SPEC-004, SPEC-005.
+non-archived ADR.
+
+**As built (2026-09-09):** the citation clause is a token scan over `.ai/skills/**`, so it also
+protects SPEC-004, cited by `sdlc-code-review` and `task-decomposition` as the provenance of the
+evidence field. The day-one archive set is therefore **SPEC-005 alone** — SPEC-001, SPEC-002 and
+SPEC-004 are skill-cited, SPEC-006 is bound by ADR-001 and ADR-002, and SPEC-003 is active. The
+over-protection is the safe direction for an operation ending in `git mv`, and is left as built.
 
 **D6. Merge-time ships its grading half only.** The check comments unchecked success
 criteria back to the merged PR. It does not flip status, move files, or regenerate

@@ -162,7 +162,7 @@ These are success criteria from `status: completed` specs that couldn't be verif
 
 ## Cross-cutting captures (not yet bucketed)
 
-### `[active]` Conditional integration-branch strategy → SPEC-005
+### `[completed]` Conditional integration-branch strategy → SPEC-005
 SPEC-002 currently requires `feat/spec-NNN` as the *only* merge target with direct task PRs to main forbidden (hard rule, AC-010). User surfaced this is overkill for small specs and the bootstrap dispatch itself violated it pragmatically. Proposal: add optional `integration_strategy: branch | direct` to spec frontmatter; when unspecified, orchestrator computes (branch if `breaking` tag, multi-workspace, ≥5 tasks, or any task `blocks:` crosses workspace boundary; else direct). Lands as `spec-amendment` on SPEC-002 + cascade update to spec-execution skill. Why deferred: not blocking, and benefits from being applied to a real next spec to validate the heuristic. **Why:** explicit author control with sensible default; preserves SPEC-002's safety when needed without forcing ceremony on small specs.
 
 ### `[deferred]` Formalize completed-spec extension pattern in spec-schema

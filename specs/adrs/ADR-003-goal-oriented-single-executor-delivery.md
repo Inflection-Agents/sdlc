@@ -104,6 +104,9 @@ integration gate.**
 10. **The integration gate carries the full rigor.** One PR, a full multi-lens adversarial panel —
     independently dispatched, clean contexts, every envelope validated — with the constraints
     registry evaluated **in full across the whole diff**, looped until no blocker or major survives.
+    **(ADR-004, 2026-09-09: that loop is capped at three rounds; a survivor is disclosed in the PR
+    body rather than carried into a fourth round. This clause and the capability row below are the
+    two sites ADR-004 supersedes.)**
 
 11. **The integration PR is left open for the human.** *Within a spec delivery run*, the agent
     never merges or pushes to `main` and never self-approves. There is no phrasing in a user

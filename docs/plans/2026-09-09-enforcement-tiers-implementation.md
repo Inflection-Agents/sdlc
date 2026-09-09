@@ -779,8 +779,13 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ## Task 11: CI canary so injection cannot degrade to a silent no-op
 
 **Files:**
-- Create: `scripts/sdlc/__fixtures__/canary-constraints.yaml`
 - Modify: `.claude/hooks/__tests__/edit-write-constraint-injection.test.mjs`
+
+**As built (2026-09-09):** no separate fixture file. The canary asserts against the SHIPPED registry
+and a known matching path, which is strictly stronger — it caught a real defect a synthetic fixture
+would have missed (`parseConstraints` never populated `when.touches`/`check`/`cite`, so injection
+would have been a permanent silent no-op). Residual coupling: it depends on the registry's
+illustrative rows, which an adjacent CI step calls deliberately non-matching.
 
 **Context.** This is the highest-value test in M2. The feature is advisory and swallows its own errors, so without a canary a broken import, a moved path, or a registry rename turns it off permanently with no signal.
 
@@ -1141,9 +1146,16 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 **Context.** Scoped by blast radius, not by document. A superseded ADR cited as current in an always-loaded path is a hard failure; the same citation in a spec body or a test name is reported and passes, because tests and comments legitimately name retired ADRs as historical labels, and a gate that cries wolf gets deleted.
 
-**Status after Task 3.** ADR-003 now carries a superseded row pointing at ADR-004, so this gate has exactly one real input to grade and is no longer vacuous. It therefore ships **enforcing on always-loaded paths**: a superseded decision cited as current in `.ai/**` or a skill fails the build. The blast-radius split is unchanged — the same citation in a spec body or a test name still only reports.
+**Status as built (2026-09-09) — supersedes the mid-flight amendment this paragraph replaced.** The
+premise that ADR-003 gives this gate a real input was WRONG. A first revision acted on it and went
+red with 97 hits, 32 of them build failures, every one correct as written: ADR-003 has ONE row
+reversed by ADR-004 and its other rows are live authority, and no automated check can tell which row
+a citation relies on.
 
-If it goes red on first run, that is the gate working: some skill is citing ADR-003's rejected row as live authority, which is the defect it exists to catch. Fix the citation, do not weaken the gate.
+Detection is therefore frontmatter-only, and row-level reversal is out of scope by construction. The
+gate ships **enforcing** on always-loaded paths and is green here, reporting "nothing to check",
+because this repo has no wholly-superseded ADR. Its FAIL branch is exercised by fixture in
+`check-stale-citations.test.mjs` rather than by the corpus.
 
 **Step 1: Write the failing tests**
 
@@ -1198,8 +1210,8 @@ A superseded decision cited as current in always-loaded context is the failure
 worth catching; the same citation in a spec body or a test name is history and
 passes. Walks with lstat so the .claude/skills symlink is not double-counted.
 
-Enforcing: ADR-003's superseded row is its first real input, so the reference
-no longer ships a corpus-wide gate it has never seen go red.
+Enforcing, and green: no wholly-superseded ADR here, so the gate reports "nothing
+to check" and its FAIL branch is exercised by fixture rather than by the corpus.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```

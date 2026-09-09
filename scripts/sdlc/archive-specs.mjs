@@ -13,8 +13,8 @@
  * `scripts/sdlc/resolve.mjs` addresses it by id.
  *
  * TWO DENYLIST CLAUSES, both derived at runtime rather than hardcoded:
- *   1. A spec a live skill or contract file names as its spec of record. Archiving
- *      it would hide a document the skills still route readers to.
+ *   1. A spec whose id appears anywhere under `.ai/skills/**`. A token scan, not a
+ *      spec-of-record test, and deliberately over-broad — see collectCitedIds.
  *   2. A spec that is the `spec:` binding of a non-archived ADR. Archiving it would
  *      orphan an ADR that is still cited as current authority.
  *
@@ -92,7 +92,15 @@ export function archivable(specs, { citedIds, adrBoundIds }) {
     })
 }
 
-/** Spec ids a live skill or contract file names as its spec of record. */
+/**
+ * Every `SPEC-NNN` token appearing anywhere under `.ai/skills/**`.
+ *
+ * Deliberately over-broad: it is a token scan, not a spec-of-record test, so it also
+ * protects ids that appear only as illustrative examples in skill prose (SPEC-026,
+ * SPEC-042 and SPEC-099 are matched today and do not exist in this corpus). That is
+ * the safe direction for an operation ending in `git mv` — a false protect leaves a
+ * document searchable, a false archive hides one the skills still route readers to.
+ */
 export function collectCitedIds(root = ROOT) {
     const ids = new Set()
     const skills = join(root, '.ai', 'skills')

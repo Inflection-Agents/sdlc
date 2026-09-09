@@ -31,7 +31,7 @@ intent-triage → spec-authoring → task-decomposition │ spec-execution → s
 - **Rigor is concentrated, not removed.** End-to-end validation runs **once** before the gate, and
   the single integration PR then faces a **multi-lens adversarial panel** — independently
   dispatched, every envelope validated, the constraints registry evaluated across the whole diff —
-  looped until no blocker or major survives. Review is LLM and happens **in-run**; there is no
+  looped until no blocker or major survives, to a maximum of three rounds (ADR-004). Review is LLM and happens **in-run**; there is no
   standalone review phase. Humans only merge that final integration PR to `main`.
 - **The escape hatch back to judgment.** When delivery finds the spec or the decomposition is wrong
   (a `spec:*` or `task:scope` blocker), it escalates out of the run into `spec-amendment` or

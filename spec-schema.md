@@ -215,7 +215,9 @@ What follows from this decision — good and bad.
 ```
 
 > **Archived specs.** A spec whose status reaches a terminal value moves under
-> `specs/archive/` and is hidden from default search, while staying tracked in git.
+> `specs/archive/` and is hidden from default search, while staying tracked in git —
+> unless a live skill cites it or a non-archived ADR binds it, which holds it in the
+> live corpus on purpose.
 > Resolve any id with `node scripts/sdlc/resolve.mjs SPEC-NNN`, or search with
 > `rg --no-ignore`. See [`.ignore`](.ignore) for why position beats a status label.
 
@@ -268,8 +270,9 @@ Three heading forms, and no others:
 Plus a trailing `## Cross-task values` table for values a later task must match rather than re-derive.
 
 A `SPEC DEVIATION` may record an implementation-level mismatch. It may never narrow or reinterpret a
-stated success criterion; that is `spec-amendment`'s job and carries a version bump (ADR-004 narrows
-escalation on the same reasoning — decide and log, escalate only on the four checkable triggers).
+stated success criterion; that is `spec-amendment`'s job and carries a version bump. The
+decide-and-log trade this log records is the `spec-execution` skill's; ADR-004 is narrower than that
+and only retired one escalation trigger.
 
 ## Bug spec schema
 
