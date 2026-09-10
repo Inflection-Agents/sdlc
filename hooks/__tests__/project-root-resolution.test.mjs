@@ -22,7 +22,26 @@ import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
-const REPO = join(HERE, '..', '..', '..')
+/**
+ * Walk up to the repo root by MARKER, not by counting levels.
+ *
+ * These tests live at `hooks/__tests__/` now and lived at `.claude/hooks/__tests__/`
+ * before, and `import.meta.url` is realpath'd by Node, so a fixed number of `..`
+ * silently resolves to the wrong directory the moment the tree moves. That is the
+ * same defect the hooks themselves carried before the project-root fix.
+ */
+function repoRoot(from) {
+    let dir = from
+    for (let i = 0; i < 8; i++) {
+        if (existsSync(join(dir, 'specs')) && existsSync(join(dir, 'scripts'))) return dir
+        const up = dirname(dir)
+        if (up === dir) break
+        dir = up
+    }
+    return from
+}
+
+const REPO = repoRoot(HERE)
 const HOOKS = join(REPO, '.claude', 'hooks')
 
 // A real path in this repo that the shipped registry registers SDLC-GATE-TESTED

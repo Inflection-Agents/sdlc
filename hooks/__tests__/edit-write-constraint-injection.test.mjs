@@ -13,9 +13,28 @@ import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { loadConstraints, applicableConstraints } from '../../../scripts/sdlc/reviewer-routing.mjs'
+import { loadConstraints, applicableConstraints } from '../../scripts/sdlc/reviewer-routing.mjs'
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
+/**
+ * Walk up to the repo root by MARKER, not by counting levels.
+ *
+ * These tests live at `hooks/__tests__/` now and lived at `.claude/hooks/__tests__/`
+ * before, and `import.meta.url` is realpath'd by Node, so a fixed number of `..`
+ * silently resolves to the wrong directory the moment the tree moves. That is the
+ * same defect the hooks themselves carried before the project-root fix.
+ */
+function repoRoot(from) {
+    let dir = from
+    for (let i = 0; i < 8; i++) {
+        if (existsSync(join(dir, 'specs')) && existsSync(join(dir, 'scripts'))) return dir
+        const up = dirname(dir)
+        if (up === dir) break
+        dir = up
+    }
+    return from
+}
+
+const ROOT = repoRoot(dirname(fileURLToPath(import.meta.url)))
 const HOOK = join(ROOT, '.claude', 'hooks', 'pre-tool-use-edit-write.mjs')
 
 /** Run the hook with a payload; returns trimmed stdout. Never throws on exit 0. */
