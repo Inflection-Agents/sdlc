@@ -279,6 +279,13 @@ function main(argv) {
     }
     if (args.includes('--list') || args.length === 0) {
         const lenses = [...new Set(constraints.map((c) => c.lens).filter(Boolean))].sort()
+        // Say so rather than printing nothing. An empty registry is the normal shape
+        // for a repo that has not run the init interview yet, and silence there is
+        // indistinguishable from a broken read.
+        if (lenses.length === 0) {
+            process.stdout.write('no lenses registered (empty constraints registry)\n')
+            return
+        }
         for (const lens of lenses) {
             const scope = constraints.find((c) => c.lens === lens)?.scope ?? 'task'
             process.stdout.write(`${lens}\t${agentForLens(constraints, lens)}\t(scope: ${scope})\n`)

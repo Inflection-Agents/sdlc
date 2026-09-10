@@ -9,7 +9,11 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { existsSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const REPO_ROOT_FOR_PAYLOAD = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
 import { validate, commandsOf, pluginPathOf } from './validate-plugin-manifest.mjs'
 
@@ -136,4 +140,38 @@ test('pluginPathOf extracts the plugin-root-relative path, and ignores commands 
 test('the REAL repo manifest validates', () => {
     // The reference must pass the gate it ships, or it is shipping a gate it fails.
     assert.deepEqual(validate(), [])
+})
+
+// ── The payload must not drift from the validators this repo runs ──────────────
+// init-payload/scripts/sdlc/ holds COPIES. A copy that falls behind ships an adopter
+// a gate this repo no longer runs, and nothing would say so — the propagation class
+// that produced every worst defect in the previous piece of work here.
+
+test('every payload validator is byte-identical to the one this repo runs', async () => {
+    const { readdirSync, readFileSync, existsSync } = await import('node:fs')
+    const { join, dirname } = await import('node:path')
+    const { fileURLToPath } = await import('node:url')
+    const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
+    const payload = join(root, 'init-payload', 'scripts', 'sdlc')
+    if (!existsSync(payload)) return
+
+    for (const f of readdirSync(payload).filter((f) => f.endsWith('.mjs'))) {
+        const live = join(root, 'scripts', 'sdlc', f)
+        assert.ok(existsSync(live), `init-payload ships ${f}, which no longer exists in scripts/sdlc/`)
+        assert.equal(
+            readFileSync(join(payload, f), 'utf8'),
+            readFileSync(live, 'utf8'),
+            `init-payload/scripts/sdlc/${f} has drifted from scripts/sdlc/${f}`
+        )
+    }
+})
+
+test('the payload does not ship a validator that only makes sense upstream', () => {
+    // A consuming repo CONSUMES the plugin; it does not ship one, so it has no
+    // .claude-plugin/plugin.json for this gate to grade.
+    assert.equal(
+        existsSync(join(REPO_ROOT_FOR_PAYLOAD, 'init-payload', 'scripts', 'sdlc', 'validate-plugin-manifest.mjs')),
+        false,
+        'validate-plugin-manifest.mjs must not ship to adopters'
+    )
 })

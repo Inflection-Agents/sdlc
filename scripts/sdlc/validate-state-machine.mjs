@@ -255,6 +255,13 @@ function main() {
     const registered = new Set([...ownerSkills, ...domainSkills, ...exempt])
 
     const skills = listSkills(args.skills)
+
+    // A CONSUMING repo gets its skills from the installed plugin, not from a local
+    // skills/ directory - a plugin cannot write one into someone's repo. So an absent
+    // or empty skills dir is the normal adopter shape, not a defect, and the
+    // referential checks below are skipped rather than failed. The structural checks
+    // above still run, which is the part that grades the adopter's own state machine.
+    const skillsArePluginSide = skills.length === 0
     for (const skill of skills) {
         if (!registered.has(skill)) {
             errors.push(
@@ -266,14 +273,16 @@ function main() {
     }
 
     const skillSet = new Set(skills)
-    for (const owner of ownerSkills) {
-        if (!skillSet.has(owner)) {
-            errors.push(`owner_skill '${owner}' does not resolve to a skill under ${relName(args.skills)}`)
+    if (!skillsArePluginSide) {
+        for (const owner of ownerSkills) {
+            if (!skillSet.has(owner)) {
+                errors.push(`owner_skill '${owner}' does not resolve to a skill under ${relName(args.skills)}`)
+            }
         }
-    }
-    for (const ds of domainSkills) {
-        if (!skillSet.has(ds)) {
-            errors.push(`domain skill '${ds}' does not resolve to a skill under ${relName(args.skills)}`)
+        for (const ds of domainSkills) {
+            if (!skillSet.has(ds)) {
+                errors.push(`domain skill '${ds}' does not resolve to a skill under ${relName(args.skills)}`)
+            }
         }
     }
 
@@ -284,6 +293,7 @@ function main() {
     }
 
     console.log('state-machine validation OK')
+    if (skillsArePluginSide) console.log('  skills: plugin-side (no local skills/ dir) — referential checks skipped')
     console.log(`  phases: ${phases.length}`)
     console.log(`  owner skills: ${[...ownerSkills].sort().join(', ')}`)
     console.log(`  domain skills: ${[...domainSkills].sort().join(', ') || '(none)'}`)
