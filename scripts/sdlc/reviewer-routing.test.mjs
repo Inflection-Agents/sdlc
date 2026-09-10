@@ -305,3 +305,30 @@ test('applicableConstraintsFor agrees with applicableConstraints on a single pat
         )
     }
 })
+
+test('every reviewer agent is told to set reviewed_by', () => {
+    // The branch that added the provenance check shipped it to only the two NEW
+    // agents. task-reviewer and integration-reviewer gate delivery, so their
+    // envelopes exited 3 as contract violations and re-dispatch produced the
+    // identical envelope — a correct independent blocking review looping to
+    // escalation. A directory-iterating test cannot be forgotten the way a
+    // checklist item can.
+    const dir = join(REPO_ROOT_DIR, 'agents')
+    const files = readdirSync(dir).filter((f) => f.endsWith('-reviewer.md'))
+    assert.ok(files.length >= 4, 'expected the shipped reviewer agents')
+    for (const f of files) {
+        const text = readFileSync(join(dir, f), 'utf8')
+        assert.match(text, /reviewed_by/, `${f} never tells the reviewer to set reviewed_by`)
+        const name = f.replace(/\.md$/, '')
+        assert.match(text, new RegExp(`agent:${name}`), `${f} does not name its own agent:${name} value`)
+    }
+})
+
+test('the canonical envelope example carries reviewed_by', () => {
+    // A reviewer copies this block. If it omits the field, every reviewer obeying
+    // its own contract emits an envelope the validator rejects.
+    const md = readFileSync(join(REPO_ROOT_DIR, 'skills', 'review-primitives.md'), 'utf8')
+    const start = md.indexOf('## Output schema')
+    assert.notEqual(start, -1)
+    assert.match(md.slice(start, start + 1500), /reviewed_by/)
+})

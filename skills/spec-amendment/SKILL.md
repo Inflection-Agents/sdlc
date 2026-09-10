@@ -308,6 +308,18 @@ Seed each dispatch with these inputs (all paths concrete; do not invent them):
 
 **Present findings to the owner** alongside the amendment summary in Step 7. Render the JSON output as a graded list: blocker → major → nit → suggestion, with `criterion`, `location`, `finding`, and `suggested_fix`.
 
+**Validate every returned envelope before folding it:**
+
+```bash
+node scripts/sdlc/validate-review-envelope.mjs <envelope.json>
+```
+
+Exit `0` folds the findings. `2` is an abstention and escalates — never accept it, even with
+an empty findings list. `3` is a contract violation: re-dispatch or escalate, never treat it as a
+clean review. This is also where a self-review is caught: an envelope with `reviewed_by: inline`
+carrying blockers, or carrying none at all, is rejected — an empty envelope is a verdict of
+"nothing wrong", so an inline one is a self-accept.
+
 **Apply the routing policy.** Severity → action is defined in [`review-primitives.md`](../review-primitives.md) > Orchestrator severity→action policy — do not duplicate it here. In summary: blockers/majors → `fix_loop`; nits/suggestions → `batch_followup_and_accept` (appended to `spec_followups:` per SPEC-001 Design > Spec followups format); empty → `accept`. Loop with the author to fix or with the owner to override until no un-overridden blockers/majors remain; re-DISPATCH the reviewer agent after edits — a fix round is graded by a fresh agent, never inline — with the prior output as `previous_output`.
 
 **Owner override format.** When the owner judges a finding's severity is too high — e.g., the reviewer flags a workspace-coverage gap that the amendment explicitly leaves for a follow-up spec — the owner downgrades severity by appending a `spec_review_overrides:` entry to the amended spec body. The section lives after `Migration` and before any other appendix, per SPEC-001 Design > Owner override format. Example entry:

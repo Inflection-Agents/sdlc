@@ -32,3 +32,5 @@ written down for the human, so make it one that is worth their attention.
 
 The `review-primitives.md` envelope, nothing else. Set `altitude` on every finding — a `design`
 finding routes to `spec-amendment` rather than into the fix loop.
+
+Set `reviewed_by: "agent:integration-reviewer"` — the provenance field that tells a reader an independent reviewer produced this.

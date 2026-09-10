@@ -109,6 +109,7 @@ Both reviewers emit the same JSON envelope. Illustrative pseudo-JSON (unions are
 {
   "artifact": "pr | spec",
   "artifact_id": "TASK-NNN | SPEC-NNN",
+  "reviewed_by": "agent:<reviewer-name> | inline",
   "spec_id": "SPEC-NNN",
   "pr_number": "null | <int>",
   "tier": "1 | 2",

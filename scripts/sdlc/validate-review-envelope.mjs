@@ -203,16 +203,33 @@ export function validateEnvelope(env, schema = loadSchema()) {
     // the calling skills plus the reviewer agents having no Edit/Write. What this
     // catches is the honest mistake, which is the common one.
     const reviewedBy = String(env.reviewed_by ?? 'inline')
-    const blocking = Array.isArray(env.findings)
-        ? env.findings.filter((f) => f?.severity === 'blocker' || f?.severity === 'major')
-        : []
-    if (reviewedBy === 'inline' && blocking.length > 0) {
-        errors.push(
-            `\`reviewed_by\` is "${env.reviewed_by ?? '(absent, read as inline)'}" but this envelope ` +
-                `carries ${blocking.length} blocking finding(s). A blocker or major must come from a ` +
-                `dispatched reviewer: call the Agent tool with the matching subagent_type and re-grade. ` +
-                `Nits and suggestions from an inline pass are fine.`
-        )
+    if (reviewedBy === 'inline') {
+        const findings = Array.isArray(env.findings) ? env.findings : []
+        const blocking = findings.filter((f) => f?.severity === 'blocker' || f?.severity === 'major')
+        const who = env.reviewed_by ?? '(absent, read as inline)'
+
+        // An inline pass may ADVISE. It may never render a VERDICT.
+        //
+        // The first version of this check fired only on inline+blocking, which had the
+        // gate exactly backwards relative to the threat it was built for: it rejected a
+        // self-review that found problems and accepted one that rubber-stamped. The
+        // self-serving output of an authoring context grading its own work is a CLEAN
+        // envelope, and `findings: []` is not an absence of grading - it is a verdict of
+        // "nothing wrong", which the severity->action policy routes straight to `accept`.
+        if (blocking.length > 0) {
+            errors.push(
+                `\`reviewed_by\` is "${who}" but this envelope carries ${blocking.length} blocking ` +
+                    `finding(s). A blocker or major must come from a dispatched reviewer: call the Agent ` +
+                    `tool with the matching subagent_type and re-grade.`
+            )
+        } else if (findings.length === 0) {
+            errors.push(
+                `\`reviewed_by\` is "${who}" with no findings. An empty envelope is a verdict of ` +
+                    `"nothing wrong", which routes to accept - so this is a self-accept, the failure this ` +
+                    `field exists to make visible. Dispatch the reviewer and let its envelope stand. An ` +
+                    `inline pass may raise nits and suggestions; it may not render a clean verdict.`
+            )
+        }
     }
 
     const abstained = String(env.reviewer_status ?? 'assessed') === 'abstained'

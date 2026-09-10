@@ -56,6 +56,19 @@ The full text of each variant's framing/severity-bias instructions is defined in
 
 All other contract rules (grounding-prefix allowlist, severity catalog, carry-forward semantics, decision-disclaimer) are identical across variants.
 
+## Dispatch, do NOT inline-grade
+
+**This skill never grades a spec inline, as prose in the calling context.** It spawns a distinct
+reviewer by calling the `Agent` tool with `subagent_type: spec-reviewer`, then validates the returned
+envelope. The verdict is produced by an agent with a clean context and no `Edit`/`Write`.
+
+This is a rule about the ACT, not about the output format. An inline verdict and a dispatched one are
+byte-identical in the artifact, which is exactly why the rule cannot be "grade honestly".
+
+The block below is the role prompt seeded into that dispatched agent. **It is not an instruction to
+the context reading this file.** If you are reading it as one, you are about to grade inline — stop
+and dispatch.
+
 ## Prompt body
 
 The prompt below matches SPEC-001 Appendix C verbatim. At dispatch time, the reviewer prepends the appropriate variant framing block (from `review-primitives.md` > Prompt variants) to this body based on the `variant` parameter; the body itself is variant-agnostic.
@@ -152,7 +165,7 @@ The reviewer is supplied the following inputs at dispatch time (see prompt body 
 
 1. **End of `spec-authoring` Phase 2**, before the user sign-off gate.
 2. **After every `spec-amendment`**, regardless of amendment classification.
-3. **On demand** — e.g., "review SPEC-NNN" invokes `spec-reviewer` against the current state of the spec.
+3. **On demand** — e.g., "review SPEC-NNN" DISPATCHES `subagent_type: spec-reviewer` against the current state of the spec. The entry point is a dispatch like the other two; it is not a licence to grade inline.
 
 The owner remains the sign-off authority; this skill produces grounded findings, not approval.
 

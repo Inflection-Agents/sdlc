@@ -167,6 +167,8 @@ export function validate(root = ROOT) {
     // is absent fails the worst way: nothing dispatches and nothing says so.
     // BOTH trees. An agent can dispatch another agent, and a directory this walk does
     // not enter is exactly where a dangling name survives.
+    const agentsDirForSet = join(root, 'agents')
+    const shippedAgents = new Set(existsSync(agentsDirForSet) ? readdirSync(agentsDirForSet) : [])
     for (const dispatchRoot of [join(root, 'skills'), join(root, 'agents')]) {
     if (existsSync(dispatchRoot)) {
         const walk = (dir) => {
@@ -181,7 +183,12 @@ export function validate(root = ROOT) {
                     // the gate caught exactly the spelling its author happened to use.
                     for (const m of read(p).matchAll(/`?subagent_type`?\s*:\s*["'`]?([A-Za-z0-9_-]+)["'`]?/g)) {
                         const agent = m[1]
-                        if (!existsSync(join(root, 'agents', `${agent}.md`))) {
+                        // Membership in a Set built from the directory, NOT existsSync:
+                        // APFS is case-insensitive, so a mis-cased target passes on macOS
+                        // and reddens CI on ubuntu - and the dispatch itself resolves on
+                        // neither. A gate whose verdict depends on the filesystem is not
+                        // a gate.
+                        if (!shippedAgents.has(`${agent}.md`)) {
                             problems.push(
                                 `${relative(root, p)} names \`subagent_type: ${agent}\`, but agents/${agent}.md ` +
                                     `does not exist - nothing would dispatch`

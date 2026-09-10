@@ -20,7 +20,10 @@ import {
 const HERE = dirname(fileURLToPath(import.meta.url))
 const CLI = join(HERE, 'validate-review-envelope.mjs')
 
-const clean = { artifact: 'pr', artifact_id: 'TASK-001', findings: [] }
+// A clean envelope is a VERDICT of "nothing wrong", so it needs provenance like any
+// other verdict — an inline clean envelope is a self-accept. Fixtures modelling a real
+// dispatched review declare who produced them.
+const clean = { artifact: 'pr', artifact_id: 'TASK-001', reviewed_by: 'agent:pr-reviewer', findings: [] }
 const withBlocker = {
     artifact: 'pr',
     artifact_id: 'TASK-001',
@@ -128,7 +131,8 @@ test('an inline-graded envelope carrying a blocker is a contract violation', () 
 test('an ABSENT reviewed_by is read as inline, not waved through', () => {
     // Every envelope written before this field existed was produced without dispatch
     // discipline, so absent must be the conservative reading.
-    const res = validateEnvelope({ ...clean, findings: [{ severity: 'major', criterion: 'ac:AC-001' }] })
+    const { reviewed_by, ...noProvenance } = clean
+    const res = validateEnvelope({ ...noProvenance, findings: [{ severity: 'major', criterion: 'ac:AC-001' }] })
     assert.equal(res.ok, false)
     assert.match(res.errors.join('\n'), /absent, read as inline/)
 })
@@ -164,9 +168,25 @@ test('an agent-graded envelope carrying a blocker passes', () => {
     assert.equal(res.ok, true)
 })
 
-test('a clean inline envelope with no findings passes', () => {
-    // Nothing was graded, so there is nothing to have graded independently.
-    assert.equal(validateEnvelope({ ...clean, reviewed_by: 'inline' }).ok, true)
+test('a clean INLINE envelope is a self-accept and is rejected', () => {
+    // This test previously asserted the opposite, on the premise that "nothing was
+    // graded, so there is nothing to have graded independently". That premise is
+    // wrong: `findings: []` is a verdict of "nothing wrong", which the severity->action
+    // policy routes to accept. It is the self-serving output of an authoring context
+    // grading its own work, and the original check let it through while rejecting a
+    // self-review that found real problems - the gate backwards to its own threat.
+    const res = validateEnvelope({ ...clean, reviewed_by: 'inline' })
+    assert.equal(res.ok, false)
+    assert.match(res.errors.join('\n'), /self-accept/)
+})
+
+test('a clean envelope with NO reviewed_by is also a self-accept', () => {
+    const { reviewed_by, ...noProvenance } = clean
+    assert.equal(validateEnvelope(noProvenance).ok, false)
+})
+
+test('a clean AGENT-graded envelope passes — that is a real accept', () => {
+    assert.equal(validateEnvelope({ ...clean, reviewed_by: 'agent:spec-reviewer' }).ok, true)
 })
 
 test('the CLI exits 3 on an inline blocking grading', () => {
