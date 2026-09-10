@@ -172,3 +172,6 @@ exempt:
     - sdlc-code-review
     - create-domain-skill
     - review-primitives
+    # Schema documents living beside the skills that read them, not skills themselves.
+    - spec-schema
+    - task-schema

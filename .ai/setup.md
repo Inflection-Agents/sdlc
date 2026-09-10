@@ -146,5 +146,5 @@ specs/
 | A delivery run refuses to start | It needs a spec with `status: active`, a decomposed task graph (`specs/tasks/SPEC-NNN/_index.yaml`), and an approved `plan_review:` block — check with `node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml`. |
 | A session won't stop / keeps being blocked | A delivery goal leash is armed. Finish the run and set `status: met` in `.claude/.sdlc-goal-<session_id>`, set `status: escalated` if you are blocked on a human, or delete that file to disarm it. |
 | Claude Code can't reach Linear | Check MCP config: `claude mcp list` — is `linear` listed? |
-| CI fails on spec validation | Check frontmatter against schema in `spec-schema.md` |
+| CI fails on spec validation | Check frontmatter against schema in `skills/spec-schema.md` |
 | Linear labels missing | Ensure `claude-code` and `human` exist in your Linear workspace. |

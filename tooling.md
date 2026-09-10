@@ -34,7 +34,7 @@ None of the current tools provide:
 1. **Run as a primitive** — agent executions aren't tracked as first-class objects anywhere
 2. **Typed edges** — only basic relations (blocks, relates-to, duplicate)
 3. **Event sourcing** — activity logs exist but aren't queryable as an event stream
-4. ~~**Spec-as-root** — all tools are still ticket-first~~ **Solved.** Schema-enforced markdown specs with YAML frontmatter, CI validation, and auto-generated `spec-index.json`. See [spec-schema.md](spec-schema.md).
+4. ~~**Spec-as-root** — all tools are still ticket-first~~ **Solved.** Schema-enforced markdown specs with YAML frontmatter, CI validation, and auto-generated `spec-index.json`. See [spec-schema.md](skills/spec-schema.md).
 
 ### Interim solutions
 
@@ -43,7 +43,7 @@ None of the current tools provide:
 | Runs | Log to a side store (structured JSON per run), link from Linear issue comments |
 | Typed edges | Use labels + naming conventions on relations |
 | Event sourcing | Linear webhooks → append-only log (could be a simple DB or even a file) |
-| Spec-as-root | Schema-enforced markdown with frontmatter, CI validation, auto-generated index. See [spec-schema.md](spec-schema.md) |
+| Spec-as-root | Schema-enforced markdown with frontmatter, CI validation, auto-generated index. See [spec-schema.md](skills/spec-schema.md) |
 
 ## MCP integration
 
@@ -84,7 +84,7 @@ The reviewer of record for code is an **LLM multi-lens panel**, not a human.
 
 ## Spec layer (decided)
 
-Schema-enforced markdown in the repo. See [spec-schema.md](spec-schema.md) for full details.
+Schema-enforced markdown in the repo. See [spec-schema.md](skills/spec-schema.md) for full details.
 
 - **Format:** Markdown with required YAML frontmatter (id, status, version, initiative, owner, etc.)
 - **Body:** Required sections (Problem, Success criteria, Scope, Design, Acceptance criteria, Risks)

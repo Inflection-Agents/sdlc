@@ -109,6 +109,7 @@ Both reviewers emit the same JSON envelope. Illustrative pseudo-JSON (unions are
 {
   "artifact": "pr | spec",
   "artifact_id": "TASK-NNN | SPEC-NNN",
+  "reviewed_by": "agent:<reviewer-name> | inline",
   "spec_id": "SPEC-NNN",
   "pr_number": "null | <int>",
   "tier": "1 | 2",
@@ -138,6 +139,39 @@ Per-artifact field constraints:
 - **`artifact: "spec"`** — `pr_number` is `null`; `verification` is `null`; `tier_2_dispatch_recommended` is `[]`.
 - **`tier: 2`** — only valid when `artifact: "pr"`. Tier 2 outputs MUST NOT re-raise findings already present in the Tier 1 output they were given.
 - **`location`** — for PR findings, format is `file:line` (or `file` if the finding is whole-file). For spec findings, format is the spec section heading text (e.g., `"Success criteria > third bullet"`).
+
+### Panel fold rule
+
+**Dispatch one reviewer per DISTINCT resolved agent, not one per lens.** Lenses that resolve to the
+same agent fold into that agent's single pass: it reads the diff once, grades each of its lenses in
+sequence, and sets `lens` on every finding so a later round can be scoped to the lens that flagged
+it. Lenses that resolve to their own specialist keep their own dispatch, because a specialist's
+tools and reading depth differ.
+
+Resolve every firing lens with `node scripts/sdlc/reviewer-routing.mjs <lens>`. **Name no reviewer
+anywhere else.** Which lenses fold is registry data — a one-line `agent:` edit in
+`review-constraints.yaml`. A list of agent names in a skill is the lens→reviewer map ADR-001
+deleted, and it has already drifted here once: a skill named `security-reviewer` for the security
+lens while the registry routed it to `invariants-reviewer`.
+
+This is the one statement of the rule. `spec-execution/SOP.md` §7.2 and `pr-reviewer` cite it; they
+do not restate it.
+
+### Reviewer provenance (`reviewed_by`)
+
+Every envelope declares which context produced it: `agent:<name>` for a dispatched
+reviewer, `inline` for one graded in the calling context. **An envelope carrying a
+`blocker` or `major` with `reviewed_by: inline` — or with the field absent, which is
+read as `inline` — is a contract violation.** A self-graded review and an independent
+one are otherwise byte-identical in the artifact, which is exactly how a self-review
+passes unnoticed.
+
+This is forensics, not enforcement: the field is self-declared, and an inline grading
+can claim an agent value. The enforcement is the dispatch discipline in the calling
+skills plus the reviewer agents having no `Edit`/`Write`. What this catches is the
+honest mistake.
+
+Nits and suggestions from an inline pass are fine — the bar is on a blocking grading.
 
 ### Lens and altitude attribution
 

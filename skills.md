@@ -172,7 +172,7 @@ Three modes:
 **Phase 2 — Formalization** (structured, reviewable):
 7. Write the structured spec with correct frontmatter and all required sections
 8. Create ADRs for non-obvious design decisions
-9. Invoke `spec-reviewer` — automated quality gate before the user sees a draft
+9. Dispatch `spec-reviewer` (the AGENT, via the `Agent` tool) — an independent quality gate before the user sees a draft
 10. Self-review for gaps, contradictions, untestable criteria
 11. **GATE: User approves the spec**
 12. Open a PR, after approval: set status to `active`, create Linear project
@@ -181,7 +181,7 @@ Three modes:
 
 ### 1a. spec-reviewer
 
-**Trigger:** Auto-invoked by `spec-authoring` at the spec sign-off gate and by `spec-amendment` after every amendment. Also invocable on demand: "review this spec," "check SPEC-NNN for gaps."
+**Trigger:** Auto-DISPATCHED by `spec-authoring` at the spec sign-off gate and by `spec-amendment` after every amendment. Also invocable on demand: "review this spec," "check SPEC-NNN for gaps."
 
 **What it does:** Grades a draft spec against the schema, authoring conventions, originating intent, ADRs, and cross-spec contracts. Emits the shared JSON envelope from `review-primitives.md` with severity-graded findings (blocker / major / nit / suggestion). The orchestrator routes based on findings — blockers and majors trigger a fix loop; nits/suggestions produce `batch_followup_and_accept`.
 

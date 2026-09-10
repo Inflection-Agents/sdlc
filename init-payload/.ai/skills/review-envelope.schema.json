@@ -7,6 +7,11 @@
   "required": ["findings"],
   "additionalProperties": true,
   "properties": {
+    "reviewed_by": {
+      "type": "string",
+      "pattern": "^(inline|agent:[a-z0-9-]+)$",
+      "description": "Which context produced this verdict: `inline`, or `agent:<name>` for a dispatched reviewer. Constrained by PATTERN, not a closed list \u2014 ADR-001 makes adding a specialist a one-line registry edit, and an enum here would make it a schema edit plus a version bump too. SELF-DECLARED, so it is forensics rather than enforcement: an inline self-review can claim an agent value. The enforcement is the dispatch discipline in the calling skills plus the reviewer agents' absent Edit/Write tools. ABSENT is read as `inline` by the validator, which rejects an inline envelope carrying a blocker or major. Deliberately NOT in `required`: this schema is a contract, and a new required field invalidates every envelope in flight."
+    },
     "reviewer_status": {
       "enum": ["assessed", "abstained"],
       "default": "assessed",

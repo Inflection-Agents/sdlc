@@ -89,6 +89,14 @@ function checkProperty(name, value, sub) {
     if (Array.isArray(sub?.enum) && !sub.enum.includes(value)) {
         return `\`${name}\` must be one of ${JSON.stringify(sub.enum)} (got ${JSON.stringify(value)})`
     }
+    // `pattern` was silently ignored until reviewed_by needed it. An enum was covering
+    // the gap by accident; the moment a field is constrained by shape instead of by a
+    // closed list, an unenforced pattern is a validator that validates nothing.
+    if (typeof sub?.pattern === 'string' && typeof value === 'string') {
+        if (!new RegExp(sub.pattern).test(value)) {
+            return `\`${name}\` must match ${sub.pattern} (got ${JSON.stringify(value)})`
+        }
+    }
     const types = sub?.type == null ? null : Array.isArray(sub.type) ? sub.type : [sub.type]
     if (types) {
         const actual =
@@ -182,6 +190,45 @@ export function validateEnvelope(env, schema = loadSchema()) {
                     }
                 }
             })
+        }
+    }
+
+    // Reviewer provenance. A self-graded review and an independent one are otherwise
+    // byte-identical in the artifact, which is how a self-review passes unnoticed.
+    // ABSENT is treated as `inline`: the conservative reading, since every envelope
+    // written before this field existed was produced without dispatch discipline.
+    //
+    // This is forensics, not enforcement - the field is self-declared and an inline
+    // grading can claim an agent value. The enforcement is the dispatch discipline in
+    // the calling skills plus the reviewer agents having no Edit/Write. What this
+    // catches is the honest mistake, which is the common one.
+    const reviewedBy = String(env.reviewed_by ?? 'inline')
+    if (reviewedBy === 'inline') {
+        const findings = Array.isArray(env.findings) ? env.findings : []
+        const blocking = findings.filter((f) => f?.severity === 'blocker' || f?.severity === 'major')
+        const who = env.reviewed_by ?? '(absent, read as inline)'
+
+        // An inline pass may ADVISE. It may never render a VERDICT.
+        //
+        // The first version of this check fired only on inline+blocking, which had the
+        // gate exactly backwards relative to the threat it was built for: it rejected a
+        // self-review that found problems and accepted one that rubber-stamped. The
+        // self-serving output of an authoring context grading its own work is a CLEAN
+        // envelope, and `findings: []` is not an absence of grading - it is a verdict of
+        // "nothing wrong", which the severity->action policy routes straight to `accept`.
+        if (blocking.length > 0) {
+            errors.push(
+                `\`reviewed_by\` is "${who}" but this envelope carries ${blocking.length} blocking ` +
+                    `finding(s). A blocker or major must come from a dispatched reviewer: call the Agent ` +
+                    `tool with the matching subagent_type and re-grade.`
+            )
+        } else if (findings.length === 0) {
+            errors.push(
+                `\`reviewed_by\` is "${who}" with no findings. An empty envelope is a verdict of ` +
+                    `"nothing wrong", which routes to accept - so this is a self-accept, the failure this ` +
+                    `field exists to make visible. Dispatch the reviewer and let its envelope stand. An ` +
+                    `inline pass may raise nits and suggestions; it may not render a clean verdict.`
+            )
         }
     }
 

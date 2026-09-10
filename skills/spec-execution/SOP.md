@@ -223,12 +223,8 @@ Collect every lens that fires across the whole diff — this is the one place
 `review-constraints.yaml` is evaluated in full — and resolve each to its reviewer with
 `node scripts/sdlc/reviewer-routing.mjs <lens>` (ADR-001: routing is registry data).
 
-**Dispatch one reviewer per DISTINCT resolved agent, not one per lens.** Lenses that resolve to
-the same agent fold into that agent's single pass: it reads the diff once and grades each of its
-lenses in sequence, and every finding names its `lens` so a later round can be scoped. Lenses that
-resolve to their own specialist keep their own dispatch, because a specialist's tools and reading
-depth differ. Which lenses fold is therefore registry data — a one-line `agent:` edit in
-`review-constraints.yaml`, never a list in this file.
+**Fold by resolved agent, per [`../review-primitives.md`](../review-primitives.md) > Panel fold
+rule.** That section is the single statement of the rule; this one does not restate it.
 
 Naming a specialist here instead would rebuild the hardcoded map ADR-001 deleted, and the two
 copies would drift. They already had: this section named `security-reviewer` for the security lens

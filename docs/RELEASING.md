@@ -27,6 +27,12 @@ belongs in `init-payload/` instead.
 | `review-primitives.md`, `review-envelope.schema.json`, or the state-machine phase spine | **minor at least, with a note** | These are contracts. A repo's specs, task files and review envelopes are written against them, so a change ripples into artifacts the adopter owns and cannot regenerate. |
 | Removing or renaming a skill, agent, or lens | major | A registry `agent:` or a skill invocation in their docs stops resolving |
 
+**Shipped contract changes:**
+
+| Version | Change | Impact on adopters |
+| --- | --- | --- |
+| `0.2.0` | `reviewed_by` added to `review-envelope.schema.json`, OPTIONAL | **Breaking for stored envelopes.** An envelope carrying a `blocker` or `major` must declare a dispatched reviewer; absent is read as `inline` and rejected. So a 0.1.0 envelope that carries a blocking finding — which is every envelope anyone kept — now exits 3 on re-validation. Add `reviewed_by` or re-grade. Nits and suggestions are unaffected. **The field is self-declared**, so this catches the honest omission, not a determined self-grader: an inline pass can write an agent value. The real enforcement is the reviewer agents' absent `Edit`/`Write` plus the dispatch discipline in the calling skills. |
+
 A contract change is the one to slow down on. Everything else an adopter can absorb
 without reading the diff.
 

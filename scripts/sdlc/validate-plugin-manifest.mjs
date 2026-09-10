@@ -20,7 +20,7 @@
  *   node scripts/sdlc/validate-plugin-manifest.mjs
  */
 import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
@@ -157,6 +157,49 @@ export function validate(root = ROOT) {
             if (!isDir) continue
             if (!existsSync(join(p, 'SKILL.md'))) problems.push(`skills/${entry}/ has no SKILL.md`)
         }
+    }
+
+    // Every `subagent_type:` a skill names must resolve to a shipped agent. This is a
+    // new dangling-name surface and every dangling-name defect this repo has hit came
+    // from exactly that shape - a registry routing to an agent no repo defined, a
+    // changelog citing a spec that does not exist, a `std:` anchor with no heading.
+    // A skill telling the model to dispatch `spec-reviewer` when agents/spec-reviewer.md
+    // is absent fails the worst way: nothing dispatches and nothing says so.
+    // BOTH trees. An agent can dispatch another agent, and a directory this walk does
+    // not enter is exactly where a dangling name survives.
+    const agentsDirForSet = join(root, 'agents')
+    const shippedAgents = new Set(existsSync(agentsDirForSet) ? readdirSync(agentsDirForSet) : [])
+    for (const dispatchRoot of [join(root, 'skills'), join(root, 'agents')]) {
+    if (existsSync(dispatchRoot)) {
+        const walk = (dir) => {
+            for (const entry of readdirSync(dir, { withFileTypes: true })) {
+                const p = join(dir, entry.name)
+                if (entry.isDirectory()) walk(p)
+                else if (entry.isFile() && entry.name.endsWith('.md')) {
+                    // Tolerate every quoting a human or a model actually writes: bare,
+                    // backticked, single- or double-quoted, with or without a space, and
+                    // with the key itself backticked. An earlier pattern caught only the
+                    // bare and backticked forms and truncated a name at an underscore, so
+                    // the gate caught exactly the spelling its author happened to use.
+                    for (const m of read(p).matchAll(/`?subagent_type`?\s*:\s*["'`]?([A-Za-z0-9_-]+)["'`]?/g)) {
+                        const agent = m[1]
+                        // Membership in a Set built from the directory, NOT existsSync:
+                        // APFS is case-insensitive, so a mis-cased target passes on macOS
+                        // and reddens CI on ubuntu - and the dispatch itself resolves on
+                        // neither. A gate whose verdict depends on the filesystem is not
+                        // a gate.
+                        if (!shippedAgents.has(`${agent}.md`)) {
+                            problems.push(
+                                `${relative(root, p)} names \`subagent_type: ${agent}\`, but agents/${agent}.md ` +
+                                    `does not exist - nothing would dispatch`
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        walk(dispatchRoot)
+    }
     }
 
     const agentsDir = join(root, 'agents')

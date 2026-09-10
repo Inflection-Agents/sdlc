@@ -69,8 +69,8 @@ The single source of truth for the phases is [`specs/sdlc-state-machine.yaml`](s
 
 | Doc | Purpose |
 |-----|---------|
-| [Spec Schema](spec-schema.md) | Spec, ADR, and bug spec formats, frontmatter schema, validation |
-| [Task Schema](task-schema.md) | Task files, dependency graph, `touches`/`risk`/`tier`, phase memory |
+| [Spec Schema](skills/spec-schema.md) | Spec, ADR, and bug spec formats, frontmatter schema, validation |
+| [Task Schema](skills/task-schema.md) | Task files, dependency graph, `touches`/`risk`/`tier`, phase memory |
 | [Sync](sync.md) | Repo ↔ Linear sync: ownership model, sync rules, phased mechanism |
 | [Agent Orchestration](agent-orchestration.md) | Goal-oriented single-executor delivery; the worktree-isolated subagent exception |
 | [Work Graph](work-graph.md) | Data model — node types, edges, events |

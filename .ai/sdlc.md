@@ -132,7 +132,7 @@ When you complete a task, comment on the Linear issue with:
 
 Tasks are structured files in the repo at `specs/tasks/SPEC-NNN/`. Each task has YAML frontmatter with: id, spec, agent (routing), `workspace`, `touches` (the file globs it may modify), `risk`, `tier`, dependencies, and acceptance criteria. An `_index.yaml` in each directory encodes the full dependency graph (and the optional `phase:` memory block).
 
-Tasks are **AI-coherent units of execution**, not human-reviewable PR chunks: sized by coherence and a bounded `touches` set, not by line count. See `task-schema.md`.
+Tasks are **AI-coherent units of execution**, not human-reviewable PR chunks: sized by coherence and a bounded `touches` set, not by line count. See `skills/task-schema.md`.
 
 Once a spec is decomposed, **`spec-execution` delivers all of it in one run**: the agent running that skill is the executor. It arms a goal leash, cuts `feat/spec-NNN`, tracks every task on a visible task list, and implements them one at a time — each gated by its own tests and an executor self-review, each merged into the integration branch before the next begins. The per-task lifecycle below is the executor's view of a single task inside that loop.
 

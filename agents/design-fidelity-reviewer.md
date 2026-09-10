@@ -26,3 +26,5 @@ deliberately minimal so the agent is inert rather than wrong out of the box.
 
 The `review-primitives.md` envelope, nothing else. Ground a fidelity finding in the design token or
 component it violates (`design:<token-or-component>`), and attach the evidence you looked at.
+
+Set `reviewed_by: "agent:design-fidelity-reviewer"` — the provenance field that tells a reader an independent reviewer produced this.

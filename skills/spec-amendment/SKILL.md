@@ -32,7 +32,7 @@ Before invoking spec-amendment, decide whether the change is small enough to be 
 | Word-level AC clarification preserving semantics (e.g., wording tighten without changing what passes/fails) | gap-capture (use `templates/gap.md`; do not run this skill) |
 | Design-section workaround that does not affect any AC's pass/fail | gap-capture |
 | Cross-link to an ADR that should have been cited but wasn't (no design change) | gap-capture |
-| Any change that would bump the spec version (per `spec-schema.md` version rules) | **spec-amendment** (this skill) |
+| Any change that would bump the spec version (per `skills/spec-schema.md` version rules) | **spec-amendment** (this skill) |
 | Any change to In/Out scope, AC pass/fail conditions, or design semantics | **spec-amendment** |
 
 If the change qualifies as a gap, create a GAP-NNN-*.md file under `specs/gaps/` (template at `templates/gap.md`) and stop. Otherwise continue with the amendment process below. See SPEC-004 for the originating design.
@@ -276,18 +276,27 @@ Before presenting to the user, verify:
 - [ ] Rework task files follow the same rule: no Constraints section instructs a standards violation.
 - [ ] The amendment doesn't reintroduce dead code, deprecated-zombies, or similar patterns that this project has committed to retiring.
 
-## Step 6c: Run `spec-reviewer` on the amended spec (mandatory for additive and breaking)
+## Step 6c: Dispatch `spec-reviewer` on the amended spec (mandatory for additive and breaking)
 
-After self-review (Step 6b) and BEFORE presenting to the user in Step 7, invoke the `spec-reviewer` skill on the amended spec. This step runs on every additive and breaking amendment, regardless of size — cosmetic changes (Step 3 short-circuit) skip the reviewer.
+After self-review (Step 6b) and BEFORE presenting to the user in Step 7, DISPATCH the `spec-reviewer` agent on the amended spec. This step runs on every additive and breaking amendment, regardless of size — cosmetic changes (Step 3 short-circuit) skip the reviewer.
 
 **Why this step exists.** The reviewer checks the amended spec against the schema, the authoring conventions, the originating intent, ADRs, and upstream/downstream specs for the 9 gap categories enumerated in `spec-reviewer/SKILL.md`. Amendments are exactly where gaps creep in: ACs get edited but not re-checked for testability, scope shifts but Risks & constraints lags, a design tweak silently contradicts a downstream spec's contract. The reviewer makes those failures visible and grounded so the owner can act on them before the amendment lands.
 
 This is the mirror of the `spec-authoring` Phase 2 invocation (Step 10a there). The reviewer's output is informational; the owner remains the sign-off authority.
 
-**Dispatch inputs.** Invoke `spec-reviewer` with:
+**Dispatch, do not invoke.** Call the `Agent` tool with `subagent_type: spec-reviewer`. Both
+variants — `default` and `adversarial` — go in ONE message so they run concurrently against the
+amended spec.
+
+**The authoring context must never grade its own amendment.** You made this amendment; findings you produce in
+this turn are a self-review wearing a reviewer's output format, and the two are byte-identical in
+the artifact. The agent has no `Edit`/`Write` and a clean context, which is the whole of what makes
+its verdict worth having. If you are about to write findings inline, stop and dispatch.
+
+Seed each dispatch with these inputs (all paths concrete; do not invent them):
 
 - `spec_file`: the amended `specs/SPEC-NNN-<short-description>.md` (post-edit).
-- `spec_schema`: `spec-schema.md`.
+- `spec_schema`: `skills/spec-schema.md`.
 - `authoring`: `skills/spec-authoring/SKILL.md`.
 - `intent`: the intent excerpt the original spec was authored from (still in `specs/intents.md` or its archive).
 - `project`: `.ai/project.md`.
@@ -299,7 +308,19 @@ This is the mirror of the `spec-authoring` Phase 2 invocation (Step 10a there). 
 
 **Present findings to the owner** alongside the amendment summary in Step 7. Render the JSON output as a graded list: blocker → major → nit → suggestion, with `criterion`, `location`, `finding`, and `suggested_fix`.
 
-**Apply the routing policy.** Severity → action is defined in [`review-primitives.md`](../review-primitives.md) > Orchestrator severity→action policy — do not duplicate it here. In summary: blockers/majors → `fix_loop`; nits/suggestions → `batch_followup_and_accept` (appended to `spec_followups:` per SPEC-001 Design > Spec followups format); empty → `accept`. Loop with the author to fix or with the owner to override until no un-overridden blockers/majors remain; re-invoke the reviewer after edits with the prior output as `previous_output`.
+**Validate every returned envelope before folding it:**
+
+```bash
+node scripts/sdlc/validate-review-envelope.mjs <envelope.json>
+```
+
+Exit `0` folds the findings. `2` is an abstention and escalates — never accept it, even with
+an empty findings list. `3` is a contract violation: re-dispatch or escalate, never treat it as a
+clean review. This is also where a self-review is caught: an envelope with `reviewed_by: inline`
+carrying blockers, or carrying none at all, is rejected — an empty envelope is a verdict of
+"nothing wrong", so an inline one is a self-accept.
+
+**Apply the routing policy.** Severity → action is defined in [`review-primitives.md`](../review-primitives.md) > Orchestrator severity→action policy — do not duplicate it here. In summary: blockers/majors → `fix_loop`; nits/suggestions → `batch_followup_and_accept` (appended to `spec_followups:` per SPEC-001 Design > Spec followups format); empty → `accept`. Loop with the author to fix or with the owner to override until no un-overridden blockers/majors remain; re-DISPATCH the reviewer agent after edits — a fix round is graded by a fresh agent, never inline — with the prior output as `previous_output`.
 
 **Owner override format.** When the owner judges a finding's severity is too high — e.g., the reviewer flags a workspace-coverage gap that the amendment explicitly leaves for a follow-up spec — the owner downgrades severity by appending a `spec_review_overrides:` entry to the amended spec body. The section lives after `Migration` and before any other appendix, per SPEC-001 Design > Owner override format. Example entry:
 

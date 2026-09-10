@@ -37,3 +37,5 @@ asked to predict exploitability.
 ## Output — the envelope ONLY
 
 The `review-primitives.md` envelope, nothing else. Every finding grounded, with `altitude` set.
+
+Set `reviewed_by: "agent:security-reviewer"` — the provenance field that tells a reader an independent reviewer produced this.

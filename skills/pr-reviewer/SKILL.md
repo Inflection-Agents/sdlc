@@ -5,9 +5,21 @@ description: Use when reviewing a PR against its task file, spec, and ADRs — e
 
 # pr-reviewer
 
+> **Stop if you authored this.** `review SPEC-NNN` is a supported entry point, so this skill will
+> sometimes be invoked directly — including by the context that just wrote the artifact. If you
+> drafted or amended what you are being asked to grade, **do not grade it.** Dispatch
+> `subagent_type: pr-reviewer` via the `Agent` tool and let the returned envelope stand.
+> A self-review in the reviewer's output format is byte-identical to an independent one in the
+> artifact, which is exactly why this has to fail loudly here rather than quietly produce a verdict.
+
 This skill is the PR-side machine-parseable reviewer defined by SPEC-001. It grades a single PR against its task file, its parent spec, and the applicable ADRs, and emits the shared JSON envelope from `review-primitives.md`. The human-readable rendering of these findings — the actual review comment posted to the PR — lives in `sdlc-code-review` (updated by TASK-005). This skill emits structured findings; `sdlc-code-review` renders them.
 
 ## Prompt
+
+> **This block is the role prompt seeded into the DISPATCHED `pr-reviewer` agent** (see Grading
+> dispatch below). It is not an instruction to the context reading this file. If you are reading it
+> as one, you are about to grade inline — stop and dispatch.
+
 
 ```
 You are reviewing a single PR against its task file, its parent spec, and the
@@ -62,6 +74,55 @@ OUTPUT: the shared JSON envelope with `artifact: "pr"`, `tier: 1`, populated
 
 DECISION: you do not emit a decision. You grade. The orchestrator routes.
 ```
+
+## Grading dispatch — call the `Agent` tool, do NOT inline-grade
+
+**This skill never grades a PR inline, as prose in its own context.** It spawns a distinct reviewer
+by calling the `Agent` tool with `subagent_type: pr-reviewer`, then validates and renders the
+returned envelope. The verdict is produced by an agent that did not author the code, carries the
+independent-reviewer role prompt, and has no `Edit`/`Write` — so the author cannot self-accept.
+
+An inline verdict and a dispatched one are byte-identical in the artifact. That is why this is a
+rule about the ACT, not about the output format.
+
+### Step 1 — compute the lens set
+
+1. Derive the changed files from the real diff: `gh pr diff <pr> --name-only`.
+2. Load the registry: `loadConstraints()` from `scripts/sdlc/reviewer-routing.mjs`.
+3. Compute the applicable constraints across ALL changed paths with
+   `applicableConstraintsFor(rows, changedFiles)`. Use that helper rather than looping
+   `applicableConstraints` yourself — one lens set, one matcher, or a lens fires at write time and
+   not at review time.
+
+### Step 2 — fold by resolved agent, then dispatch
+
+Resolve every firing lens to its reviewer with `node scripts/sdlc/reviewer-routing.mjs <lens>`
+(ADR-001: routing is registry data).
+
+**Fold by resolved agent, per [`../review-primitives.md`](../review-primitives.md) > Panel fold
+rule.** That section is the single statement of the rule; this one does not restate it. Two
+hand-maintained copies of a rule is the drift ADR-001 deleted the lens map to prevent, and the copy
+you are not reading is the one that governs.
+
+Dispatch concurrently, in one message.
+
+### Step 3 — seed a clean context
+
+Each dispatch carries ONLY: the PR diff and changed files, the task's acceptance criteria, the spec
+and its linked ADRs, the applicable constraints with their `check` and `cite`, and the envelope
+schema. **The author's execution transcript is never passed in.** Independence comes from a clean
+context, not from a credential.
+
+### Step 4 — validate every returned envelope, then route
+
+```
+node scripts/sdlc/validate-review-envelope.mjs <envelope.json>
+```
+
+Exit `0` folds the findings. `2` is an abstention and escalates — never accept it, even with an
+empty findings list. `3` is malformed or ungrounded: re-dispatch or escalate. **A malformed envelope
+is never a clean review.** Then route the merged findings through the severity→action policy in
+`review-primitives.md`; do not freehand it.
 
 ## Tier 2 PR dispatch rules
 

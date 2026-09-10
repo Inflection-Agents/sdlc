@@ -5,6 +5,13 @@ description: Use when reviewing a draft spec or spec amendment — emits graded 
 
 # spec-reviewer
 
+> **Stop if you authored this.** `review SPEC-NNN` is a supported entry point, so this skill will
+> sometimes be invoked directly — including by the context that just wrote the artifact. If you
+> drafted or amended what you are being asked to grade, **do not grade it.** Dispatch
+> `subagent_type: spec-reviewer` via the `Agent` tool and let the returned envelope stand.
+> A self-review in the reviewer's output format is byte-identical to an independent one in the
+> artifact, which is exactly why this has to fail loudly here rather than quietly produce a verdict.
+
 Spec-side machine-parseable reviewer. Grades a draft spec against the schema, authoring conventions, originating intent, ADRs, and cross-spec contracts. Output is JSON consumed by the spec-authoring / spec-amendment routing policy.
 
 This skill is the agent version of what a spec owner currently does manually during `spec-authoring` Phase 2. The owner remains the sign-off authority; this reviewer makes the gap-detection systematic and grounded. Owners can override severity via the `spec_review_overrides:` section appended to the spec body — overrides are visible in the spec, never silenced.
@@ -49,6 +56,19 @@ The full text of each variant's framing/severity-bias instructions is defined in
 
 All other contract rules (grounding-prefix allowlist, severity catalog, carry-forward semantics, decision-disclaimer) are identical across variants.
 
+## Dispatch, do NOT inline-grade
+
+**This skill never grades a spec inline, as prose in the calling context.** It spawns a distinct
+reviewer by calling the `Agent` tool with `subagent_type: spec-reviewer`, then validates the returned
+envelope. The verdict is produced by an agent with a clean context and no `Edit`/`Write`.
+
+This is a rule about the ACT, not about the output format. An inline verdict and a dispatched one are
+byte-identical in the artifact, which is exactly why the rule cannot be "grade honestly".
+
+The block below is the role prompt seeded into that dispatched agent. **It is not an instruction to
+the context reading this file.** If you are reading it as one, you are about to grade inline — stop
+and dispatch.
+
 ## Prompt body
 
 The prompt below matches SPEC-001 Appendix C verbatim. At dispatch time, the reviewer prepends the appropriate variant framing block (from `review-primitives.md` > Prompt variants) to this body based on the `variant` parameter; the body itself is variant-agnostic.
@@ -62,7 +82,7 @@ outside the JSON envelope.
 
 INPUTS:
   - spec_file:       path to specs/SPEC-NNN-*.md
-  - spec_schema:     path to spec-schema.md
+  - spec_schema:     path to skills/spec-schema.md
   - authoring:       path to skills/spec-authoring/SKILL.md
   - intent:          (optional) excerpt from specs/intents.md
   - project:         path to .ai/project.md (for workspace coverage checks)
@@ -117,7 +137,7 @@ The reviewer must actively check for the following 9 categories on every spec it
 1. **Workspace-coverage gap** — design touches `shared/` or `packages/` but the workspace is not listed in `workspaces:`, or a workspace is declared in frontmatter but no AC scopes to it.
 2. **Untestable AC** — an acceptance criterion cannot be verified by any observable test, command, or inspection procedure.
 3. **Contradictory AC** — two acceptance criteria require mutually exclusive behavior.
-4. **Missing required section** — a section required by `spec-schema.md` is missing or empty.
+4. **Missing required section** — a section required by `skills/spec-schema.md` is missing or empty.
 5. **Cross-spec contradiction (upstream or downstream)** — this spec contradicts a contract from an upstream spec listed in its `depends_on`, OR a downstream spec that declares `depends_on` on this spec contradicts a contract defined here. Both directions are checked using the `upstream_specs` and `downstream_specs` inputs.
 6. **Missing migration plan** — the spec changes schemas, shared types, or external contracts, but no migration plan is provided.
 7. **Unstated cross-workspace impact** — the design touches `shared/` (or otherwise reaches across workspace boundaries) without naming the downstream consumers it affects.
@@ -129,7 +149,7 @@ The reviewer must actively check for the following 9 categories on every spec it
 The reviewer is supplied the following inputs at dispatch time (see prompt body for canonical paths):
 
 - `spec_file` — the spec under review.
-- `spec_schema` — `spec-schema.md` for required-section / frontmatter checks.
+- `spec_schema` — `skills/spec-schema.md` for required-section / frontmatter checks.
 - `authoring` — `skills/spec-authoring/SKILL.md` for `spec-authoring:<section-anchor>` citations.
 - `intent` (optional) — excerpt from `specs/intents.md` for `intent:<id>` citations.
 - `project` — `.ai/project.md` for workspace-coverage checks.
@@ -145,7 +165,7 @@ The reviewer is supplied the following inputs at dispatch time (see prompt body 
 
 1. **End of `spec-authoring` Phase 2**, before the user sign-off gate.
 2. **After every `spec-amendment`**, regardless of amendment classification.
-3. **On demand** — e.g., "review SPEC-NNN" invokes `spec-reviewer` against the current state of the spec.
+3. **On demand** — e.g., "review SPEC-NNN" DISPATCHES `subagent_type: spec-reviewer` against the current state of the spec. The entry point is a dispatch like the other two; it is not a licence to grade inline.
 
 The owner remains the sign-off authority; this skill produces grounded findings, not approval.
 

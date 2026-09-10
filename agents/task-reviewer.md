@@ -40,6 +40,8 @@ Every finding carries `severity`, a grounded `criterion`, a `location`, and an `
 validates the shape with `node scripts/sdlc/validate-review-envelope.mjs` and re-dispatches you on a
 contract violation.
 
+Set `reviewed_by: "agent:task-reviewer"` — the provenance field that tells a reader an independent reviewer produced this, not the context that wrote the code.
+
 ## Do not inflate
 
 A reviewer asked to find gaps will always find some. Raise `blocker` or `major` only for something
