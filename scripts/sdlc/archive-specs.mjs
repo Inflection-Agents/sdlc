@@ -117,8 +117,9 @@ export function collectCitedIds(root = ROOT, knownIds = null) {
         }
     }
     walk(skills)
-    for (const name of ['review-primitives.md', 'review-constraints.yaml']) {
-        const p = join(skills, name)
+    // The constraints registry sits outside .ai/skills on purpose (that tree ships in
+    // the plugin and is overwritten on update), so it is read from its own path.
+    for (const p of [join(skills, 'review-primitives.md'), join(root, '.ai', 'sdlc', 'review-constraints.yaml')]) {
         if (existsSync(p)) for (const m of read(p).matchAll(/\b(SPEC-\d{3})\b/g)) ids.add(m[1])
     }
     // Keep only ids that name a spec THIS repo actually has. The shipped skills cite

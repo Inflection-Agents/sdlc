@@ -56,7 +56,7 @@ The single source of truth for the phases is [`specs/sdlc-state-machine.yaml`](s
 |----------|---------|
 | [`specs/sdlc-state-machine.yaml`](specs/sdlc-state-machine.yaml) | Single source of truth for phases, triggers, exit conditions, transitions, and per-workspace domain-skill routing. The `.ai/sdlc.md` narrative and each skill's `## Handoff` footer are generated/validated from it. |
 | [`scripts/sdlc/`](scripts/sdlc/) | Validators and delivery gates: state machine + phase memory, handoff generation, the fail-closed `plan-gate.mjs`, registry-driven `reviewer-routing.mjs`, `validate-review-envelope.mjs`, and the registry `check-review-constraint-globs.mjs`. Shipped by bootstrap. |
-| [`.ai/skills/review-constraints.yaml`](.ai/skills/review-constraints.yaml) | Lens/constraint registry keyed on a task's `touches`; `baseLenses` per workspace. Drives review-lens routing + tier. |
+| [`.ai/sdlc/review-constraints.yaml`](.ai/sdlc/review-constraints.yaml) | Lens/constraint registry keyed on a task's `touches`; `baseLenses` per workspace. Drives review-lens routing + tier. Lives outside `.ai/skills/` because every repo replaces its rows with its own invariants. |
 | [`.ai/skills/review-envelope.schema.json`](.ai/skills/review-envelope.schema.json) | The one reviewer-output schema (severity blocker/major/nit/suggestion, altitude, grounded criteria). |
 | [`.ai/skills/review-primitives.md`](.ai/skills/review-primitives.md) | Human-readable runtime contract: severity spine, grounding rules, severity→action policy. |
 | [`.claude/hooks/`](.claude/hooks/) | Reference enforcement hooks (Node, advisory by default): prompt→phase classifier, phase-exit handoff **and the delivery goal leash**, edit-without-task guard, review-identity guard. Wired via `.claude/settings.json`. |
@@ -92,7 +92,7 @@ The bootstrap script:
 3. Creates `specs/` and `.ai/` in the repo if missing
 4. Copies spec templates, the state machine, the reference hooks, the validators + delivery gates, and the review contracts; wires `.claude/settings.json`
 
-After running, fill in `.ai/project.md` (repo structure, commands, conventions, workspace map), customize `.ai/CLAUDE.md`, replace the example rows in `.ai/skills/review-constraints.yaml` with your repo's real constraints, and fill the per-workspace verification commands into `.ai/skills/spec-execution/SOP.md` §3 and §6.
+After running, fill in `.ai/project.md` (repo structure, commands, conventions, workspace map), customize `.ai/CLAUDE.md`, replace the example rows in `.ai/sdlc/review-constraints.yaml` with your repo's real constraints, and fill the per-workspace verification commands into `.ai/skills/spec-execution/SOP.md` §3 and §6.
 
 ## Distribution strategy
 

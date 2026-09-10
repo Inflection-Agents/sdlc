@@ -5,7 +5,7 @@
 // Dependency-free (Node built-ins only — a minimal YAML reader is inlined).
 //
 // The lens→reviewer binding is DATA on the constraint that already owns the lens:
-// each `.ai/skills/review-constraints.yaml` constraint may name its own `agent:`.
+// each `.ai/sdlc/review-constraints.yaml` constraint may name its own `agent:`.
 // A lens with no such constraint folds into the generic `task-reviewer`.
 //
 // This module was re-homed out of the retired `execute-spec` Workflow (ADR-003)
@@ -28,7 +28,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(__dirname, '..', '..')
 import { parseRegistryTouches } from './check-review-constraint-globs.mjs'
 
-export const DEFAULT_REGISTRY = join(REPO_ROOT, '.ai', 'skills', 'review-constraints.yaml')
+// Outside .ai/skills on purpose: that tree ships in the plugin and is overwritten
+// on update, and this file holds the adopting repo's own invariants.
+export const DEFAULT_REGISTRY = join(REPO_ROOT, '.ai', 'sdlc', 'review-constraints.yaml')
 
 /** The reviewer a lens with no registered specialist folds into. */
 export const GENERIC_REVIEWER = 'task-reviewer'

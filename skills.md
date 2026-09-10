@@ -97,8 +97,10 @@ your-repo/
 │   ├── sdlc-code-standards/SKILL.md
 │   ├── create-domain-skill/SKILL.md
 │   ├── review-primitives.md          ← review contract: severity spine, policy (not a skill)
-│   ├── review-constraints.yaml       ← lens/constraint registry keyed on `touches` (not a skill)
 │   └── review-envelope.schema.json   ← the one reviewer-output schema (not a skill)
+│
+├── .ai/sdlc/review-constraints.yaml  ← lens/constraint registry keyed on `touches`;
+│                                       repo-specific, so it lives outside .ai/skills/
 │
 ├── .claude/skills → ../.ai/skills    ← symlink; Claude Code loads from here
 │

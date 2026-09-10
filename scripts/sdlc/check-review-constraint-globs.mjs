@@ -6,7 +6,7 @@
  * Dependency-free (Node built-ins only; uses `fs.globSync`, Node ≥ 22).
  *
  * WHY THIS EXISTS. ADR-003 retired the deterministic engine and made
- * `.ai/skills/review-constraints.yaml` the SDLC's only mechanical review
+ * `.ai/sdlc/review-constraints.yaml` the SDLC's only mechanical review
  * guarantee: where a constraint's `when` matches, its lens must review; everything
  * else is the agent's judgment. That elevation turns a latent bug into a live one
  * — a `when.touches` glob that matches nothing in the repo silently advertises
@@ -45,7 +45,9 @@ import { fileURLToPath } from 'node:url'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 export const REPO_ROOT = process.env.REVIEW_CONSTRAINTS_ROOT ?? resolve(__dirname, '..', '..')
-export const REGISTRY_REL = '.ai/skills/review-constraints.yaml'
+// Outside .ai/skills on purpose: that tree ships in the plugin and is overwritten
+// on update, and this file holds the adopting repo's own invariants.
+export const REGISTRY_REL = '.ai/sdlc/review-constraints.yaml'
 export const REGISTRY_FILE = process.env.REVIEW_CONSTRAINTS_FILE ?? join(REPO_ROOT, REGISTRY_REL)
 
 /** Path segments never worth counting as a match when resolving a glob. */

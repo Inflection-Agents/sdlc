@@ -66,7 +66,8 @@ The autonomous half of the SDLC runs on a small spine of machine-checkable piece
   - `pre-tool-use-edit-write.mjs` — flag implementation-code edits with no active task context
   - `pre-tool-use-review-identity.mjs` — flag an author reviewing their own PR
 - **Delivery gates** — `scripts/sdlc/plan-gate.mjs` (the fail-closed plan-review gate a run checks before it starts), `scripts/sdlc/validate-review-envelope.mjs` (every reviewer verdict is validated through it), `scripts/sdlc/reviewer-routing.mjs` (lens → reviewer, from the registry), `scripts/sdlc/check-review-constraint-globs.mjs` (registry rows must resolve to real files).
-- **Review contracts** — `.ai/skills/review-primitives.md`, `review-constraints.yaml`, `review-envelope.schema.json`.
+- **Review contracts** — `.ai/skills/review-primitives.md`, `.ai/skills/review-envelope.schema.json` (universal, identical in every repo).
+- **Constraint registry** — `.ai/sdlc/review-constraints.yaml`, this repo's own invariants. It sits outside `.ai/skills/` so a skills-tree update can never overwrite it.
 
 There is **no execution engine to install.** A deterministic `execute-spec` Workflow script used to sit here; it was measured and retired (ADR-003). `spec-execution` is itself the engine.
 
@@ -104,9 +105,10 @@ claude "list my Linear teams"
 ├── GEMINI.md       ← instructions for the Gemini CLI orchestrator (if used)
 ├── AGENTS.md       ← the executor brief (any agent dispatched to a task)
 ├── setup.md        ← you are here
+├── sdlc/           ← this repo's own SDLC config, never overwritten by an update
+│   └── review-constraints.yaml   ← lens/constraint registry (yours to edit)
 └── skills/         ← shared SDLC + domain skills + review contracts
-                       (review-primitives.md, review-constraints.yaml,
-                        review-envelope.schema.json)
+                       (review-primitives.md, review-envelope.schema.json)
 
 .claude/
 ├── settings.json   ← wires the hooks (travels with the repo)

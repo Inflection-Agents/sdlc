@@ -60,8 +60,9 @@ The three skill layers describe *knowledge* agents apply. Underneath the SDLC-pr
   _index.yaml `plan_review:` block← the fail-closed gate a delivery run checks before it starts
   .claude/.sdlc-goal-<session_id> ← the run's goal leash, enforced by the Stop hook
   .claude/hooks/*.mjs             ← classify prompt, handoff at phase exit + goal leash, guard edits/review
-  .ai/skills/review-primitives.md │ review-constraints.yaml │ review-envelope.schema.json
-                                   ← review contracts: severity spine, lens registry, output schema
+  .ai/skills/review-primitives.md │ review-envelope.schema.json
+                                   ← review contracts: severity spine, output schema
+  .ai/sdlc/review-constraints.yaml← the lens registry; repo-specific, so outside .ai/skills/
   scripts/sdlc/*.mjs              ← validators + gates: state machine, phase memory, gen-handoffs,
                                      plan-gate, reviewer-routing, envelope validation, registry globs
 ```
@@ -138,8 +139,9 @@ the SDLC process.
   sdlc-code-standards/SKILL.md
   create-domain-skill/SKILL.md
   review-primitives.md      ← review contract: severity spine, policy (not a skill)
-  review-constraints.yaml   ← lens/constraint registry keyed on `touches` (not a skill)
   review-envelope.schema.json ← the one reviewer-output schema (not a skill)
+  # the lens/constraint registry keyed on `touches` is repo-specific and lives
+  # outside this tree, at .ai/sdlc/review-constraints.yaml
 
   # Domain: dbt (Layer 1) — prefixed with workspace/technology
   dbt-cartographer/SKILL.md

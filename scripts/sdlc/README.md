@@ -138,7 +138,7 @@ or `node scripts/sdlc/plan-gate.mjs --presence-only specs/tasks/*/_index.yaml`.
 
 **`reviewer-routing.mjs`** — lens → reviewer resolution (ADR-001, re-homed by
 ADR-003). The binding is data on the constraint that owns the lens
-(`.ai/skills/review-constraints.yaml` → optional `agent:`); a lens with no such
+(`.ai/sdlc/review-constraints.yaml` → optional `agent:`); a lens with no such
 constraint folds into the generic `task-reviewer`. Exports `agentForLens` /
 `parseConstraints` / `loadConstraints`. Run:
 `node scripts/sdlc/reviewer-routing.mjs <lens>` or `--list`.
