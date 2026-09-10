@@ -63,6 +63,61 @@ OUTPUT: the shared JSON envelope with `artifact: "pr"`, `tier: 1`, populated
 DECISION: you do not emit a decision. You grade. The orchestrator routes.
 ```
 
+## Grading dispatch — call the `Agent` tool, do NOT inline-grade
+
+**This skill never grades a PR inline, as prose in its own context.** It spawns a distinct reviewer
+by calling the `Agent` tool with `subagent_type: pr-reviewer`, then validates and renders the
+returned envelope. The verdict is produced by an agent that did not author the code, carries the
+independent-reviewer role prompt, and has no `Edit`/`Write` — so the author cannot self-accept.
+
+An inline verdict and a dispatched one are byte-identical in the artifact. That is why this is a
+rule about the ACT, not about the output format.
+
+### Step 1 — compute the lens set
+
+1. Derive the changed files from the real diff: `gh pr diff <pr> --name-only`.
+2. Load the registry: `loadConstraints()` from `scripts/sdlc/reviewer-routing.mjs`.
+3. Compute the applicable constraints across ALL changed paths with
+   `applicableConstraintsFor(rows, changedFiles)`. Use that helper rather than looping
+   `applicableConstraints` yourself — one lens set, one matcher, or a lens fires at write time and
+   not at review time.
+
+### Step 2 — fold by resolved agent, then dispatch
+
+Resolve every firing lens to its reviewer with `node scripts/sdlc/reviewer-routing.mjs <lens>`
+(ADR-001: routing is registry data).
+
+**Dispatch one reviewer per DISTINCT resolved agent, not one per lens.** Lenses that resolve to the
+same agent fold into that agent's single pass: it reads the diff once and grades each of its lenses
+in sequence, and every finding sets its `lens` so a later round can be scoped to the lens that
+flagged it. Lenses that resolve to their own specialist keep their own dispatch, because a
+specialist's tools and reading depth differ.
+
+**Name no reviewer in this section.** Which lenses fold is registry data — a one-line `agent:` edit
+in `review-constraints.yaml`. Hardcoding the specialists here rebuilds the lens→reviewer map ADR-001
+deleted, and it is the same map `spec-execution/SOP.md` §7.2 was corrected to remove. Keep the two
+consistent; if you find yourself editing a list of agent names in either, the registry is the place.
+
+Dispatch concurrently, in one message.
+
+### Step 3 — seed a clean context
+
+Each dispatch carries ONLY: the PR diff and changed files, the task's acceptance criteria, the spec
+and its linked ADRs, the applicable constraints with their `check` and `cite`, and the envelope
+schema. **The author's execution transcript is never passed in.** Independence comes from a clean
+context, not from a credential.
+
+### Step 4 — validate every returned envelope, then route
+
+```
+node scripts/sdlc/validate-review-envelope.mjs <envelope.json>
+```
+
+Exit `0` folds the findings. `2` is an abstention and escalates — never accept it, even with an
+empty findings list. `3` is malformed or ungrounded: re-dispatch or escalate. **A malformed envelope
+is never a clean review.** Then route the merged findings through the severity→action policy in
+`review-primitives.md`; do not freehand it.
+
 ## Tier 2 PR dispatch rules
 
 This table is the source of truth for Tier 2 dispatch. SPEC-002 consumes verbatim; consumers do not modify it. Future changes go through `spec-amendment` on SPEC-001.
