@@ -1,0 +1,26 @@
+# Paths hidden from ripgrep (and therefore from agent Grep/Glob) but still fully
+# tracked in git. `.ignore` is a ripgrep convention; git does not read this file.
+#
+# WHY. A spec is written in future tense and never rewritten, so once it merges its
+# description of the system is a snapshot that keeps reading as current. Marking it
+# stale does not help: every spec already carries a status, and a model shown a
+# labelled-stale document overrides its own correct prior more than half the time.
+# Position does help, because the search tool enforces it and the reader cannot
+# forget to check.
+#
+# HOW TO REACH ARCHIVED MATERIAL. Nothing here is deleted or untracked.
+#   node scripts/sdlc/resolve.mjs SPEC-005    # by id — the normal way
+#   rg --no-ignore pattern specs/archive/     # by search, explicit opt-out
+#   cat on a known path                       # always works
+#
+# Each fenced directory carries its OWN `.ignore` containing `*`, because a
+# repo-root pattern leaks whenever ripgrep is given several path arguments and the
+# walk root shifts.
+#
+# Archived specs additionally nest one level down at `specs/archive/specs/` rather
+# than sitting flat in `specs/archive/`. A flat layout is still reachable via
+# `rg -g '*.md'`, because ripgrep treats `-g` as an override whitelist evaluated
+# BEFORE ignore files — and `-g '*.md'` is the form an agent's Grep tool emits by
+# default on a docs corpus. Nesting puts a directory between the fence and the file,
+# and a pruned directory is not re-entered by a glob override.
+specs/archive/

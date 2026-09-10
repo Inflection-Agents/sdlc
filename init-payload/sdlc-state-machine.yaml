@@ -163,9 +163,6 @@ domain_routing:
 # post-execution phase for it to own. It remains the reviewer-knowledge skill that the dispatched
 # reviewer roles consume, and the entry point for an ad-hoc PR review outside a delivery run.
 exempt:
-    # Adoption skills: they set up and refresh a repo, they own no SDLC phase.
-    - sdlc-init
-    - sdlc-sync
     - spec-reviewer
     - pr-reviewer
     - sdlc-code-standards
