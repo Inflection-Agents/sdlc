@@ -236,17 +236,32 @@ if git rev-parse --git-dir &> /dev/null 2>&1; then
   if [ -d "$SCRIPT_DIR/.ai/skills" ]; then
     mkdir -p "$REPO_ROOT/.ai/skills"
     CONTRACTS_COPIED=false
-    for contract in review-constraints.yaml review-envelope.schema.json review-primitives.md; do
+    for contract in review-envelope.schema.json review-primitives.md; do
       if [ -f "$SCRIPT_DIR/.ai/skills/$contract" ] && [ ! -f "$REPO_ROOT/.ai/skills/$contract" ]; then
         cp "$SCRIPT_DIR/.ai/skills/$contract" "$REPO_ROOT/.ai/skills/$contract"
         CONTRACTS_COPIED=true
       fi
     done
     if [ "$CONTRACTS_COPIED" = true ]; then
-      ok "Copied review contracts to .ai/skills/ — fill in review-constraints.yaml with your lenses/invariants"
+      ok "Copied review contracts to .ai/skills/ — universal, same in every repo"
     else
       ok "Review contracts already present in .ai/skills/"
     fi
+  fi
+
+  # The constraints registry lives OUTSIDE .ai/skills on purpose: that tree ships in
+  # the plugin and is overwritten on update, and this file holds the adopting repo's
+  # own invariants. Its own block because it needs its own mkdir and its own message.
+  if [ -f "$SCRIPT_DIR/.ai/sdlc/review-constraints.yaml" ]; then
+    mkdir -p "$REPO_ROOT/.ai/sdlc"
+    if [ ! -f "$REPO_ROOT/.ai/sdlc/review-constraints.yaml" ]; then
+      cp "$SCRIPT_DIR/.ai/sdlc/review-constraints.yaml" "$REPO_ROOT/.ai/sdlc/review-constraints.yaml"
+      ok "Copied .ai/sdlc/review-constraints.yaml — fill it in with your lenses/invariants"
+    else
+      ok ".ai/sdlc/review-constraints.yaml exists"
+    fi
+  else
+    warn "No review-constraints.yaml found at $SCRIPT_DIR/.ai/sdlc/ — the registry was not copied"
   fi
 
   # ── Upgrading an existing bootstrap ──
@@ -360,7 +375,7 @@ echo "  3. Ensure Linear labels exist: claude-code, human"
 echo "  4. Write your first spec: cp specs/templates/spec.md specs/SPEC-001-name.md"
 echo ""
 echo "Configure the spine:"
-echo "  5. Fill in .ai/skills/review-constraints.yaml with your repo's real review"
+echo "  5. Fill in .ai/sdlc/review-constraints.yaml with your repo's real review"
 echo "     lenses and invariants (the shipped constraints are generic examples)"
 echo "  6. Customize specs/sdlc-state-machine.yaml domain_routing to map your"
 echo "     repo's workspaces to owners/reviewers"
