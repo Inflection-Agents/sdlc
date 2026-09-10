@@ -1,6 +1,6 @@
 # init-payload
 
-Files copied into an **adopting repo** by `/sdlc:init`. They are not loaded by Claude
+Files copied into an **adopting repo** by `/sdlc-init`. They are not loaded by Claude
 in this repository — this directory is a payload, not a working tree.
 
 ## Why these live here and not in the plugin proper
@@ -16,7 +16,7 @@ edits, has to be physically copied into their repo:
 | `templates/*.md` | Copy-and-fill artifacts the adopter edits. |
 | `.ignore` | Repo-root ripgrep fence for archived specs. |
 | `sdlc-state-machine.yaml` | The phase spine is universal; `domain_routing` is the adopter's. |
-| `.ai/sdlc/review-constraints.stub.yaml` | The adopter's own laws. Ships empty; `/sdlc:init` fills it. |
+| `.ai/sdlc/review-constraints.stub.yaml` | The adopter's own laws. Ships empty; `/sdlc-init` fills it. |
 
 Everything an adopter never edits — skills, agents, hooks, `review-primitives.md`,
 the envelope schema — ships in the plugin and updates automatically.

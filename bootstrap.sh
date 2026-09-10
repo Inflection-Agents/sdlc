@@ -17,8 +17,8 @@ done
 # the plugin exists to solve.
 #
 #   /plugin install sdlc@inflection-agents
-#   /sdlc:init      # scaffolds this repo and interviews for your constraints
-#   /sdlc:sync      # after a later update, refreshes the repo-local half
+#   /sdlc-init      # scaffolds this repo and interviews for your constraints
+#   /sdlc-sync      # after a later update, refreshes the repo-local half
 #
 # Use this when you cannot install a plugin, or to bootstrap the reference repo
 # itself. Pass --legacy to acknowledge the copy-once path and skip the notice.
@@ -126,7 +126,13 @@ if git rev-parse --git-dir &> /dev/null 2>&1; then
   if [ ! -d "$REPO_ROOT/.ai" ]; then
     if [ -d "$SCRIPT_DIR/.ai" ]; then
       info "Copying .ai/ agent config to repo..."
-      cp -r "$SCRIPT_DIR/.ai" "$REPO_ROOT/.ai"
+      # -L dereferences: .ai/skills is a SYMLINK to ../skills in the framework repo,
+      # and GNU cp -r preserves symlinks (BSD cp -r indirects through them). Without
+      # -L, a Linux adopter receives a dangling .ai/skills -> ../skills with no skills
+      # behind it, and the mkdir -p further down then fails on that dangling link and
+      # aborts the whole script under set -e, before the registry, the workflows and
+      # all of scripts/sdlc/ are copied. It passed on macOS, which is why it shipped.
+      cp -RL "$SCRIPT_DIR/.ai" "$REPO_ROOT/.ai"
       ok "Copied .ai/ — customize AGENTS.md with your project's setup commands"
     else
       warn ".ai/ templates not found in $SCRIPT_DIR"
@@ -253,6 +259,9 @@ if git rev-parse --git-dir &> /dev/null 2>&1; then
 
   # Copy review contracts into .ai/skills/
   if [ -d "$SCRIPT_DIR/.ai/skills" ]; then
+    # Clear a dangling symlink first: mkdir -p fails on one, and under set -e that
+    # aborts the run.
+    [ -L "$REPO_ROOT/.ai/skills" ] && [ ! -d "$REPO_ROOT/.ai/skills" ] && rm -f "$REPO_ROOT/.ai/skills"
     mkdir -p "$REPO_ROOT/.ai/skills"
     CONTRACTS_COPIED=false
     for contract in review-envelope.schema.json review-primitives.md; do
@@ -397,12 +406,12 @@ echo "  But the framework now ships as a Claude Code plugin, and that"
 echo "  path gets you engine updates automatically instead of never:"
 echo ""
 echo "    /plugin install sdlc@inflection-agents"
-echo "    /sdlc:init      # scaffolds this repo and interviews for your constraints"
-echo "    /sdlc:sync      # after a later plugin update, refreshes the repo-local half"
+echo "    /sdlc-init      # scaffolds this repo and interviews for your constraints"
+echo "    /sdlc-sync      # after a later plugin update, refreshes the repo-local half"
 echo ""
 echo "  What this script copies is copy-once. A repo bootstrapped today"
 echo "  receives nothing from a future framework release without a manual"
-echo "  diff. /sdlc:sync is how that stops being true."
+echo "  diff. /sdlc-sync is how that stops being true."
 echo ""
 fi
 

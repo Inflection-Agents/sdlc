@@ -131,6 +131,18 @@ function projectRoot(cwd) {
     const looksLikeRepo = (d) => d && existsSync(join(d, '.claude'))
     if (process.env.CLAUDE_PROJECT_DIR) return process.env.CLAUDE_PROJECT_DIR
     if (looksLikeRepo(cwd)) return cwd
+    // Ascend by MARKER, not by counting levels. This walked up exactly two, which was
+    // right at .claude/hooks/ and is one too high at hooks/ - Node realpaths
+    // import.meta.url through the symlink, so it landed on the repo's PARENT, and any
+    // parent holding a .claude passed the check. The hook then bound to the wrong root
+    // and failed open silently.
+    let dir = dirname(fileURLToPath(import.meta.url))
+    for (let i = 0; i < 6; i += 1) {
+        if (existsSync(join(dir, 'specs')) && existsSync(join(dir, 'scripts'))) return dir
+        const up = dirname(dir)
+        if (up === dir) break
+        dir = up
+    }
     const fromHook = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
     if (looksLikeRepo(fromHook)) return fromHook
     return cwd || fromHook

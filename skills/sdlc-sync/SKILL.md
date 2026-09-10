@@ -22,9 +22,15 @@ and an update that overwrote them would destroy the adoption it is meant to serv
 
 ## Procedure
 
-1. **Show the diff before writing anything.** For each payload file that differs from
-   its counterpart in the repo, show what changes. An adopter who has locally edited a
-   validator needs to see that before it is replaced, not after.
+1. **Show the diff before writing anything:**
+
+    ```bash
+    diff -ru "${CLAUDE_PLUGIN_ROOT}/init-payload/scripts/sdlc" scripts/sdlc
+    diff -ru "${CLAUDE_PLUGIN_ROOT}/init-payload/templates" templates
+    ```
+
+   An adopter who has locally edited a validator needs to see that before it is
+   replaced, not after.
 
 2. **Copy the engine-side files.** Validators, workflows and templates are framework
    artifacts — refresh them. If the adopter has modified one, say so explicitly and let
@@ -38,7 +44,7 @@ and an update that overwrote them would destroy the adoption it is meant to serv
    been graded on:
 
     ```bash
-    node --test scripts/sdlc/*.test.mjs
+    node scripts/sdlc/validate-constraints-registry.mjs --allow-empty
     node scripts/sdlc/validate-state-machine.mjs
     node scripts/sdlc/check-review-constraint-globs.mjs
     ```

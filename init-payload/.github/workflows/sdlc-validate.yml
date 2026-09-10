@@ -68,6 +68,6 @@ jobs:
 
             - name: Review-constraint globs resolve
               # Warn mode until your registry has rows. Switch to `--enforce` once
-              # `/sdlc:init` has filled it, so a rule that matches nothing goes red
+              # `/sdlc-init` has filled it, so a rule that matches nothing goes red
               # instead of sitting there never firing.
               run: node scripts/sdlc/check-review-constraint-globs.mjs

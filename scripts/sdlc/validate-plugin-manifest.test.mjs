@@ -28,7 +28,9 @@ function fakePlugin(mutate = () => {}) {
     const state = {
         manifest: { name: 'sdlc', version: '0.1.0', description: 'd' },
         hooks: {
-            Stop: [{ hooks: [{ type: 'command', command: 'node "${CLAUDE_PLUGIN_ROOT}/hooks/stop.mjs"' }] }]
+            hooks: {
+                Stop: [{ hooks: [{ type: 'command', command: 'node "${CLAUDE_PLUGIN_ROOT}/hooks/stop.mjs"' }] }]
+            }
         },
         hookFiles: ['stop.mjs'],
         skillMd: true,
@@ -123,13 +125,40 @@ test('an absent manifest is reported, not thrown on', () => {
     }
 })
 
-test('commandsOf finds commands under every event shape', () => {
-    const hooks = {
-        PreToolUse: [{ matcher: 'Bash', hooks: [{ command: 'a' }, { command: 'b' }] }],
-        Stop: [{ hooks: [{ command: 'c' }] }]
+test('commandsOf reads the NESTED shape the loader requires', () => {
+    const manifest = {
+        hooks: {
+            PreToolUse: [{ matcher: 'Bash', hooks: [{ command: 'a' }, { command: 'b' }] }],
+            Stop: [{ hooks: [{ command: 'c' }] }]
+        }
     }
-    assert.deepEqual(commandsOf(hooks).sort(), ['a', 'b', 'c'])
+    assert.deepEqual(commandsOf(manifest).sort(), ['a', 'b', 'c'])
     assert.deepEqual(commandsOf(null), [])
+})
+
+test('commandsOf finds nothing in the FLAT shape, and the flat shape is rejected', () => {
+    // The flat shape installs and then fails to load, so zero hooks fire. An earlier
+    // gate read the flat shape and was blind to the nested one - fail-open in both
+    // directions, in the check written to prevent exactly that.
+    assert.deepEqual(commandsOf({ Stop: [{ hooks: [{ command: 'c' }] }] }), [])
+})
+
+test('a top-level event key is caught', () => {
+    withPlugin(
+        (s) => {
+            s.hooks = { Stop: [{ hooks: [{ command: 'node "${CLAUDE_PLUGIN_ROOT}/hooks/stop.mjs"' }] }] }
+        },
+        (root) => assert.match(validate(root).join('\n'), /at the top level; events must nest/)
+    )
+})
+
+test('a string author is caught — it blocks installation', () => {
+    withPlugin(
+        (s) => {
+            s.manifest.author = 'Someone'
+        },
+        (root) => assert.match(validate(root).join('\n'), /`author` must be an object/)
+    )
 })
 
 test('pluginPathOf extracts the plugin-root-relative path, and ignores commands without one', () => {

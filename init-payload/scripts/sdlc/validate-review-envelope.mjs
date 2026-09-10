@@ -40,7 +40,7 @@
  *   3  malformed / ungrounded      → contract violation: re-dispatch or escalate
  *   1  usage / internal error
  */
-import { readFileSync, realpathSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -50,9 +50,24 @@ export const EXIT_VALID = 0
 export const EXIT_ABSTAINED = 2
 export const EXIT_MALFORMED = 3
 
-export const SCHEMA_FILE =
-    process.env.REVIEW_ENVELOPE_SCHEMA ??
-    join(__dirname, '..', '..', 'skills', 'review-envelope.schema.json')
+/**
+ * Where the envelope schema lives, in priority order.
+ *
+ * It ships in the PLUGIN, so an adopting repo has no local copy — and this validator
+ * decides at the integration gate whether findings fold or the review is a contract
+ * violation. Pointing it at a single repo-relative path made every adopter's every
+ * envelope exit 3. Both `skills/` and `.ai/skills/` resolve in the framework repo
+ * because one is a symlink to the other, which is exactly why the single-path version
+ * looked correct here and was broken everywhere else.
+ */
+const SCHEMA_CANDIDATES = [
+    process.env.REVIEW_ENVELOPE_SCHEMA,
+    process.env.CLAUDE_PLUGIN_ROOT && join(process.env.CLAUDE_PLUGIN_ROOT, 'skills', 'review-envelope.schema.json'),
+    join(__dirname, '..', '..', 'skills', 'review-envelope.schema.json'),
+    join(__dirname, '..', '..', '.ai', 'skills', 'review-envelope.schema.json')
+].filter(Boolean)
+
+export const SCHEMA_FILE = SCHEMA_CANDIDATES.find((p) => existsSync(p)) ?? SCHEMA_CANDIDATES.at(-1)
 
 /**
  * The canonical PR-side allowed-citation prefixes, owned by

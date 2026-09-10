@@ -28,10 +28,33 @@ const read = (p) => readFileSync(p, 'utf8')
 
 const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/
 
-/** Every `command` string in a hooks.json, whatever event nests it. */
-export function commandsOf(hooks) {
+/** Event names a hooks.json may declare, nested under its top-level `hooks` object. */
+const HOOK_EVENTS = new Set([
+    'PreToolUse',
+    'PostToolUse',
+    'UserPromptSubmit',
+    'Stop',
+    'SubagentStop',
+    'SessionStart',
+    'SessionEnd',
+    'Notification',
+    'PreCompact',
+    'PermissionRequest'
+])
+
+/**
+ * Every `command` string in a hooks.json.
+ *
+ * Events nest under a top-level `hooks` object. An earlier version of this function
+ * read `Object.values(manifest)` directly, which validated the WRONG shape (events at
+ * the top level, which the loader rejects) and found zero commands in the RIGHT one —
+ * so a hooks.json naming a missing file passed clean. Fail-open in both directions at
+ * once, in the gate written to prevent exactly that.
+ */
+export function commandsOf(manifest) {
+    const hooks = manifest?.hooks ?? {}
     const out = []
-    for (const entries of Object.values(hooks ?? {})) {
+    for (const entries of Object.values(hooks)) {
         if (!Array.isArray(entries)) continue
         for (const entry of entries) {
             for (const h of entry?.hooks ?? []) {
@@ -78,6 +101,15 @@ export function validate(root = ROOT) {
     for (const field of ['name', 'version', 'description']) {
         if (!manifest[field]) problems.push(`plugin.json is missing \`${field}\``)
     }
+    // `author` as a bare string fails schema validation at INSTALL time, before any
+    // other check in this file has a chance to matter.
+    if (manifest.author !== undefined) {
+        if (typeof manifest.author !== 'object' || manifest.author === null || Array.isArray(manifest.author)) {
+            problems.push('plugin.json `author` must be an object ({ name, url }) — a string blocks installation')
+        } else if (!manifest.author.name) {
+            problems.push('plugin.json `author` object has no `name`')
+        }
+    }
     if (manifest.version && !SEMVER.test(manifest.version)) {
         problems.push(
             `plugin.json version "${manifest.version}" is not semver — a user receives an update ONLY when this string changes`
@@ -92,6 +124,16 @@ export function validate(root = ROOT) {
         } catch (err) {
             problems.push(`hooks/hooks.json does not parse: ${err.message}`)
             hooks = null
+        }
+        // The loader requires every event under a top-level `hooks` object. Events at
+        // the top level install and then fail to load, so not one hook fires.
+        for (const key of Object.keys(hooks ?? {})) {
+            if (HOOK_EVENTS.has(key)) {
+                problems.push(
+                    `hooks.json declares \`${key}\` at the top level; events must nest under a \`hooks\` object, ` +
+                        `or the plugin loads with zero hooks`
+                )
+            }
         }
         for (const cmd of commandsOf(hooks)) {
             const rel = pluginPathOf(cmd)

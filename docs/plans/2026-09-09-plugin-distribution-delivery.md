@@ -75,6 +75,37 @@ just an advisory echo; a plugin-shipped skill named `.claude/hooks/stop-handoff.
 path that does not exist in an adopter's tree; and the README's lower half still
 described the world bootstrap built.
 
+## What the second reviewer caught — by actually installing the plugin
+
+The repo-facing half was sound. **The plugin-facing half had never been executed**, and
+a reviewer that ran `claude plugin install` found six blockers no static check could:
+
+1. **`author` as a string blocked installation outright.** The schema requires an object.
+2. **`hooks.json` declared its events at the top level**, where the loader rejects them.
+   The plugin installed, reported failed-to-load, and **not one of the four hooks fired**.
+3. **The manifest gate validated the broken shape and was blind to the correct one.**
+   `commandsOf()` read `Object.values(manifest)`, so once the nesting was fixed a
+   hooks.json naming a missing file would have passed clean. Fail-open in both
+   directions, in the check written to prevent exactly that.
+4. **`/sdlc:init` does not exist** — plugin skills resolve as `/sdlc-init`. The second
+   line of the public README's install block was a command that errors. 16 sites.
+5. **`SCHEMA_FILE` pointed at `skills/`, which only this repo has.** Every adopter's
+   integration gate would have exited 3 on every review envelope. It resolved here
+   because `.ai/skills` is a symlink to `skills/` — which is precisely why the single-path
+   version looked correct and was broken everywhere else.
+6. **`bootstrap.sh` aborted halfway on any Linux host.** GNU `cp -r` preserves symlinks
+   where BSD `cp -r` dereferences them, so an adopter got a dangling `.ai/skills`, the
+   later `mkdir -p` failed on it, and `set -e` killed the run before the registry, the
+   workflows and all of `scripts/sdlc/` were copied. It passed on macOS.
+
+Blockers 3, 5 and 6 are the same two classes this project keeps rediscovering: a gate
+that fails open, and a feature proven at its own site whose propagation site was never
+checked. Blocker 5 is the sharpest instance yet — the symlink that made the restructure
+safe is what hid the defect.
+
+`docs/RELEASING.md` now requires a real `claude plugin install` before tagging. All six
+would have been caught by those three lines.
+
 ## Disclosed, not fixed
 
 1. **The `/sdlc:init` interview can generate a rule that resolves cleanly and is still
@@ -84,9 +115,10 @@ described the world bootstrap built.
 2. **`/sdlc:init` and `/sdlc:sync` are unexecuted.** They are skill prose, and nothing in a
    local session installs a plugin and runs them end to end. The payload they copy is
    verified; the copying itself is not.
-3. **`hooks.json` is unproven.** No local session loads a plugin manifest. It is checked
-   statically — every command path resolves, `${CLAUDE_PLUGIN_ROOT}` form, event names
-   mirroring `.claude/settings.json`.
+3. **`hooks.json` was unproven and is now proven.** A reviewer installed the plugin and
+   confirmed `Status: ✔ enabled` with `Hooks (4)` after the nesting fix. What remains
+   unproven is the two adoption skills end to end: nothing in a local session can run
+   `/sdlc-init` against a stranger's repo.
 
 ## Known limits
 

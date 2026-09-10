@@ -33,6 +33,8 @@ Copy `${CLAUDE_PLUGIN_ROOT}/init-payload/` into `${CLAUDE_PROJECT_DIR}`:
 | `.gitattributes` | `.gitattributes` | **append** the LF rules if one exists |
 | `sdlc-state-machine.yaml` | `specs/` | |
 | `.ai/sdlc/review-constraints.stub.yaml` | `.ai/sdlc/review-constraints.yaml` | renamed on copy |
+| `.ai/skills/review-envelope.schema.json` | `.ai/skills/` | the envelope validator reads it at the integration gate; without it every review exits 3 |
+| `.ai/skills/review-primitives.md` | `.ai/skills/` | the contract a reviewer grounds against |
 | `.ai/project.stub.md` | `.ai/project.md` | renamed on copy; **30 plugin-shipped skills read this file**, so a repo without it has skills pointing at nothing |
 
 Create the empty tree the framework expects: `specs/`, `specs/adrs/`, `specs/tasks/`,
@@ -42,6 +44,13 @@ Create the empty tree the framework expects: `specs/`, `specs/adrs/`, `specs/tas
 already there. Create the file if it does not exist; never rewrite one that does. The
 hooks and validators are shell and `.mjs`, and a CRLF checkout parses several of them
 to zero rows while every gate still reports green.
+
+**If the repo already has SDLC hooks wired in `.claude/settings.json`, offer to remove
+that block.** Plugin hooks MERGE with project hooks rather than override them, so a repo
+that ran `bootstrap.sh` and then installed the plugin runs every hook twice. That is not
+cosmetic: the goal leash counts its own block lines, so a double-wired repo spends
+`GOAL_MAX_BLOCKS` at twice the rate and the leash silently becomes half as long. Say
+what you found, and let the adopter choose which path they are on.
 
 **Idempotency is the acceptance criterion.** Running init twice must leave the repo
 byte-identical after the first run and report every file as already present. Verify it
@@ -117,5 +126,5 @@ Report:
 - What was created, and what was skipped because it already existed.
 - The constraint rows written, each with the answer it came from.
 - Anything Phase 3 rejected and why.
-- The next step: `/sdlc:sync` after a plugin update, and their first spec via
+- The next step: `/sdlc-sync` after a plugin update, and their first spec via
   `spec-authoring`.

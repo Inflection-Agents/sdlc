@@ -1,6 +1,6 @@
 // Tests for the registry shape gate.
 //
-// This gate exists because /sdlc:init Phase 3 previously ran `node --test` on a glob
+// This gate exists because /sdlc-init Phase 3 previously ran `node --test` on a glob
 // that matches nothing in an adopting repo — and node --test exits 0 on an unmatched
 // glob, so the step that justifies the whole generated-config interview verified
 // nothing at all.

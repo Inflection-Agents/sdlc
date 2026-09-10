@@ -12,7 +12,7 @@ before, `bootstrap.sh` was copy-once and an adopting repo received nothing, ever
 
 Their plugin cache is re-extracted. **Any local modification to a plugin-shipped file
 is destroyed.** That is why nothing an adopter edits ships in the plugin — the registry,
-`domain_routing`, `.ai/project.md` and `specs/` are all repo-local, and `/sdlc:sync` is
+`domain_routing`, `.ai/project.md` and `specs/` are all repo-local, and `/sdlc-sync` is
 forbidden from touching them.
 
 If you ever find yourself wanting to ship an editable file, that is the signal it
@@ -40,6 +40,19 @@ node scripts/sdlc/gen-handoffs.mjs --check
 node scripts/sdlc/archive-specs.mjs --check
 node scripts/sdlc/check-stale-citations.mjs
 ```
+
+**Then actually install it.** Every blocker in the first review round — a string
+`author` that blocked installation, a `hooks.json` whose events sat at the top level so
+zero hooks fired, a README naming a slash command that does not exist — would have been
+caught by these three lines, and none was caught by any static check:
+
+```bash
+claude plugin marketplace add .
+claude plugin install sdlc@inflection-agents
+claude plugin list          # must read: enabled, Hooks (4), Skills (n)
+```
+
+A manifest that parses is not a manifest that loads.
 
 Then confirm by hand:
 

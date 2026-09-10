@@ -1,6 +1,6 @@
 # Review constraints registry — THIS REPO'S OWN INVARIANTS
 #
-# Ships empty on purpose. `/sdlc:init` fills it from an interview about your
+# Ships empty on purpose. `/sdlc-init` fills it from an interview about your
 # workspaces, layer boundaries, security surfaces and design surfaces, then proves
 # every generated row against your real tree before writing it.
 #

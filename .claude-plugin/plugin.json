@@ -2,7 +2,10 @@
     "name": "sdlc",
     "version": "0.1.0",
     "description": "An AI-native SDLC: intent to spec to tasks to delivery, with graded review, a capped integration gate, and enforcement tiers that run at write time and in CI.",
-    "author": "Inflection Agents",
+    "author": {
+        "name": "Inflection Agents",
+        "url": "https://github.com/Inflection-Agents"
+    },
     "homepage": "https://github.com/Inflection-Agents/sdlc",
     "license": "MIT"
 }

@@ -2,7 +2,7 @@
 /**
  * Grade a repo's own constraints registry.
  *
- * This is what `/sdlc:init` Phase 3 runs to prove an interview-generated registry
+ * This is what `/sdlc-init` Phase 3 runs to prove an interview-generated registry
  * before keeping it. It exists because the obvious alternative does not work: the
  * framework's `*.test.mjs` files grade the FRAMEWORK's corpus, they do not travel to
  * an adopting repo, and `node --test` on an unmatched glob exits 0 — so a "prove it"
@@ -80,7 +80,7 @@ async function main(argv) {
     if (!existsSync(REGISTRY)) {
         process.stderr.write(
             `constraints registry not found at .ai/sdlc/review-constraints.yaml\n` +
-                `Run /sdlc:init, or create it from the stub.\n`
+                `Run /sdlc-init, or create it from the stub.\n`
         )
         process.exit(1)
     }
@@ -105,7 +105,7 @@ async function main(argv) {
         }
         process.stderr.write(
             `${msg}.\n` +
-                `That is the pre-interview state. Run /sdlc:init to fill it, or pass\n` +
+                `That is the pre-interview state. Run /sdlc-init to fill it, or pass\n` +
                 `--allow-empty if you deliberately run with base lenses only.\n`
         )
         process.exit(1)

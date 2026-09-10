@@ -16,15 +16,15 @@ A practical framework for running agile software development with AI agents as f
 
 ```
 /plugin install sdlc@inflection-agents
-/sdlc:init      # scaffolds this repo, then interviews for YOUR review constraints
+/sdlc-init      # scaffolds this repo, then interviews for YOUR review constraints
 ```
 
-`/sdlc:init` asks about your workspaces, layer boundaries and security surfaces, writes
+`/sdlc-init` asks about your workspaces, layer boundaries and security surfaces, writes
 a constraints registry from your answers, and then proves every generated rule against
 your actual tree before keeping it. A rule whose glob matches nothing is dropped, not
 shipped.
 
-After a later plugin update, `/sdlc:sync` refreshes the repo-local half.
+After a later plugin update, `/sdlc-sync` refreshes the repo-local half.
 
 ### What lives where, and why it matters on update
 
@@ -34,7 +34,7 @@ The plugin owns what nobody edits. Your repo owns what you edit, plus anything C
 | --- | --- | --- |
 | Skills, agents, hooks, the two review contracts | Plugin | Replaced — that is the point |
 | Your constraints registry, `domain_routing`, `.ai/project.md`, `specs/` | Your repo | **Never touched** |
-| Validators and CI workflows | Your repo | Refreshed only when you run `/sdlc:sync` |
+| Validators and CI workflows | Your repo | Refreshed only when you run `/sdlc-sync` |
 
 A plugin cannot create directories in your repo, and a GitHub Actions runner checks out
 your repo rather than the plugin cache — so the gates have to live with you. The upside
@@ -86,7 +86,7 @@ The single source of truth for the phases is [`specs/sdlc-state-machine.yaml`](s
 | Artifact | Purpose |
 |----------|---------|
 | [`specs/sdlc-state-machine.yaml`](specs/sdlc-state-machine.yaml) | Single source of truth for phases, triggers, exit conditions, transitions, and per-workspace domain-skill routing. The `.ai/sdlc.md` narrative and each skill's `## Handoff` footer are generated/validated from it. |
-| [`scripts/sdlc/`](scripts/sdlc/) | Validators and delivery gates: state machine + phase memory, handoff generation, the fail-closed `plan-gate.mjs`, registry-driven `reviewer-routing.mjs`, `validate-review-envelope.mjs`, and the registry checkers. **Copied into your repo by `/sdlc:init`**, because a GitHub Actions runner checks out your repo, not the plugin cache. |
+| [`scripts/sdlc/`](scripts/sdlc/) | Validators and delivery gates: state machine + phase memory, handoff generation, the fail-closed `plan-gate.mjs`, registry-driven `reviewer-routing.mjs`, `validate-review-envelope.mjs`, and the registry checkers. **Copied into your repo by `/sdlc-init`**, because a GitHub Actions runner checks out your repo, not the plugin cache. |
 | [`.ai/sdlc/review-constraints.yaml`](.ai/sdlc/review-constraints.yaml) | Lens/constraint registry keyed on a task's `touches`; `baseLenses` per workspace. Drives review-lens routing + tier. Lives outside `skills/` because every repo replaces its rows with its own invariants. |
 | [`skills/review-envelope.schema.json`](skills/review-envelope.schema.json) | The one reviewer-output schema (severity blocker/major/nit/suggestion, altitude, grounded criteria). |
 | [`skills/review-primitives.md`](skills/review-primitives.md) | Human-readable runtime contract: severity spine, grounding rules, severity→action policy. |
@@ -94,7 +94,7 @@ The single source of truth for the phases is [`specs/sdlc-state-machine.yaml`](s
 
 ## Agent config (`.ai/` directory)
 
-The SDLC is codified in `.ai/` so agents understand the process. `/sdlc:init` seeds `.ai/project.md` and `.ai/sdlc/review-constraints.yaml` into your repo — both are yours to edit and neither is ever overwritten by an update. The rest of `.ai/` in THIS repo is the reference implementation's own copy.
+The SDLC is codified in `.ai/` so agents understand the process. `/sdlc-init` seeds `.ai/project.md` and `.ai/sdlc/review-constraints.yaml` into your repo — both are yours to edit and neither is ever overwritten by an update. The rest of `.ai/` in THIS repo is the reference implementation's own copy.
 
 | File | Who reads it | Purpose |
 |------|-------------|---------|
@@ -125,11 +125,11 @@ The bootstrap script:
 
 After running, fill in `.ai/project.md` (repo structure, commands, conventions, workspace map), customize `.ai/CLAUDE.md`, replace the example rows in `.ai/sdlc/review-constraints.yaml` with your repo's real constraints, and fill the per-workspace verification commands into `skills/spec-execution/SOP.md` §3 and §6.
 
-## Distribution strategy
+## Distribution
 
-- **Pilot (now):** copy `.ai/` into each repo manually or via `bootstrap.sh`
-- **Scale:** if the SDLC process stabilizes and you have many repos, build a lightweight `sdlc init` CLI that scaffolds everything and prompts for project-specific values
-- **Don't use git submodules** — the sync tax isn't worth it for 3 small files that rarely change
+The plugin is the path: `/plugin install sdlc@inflection-agents`, then `/sdlc-init`.
+`bootstrap.sh` remains for a repo that cannot install a plugin, and is copy-once — it
+receives no future release without a manual diff.
 
 ## Current Stack
 
