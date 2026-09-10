@@ -1,0 +1,171 @@
+# SDLC state machine — the single source of truth for the AI-native SDLC's phases,
+# entry triggers, exit conditions, transitions, and per-workspace domain-skill routing.
+#
+# This file is the ONE authoritative definition of the process shape. The human-readable
+# phase narrative in `.ai/sdlc.md`, each phase skill's `## Handoff` footer, and the
+# UserPromptSubmit hook's classifier table are generated and/or validated FROM this file
+# (see scripts/sdlc/gen-handoffs.mjs and scripts/sdlc/validate-state-machine.mjs). Do not
+# restate phase/trigger information elsewhere — change it here and let the consumers re-derive.
+#
+# THE SHAPE — judgment up front, autonomous single-executor delivery behind:
+#
+#   intent-triage → spec-authoring → task-decomposition │ spec-execution → spec-completion
+#     (human+LLM)     (human+LLM)       (human+LLM)      │  (AUTONOMOUS)     (human+LLM)
+#           ── JUDGMENT PHASES: collaborative, gated ──  │  ── DELIVERY ──
+#
+# Scarce human attention belongs in the judgment phases, where quality is cheapest to assure.
+# Once the spec + task graph are signed off, spec-execution runs autonomously to one integration PR.
+#
+# Review happens IN-RUN during delivery (ADR-003): the executor self-reviews each task, and the
+# single integration PR faces a multi-lens adversarial panel at the gate. There is therefore NO
+# standalone `code-review` phase — spec-execution hands off directly to spec-completion, and
+# `pr-reviewer` is the reviewer-knowledge skill those dispatched reviewers consume.
+#
+# Stable downstream contract (do not rename without coordinating the hooks + scripts):
+#   phases[].{id, entry_triggers, preconditions, owner_skill, exit_condition, next_phase, next_trigger}
+#   top-level `domain_routing`  — workspace -> ordered list of domain skills
+#   top-level `exempt`          — non-phase SDLC skills not registered as a phase or domain skill
+#
+# `_index.yaml` `phase:` block schema (the shared phase-memory contract consumed by the
+# Stop/SubagentStop + UserPromptSubmit hooks). Each spec's `specs/tasks/SPEC-NNN/_index.yaml` may carry:
+#
+#   phase:
+#     current: spec-execution         # a phases[].id value, or `none` when no phase is active
+#     next_action: spec-completion     # the current phase's next_phase (a phases[].id), or `none`
+#     next_trigger: 'close out SPEC-NNN'  # the current phase's next_trigger string
+#     exit_condition_met: false        # set true by the owner_skill at phase exit; read by stop-handoff
+#     handoff_surfaced: false          # set true by the owner_skill AFTER it surfaces the handoff
+#     updated: 2026-06-22              # ISO-8601 date the block was last written (on phase exit)
+#
+# The `phase:` block is additive and optional: existing `_index.yaml` files without it stay
+# valid. owner_skills read it on entry (to confirm the phase) and write it on exit (to advance).
+#
+# `handoff_surfaced` is the Stop hook's block cap and the hook NEVER writes it — only reads it.
+# An owner_skill that sets `exit_condition_met: true` and stops without also setting
+# `handoff_surfaced: true` leaves the hook re-blocking that handoff on every future session,
+# including for a spec that closed months ago. This applies to the TERMINAL phase too: a
+# completed spec still needs the flag, even though there is no next phase to hand off to.
+
+version: 1
+
+phases:
+    - id: intent-triage
+      entry_triggers:
+          - 'I want to'
+          - 'we need to'
+          - 'we should'
+          - 'brain dump'
+          - 'review the intent backlog'
+          - 'prioritize the backlog'
+      preconditions:
+          - 'one or more raw intents to capture or an existing intent backlog to review'
+      owner_skill: intent-triage
+      exit_condition: 'an intent is captured/prioritized in specs/intents.md and selected to spec out'
+      next_phase: spec-authoring
+      next_trigger: 'spec out intent #N'
+
+    - id: spec-authoring
+      entry_triggers:
+          - 'I want to build'
+          - 'we need to refactor'
+          - 'spec out'
+          - 'new feature'
+          - 'new initiative'
+      preconditions:
+          - 'intent exists or owner confirms none is needed'
+      owner_skill: spec-authoring
+      exit_condition: 'spec status flips draft -> active (after spec-reviewer sign-off and owner approval)'
+      next_phase: task-decomposition
+      next_trigger: 'decompose SPEC-NNN'
+
+    - id: task-decomposition
+      entry_triggers:
+          - 'decompose this spec'
+          - 'break this down'
+          - 'this task is too big'
+          - 'split this task'
+          - 'we need another task before X'
+          - 'merge these tasks'
+          - 're-route this task'
+      preconditions:
+          - 'spec has status active'
+      owner_skill: task-decomposition
+      exit_condition: 'AI-coherent tasks + _index.yaml dependency graph exist with touches/routing declared'
+      next_phase: spec-execution
+      next_trigger: 'execute SPEC-NNN'
+
+    - id: spec-execution
+      entry_triggers:
+          - 'execute this spec'
+          - 'execute SPEC-NNN'
+          - 'implement SPEC-NNN'
+          - 'deliver SPEC-NNN'
+          - 'finish SPEC-NNN'
+          - 'run the spec'
+          - 'start the execution loop'
+          - 'dispatch the tasks'
+      preconditions:
+          - 'spec has status active and decomposed tasks with a dependency graph exist'
+          - 'the plan-review gate passes (ADR-002, fail-closed): the _index.yaml plan_review block is present, approved, and not needs-rework — verify with scripts/sdlc/plan-gate.mjs'
+      owner_skill: spec-execution
+      exit_condition: 'single-executor delivery (ADR-003): the owner skill armed a session goal leash (.claude/.sdlc-goal-<session_id>, enforced by the Stop hook), kept a visible task list covering every task plus end-to-end validation and the integration gate, cut the integration branch feat/spec-NNN off main, and burned the tasks down ITSELF one at a time — each task gated by its own tests (or the workspace equivalent) plus an executor self-review, landed via a short-lived PR into feat/spec-NNN that is merged and deleted before the next task starts, with no PR, branch or worktree left lingering; sub-agent fan-out is the exception, for large specs with genuinely non-overlapping tasks only, and carries the same merge discipline. End-to-end validation ran ONCE before the gate with attached evidence. Exit (success) = the goal file is status:met and ONE integration PR (feat/spec-NNN -> main) is open, carrying every spec success criterion mapped to its evidence, having survived a full multi-lens adversarial review panel — independently dispatched, every envelope validated with scripts/sdlc/validate-review-envelope.mjs, the constraints registry evaluated in full across the whole diff — looped until no blocker or major survives OR the three-round cap (ADR-004) is reached with every survivor named in a "## Disclosed, not fixed" section of the PR body, and LEFT OPEN for the human to review and merge. Nothing for a spec reaches main except by merging that branch; the agent never merges or pushes to main. A HALT is goal file status:escalated with a surfaced reason — security/data-loss/payment risk, an owner decision, the amendment cap (spec.version reaching 4), or a task that cannot land and cannot be fixed at the root'
+      next_phase: spec-completion
+      next_trigger: 'close out SPEC-NNN'
+
+    - id: spec-completion
+      entry_triggers:
+          - 'is this spec finished'
+          - 'all tasks are merged'
+          - 'verify the spec'
+          - 'close out SPEC-NNN'
+      preconditions:
+          - "all tasks for the spec are done or nearly done and the integration PR is merged — the delivery run's independent integration review already graded the success criteria, so completion does not re-grade (when the PR was opened outside a delivery run, with no integration-reviewer verdict on the record, verify the success criteria here)"
+      owner_skill: spec-completion
+      exit_condition: 'spec success criteria verified end-to-end and spec status set to a terminal state'
+      next_phase: none
+      next_trigger: none
+
+    - id: spec-amendment
+      entry_triggers:
+          - 'the spec assumed X but it is actually Y'
+          - 'we need to add scope'
+          - 'this acceptance criterion is untestable'
+          - 'the design does not work'
+          - 'the requirements changed'
+      preconditions:
+          - 'an active spec is found to be wrong, incomplete, or in need of change mid-flight'
+          - 'a spec is amendable IFF its status is active or draft — every other status (done, superseded, deprecated, cancelled) is CLOSED and immutable; route a change to a closed spec to a new spec (spec-authoring) or a bug spec under specs/bugs/ instead'
+      owner_skill: spec-amendment
+      exit_condition: 'spec is amended (version bumped) and spec-reviewer re-signs off'
+      next_phase: task-decomposition
+      next_trigger: 'decompose SPEC-NNN'
+
+# Per-workspace domain-skill routing, sourced read-only from the `.ai/project.md` Workspace
+# skills table. Workspace work routes through these skills in order (plan -> execute). This file
+# does not change which skills a workspace has — that remains a separate change. The entries below
+# are ILLUSTRATIVE for a polyglot monorepo; replace them with this repo's real workspaces, or
+# delete the block entirely for a single-app repo.
+domain_routing:
+    # data:
+    #     - <data-domain-skill>
+    # web-app:
+    #     - <frontend-domain-skill>
+    # shared:
+    #     - <shared-package-domain-skill>
+    {}
+
+# Non-phase SDLC skills that are intentionally NOT a phase owner_skill or a domain skill.
+# Listing a skill here records that it is exempt from the per-phase `## Handoff` footer contract.
+# Reviewers invoked BY a phase (spec-reviewer, the pr-reviewer specialists), reference docs, and
+# authoring helpers live here. `pr-reviewer` is exempt as of ADR-003: the standalone `code-review`
+# phase was removed because review happens IN-RUN during delivery (the executor's per-task
+# self-review + the adversarial integration panel), so there is no longer a separate
+# post-execution phase for it to own. It remains the reviewer-knowledge skill that the dispatched
+# reviewer roles consume, and the entry point for an ad-hoc PR review outside a delivery run.
+exempt:
+    - spec-reviewer
+    - pr-reviewer
+    - sdlc-code-standards
+    - sdlc-code-review
+    - create-domain-skill
+    - review-primitives

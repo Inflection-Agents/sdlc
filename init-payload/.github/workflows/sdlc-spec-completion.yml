@@ -1,0 +1,86 @@
+name: SDLC spec completion check
+
+# Fires when a spec's integration PR merges. Grades the spec's success criteria and
+# comments the verdict back on the merged PR.
+#
+# It NEVER writes to the repo. Permissions are contents: read. Whether the evidence
+# substantiates each criterion is judgment, and that stays with the human at the
+# integration PR. The framework also does not ship the auto-merge lane a writing
+# workflow would need (see .ai/CLAUDE.md), so a writer here would open bookkeeping
+# PRs nobody merges - the manual chore it exists to remove, relocated.
+
+on:
+    pull_request:
+        types: [closed]
+
+permissions:
+    contents: read
+    pull-requests: write
+
+jobs:
+    grade:
+        # `pull_request.head.ref` is the property name. `head_ref` is NOT a field on
+        # this payload: GitHub casts the null to '' and startsWith('', 'feat/spec-')
+        # is false for every event, so the job silently never runs. That exact bug
+        # shipped downstream and was fixed there; do not "simplify" this back.
+        if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'feat/spec-')
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  # No `cache:` - this framework is dependency-free, so there is no
+                  # lockfile to key a cache on and enabling one fails the step.
+                  node-version: '22'
+
+            - name: Derive the spec id from the branch
+              id: spec
+              env:
+                  HEAD_REF: ${{ github.event.pull_request.head.ref }}
+              run: |
+                  set -euo pipefail
+                  num=$(printf '%s' "$HEAD_REF" | sed -n 's|^feat/spec-\([0-9]\{1,\}\).*|\1|p')
+                  if [ -z "$num" ]; then
+                    echo "could not derive a spec id from '$HEAD_REF'" >&2
+                    exit 1
+                  fi
+                  # Zero-pad: the corpus writes SPEC-007, so an unpadded SPEC-7 from
+                  # `feat/spec-7` would resolve to nothing.
+                  printf 'id=SPEC-%03d\n' "$num" >> "$GITHUB_OUTPUT"
+
+            - name: Grade the spec's success criteria
+              id: grade
+              run: |
+                  set +e
+                  out=$(node scripts/sdlc/complete-spec.mjs "${{ steps.spec.outputs.id }}" 2>&1)
+                  code=$?
+                  {
+                    echo "verdict<<SDLC_VERDICT"
+                    echo "$out"
+                    echo "SDLC_VERDICT"
+                    echo "code=$code"
+                  } >> "$GITHUB_OUTPUT"
+                  exit 0
+
+            - name: Comment the verdict on the merged PR
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  PR: ${{ github.event.pull_request.number }}
+                  SPEC_ID: ${{ steps.spec.outputs.id }}
+                  VERDICT: ${{ steps.grade.outputs.verdict }}
+              run: |
+                  set -euo pipefail
+                  {
+                    echo "### SDLC completion check - ${SPEC_ID}"
+                    echo
+                    echo '```'
+                    printf '%s\n' "$VERDICT"
+                    echo '```'
+                    echo
+                    echo "This check grades only; it does not change the spec. When the evidence"
+                    echo "genuinely substantiates each criterion, run \`spec-completion\`, then"
+                    echo "\`node scripts/sdlc/archive-specs.mjs\` to move the closed spec out of the"
+                    echo "default search path."
+                  } > /tmp/sdlc-verdict.md
+                  gh pr comment "$PR" --body-file /tmp/sdlc-verdict.md

@@ -6,7 +6,7 @@ A deterministic Workflow engine (`execute-spec.js`) used to own this. It was mea
 
 ## The skill is the engine
 
-`spec-execution` **is** the execution engine — policy in [`.ai/skills/spec-execution/SKILL.md`](.ai/skills/spec-execution/SKILL.md), procedures in its [`SOP.md`](.ai/skills/spec-execution/SOP.md). There is no Workflow to invoke. The agent that runs the skill is the executor.
+`spec-execution` **is** the execution engine — policy in [`skills/spec-execution/SKILL.md`](skills/spec-execution/SKILL.md), procedures in its [`SOP.md`](skills/spec-execution/SOP.md). There is no Workflow to invoke. The agent that runs the skill is the executor.
 
 **The run, end to end:**
 
@@ -279,4 +279,4 @@ A delivery run escalates rather than grinds: set the goal file to `status: escal
 - **A malformed, ungrounded or abstaining reviewer envelope** → re-dispatch or escalate; never fold it as a clean review
 - **A task that cannot land and cannot be fixed at the root** → mark it `blocked` in `_index.yaml` with the reason and escalate; never leave its PR open and move on
 
-Every escalation notifies the spec owner, and `status: escalated` releases the goal leash so the halt can actually be surfaced. The full list is in [`.ai/skills/spec-execution/SKILL.md`](.ai/skills/spec-execution/SKILL.md) §8 and its SOP §8. Branches are id-derived (`claude/SPEC-NNN-TASK-NNN`), so a resumed run recreates the same name rather than forking a differently-named one; the branch itself is deleted at merge, so resume is solely a read of `_index.yaml` status.
+Every escalation notifies the spec owner, and `status: escalated` releases the goal leash so the halt can actually be surfaced. The full list is in [`skills/spec-execution/SKILL.md`](skills/spec-execution/SKILL.md) §8 and its SOP §8. Branches are id-derived (`claude/SPEC-NNN-TASK-NNN`), so a resumed run recreates the same name rather than forking a differently-named one; the branch itself is deleted at merge, so resume is solely a read of `_index.yaml` status.

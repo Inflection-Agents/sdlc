@@ -1,0 +1,73 @@
+name: SDLC
+
+# The SDLC gates, run on YOUR repo.
+#
+# This is the adopter's workflow, deliberately NOT a copy of the framework's own. The
+# framework repo runs extra checks against artifacts only it has — its plugin manifest,
+# its own test suite — and copying that verbatim gives a fresh adopter a red build on
+# day one for missing files they were never supposed to have.
+#
+# Every validator here tolerates an unmatched glob as "nothing to check", which is the
+# state of a repo's very first PR. `node --test` does NOT tolerate one, so the test step
+# is guarded rather than globbed directly.
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+    workflow_dispatch:
+
+jobs:
+    validate:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  # fs.globSync (check-review-constraint-globs.mjs) needs 22+.
+                  node-version: '22'
+
+            - name: Tests, if this repo has any
+              # Guarded: `node --test` on an unmatched glob receives the literal pattern
+              # and fails. A repo that has not written SDLC tests yet is normal.
+              run: |
+                  set -eu
+                  shopt -s nullglob
+                  files=(scripts/sdlc/*.test.mjs)
+                  if [ ${#files[@]} -eq 0 ]; then
+                    echo "no scripts/sdlc/*.test.mjs yet — nothing to run"
+                  else
+                    node --test "${files[@]}"
+                  fi
+              shell: bash
+
+            - name: Constraints registry is well-formed
+              # Shape only: id, lens, check, a groundable cite, a severity on the
+              # ladder. --allow-empty because a repo that has not run the interview
+              # yet legitimately has no rows.
+              run: node scripts/sdlc/validate-constraints-registry.mjs --allow-empty
+
+            - name: State machine is structurally and referentially valid
+              # Skills come from the installed plugin, so this skips the referential
+              # skill checks when there is no local skills/ dir and still grades the
+              # structure of your state machine.
+              run: node scripts/sdlc/validate-state-machine.mjs
+
+            - name: Phase-memory blocks are valid
+              run: node scripts/sdlc/validate-phase-memory.mjs specs/tasks/*/_index.yaml specs/archive/tasks/*/_index.yaml
+
+            - name: Every decomposed spec carries a plan-review block
+              run: node scripts/sdlc/plan-gate.mjs --presence-only specs/tasks/*/_index.yaml specs/archive/tasks/*/_index.yaml
+
+            - name: Archive boundary is correct (no expired spec in the live corpus)
+              run: node scripts/sdlc/archive-specs.mjs --check
+
+            - name: No superseded decision cited as current in always-loaded context
+              run: node scripts/sdlc/check-stale-citations.mjs
+
+            - name: Review-constraint globs resolve
+              # Warn mode until your registry has rows. Switch to `--enforce` once
+              # `/sdlc-init` has filled it, so a rule that matches nothing goes red
+              # instead of sitting there never firing.
+              run: node scripts/sdlc/check-review-constraint-globs.mjs

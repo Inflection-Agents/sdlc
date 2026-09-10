@@ -69,11 +69,11 @@ Skills form three layers. See [skill-architecture.md](skill-architecture.md) for
 
 ```
 Layer 3: Behavioral (Superpowers)     ~/.claude/skills/                personal
-Layer 2: SDLC Process                 .ai/skills/ (.claude/skills → it) project (repo root)
-Layer 1: Domain                       .ai/skills/ (.claude/skills → it) project (repo root)
+Layer 2: SDLC Process                 skills/ (.claude/skills → it) project (repo root)
+Layer 1: Domain                       skills/ (.claude/skills → it) project (repo root)
 ```
 
-(`.claude/skills` is a symlink to `.ai/skills/` — the single source of truth. Claude Code loads from the symlink; both paths point to the same content.)
+(`.claude/skills` is a symlink to `skills/` — the single source of truth. Claude Code loads from the symlink; both paths point to the same content.)
 
 All three are active simultaneously. They compose, not conflict:
 - **Behavioral** answers: how should I approach any task? (TDD, verification, no sycophancy)
@@ -84,7 +84,7 @@ All three are active simultaneously. They compose, not conflict:
 
 ```
 your-repo/
-├── .ai/skills/             ← ALL SDLC skills live here (single source of truth)
+├── skills/             ← ALL SDLC skills live here (single source of truth)
 │   ├── intent-triage/SKILL.md
 │   ├── spec-authoring/SKILL.md
 │   ├── spec-reviewer/SKILL.md
@@ -97,16 +97,18 @@ your-repo/
 │   ├── sdlc-code-standards/SKILL.md
 │   ├── create-domain-skill/SKILL.md
 │   ├── review-primitives.md          ← review contract: severity spine, policy (not a skill)
-│   ├── review-constraints.yaml       ← lens/constraint registry keyed on `touches` (not a skill)
 │   └── review-envelope.schema.json   ← the one reviewer-output schema (not a skill)
 │
-├── .claude/skills → ../.ai/skills    ← symlink; Claude Code loads from here
+├── .ai/sdlc/review-constraints.yaml  ← lens/constraint registry keyed on `touches`;
+│                                       repo-specific, so it lives outside skills/
+│
+├── .claude/skills → ../skills    ← symlink; Claude Code loads from here
 │
 ├── .claude/hooks/                    ← advisory SDLC hooks (.mjs)
 ├── specs/sdlc-state-machine.yaml     ← single source of truth for phases + transitions
 ├── scripts/sdlc/                     ← validators (state machine, phase memory) + gen-handoffs
 │
-│   # Domain skills (Layer 1) — add to .ai/skills/ prefixed by workspace/technology
+│   # Domain skills (Layer 1) — add to skills/ prefixed by workspace/technology
 │   ├── dbt-cartographer/SKILL.md
 │   └── nextjs-app-patterns/SKILL.md
 │
@@ -116,7 +118,7 @@ your-repo/
 └── src/                        ← code
 ```
 
-**Why `.ai/skills/` is authoritative.** All skill files live in `.ai/skills/`. `.claude/skills` is a symlink to it. Claude Code loads from `.claude/skills/`; by making it a symlink both paths point to the same content and there is no duplication.
+**Why `skills/` is authoritative.** All skill files live in `skills/`. `.claude/skills` is a symlink to it. Claude Code loads from `.claude/skills/`; by making it a symlink both paths point to the same content and there is no duplication.
 
 **Personal superpowers** stay at `~/.claude/skills/`. They're behavioral discipline that applies to all projects, not project-specific process. Install once per machine.
 
@@ -340,7 +342,7 @@ Three modes:
 **Trigger:** new workspace onboarded, "create a domain skill for X," "add dbt skills to this repo"
 
 **What it does:** Walks through creating a domain skill and wiring all references. Touching:
-1. `.ai/skills/[workspace]-[name]/SKILL.md` — the skill itself
+1. `skills/[workspace]-[name]/SKILL.md` — the skill itself
 2. `.ai/project.md` → Workspace skills table — the wiring SDLC skills use to find it
 3. `.ai/project.md` → Workspace interfaces — boundary contracts
 4. `.ai/project.md` → Change propagation patterns — cross-workspace patterns
@@ -363,7 +365,7 @@ Skills to build when adopting this framework, in order of immediate value:
 8. **spec-completion** — needed once the first spec's tasks are all done.
 9. **create-domain-skill** — needed when adding new workspaces.
 
-All SDLC process skills are already implemented in `.ai/skills/`.
+All SDLC process skills are already implemented in `skills/`.
 
 ## Relationship to .ai/ config
 

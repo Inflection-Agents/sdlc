@@ -89,3 +89,17 @@ test('the ADR corpus is skipped, so a supersession record is not its own defect'
     const files = [{ path: 'specs/adrs/ADR-900-old.md', text: 'ADR-900 body' }]
     assert.deepEqual(classify(files, superseded), { failures: [], reports: [] })
 })
+
+test('top-level skills/ and agents/ are always-loaded', () => {
+    // After the plugin restructure these are the REAL locations and .ai/skills and
+    // .claude/agents are symlinks the walker skips. Without them in ALWAYS_LOADED the
+    // framework's own instruction files silently drop to `report`, so a superseded
+    // decision cited as current in a skill would stop failing the build.
+    assert.equal(blastRadius('skills/spec-execution/SKILL.md'), 'fail')
+    assert.equal(blastRadius('agents/task-reviewer.md'), 'fail')
+    assert.equal(blastRadius('skills/review-primitives.md'), 'fail')
+})
+
+test('a test file under the new locations is still history, not always-loaded', () => {
+    assert.equal(blastRadius('skills/review-primitives/examples/x.test.mjs'), 'report')
+})

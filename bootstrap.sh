@@ -1,8 +1,27 @@
 #!/bin/bash
 set -euo pipefail
 
+# --legacy: take the copy-once path deliberately, and suppress the plugin notice.
+LEGACY=false
+for arg in "$@"; do
+  case "$arg" in
+    --legacy) LEGACY=true ;;
+  esac
+done
+
 # AI-Native SDLC Bootstrap
-# Run this to set up a new developer machine or onboard a new repo.
+#
+# THE PLUGIN IS THE PRIMARY PATH. This script still copies everything it always did,
+# but what it installs is copy-once: a repo bootstrapped today receives nothing from a
+# future framework release without a manual diff of two checkouts. That is the problem
+# the plugin exists to solve.
+#
+#   /plugin install sdlc@inflection-agents
+#   /sdlc-init      # scaffolds this repo and interviews for your constraints
+#   /sdlc-sync      # after a later update, refreshes the repo-local half
+#
+# Use this when you cannot install a plugin, or to bootstrap the reference repo
+# itself. Pass --legacy to acknowledge the copy-once path and skip the notice.
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -107,7 +126,13 @@ if git rev-parse --git-dir &> /dev/null 2>&1; then
   if [ ! -d "$REPO_ROOT/.ai" ]; then
     if [ -d "$SCRIPT_DIR/.ai" ]; then
       info "Copying .ai/ agent config to repo..."
-      cp -r "$SCRIPT_DIR/.ai" "$REPO_ROOT/.ai"
+      # -L dereferences: .ai/skills is a SYMLINK to ../skills in the framework repo,
+      # and GNU cp -r preserves symlinks (BSD cp -r indirects through them). Without
+      # -L, a Linux adopter receives a dangling .ai/skills -> ../skills with no skills
+      # behind it, and the mkdir -p further down then fails on that dangling link and
+      # aborts the whole script under set -e, before the registry, the workflows and
+      # all of scripts/sdlc/ are copied. It passed on macOS, which is why it shipped.
+      cp -RL "$SCRIPT_DIR/.ai" "$REPO_ROOT/.ai"
       ok "Copied .ai/ — customize AGENTS.md with your project's setup commands"
     else
       warn ".ai/ templates not found in $SCRIPT_DIR"
@@ -234,19 +259,37 @@ if git rev-parse --git-dir &> /dev/null 2>&1; then
 
   # Copy review contracts into .ai/skills/
   if [ -d "$SCRIPT_DIR/.ai/skills" ]; then
+    # Clear a dangling symlink first: mkdir -p fails on one, and under set -e that
+    # aborts the run.
+    [ -L "$REPO_ROOT/.ai/skills" ] && [ ! -d "$REPO_ROOT/.ai/skills" ] && rm -f "$REPO_ROOT/.ai/skills"
     mkdir -p "$REPO_ROOT/.ai/skills"
     CONTRACTS_COPIED=false
-    for contract in review-constraints.yaml review-envelope.schema.json review-primitives.md; do
+    for contract in review-envelope.schema.json review-primitives.md; do
       if [ -f "$SCRIPT_DIR/.ai/skills/$contract" ] && [ ! -f "$REPO_ROOT/.ai/skills/$contract" ]; then
         cp "$SCRIPT_DIR/.ai/skills/$contract" "$REPO_ROOT/.ai/skills/$contract"
         CONTRACTS_COPIED=true
       fi
     done
     if [ "$CONTRACTS_COPIED" = true ]; then
-      ok "Copied review contracts to .ai/skills/ — fill in review-constraints.yaml with your lenses/invariants"
+      ok "Copied review contracts to .ai/skills/ — universal, same in every repo"
     else
       ok "Review contracts already present in .ai/skills/"
     fi
+  fi
+
+  # The constraints registry lives OUTSIDE .ai/skills on purpose: that tree ships in
+  # the plugin and is overwritten on update, and this file holds the adopting repo's
+  # own invariants. Its own block because it needs its own mkdir and its own message.
+  if [ -f "$SCRIPT_DIR/.ai/sdlc/review-constraints.yaml" ]; then
+    mkdir -p "$REPO_ROOT/.ai/sdlc"
+    if [ ! -f "$REPO_ROOT/.ai/sdlc/review-constraints.yaml" ]; then
+      cp "$SCRIPT_DIR/.ai/sdlc/review-constraints.yaml" "$REPO_ROOT/.ai/sdlc/review-constraints.yaml"
+      ok "Copied .ai/sdlc/review-constraints.yaml — fill it in with your lenses/invariants"
+    else
+      ok ".ai/sdlc/review-constraints.yaml exists"
+    fi
+  else
+    warn "No review-constraints.yaml found at $SCRIPT_DIR/.ai/sdlc/ — the registry was not copied"
   fi
 
   # ── Upgrading an existing bootstrap ──
@@ -353,6 +396,25 @@ echo "========================================="
 echo "  Setup complete"
 echo "========================================="
 echo ""
+if [ "$LEGACY" = false ]; then
+echo "════════════════════════════════════════════════════════"
+echo "  The plugin is now the primary path"
+echo "════════════════════════════════════════════════════════"
+echo ""
+echo "  This script still works and copies everything it always did."
+echo "  But the framework now ships as a Claude Code plugin, and that"
+echo "  path gets you engine updates automatically instead of never:"
+echo ""
+echo "    /plugin install sdlc@inflection-agents"
+echo "    /sdlc-init      # scaffolds this repo and interviews for your constraints"
+echo "    /sdlc-sync      # after a later plugin update, refreshes the repo-local half"
+echo ""
+echo "  What this script copies is copy-once. A repo bootstrapped today"
+echo "  receives nothing from a future framework release without a manual"
+echo "  diff. /sdlc-sync is how that stops being true."
+echo ""
+fi
+
 echo "Next steps:"
 echo "  1. Fill in .ai/project.md with your repo structure, commands, and conventions"
 echo "  2. Install Superpowers in Claude Code: /plugin install superpowers@claude-plugins-official"
@@ -360,7 +422,7 @@ echo "  3. Ensure Linear labels exist: claude-code, human"
 echo "  4. Write your first spec: cp specs/templates/spec.md specs/SPEC-001-name.md"
 echo ""
 echo "Configure the spine:"
-echo "  5. Fill in .ai/skills/review-constraints.yaml with your repo's real review"
+echo "  5. Fill in .ai/sdlc/review-constraints.yaml with your repo's real review"
 echo "     lenses and invariants (the shipped constraints are generic examples)"
 echo "  6. Customize specs/sdlc-state-machine.yaml domain_routing to map your"
 echo "     repo's workspaces to owners/reviewers"

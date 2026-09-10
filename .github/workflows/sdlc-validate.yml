@@ -26,7 +26,7 @@ jobs:
                   node-version: '22'
 
             - name: Tests — validators, delivery gates, and the goal leash
-              run: node --test scripts/sdlc/*.test.mjs .claude/hooks/__tests__/*.test.mjs
+              run: node --test scripts/sdlc/*.test.mjs hooks/__tests__/*.test.mjs
 
             - name: State machine is structurally and referentially valid
               run: node scripts/sdlc/validate-state-machine.mjs
@@ -44,6 +44,15 @@ jobs:
               # Approval is checked per-spec by `spec-execution` §1 before a run starts
               # (ADR-002), which is the moment it actually matters.
               run: node scripts/sdlc/plan-gate.mjs --presence-only specs/tasks/*/_index.yaml specs/archive/tasks/*/_index.yaml
+
+            - name: Constraints registry is well-formed
+              run: node scripts/sdlc/validate-constraints-registry.mjs
+
+            - name: Plugin manifest resolves to what is on disk
+              # A manifest naming a missing hook installs cleanly and never fires.
+              # Same dangling-name class as a registry routing to an agent no repo
+              # defines, which is why it is a gate rather than a convention.
+              run: node scripts/sdlc/validate-plugin-manifest.mjs
 
             - name: Archive boundary is correct (no expired spec in the live corpus)
               # Corpus-wide and enforcing. Green because the arming commit arranged the
