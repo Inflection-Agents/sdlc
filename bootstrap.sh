@@ -1,8 +1,27 @@
 #!/bin/bash
 set -euo pipefail
 
+# --legacy: take the copy-once path deliberately, and suppress the plugin notice.
+LEGACY=false
+for arg in "$@"; do
+  case "$arg" in
+    --legacy) LEGACY=true ;;
+  esac
+done
+
 # AI-Native SDLC Bootstrap
-# Run this to set up a new developer machine or onboard a new repo.
+#
+# THE PLUGIN IS THE PRIMARY PATH. This script still copies everything it always did,
+# but what it installs is copy-once: a repo bootstrapped today receives nothing from a
+# future framework release without a manual diff of two checkouts. That is the problem
+# the plugin exists to solve.
+#
+#   /plugin install sdlc@inflection-agents
+#   /sdlc:init      # scaffolds this repo and interviews for your constraints
+#   /sdlc:sync      # after a later update, refreshes the repo-local half
+#
+# Use this when you cannot install a plugin, or to bootstrap the reference repo
+# itself. Pass --legacy to acknowledge the copy-once path and skip the notice.
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -368,6 +387,7 @@ echo "========================================="
 echo "  Setup complete"
 echo "========================================="
 echo ""
+if [ "$LEGACY" = false ]; then
 echo "════════════════════════════════════════════════════════"
 echo "  The plugin is now the primary path"
 echo "════════════════════════════════════════════════════════"
@@ -384,6 +404,7 @@ echo "  What this script copies is copy-once. A repo bootstrapped today"
 echo "  receives nothing from a future framework release without a manual"
 echo "  diff. /sdlc:sync is how that stops being true."
 echo ""
+fi
 
 echo "Next steps:"
 echo "  1. Fill in .ai/project.md with your repo structure, commands, and conventions"

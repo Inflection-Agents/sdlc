@@ -26,7 +26,7 @@ Plan: [`2026-09-09-plugin-distribution-implementation.md`](2026-09-09-plugin-dis
 | An adopter's own configuration survives every update | Registry, `domain_routing`, `.ai/project.md` and `specs/` are repo-local; `/sdlc:sync` forbidden from touching them |
 | The restructure breaks nothing | 44 immutable references still resolve through the symlinks; `git ls-files -s` shows mode `120000` on all four |
 | A fresh clone works | Cloned the branch to a scratch dir: all four symlinks reconstructed, 194/194 tests pass |
-| **The payload works where it ships** | Built a scratch consuming repo from `init-payload/` and ran every adopter-facing gate — all five pass |
+| **The payload works where it ships** | Built a scratch consuming repo from `init-payload/` and ran the shipped workflow's steps verbatim under bash, each in its own shell as Actions runs them — all pass |
 | The manifest cannot dangle | `validate-plugin-manifest.mjs` in CI; verified to go red on a ghost hook path |
 | The payload cannot drift | Byte-identity test against `scripts/sdlc/`; verified to go red on a one-line change |
 
@@ -50,6 +50,30 @@ feature proven at its own site whose propagation site was never checked.
    scratch consuming repo under bash.
 4. **`reviewer-routing --list` printed nothing** against the empty registry an adopter
    starts with — indistinguishable from the broken read it exists to reveal.
+
+## What the independent review caught
+
+A doctrine reviewer graded the branch and found three blockers the consuming-repo test
+had not, because it exercised the payload's CONTENTS rather than the artifacts that
+actually run:
+
+1. **The payload workflow invoked a validator the payload does not ship.** Fixed, and
+   closed with a gate — every `node scripts/sdlc/*.mjs` in a payload workflow must
+   resolve to a file in the payload. Verified to bite.
+2. **`/sdlc:init` Phase 3 verified nothing.** It ran `node --test` on a glob no adopting
+   repo matches, and `node --test` exits 0 on an unmatched glob — so the step that
+   justifies the entire generated-config interview reported success having checked
+   nothing. Replaced with `validate-constraints-registry.mjs`, which grades row shape
+   and groundable citations and fails loudly on an empty or absent registry. Shipping
+   the framework's own test files instead was tried and reverted: six of them fail in a
+   consuming repo because they grade THIS repo's corpus.
+3. **`.ai/project.md` was never created**, while thirty plugin-shipped skills read it.
+   `project.stub.md` now ships and the interview fills it from answers it already has.
+
+Also fixed: `bootstrap.sh` gained the `--legacy` flag Task 13 specified rather than
+just an advisory echo; a plugin-shipped skill named `.claude/hooks/stop-handoff.mjs`, a
+path that does not exist in an adopter's tree; and the README's lower half still
+described the world bootstrap built.
 
 ## Disclosed, not fixed
 

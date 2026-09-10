@@ -175,3 +175,26 @@ test('the payload does not ship a validator that only makes sense upstream', () 
         'validate-plugin-manifest.mjs must not ship to adopters'
     )
 })
+
+test('every script the payload workflow invokes is IN the payload', async () => {
+    // The gap that let a removed validator stay wired: the drift test compared
+    // payload validators to repo validators, and nothing compared the payload
+    // WORKFLOW to the payload's own contents. An adopter's first CI run dies on
+    // MODULE_NOT_FOUND — the dangling-name class this repo keeps rediscovering.
+    const { readdirSync, readFileSync, existsSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const wfDir = join(REPO_ROOT_FOR_PAYLOAD, 'init-payload', '.github', 'workflows')
+    if (!existsSync(wfDir)) return
+
+    for (const wf of readdirSync(wfDir).filter((f) => f.endsWith('.yml'))) {
+        const text = readFileSync(join(wfDir, wf), 'utf8')
+        for (const m of text.matchAll(/node\s+(?:--test\s+)?(scripts\/sdlc\/[\w.-]+\.mjs)/g)) {
+            const rel = m[1]
+            if (rel.includes('*')) continue
+            assert.ok(
+                existsSync(join(REPO_ROOT_FOR_PAYLOAD, 'init-payload', rel)),
+                `init-payload workflow ${wf} runs ${rel}, which the payload does not ship`
+            )
+        }
+    }
+})

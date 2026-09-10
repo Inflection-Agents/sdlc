@@ -57,7 +57,7 @@ Then write `.claude/.sdlc-goal-current` (the first `Stop` renames it to
 }
 ```
 
-`.claude/hooks/stop-handoff.mjs` blocks a premature stop while `status: active`. **`met` and
+The `stop-handoff` hook blocks a premature stop while `status: active`. (It ships with the plugin, so do not assume a repo-relative path to it.) **`met` and
 `escalated` are the only release words.** Keep `armed_at` across rewrites (it anchors the 24h
 expiry); escalation reasons go in `reason`, never `status`. Never flip `met` on a run you have not
 finished — the hook reads `status`, it cannot verify a criterion. Do not put "merged" in

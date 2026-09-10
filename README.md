@@ -86,15 +86,15 @@ The single source of truth for the phases is [`specs/sdlc-state-machine.yaml`](s
 | Artifact | Purpose |
 |----------|---------|
 | [`specs/sdlc-state-machine.yaml`](specs/sdlc-state-machine.yaml) | Single source of truth for phases, triggers, exit conditions, transitions, and per-workspace domain-skill routing. The `.ai/sdlc.md` narrative and each skill's `## Handoff` footer are generated/validated from it. |
-| [`scripts/sdlc/`](scripts/sdlc/) | Validators and delivery gates: state machine + phase memory, handoff generation, the fail-closed `plan-gate.mjs`, registry-driven `reviewer-routing.mjs`, `validate-review-envelope.mjs`, and the registry `check-review-constraint-globs.mjs`. Shipped by bootstrap. |
+| [`scripts/sdlc/`](scripts/sdlc/) | Validators and delivery gates: state machine + phase memory, handoff generation, the fail-closed `plan-gate.mjs`, registry-driven `reviewer-routing.mjs`, `validate-review-envelope.mjs`, and the registry checkers. **Copied into your repo by `/sdlc:init`**, because a GitHub Actions runner checks out your repo, not the plugin cache. |
 | [`.ai/sdlc/review-constraints.yaml`](.ai/sdlc/review-constraints.yaml) | Lens/constraint registry keyed on a task's `touches`; `baseLenses` per workspace. Drives review-lens routing + tier. Lives outside `skills/` because every repo replaces its rows with its own invariants. |
 | [`skills/review-envelope.schema.json`](skills/review-envelope.schema.json) | The one reviewer-output schema (severity blocker/major/nit/suggestion, altitude, grounded criteria). |
 | [`skills/review-primitives.md`](skills/review-primitives.md) | Human-readable runtime contract: severity spine, grounding rules, severity→action policy. |
-| [`.claude/hooks/`](.claude/hooks/) | Reference enforcement hooks (Node, advisory by default): prompt→phase classifier, phase-exit handoff **and the delivery goal leash**, edit-without-task guard, review-identity guard. Wired via `.claude/settings.json`. |
+| [`hooks/`](hooks/) | Enforcement hooks (Node, advisory by default): prompt→phase classifier, phase-exit handoff **and the delivery goal leash**, edit-without-task guard, review-identity guard. **Ship with the plugin** and are wired by `hooks/hooks.json`; this repo also wires them locally via `.claude/settings.json` so it can run them on itself. |
 
 ## Agent config (`.ai/` directory)
 
-The SDLC is codified in `.ai/` so agents understand the process. Copy into each repo via `bootstrap.sh`.
+The SDLC is codified in `.ai/` so agents understand the process. `/sdlc:init` seeds `.ai/project.md` and `.ai/sdlc/review-constraints.yaml` into your repo — both are yours to edit and neither is ever overwritten by an update. The rest of `.ai/` in THIS repo is the reference implementation's own copy.
 
 | File | Who reads it | Purpose |
 |------|-------------|---------|

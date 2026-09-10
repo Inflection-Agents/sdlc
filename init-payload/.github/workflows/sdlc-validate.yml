@@ -42,6 +42,12 @@ jobs:
                   fi
               shell: bash
 
+            - name: Constraints registry is well-formed
+              # Shape only: id, lens, check, a groundable cite, a severity on the
+              # ladder. --allow-empty because a repo that has not run the interview
+              # yet legitimately has no rows.
+              run: node scripts/sdlc/validate-constraints-registry.mjs --allow-empty
+
             - name: State machine is structurally and referentially valid
               # Skills come from the installed plugin, so this skips the referential
               # skill checks when there is no local skills/ dir and still grades the

@@ -43,7 +43,9 @@ node scripts/sdlc/check-stale-citations.mjs
 
 Then confirm by hand:
 
-- `init-payload/` carries no absolute path and no reference to this repo's own specs.
+- `init-payload/` carries no absolute path and no path into this repo's `specs/` tree.
+  (Spec ids appearing in a validator's comments are fine — they explain why a rule
+  exists. A `specs/SPEC-…md` PATH is not.)
 - The payload's validators match `scripts/sdlc/` — a drifted payload ships an adopter a
   gate this repo no longer runs.
 - `.claude-plugin/plugin.json` version differs from the last release.
