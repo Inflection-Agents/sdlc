@@ -12,6 +12,37 @@ A practical framework for running agile software development with AI agents as f
 6. **Judgment up front, autonomous delivery behind.** *Quality when it's cheap to assure it — then one agent delivers.* Scarce human attention belongs in the front phases, before any code exists; delivery is autonomous, and its rigor is concentrated at a single integration gate rather than spread thinly over every task.
 7. **Humans give great instructions, not great reviews.** The deliverable of the front phases is a complete, unambiguous spec + AI-coherent task graph. The reviewer of record for code is an LLM multi-lens panel; humans gate the inputs and merge the final integration PR.
 
+## Install
+
+```
+/plugin install sdlc@inflection-agents
+/sdlc:init      # scaffolds this repo, then interviews for YOUR review constraints
+```
+
+`/sdlc:init` asks about your workspaces, layer boundaries and security surfaces, writes
+a constraints registry from your answers, and then proves every generated rule against
+your actual tree before keeping it. A rule whose glob matches nothing is dropped, not
+shipped.
+
+After a later plugin update, `/sdlc:sync` refreshes the repo-local half.
+
+### What lives where, and why it matters on update
+
+The plugin owns what nobody edits. Your repo owns what you edit, plus anything CI reads.
+
+| | Where | On a plugin update |
+| --- | --- | --- |
+| Skills, agents, hooks, the two review contracts | Plugin | Replaced — that is the point |
+| Your constraints registry, `domain_routing`, `.ai/project.md`, `specs/` | Your repo | **Never touched** |
+| Validators and CI workflows | Your repo | Refreshed only when you run `/sdlc:sync` |
+
+A plugin cannot create directories in your repo, and a GitHub Actions runner checks out
+your repo rather than the plugin cache — so the gates have to live with you. The upside
+is that your laws survive every upgrade.
+
+`bootstrap.sh` still works for a repo that would rather not install a plugin, but it is
+copy-once: nothing it installs is ever updated.
+
 ## The phase model — collaborate up front, then run
 
 ```
