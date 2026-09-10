@@ -27,7 +27,18 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const read = (p) => readFileSync(p, 'utf8')
 
 /** Paths loaded into an agent's context on every run, where a stale citation acts. */
-const ALWAYS_LOADED = [/^\.ai\//, /^\.claude\/(agents|hooks|skills)\//, /^(AGENTS|CLAUDE|GEMINI)\.md$/]
+const ALWAYS_LOADED = [
+    // Real locations after the plugin restructure. `.ai/skills` and `.claude/agents`
+    // are symlinks the walker skips, so without these the framework's own instruction
+    // files silently drop to `report` severity.
+    /^skills\//,
+    /^agents\//,
+    /^hooks\//,
+    // Pre-restructure locations, still real in a repo that has not moved.
+    /^\.ai\//,
+    /^\.claude\/(agents|hooks|skills)\//,
+    /^(AGENTS|CLAUDE|GEMINI)\.md$/
+]
 
 /** Tests name retired decisions as fixtures and labels; that is history, not a defect. */
 const IS_TEST = /(^|\/)__tests__\/|\.test\.[cm]?[jt]s$/

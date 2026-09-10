@@ -235,7 +235,7 @@ test('every shipped registry row carries a GROUNDED cite', () => {
 // reviewer per distinct resolved agent" resolved to nothing.
 
 test('every agent: named in the registry is a shipped agent definition', () => {
-    const dir = join(REPO_ROOT_DIR, '.claude', 'agents')
+    const dir = join(REPO_ROOT_DIR, 'agents')
     const named = new Set(loadConstraints().map((c) => c.agent).filter(Boolean))
     named.add(GENERIC_REVIEWER) // the default for a lens with no agent:
     for (const a of named) {
@@ -246,7 +246,7 @@ test('every agent: named in the registry is a shipped agent definition', () => {
 test('no reviewer agent carries Edit or Write', () => {
     // The tools line IS the independence mechanism. "You grade, you never fix" is an
     // instruction a model can talk itself out of; an absent tool is not.
-    const dir = join(REPO_ROOT_DIR, '.claude', 'agents')
+    const dir = join(REPO_ROOT_DIR, 'agents')
     for (const f of readdirSync(dir).filter((f) => f.endsWith('-reviewer.md'))) {
         const tools = readFileSync(join(dir, f), 'utf8').match(/^tools:\s*(.+)$/m)
         assert.ok(tools, `${f} declares no tools: line`)
