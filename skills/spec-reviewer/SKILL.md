@@ -5,6 +5,13 @@ description: Use when reviewing a draft spec or spec amendment — emits graded 
 
 # spec-reviewer
 
+> **Stop if you authored this.** `review SPEC-NNN` is a supported entry point, so this skill will
+> sometimes be invoked directly — including by the context that just wrote the artifact. If you
+> drafted or amended what you are being asked to grade, **do not grade it.** Dispatch
+> `subagent_type: spec-reviewer` via the `Agent` tool and let the returned envelope stand.
+> A self-review in the reviewer's output format is byte-identical to an independent one in the
+> artifact, which is exactly why this has to fail loudly here rather than quietly produce a verdict.
+
 Spec-side machine-parseable reviewer. Grades a draft spec against the schema, authoring conventions, originating intent, ADRs, and cross-spec contracts. Output is JSON consumed by the spec-authoring / spec-amendment routing policy.
 
 This skill is the agent version of what a spec owner currently does manually during `spec-authoring` Phase 2. The owner remains the sign-off authority; this reviewer makes the gap-detection systematic and grounded. Owners can override severity via the `spec_review_overrides:` section appended to the spec body — overrides are visible in the spec, never silenced.

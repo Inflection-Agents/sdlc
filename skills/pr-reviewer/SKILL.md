@@ -5,6 +5,13 @@ description: Use when reviewing a PR against its task file, spec, and ADRs — e
 
 # pr-reviewer
 
+> **Stop if you authored this.** `review SPEC-NNN` is a supported entry point, so this skill will
+> sometimes be invoked directly — including by the context that just wrote the artifact. If you
+> drafted or amended what you are being asked to grade, **do not grade it.** Dispatch
+> `subagent_type: pr-reviewer` via the `Agent` tool and let the returned envelope stand.
+> A self-review in the reviewer's output format is byte-identical to an independent one in the
+> artifact, which is exactly why this has to fail loudly here rather than quietly produce a verdict.
+
 This skill is the PR-side machine-parseable reviewer defined by SPEC-001. It grades a single PR against its task file, its parent spec, and the applicable ADRs, and emits the shared JSON envelope from `review-primitives.md`. The human-readable rendering of these findings — the actual review comment posted to the PR — lives in `sdlc-code-review` (updated by TASK-005). This skill emits structured findings; `sdlc-code-review` renders them.
 
 ## Prompt
