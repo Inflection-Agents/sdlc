@@ -165,14 +165,21 @@ export function validate(root = ROOT) {
     // changelog citing a spec that does not exist, a `std:` anchor with no heading.
     // A skill telling the model to dispatch `spec-reviewer` when agents/spec-reviewer.md
     // is absent fails the worst way: nothing dispatches and nothing says so.
-    const skillsForDispatch = join(root, 'skills')
-    if (existsSync(skillsForDispatch)) {
+    // BOTH trees. An agent can dispatch another agent, and a directory this walk does
+    // not enter is exactly where a dangling name survives.
+    for (const dispatchRoot of [join(root, 'skills'), join(root, 'agents')]) {
+    if (existsSync(dispatchRoot)) {
         const walk = (dir) => {
             for (const entry of readdirSync(dir, { withFileTypes: true })) {
                 const p = join(dir, entry.name)
                 if (entry.isDirectory()) walk(p)
                 else if (entry.isFile() && entry.name.endsWith('.md')) {
-                    for (const m of read(p).matchAll(/subagent_type:\s*`?([a-z0-9-]+)`?/gi)) {
+                    // Tolerate every quoting a human or a model actually writes: bare,
+                    // backticked, single- or double-quoted, with or without a space, and
+                    // with the key itself backticked. An earlier pattern caught only the
+                    // bare and backticked forms and truncated a name at an underscore, so
+                    // the gate caught exactly the spelling its author happened to use.
+                    for (const m of read(p).matchAll(/`?subagent_type`?\s*:\s*["'`]?([A-Za-z0-9_-]+)["'`]?/g)) {
                         const agent = m[1]
                         if (!existsSync(join(root, 'agents', `${agent}.md`))) {
                             problems.push(
@@ -184,7 +191,8 @@ export function validate(root = ROOT) {
                 }
             }
         }
-        walk(skillsForDispatch)
+        walk(dispatchRoot)
+    }
     }
 
     const agentsDir = join(root, 'agents')
