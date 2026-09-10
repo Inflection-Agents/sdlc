@@ -31,7 +31,7 @@ belongs in `init-payload/` instead.
 
 | Version | Change | Impact on adopters |
 | --- | --- | --- |
-| `0.2.0` | `reviewed_by` added to `review-envelope.schema.json`, OPTIONAL | An envelope carrying a blocker or major must declare a dispatched reviewer. Absent is read as `inline` and rejected for a blocking grading, so a review produced without dispatch discipline now fails loudly. Nits and suggestions are unaffected. |
+| `0.2.0` | `reviewed_by` added to `review-envelope.schema.json`, OPTIONAL | **Breaking for stored envelopes.** An envelope carrying a `blocker` or `major` must declare a dispatched reviewer; absent is read as `inline` and rejected. So a 0.1.0 envelope that carries a blocking finding — which is every envelope anyone kept — now exits 3 on re-validation. Add `reviewed_by` or re-grade. Nits and suggestions are unaffected. **The field is self-declared**, so this catches the honest omission, not a determined self-grader: an inline pass can write an agent value. The real enforcement is the reviewer agents' absent `Edit`/`Write` plus the dispatch discipline in the calling skills. |
 
 A contract change is the one to slow down on. Everything else an adopter can absorb
 without reading the diff.

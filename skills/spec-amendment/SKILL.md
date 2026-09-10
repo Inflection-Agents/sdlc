@@ -32,7 +32,7 @@ Before invoking spec-amendment, decide whether the change is small enough to be 
 | Word-level AC clarification preserving semantics (e.g., wording tighten without changing what passes/fails) | gap-capture (use `templates/gap.md`; do not run this skill) |
 | Design-section workaround that does not affect any AC's pass/fail | gap-capture |
 | Cross-link to an ADR that should have been cited but wasn't (no design change) | gap-capture |
-| Any change that would bump the spec version (per `spec-schema.md` version rules) | **spec-amendment** (this skill) |
+| Any change that would bump the spec version (per `skills/spec-schema.md` version rules) | **spec-amendment** (this skill) |
 | Any change to In/Out scope, AC pass/fail conditions, or design semantics | **spec-amendment** |
 
 If the change qualifies as a gap, create a GAP-NNN-*.md file under `specs/gaps/` (template at `templates/gap.md`) and stop. Otherwise continue with the amendment process below. See SPEC-004 for the originating design.
@@ -296,7 +296,7 @@ its verdict worth having. If you are about to write findings inline, stop and di
 Seed each dispatch with these inputs (all paths concrete; do not invent them):
 
 - `spec_file`: the amended `specs/SPEC-NNN-<short-description>.md` (post-edit).
-- `spec_schema`: `spec-schema.md`.
+- `spec_schema`: `skills/spec-schema.md`.
 - `authoring`: `skills/spec-authoring/SKILL.md`.
 - `intent`: the intent excerpt the original spec was authored from (still in `specs/intents.md` or its archive).
 - `project`: `.ai/project.md`.

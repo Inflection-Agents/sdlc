@@ -189,7 +189,7 @@ status report. Report when a task merges and at the gate.
 
 ## Phase memory
 
-`specs/tasks/SPEC-NNN/_index.yaml` may carry a spec-level `phase:` block (see `spec-schema.md`).
+`specs/tasks/SPEC-NNN/_index.yaml` may carry a spec-level `phase:` block (see `skills/spec-schema.md`).
 
 **On entry:** confirm `phase.current` is `task-decomposition` (handing off here) or `spec-execution`
 (resuming). A later phase means reconcile first; a missing block is valid.

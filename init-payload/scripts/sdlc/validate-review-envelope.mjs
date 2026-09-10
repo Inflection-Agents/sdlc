@@ -89,6 +89,14 @@ function checkProperty(name, value, sub) {
     if (Array.isArray(sub?.enum) && !sub.enum.includes(value)) {
         return `\`${name}\` must be one of ${JSON.stringify(sub.enum)} (got ${JSON.stringify(value)})`
     }
+    // `pattern` was silently ignored until reviewed_by needed it. An enum was covering
+    // the gap by accident; the moment a field is constrained by shape instead of by a
+    // closed list, an unenforced pattern is a validator that validates nothing.
+    if (typeof sub?.pattern === 'string' && typeof value === 'string') {
+        if (!new RegExp(sub.pattern).test(value)) {
+            return `\`${name}\` must match ${sub.pattern} (got ${JSON.stringify(value)})`
+        }
+    }
     const types = sub?.type == null ? null : Array.isArray(sub.type) ? sub.type : [sub.type]
     if (types) {
         const actual =

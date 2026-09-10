@@ -143,6 +143,22 @@ test('an inline envelope with only nits and suggestions is allowed', () => {
     assert.equal(res.ok, true)
 })
 
+test('a specialist added by REGISTRY EDIT ALONE is accepted', () => {
+    // ADR-001: adding a specialist is a one-line registry edit, no engine change. An
+    // enum here would have made it a schema edit and a version bump too - the
+    // hardcoded map ADR-001 deleted, rebuilt in the schema layer.
+    const res = validateEnvelope({ ...clean, reviewed_by: 'agent:a11y-reviewer', findings: [{ severity: 'blocker', criterion: 'lens:a11y' }] })
+    assert.equal(res.ok, true)
+})
+
+test('a malformed reviewed_by is rejected by the pattern', () => {
+    // `pattern` was silently ignored by checkProperty until this field needed it; an
+    // enum had been covering that gap by accident.
+    const res = validateEnvelope({ ...clean, reviewed_by: 'Agent:Bogus!', findings: [{ severity: 'blocker', criterion: 'ac:AC-001' }] })
+    assert.equal(res.ok, false)
+    assert.match(res.errors.join('\n'), /must match/)
+})
+
 test('an agent-graded envelope carrying a blocker passes', () => {
     const res = validateEnvelope({ ...clean, reviewed_by: 'agent:spec-reviewer', findings: [{ severity: 'blocker', criterion: 'ac:AC-001' }] })
     assert.equal(res.ok, true)

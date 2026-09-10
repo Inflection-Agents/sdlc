@@ -362,7 +362,7 @@ Ask:
 
 **Stamp the `plan_review:` block (mandatory).** Once you and the owner have walked the decomposition
 and the owner approves it, stamp the top-level `plan_review:` block into `_index.yaml` (schema:
-`task-schema.md` → "Plan-review block"):
+`skills/task-schema.md` → "Plan-review block"):
 
 ```yaml
 plan_review:

@@ -16,6 +16,11 @@ This skill is the PR-side machine-parseable reviewer defined by SPEC-001. It gra
 
 ## Prompt
 
+> **This block is the role prompt seeded into the DISPATCHED `pr-reviewer` agent** (see Grading
+> dispatch below). It is not an instruction to the context reading this file. If you are reading it
+> as one, you are about to grade inline — stop and dispatch.
+
+
 ```
 You are reviewing a single PR against its task file, its parent spec, and the
 applicable ADRs. Your output is machine-parseable JSON per the shared envelope
@@ -94,16 +99,10 @@ rule about the ACT, not about the output format.
 Resolve every firing lens to its reviewer with `node scripts/sdlc/reviewer-routing.mjs <lens>`
 (ADR-001: routing is registry data).
 
-**Dispatch one reviewer per DISTINCT resolved agent, not one per lens.** Lenses that resolve to the
-same agent fold into that agent's single pass: it reads the diff once and grades each of its lenses
-in sequence, and every finding sets its `lens` so a later round can be scoped to the lens that
-flagged it. Lenses that resolve to their own specialist keep their own dispatch, because a
-specialist's tools and reading depth differ.
-
-**Name no reviewer in this section.** Which lenses fold is registry data — a one-line `agent:` edit
-in `review-constraints.yaml`. Hardcoding the specialists here rebuilds the lens→reviewer map ADR-001
-deleted, and it is the same map `spec-execution/SOP.md` §7.2 was corrected to remove. Keep the two
-consistent; if you find yourself editing a list of agent names in either, the registry is the place.
+**Fold by resolved agent, per [`../review-primitives.md`](../review-primitives.md) > Panel fold
+rule.** That section is the single statement of the rule; this one does not restate it. Two
+hand-maintained copies of a rule is the drift ADR-001 deleted the lens map to prevent, and the copy
+you are not reading is the one that governs.
 
 Dispatch concurrently, in one message.
 

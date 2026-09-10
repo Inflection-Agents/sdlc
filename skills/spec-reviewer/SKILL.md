@@ -69,7 +69,7 @@ outside the JSON envelope.
 
 INPUTS:
   - spec_file:       path to specs/SPEC-NNN-*.md
-  - spec_schema:     path to spec-schema.md
+  - spec_schema:     path to skills/spec-schema.md
   - authoring:       path to skills/spec-authoring/SKILL.md
   - intent:          (optional) excerpt from specs/intents.md
   - project:         path to .ai/project.md (for workspace coverage checks)
@@ -124,7 +124,7 @@ The reviewer must actively check for the following 9 categories on every spec it
 1. **Workspace-coverage gap** — design touches `shared/` or `packages/` but the workspace is not listed in `workspaces:`, or a workspace is declared in frontmatter but no AC scopes to it.
 2. **Untestable AC** — an acceptance criterion cannot be verified by any observable test, command, or inspection procedure.
 3. **Contradictory AC** — two acceptance criteria require mutually exclusive behavior.
-4. **Missing required section** — a section required by `spec-schema.md` is missing or empty.
+4. **Missing required section** — a section required by `skills/spec-schema.md` is missing or empty.
 5. **Cross-spec contradiction (upstream or downstream)** — this spec contradicts a contract from an upstream spec listed in its `depends_on`, OR a downstream spec that declares `depends_on` on this spec contradicts a contract defined here. Both directions are checked using the `upstream_specs` and `downstream_specs` inputs.
 6. **Missing migration plan** — the spec changes schemas, shared types, or external contracts, but no migration plan is provided.
 7. **Unstated cross-workspace impact** — the design touches `shared/` (or otherwise reaches across workspace boundaries) without naming the downstream consumers it affects.
@@ -136,7 +136,7 @@ The reviewer must actively check for the following 9 categories on every spec it
 The reviewer is supplied the following inputs at dispatch time (see prompt body for canonical paths):
 
 - `spec_file` — the spec under review.
-- `spec_schema` — `spec-schema.md` for required-section / frontmatter checks.
+- `spec_schema` — `skills/spec-schema.md` for required-section / frontmatter checks.
 - `authoring` — `skills/spec-authoring/SKILL.md` for `spec-authoring:<section-anchor>` citations.
 - `intent` (optional) — excerpt from `specs/intents.md` for `intent:<id>` citations.
 - `project` — `.ai/project.md` for workspace-coverage checks.
