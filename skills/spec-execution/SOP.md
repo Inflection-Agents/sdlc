@@ -243,7 +243,7 @@ Always in the panel regardless of which lenses fire:
 
 Dispatch concurrently, in one message, each with a clean context.
 
-**Independence is structural, not instructed.** Every reviewer is defined in `.claude/agents/`, and
+**Independence is structural, not instructed.** Every reviewer is defined in `agents/`, and
 its `tools:` line omits `Edit`/`Write`. "You grade, you never fix" is an instruction a model can
 talk itself out of; an absent tool is not. A registry `agent:` that names no file there fails
 `reviewer-routing.test.mjs`, so the routing cannot silently point at nothing.

@@ -288,7 +288,7 @@ This is the mirror of the `spec-authoring` Phase 2 invocation (Step 10a there). 
 
 - `spec_file`: the amended `specs/SPEC-NNN-<short-description>.md` (post-edit).
 - `spec_schema`: `spec-schema.md`.
-- `authoring`: `.ai/skills/spec-authoring/SKILL.md`.
+- `authoring`: `skills/spec-authoring/SKILL.md`.
 - `intent`: the intent excerpt the original spec was authored from (still in `specs/intents.md` or its archive).
 - `project`: `.ai/project.md`.
 - `adrs`: every ADR referenced in the amended Design section, plus any ADR newly superseded or affected by this amendment (Step 3b).

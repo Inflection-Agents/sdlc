@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://ai-native-sdlc/.ai/skills/review-envelope.schema.json",
+  "$id": "https://ai-native-sdlc/skills/review-envelope.schema.json",
   "title": "review-envelope",
   "description": "The ONE canonical reviewer-output schema for the AI-native SDLC. Every reviewer (task-reviewer, the lens specialists, integration-reviewer, spec-reviewer) emits exactly this shape. scripts/sdlc/validate-review-envelope.mjs validates every returned envelope against THIS file (exit 0 valid, 2 abstained, 3 malformed/ungrounded). There is NO top-level verdict a reviewer self-reports: a malformed/absent envelope is a contract violation; an abstaining reviewer sets reviewer_status:abstained (the orchestrator escalates, never accepts). See review-primitives.md for the severity spine, grounding rules, and severity->action policy.",
   "type": "object",

@@ -64,7 +64,7 @@ Advisory by default; fails open.
 **`pre-tool-use-review-identity.mjs`** (PreToolUse, matcher `Bash`) — the
 author≠reviewer review-independence gate. It refuses to let a PR author post an
 accept/approve verdict (or merge) on their own PR, the structural half of the
-review-independence rule in `.ai/skills/review-primitives.md`. It only acts on
+review-independence rule in `skills/review-primitives.md`. It only acts on
 `gh pr review --approve`, `gh pr merge`, and accept-verdict `gh pr comment`
 commands; everything else (request-changes, blocking verdicts, non-`gh`
 commands) is a no-op. Identities are resolved via `gh`/`git` only after an
@@ -97,7 +97,7 @@ boundary.
 contract fields, that there are no duplicate phase ids, that each `next_phase`
 resolves to a real phase id or the terminal sentinel `none` (with terminal
 phases pairing `next_phase: none` and `next_trigger: none`), and that every
-skill under the skills dir (`.ai/skills/`, where `.claude/skills` symlinks) is
+skill under the skills dir (`skills/`, where `.claude/skills` symlinks) is
 registered as a phase `owner_skill`, a domain skill, or in the `exempt:` list —
 and conversely that every owner/domain skill resolves to a real skill. Exit 0
 when valid, 1 with diagnostics otherwise. Run:
@@ -144,7 +144,7 @@ constraint folds into the generic `task-reviewer`. Exports `agentForLens` /
 `node scripts/sdlc/reviewer-routing.mjs <lens>` or `--list`.
 
 **`validate-review-envelope.mjs`** — the owner of reviewer-envelope validation.
-Every returned verdict is checked against `.ai/skills/review-envelope.schema.json`
+Every returned verdict is checked against `skills/review-envelope.schema.json`
 plus the grounding rule (a `blocker`/`major` finding must cite an allowed PR-side
 prefix). Exit **0** valid + assessed (fold the findings), **2** valid but
 `reviewer_status: abstained` (escalate — never an accept), **3** malformed,
@@ -172,7 +172,7 @@ schema ↔ the `pr-reviewer` GROUNDING block). `node --test
 .claude/hooks/__tests__/*.test.mjs` covers the goal leash and the merge
 carve-out. Both suites are dependency-free and hermetic.
 
-## Reviewer agents (`.claude/agents/`)
+## Reviewer agents (`agents/`)
 
 The registry routes a lens to an agent NAME (ADR-001); these files are what those
 names resolve to. Their `tools:` line omits `Edit`/`Write`, which is how reviewer

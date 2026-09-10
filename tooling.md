@@ -72,8 +72,8 @@ Claude Code connects to Linear via MCP, making the agent a direct participant in
 The reviewer of record for code is an **LLM multi-lens panel**, not a human.
 
 - **Routed by change surface:** lenses = `baseLenses(workspace) ∪ {constraints in [`review-constraints.yaml`](.ai/sdlc/review-constraints.yaml) whose `when` matches the change}`. Matched constraint severity resolves the review tier. The registry is evaluated **in full at the integration gate**, across the whole diff — per-task matching on a narrowly declared `touches` set is unreliable in both directions.
-- **One reviewer-output schema:** [`review-envelope.schema.json`](.ai/skills/review-envelope.schema.json) (severity blocker/major/nit/suggestion, altitude, grounded criteria). Every envelope is validated by [`scripts/sdlc/validate-review-envelope.mjs`](scripts/sdlc/validate-review-envelope.mjs) before anything routes on it — exit 0 fold, 2 abstained, 3 malformed/ungrounded; the latter two escalate and never read as a clean accept.
-- **Contract:** [`review-primitives.md`](.ai/skills/review-primitives.md) — severity spine, grounding rules, severity→action policy.
+- **One reviewer-output schema:** [`review-envelope.schema.json`](skills/review-envelope.schema.json) (severity blocker/major/nit/suggestion, altitude, grounded criteria). Every envelope is validated by [`scripts/sdlc/validate-review-envelope.mjs`](scripts/sdlc/validate-review-envelope.mjs) before anything routes on it — exit 0 fold, 2 abstained, 3 malformed/ungrounded; the latter two escalate and never read as a clean accept.
+- **Contract:** [`review-primitives.md`](skills/review-primitives.md) — severity spine, grounding rules, severity→action policy.
 - **Cheap gates first, expensive review once:** a task is gated by its own tests plus the executor's self-review; the independent panel is spent once, on the assembled integration diff, where it can see cross-task interactions. Humans gate the inputs and merge the integration PR.
 
 ## Process spine (decided)

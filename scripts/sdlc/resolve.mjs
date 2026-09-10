@@ -64,7 +64,7 @@ function walk(dir, onFile, depth = 6) {
     if (!existsSync(dir) || depth < 0) return
     for (const entry of readdirSync(dir)) {
         const p = join(dir, entry)
-        // lstat, not stat: .claude/skills is a symlink to .ai/skills elsewhere in the
+        // lstat, not stat: .claude/skills is a symlink to skills elsewhere in the
         // repo, and a following walk would read the same file under two paths.
         let st
         try {

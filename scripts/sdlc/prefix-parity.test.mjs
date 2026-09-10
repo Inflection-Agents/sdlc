@@ -2,9 +2,9 @@
 //
 // The canonical PR-side allowed-prefix set is owned by review-primitives.md's
 // "PR-side canonical prefix table". Its consumers MUST stay in lockstep with it:
-//   - the schema:    .ai/skills/review-envelope.schema.json -> properties.criterion.description
+//   - the schema:    skills/review-envelope.schema.json -> properties.criterion.description
 //   - the validator: scripts/sdlc/validate-review-envelope.mjs -> PR_SIDE_PREFIXES
-//   - the reviewer:  .ai/skills/pr-reviewer/SKILL.md -> the GROUNDING block
+//   - the reviewer:  skills/pr-reviewer/SKILL.md -> the GROUNDING block
 //
 // The third leg used to be the retired execute-spec Workflow's ALLOWED_PREFIX
 // literal; ADR-003 deleted that engine and the envelope validator inherited the
@@ -21,8 +21,8 @@ import { PR_SIDE_PREFIXES } from './validate-review-envelope.mjs'
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..', '..') // scripts/sdlc -> repo root
 
-const PRIMITIVES = join(REPO, '.ai', 'skills', 'review-primitives.md')
-const SCHEMA = join(REPO, '.ai', 'skills', 'review-envelope.schema.json')
+const PRIMITIVES = join(REPO, 'skills', 'review-primitives.md')
+const SCHEMA = join(REPO, 'skills', 'review-envelope.schema.json')
 const PRREVIEWER = join(REPO, '.ai', 'skills', 'pr-reviewer', 'SKILL.md')
 
 const read = (p) => readFileSync(p, 'utf8')

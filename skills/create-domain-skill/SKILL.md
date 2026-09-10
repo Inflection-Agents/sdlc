@@ -23,7 +23,7 @@ Creating a domain skill touches these files:
 
 | File | What to add |
 |------|------------|
-| `.ai/skills/[name]/SKILL.md` | The skill itself |
+| `skills/[name]/SKILL.md` | The skill itself |
 | `.ai/project.md` → Workspace skills | Map the skill to its workspace |
 | `.ai/project.md` → Workspace interfaces | Add/update if the skill reveals boundary contracts |
 | `.ai/project.md` → Change propagation patterns | Add/update if the skill introduces cross-workspace patterns |
@@ -48,7 +48,7 @@ Interview the user or read the codebase:
 
 Read the current state:
 - `.ai/project.md` — is this workspace already mapped? Are there existing skills?
-- `.ai/skills/` — scan for any existing skills for this workspace
+- `skills/` — scan for any existing skills for this workspace
 - Other workspace skills — read 1-2 existing domain skills to understand the format and depth
 
 ### Step 3: Choose the skill name
@@ -66,7 +66,7 @@ If the workspace needs multiple skills (like dbt has cartographer + craftsman), 
 
 ### Step 4: Write the skill
 
-Create `.ai/skills/[name]/SKILL.md`.
+Create `skills/[name]/SKILL.md`.
 
 **Frontmatter:**
 ```yaml
@@ -196,7 +196,7 @@ If the workspace has conventions that differ from the project default (different
 
 After all updates, verify:
 
-- [ ] Skill file exists at `.ai/skills/[name]/SKILL.md`
+- [ ] Skill file exists at `skills/[name]/SKILL.md`
 - [ ] `description` field says WHEN to use (triggering conditions), not WHAT it does
 - [ ] Skill is listed in `.ai/project.md` → Workspace skills table
 - [ ] Workspace interfaces are documented (or confirmed unchanged)
@@ -218,7 +218,7 @@ After all updates, verify:
 ## Domain skill: [name]
 
 ### Skill
-- [ ] `.ai/skills/[name]/SKILL.md` created
+- [ ] `skills/[name]/SKILL.md` created
 - [ ] Description field is trigger-only (no workflow summary)
 - [ ] Conventions are prescriptive with actual commands
 - [ ] No SDLC process duplication

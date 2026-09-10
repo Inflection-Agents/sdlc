@@ -63,7 +63,7 @@ outside the JSON envelope.
 INPUTS:
   - spec_file:       path to specs/SPEC-NNN-*.md
   - spec_schema:     path to spec-schema.md
-  - authoring:       path to .ai/skills/spec-authoring/SKILL.md
+  - authoring:       path to skills/spec-authoring/SKILL.md
   - intent:          (optional) excerpt from specs/intents.md
   - project:         path to .ai/project.md (for workspace coverage checks)
   - adrs:            paths to referenced ADRs and to existing ADRs the spec
@@ -130,7 +130,7 @@ The reviewer is supplied the following inputs at dispatch time (see prompt body 
 
 - `spec_file` — the spec under review.
 - `spec_schema` — `spec-schema.md` for required-section / frontmatter checks.
-- `authoring` — `.ai/skills/spec-authoring/SKILL.md` for `spec-authoring:<section-anchor>` citations.
+- `authoring` — `skills/spec-authoring/SKILL.md` for `spec-authoring:<section-anchor>` citations.
 - `intent` (optional) — excerpt from `specs/intents.md` for `intent:<id>` citations.
 - `project` — `.ai/project.md` for workspace-coverage checks.
 - `adrs` — paths to referenced ADRs and to existing ADRs the spec may contradict.

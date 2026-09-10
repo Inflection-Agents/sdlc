@@ -23,7 +23,7 @@
  * independence rules exist to close. This script is that owner, and the
  * `spec-execution` skill runs it on every returned envelope at the integration gate.
  *
- * The validator is hand-rolled against `.ai/skills/review-envelope.schema.json`
+ * The validator is hand-rolled against `skills/review-envelope.schema.json`
  * (draft-07). It implements exactly the constraints that schema declares —
  * top-level `required`, enum membership, and the per-finding `severity` +
  * (`criterion` | `citation`) `anyOf` — plus the grounding rule above. It is
@@ -52,7 +52,7 @@ export const EXIT_MALFORMED = 3
 
 export const SCHEMA_FILE =
     process.env.REVIEW_ENVELOPE_SCHEMA ??
-    join(__dirname, '..', '..', '.ai', 'skills', 'review-envelope.schema.json')
+    join(__dirname, '..', '..', 'skills', 'review-envelope.schema.json')
 
 /**
  * The canonical PR-side allowed-citation prefixes, owned by

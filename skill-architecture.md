@@ -15,7 +15,7 @@ How behavioral discipline, SDLC process, and domain expertise compose into a coh
 │  Always active. Global discipline. Personal.        │
 ├─────────────────────────────────────────────────────┤
 │  Layer 2: SDLC Process                              │
-│  .ai/skills/  (.claude/skills → it)                 │
+│  skills/  (.claude/skills → it)                 │
 │                                                     │
 │  intent-triage, spec-authoring, spec-reviewer,      │
 │  task-decomposition, spec-execution, pr-reviewer,   │
@@ -26,7 +26,7 @@ How behavioral discipline, SDLC process, and domain expertise compose into a coh
 │  Active during SDLC phases. Travel with repo.       │
 ├─────────────────────────────────────────────────────┤
 │  Layer 1: Domain                                    │
-│  .ai/skills/  (.claude/skills → it, workspace-pref.) │
+│  skills/  (.claude/skills → it, workspace-pref.) │
 │                                                     │
 │  dbt-cartographer, dbt-craftsman,                   │
 │  nextjs-app-patterns, shared-package-patterns...    │
@@ -60,9 +60,9 @@ The three skill layers describe *knowledge* agents apply. Underneath the SDLC-pr
   _index.yaml `plan_review:` block← the fail-closed gate a delivery run checks before it starts
   .claude/.sdlc-goal-<session_id> ← the run's goal leash, enforced by the Stop hook
   .claude/hooks/*.mjs             ← classify prompt, handoff at phase exit + goal leash, guard edits/review
-  .ai/skills/review-primitives.md │ review-envelope.schema.json
+  skills/review-primitives.md │ review-envelope.schema.json
                                    ← review contracts: severity spine, output schema
-  .ai/sdlc/review-constraints.yaml← the lens registry; repo-specific, so outside .ai/skills/
+  .ai/sdlc/review-constraints.yaml← the lens registry; repo-specific, so outside skills/
   scripts/sdlc/*.mjs              ← validators + gates: state machine, phase memory, gen-handoffs,
                                      plan-gate, reviewer-routing, envelope validation, registry globs
 ```
@@ -122,10 +122,10 @@ the SDLC process.
 
 ## Where skills physically live
 
-**Skills live in `.ai/skills/`; `.claude/skills` is a symlink to it.**
+**Skills live in `skills/`; `.claude/skills` is a symlink to it.**
 
 ```
-.ai/skills/               ← single source of truth for all SDLC skills
+skills/               ← single source of truth for all SDLC skills
   # SDLC process (Layer 2)
   intent-triage/SKILL.md
   spec-authoring/SKILL.md
@@ -150,10 +150,10 @@ the SDLC process.
   # Domain: Next.js apps (Layer 1)
   nextjs-app-patterns/SKILL.md
 
-.claude/skills → ../.ai/skills    ← symlink; Claude Code loads from here
+.claude/skills → ../skills    ← symlink; Claude Code loads from here
 ```
 
-**Why `.ai/skills/` is authoritative, not `.claude/skills/`.** Claude Code loads skills from `.claude/skills/` relative to the working directory. We want `.ai/` to own all agent configuration (skills, CLAUDE.md, sdlc.md, project.md) as a coherent unit. The `.claude/skills` symlink is how Claude Code finds them without duplicating the files.
+**Why `skills/` is authoritative, not `.claude/skills/`.** Claude Code loads skills from `.claude/skills/` relative to the working directory. We want `.ai/` to own all agent configuration (skills, CLAUDE.md, sdlc.md, project.md) as a coherent unit. The `.claude/skills` symlink is how Claude Code finds them without duplicating the files.
 
 **Why root, not nested in workspaces?** In a monorepo, you typically work from the root. Skills in `dbt/.claude/skills/` are invisible from the root. All skills at root means:
 - All skills are always visible regardless of cwd
@@ -241,7 +241,7 @@ Use the `create-domain-skill` skill. It walks through the full process and ensur
 
 The short version — creating a domain skill touches:
 
-1. `.ai/skills/[workspace]-[name]/SKILL.md` — the skill itself (`.claude/skills` is a symlink to `.ai/skills/`)
+1. `skills/[workspace]-[name]/SKILL.md` — the skill itself (`.claude/skills` is a symlink to `skills/`)
 2. `.ai/project.md` → Workspace skills table — the wiring that SDLC skills use to find it
 3. `.ai/project.md` → Workspace interfaces — add/update if the skill reveals boundary contracts
 4. `.ai/project.md` → Change propagation patterns — add/update if cross-workspace patterns exist

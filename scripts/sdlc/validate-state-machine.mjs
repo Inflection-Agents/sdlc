@@ -44,8 +44,8 @@ const STABLE_PHASE_FIELDS = [
 function parseArgs(argv) {
     const args = {
         machine: join(REPO_ROOT, 'specs', 'sdlc-state-machine.yaml'),
-        // Skills live under .ai/skills/ (the .claude/skills symlink points here).
-        skills: join(REPO_ROOT, '.ai', 'skills')
+        // Skills live under skills/ (the .claude/skills symlink points here).
+        skills: join(REPO_ROOT, 'skills')
     }
     for (let i = 0; i < argv.length; i += 1) {
         const flag = argv[i]

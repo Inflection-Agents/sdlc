@@ -294,7 +294,7 @@ After Step 10 produces a draft the owner is broadly comfortable with, and BEFORE
 
 - `spec_file`: `specs/SPEC-NNN-<short-description>.md` — the draft just written.
 - `spec_schema`: `spec-schema.md` — for required-section and frontmatter checks.
-- `authoring`: `.ai/skills/spec-authoring/SKILL.md` — this skill, for `spec-authoring:<anchor>` citations.
+- `authoring`: `skills/spec-authoring/SKILL.md` — this skill, for `spec-authoring:<anchor>` citations.
 - `intent`: the relevant excerpt from `specs/intents.md` (the intent this spec formalizes). If invoked outside the intent-triage handoff, the owner provides the intent excerpt or confirms there is none.
 - `project`: `.ai/project.md` — for workspace coverage checks.
 - `adrs`: every ADR file referenced in the spec's Design section, plus any existing ADR the design may contradict (use judgment; when uncertain, include the candidate).

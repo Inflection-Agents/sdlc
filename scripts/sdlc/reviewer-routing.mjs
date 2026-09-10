@@ -28,7 +28,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(__dirname, '..', '..')
 import { parseRegistryTouches } from './check-review-constraint-globs.mjs'
 
-// Outside .ai/skills on purpose: that tree ships in the plugin and is overwritten
+// Outside skills on purpose: that tree ships in the plugin and is overwritten
 // on update, and this file holds the adopting repo's own invariants.
 export const DEFAULT_REGISTRY = join(REPO_ROOT, '.ai', 'sdlc', 'review-constraints.yaml')
 

@@ -10,7 +10,7 @@
 // ------------
 // Refuses to let a PR author post an `accept`/approve verdict (or merge) on
 // their OWN PR. This is the structural half of the review-independence rule in
-// `.ai/skills/review-primitives.md`: the reviewer-of-record for code is the
+// `skills/review-primitives.md`: the reviewer-of-record for code is the
 // independent review panel, and humans gate inputs + merge the integration PR —
 // an author accepting their own PR is never a legitimate review. There is NO
 // override hatch for this gate (it is a correctness rule, not a process gate).

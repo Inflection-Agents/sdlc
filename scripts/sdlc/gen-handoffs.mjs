@@ -45,8 +45,8 @@ export const SDLC_MARKER_START = '<!-- sdlc:phases:start -->'
 export const SDLC_MARKER_END = '<!-- sdlc:phases:end -->'
 
 export const DEFAULT_MACHINE_PATH = join(REPO_ROOT, 'specs', 'sdlc-state-machine.yaml')
-// Skills live under .ai/skills/ (the .claude/skills symlink points here).
-export const DEFAULT_SKILLS_DIR = join(REPO_ROOT, '.ai', 'skills')
+// Skills live under skills/ (the .claude/skills symlink points here).
+export const DEFAULT_SKILLS_DIR = join(REPO_ROOT, 'skills')
 export const DEFAULT_SDLC_DOC = join(REPO_ROOT, '.ai', 'sdlc.md')
 
 const GENERATED_WARNING =

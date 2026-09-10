@@ -239,7 +239,7 @@ test('every agent: named in the registry is a shipped agent definition', () => {
     const named = new Set(loadConstraints().map((c) => c.agent).filter(Boolean))
     named.add(GENERIC_REVIEWER) // the default for a lens with no agent:
     for (const a of named) {
-        assert.ok(existsSync(join(dir, `${a}.md`)), `registry routes to "${a}" but .claude/agents/${a}.md does not exist`)
+        assert.ok(existsSync(join(dir, `${a}.md`)), `registry routes to "${a}" but agents/${a}.md does not exist`)
     }
 })
 

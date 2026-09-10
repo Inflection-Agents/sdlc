@@ -255,7 +255,7 @@ SPEC-001 success criteria require that two reviewers configured differently grad
 
 Two reviewer prompt variants are concretely defined so the AC-010 measurement protocol is reproducible without further design work. The variants apply to `spec-reviewer`; the same pattern (default + adversarial) can be lifted to `pr-reviewer` if measurement on the PR side requires it.
 
-The full `spec-reviewer` prompt body (with INPUTS / GROUNDING / GAP CATALOG / SEVERITY / CARRY-FORWARD / OUTPUT / DECISION sections) lives in `.ai/skills/spec-reviewer/SKILL.md` (TASK-004). The two variants below specify **only the framing/severity-bias instructions** that wrap the shared prompt body. The reviewer concatenates the appropriate variant block at the top of the shared body when invoked.
+The full `spec-reviewer` prompt body (with INPUTS / GROUNDING / GAP CATALOG / SEVERITY / CARRY-FORWARD / OUTPUT / DECISION sections) lives in `skills/spec-reviewer/SKILL.md` (TASK-004). The two variants below specify **only the framing/severity-bias instructions** that wrap the shared prompt body. The reviewer concatenates the appropriate variant block at the top of the shared body when invoked.
 
 ### Default variant
 

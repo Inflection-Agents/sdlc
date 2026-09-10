@@ -22,9 +22,9 @@ Otherwise, run the SDLC's own bootstrap from this directory:
 This script:
 1. Checks prerequisites (Node.js for the hooks + validators, Git, GitHub CLI, Claude Code)
 2. Scaffolds `specs/` and `.ai/`, and copies the spec/task templates
-3. Copies the spine: the state machine (`specs/sdlc-state-machine.yaml`), the reference hooks (`.claude/hooks/`), the review contracts (`.ai/skills/review-*.yaml` / `.json` / `.md`), and the validators + gates (`scripts/sdlc/`)
+3. Copies the spine: the state machine (`specs/sdlc-state-machine.yaml`), the reference hooks (`.claude/hooks/`), the review contracts (`skills/review-*.yaml` / `.json` / `.md`), and the validators + gates (`scripts/sdlc/`)
 4. Wires the hooks into `.claude/settings.json` (advisory by default — and never clobbers an existing settings.json; it prints merge guidance instead)
-5. Links `.claude/skills` → `.ai/skills`
+5. Links `.claude/skills` → `skills`
 6. Prints next steps (the MCP + Linear-label setup below, and the customizations to fill in)
 
 It does NOT set up MCP or create Linear labels — those are the manual steps in §3 and §5 below.
@@ -48,9 +48,9 @@ The SDLC is agent-agnostic. You can use Claude Code, Gemini CLI, or both. We rec
 
 ## 4. Wire skills into your agents
 
-If the repo ships SDLC skills under `.ai/skills/` (the standard location — see `templates/project.md`), point your local agents at them:
+If the repo ships SDLC skills under `skills/` (the standard location — see `templates/project.md`), point your local agents at them:
 
-- **Claude Code** auto-discovers `.claude/skills/` in the repo root. Either symlink (`ln -s ../.ai/skills .claude/skills`) or run the repo's `setup-sdlc.sh` if it provides one.
+- **Claude Code** auto-discovers `.claude/skills/` in the repo root. Either symlink (`ln -s ../skills .claude/skills`) or run the repo's `setup-sdlc.sh` if it provides one.
 - **Gemini CLI** discovers skills via `~/.agents/skills/`. Symlink each repo skill into it.
 
 The repo's bootstrap script usually handles this. Restart your agent session after wiring so it reloads the skill index.
@@ -66,8 +66,8 @@ The autonomous half of the SDLC runs on a small spine of machine-checkable piece
   - `pre-tool-use-edit-write.mjs` — flag implementation-code edits with no active task context
   - `pre-tool-use-review-identity.mjs` — flag an author reviewing their own PR
 - **Delivery gates** — `scripts/sdlc/plan-gate.mjs` (the fail-closed plan-review gate a run checks before it starts), `scripts/sdlc/validate-review-envelope.mjs` (every reviewer verdict is validated through it), `scripts/sdlc/reviewer-routing.mjs` (lens → reviewer, from the registry), `scripts/sdlc/check-review-constraint-globs.mjs` (registry rows must resolve to real files).
-- **Review contracts** — `.ai/skills/review-primitives.md`, `.ai/skills/review-envelope.schema.json` (universal, identical in every repo).
-- **Constraint registry** — `.ai/sdlc/review-constraints.yaml`, this repo's own invariants. It sits outside `.ai/skills/` so a skills-tree update can never overwrite it.
+- **Review contracts** — `skills/review-primitives.md`, `skills/review-envelope.schema.json` (universal, identical in every repo).
+- **Constraint registry** — `.ai/sdlc/review-constraints.yaml`, this repo's own invariants. It sits outside `skills/` so a skills-tree update can never overwrite it.
 
 There is **no execution engine to install.** A deterministic `execute-spec` Workflow script used to sit here; it was measured and retired (ADR-003). `spec-execution` is itself the engine.
 
@@ -113,7 +113,7 @@ claude "list my Linear teams"
 .claude/
 ├── settings.json   ← wires the hooks (travels with the repo)
 ├── hooks/          ← advisory SDLC hooks (.mjs)
-└── skills → ../.ai/skills   ← symlink; Claude Code loads skills from here
+└── skills → ../skills   ← symlink; Claude Code loads skills from here
 
 scripts/sdlc/       ← validators + gates: validate-state-machine.mjs, validate-phase-memory.mjs,
                        gen-handoffs.mjs, plan-gate.mjs, reviewer-routing.mjs,

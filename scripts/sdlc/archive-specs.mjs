@@ -13,7 +13,7 @@
  * `scripts/sdlc/resolve.mjs` addresses it by id.
  *
  * TWO DENYLIST CLAUSES, both derived at runtime rather than hardcoded:
- *   1. A spec whose id appears anywhere under `.ai/skills/**`. A token scan, not a
+ *   1. A spec whose id appears anywhere under `skills/**`. A token scan, not a
  *      spec-of-record test, and deliberately over-broad — see collectCitedIds.
  *   2. A spec that is the `spec:` binding of a non-archived ADR. Archiving it would
  *      orphan an ADR that is still cited as current authority.
@@ -93,7 +93,7 @@ export function archivable(specs, { citedIds, adrBoundIds }) {
 }
 
 /**
- * Every `SPEC-NNN` token appearing anywhere under `.ai/skills/**`.
+ * Every `SPEC-NNN` token appearing anywhere under `skills/**`.
  *
  * Deliberately over-broad: it is a token scan, not a spec-of-record test, so it also
  * protects ids that appear only as illustrative examples in skill prose (SPEC-026,
@@ -103,12 +103,12 @@ export function archivable(specs, { citedIds, adrBoundIds }) {
  */
 export function collectCitedIds(root = ROOT, knownIds = null) {
     const ids = new Set()
-    const skills = join(root, '.ai', 'skills')
+    const skills = join(root, 'skills')
     const walk = (dir) => {
         if (!existsSync(dir)) return
         for (const entry of readdirSync(dir, { withFileTypes: true })) {
             const p = join(dir, entry.name)
-            // Do not follow symlinks: .claude/skills points at .ai/skills, and a
+            // Do not follow symlinks: .claude/skills points at skills, and a
             // following walk would read every skill twice.
             if (entry.isDirectory()) walk(p)
             else if (entry.isFile() && entry.name.endsWith('.md')) {
@@ -117,7 +117,7 @@ export function collectCitedIds(root = ROOT, knownIds = null) {
         }
     }
     walk(skills)
-    // The constraints registry sits outside .ai/skills on purpose (that tree ships in
+    // The constraints registry sits outside skills on purpose (that tree ships in
     // the plugin and is overwritten on update), so it is read from its own path.
     for (const p of [join(skills, 'review-primitives.md'), join(root, '.ai', 'sdlc', 'review-constraints.yaml')]) {
         if (existsSync(p)) for (const m of read(p).matchAll(/\b(SPEC-\d{3})\b/g)) ids.add(m[1])

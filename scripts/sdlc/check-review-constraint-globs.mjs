@@ -45,7 +45,7 @@ import { fileURLToPath } from 'node:url'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 export const REPO_ROOT = process.env.REVIEW_CONSTRAINTS_ROOT ?? resolve(__dirname, '..', '..')
-// Outside .ai/skills on purpose: that tree ships in the plugin and is overwritten
+// Outside skills on purpose: that tree ships in the plugin and is overwritten
 // on update, and this file holds the adopting repo's own invariants.
 export const REGISTRY_REL = '.ai/sdlc/review-constraints.yaml'
 export const REGISTRY_FILE = process.env.REVIEW_CONSTRAINTS_FILE ?? join(REPO_ROOT, REGISTRY_REL)
