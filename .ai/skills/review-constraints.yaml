@@ -56,7 +56,7 @@ constraints:
       A gate or hook here is a contract other repos copy. It must fail loudly rather than
       silently: guard direct invocation with isMain() (see cli-invocation.test.mjs), and
       never let a catch turn a broken dependency into a passing no-op.
-    cite: "std:gate-fails-loudly"
+    cite: "inv:SDLC-GATE-TESTED"
 
   # ── EXAMPLE: a hard architectural invariant on a "pure core" / shared package ──────────────
   - id: INV-CORE-PURITY

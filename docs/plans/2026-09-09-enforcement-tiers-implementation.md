@@ -387,7 +387,7 @@ of truth. If the two ever disagree, the schema wins and this file is the defect.
 
 **Step 3: Add the SPEC-001 changelog annotation**
 
-`review-primitives.md:41` authorizes exactly two routes for changing this contract. SPEC-001 is `completed`, so `spec-amendment` is unavailable and the extension pattern is the only legal route. The changelog is currently at v1.2; append v1.3 following the v1.1 and v1.2 entries' format. It must record: that SPEC-007 adds the attribution section transcribing already-shipped schema semantics, that this is a reconciliation and not a new contract, that a `design`-altitude finding routes to `spec-amendment` or a replan rather than the fix loop, that severity grading is untouched, and that ADR-004's three-round cap bounds the fix loop this field routes into.
+`review-primitives.md:41` authorizes exactly two routes for changing this contract. SPEC-001 is `completed`, so `spec-amendment` is unavailable and the extension pattern is the only legal route. The changelog is currently at v1.2; append v1.3 following the v1.1 and v1.2 entries' format. It must record: that the enforcement-tiers plan adds the attribution section transcribing already-shipped schema semantics, that this is a reconciliation and not a new contract, that a `design`-altitude finding routes to `spec-amendment` or a replan rather than the fix loop, that severity grading is untouched, and that ADR-004's three-round cap bounds the fix loop this field routes into.
 
 **Step 4: Verify the parity test still passes**
 

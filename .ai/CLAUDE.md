@@ -52,7 +52,7 @@ What the skill has you do:
 - **Sub-agent fan-out is the exception, not the norm** — reserved for a large spec with genuinely non-overlapping tasks. When used, `isolation: "worktree"` is REQUIRED for any subagent that writes files, and the merge discipline is unchanged.
 - **No per-task reviewer fan-out.** A task is gated by its tests and your self-review. The registry (`.ai/skills/review-constraints.yaml`) is evaluated **in full at the integration gate**, across the whole diff — that is where the rigor is spent.
 - **Validate for real, once, before the gate** — full build, full test suite, the real pipeline where one exists, the app driven in a real browser for user-visible change, performance where it matters. Attach the evidence.
-- **Gate hard at integration** — one PR, a full multi-lens adversarial panel (concurrent, clean contexts, no `Edit`/`Write`), every envelope validated with `scripts/sdlc/validate-review-envelope.mjs`, blockers and majors fixed at the root, then **re-dispatch the panel** and loop until none survive. Then leave the PR open for the human.
+- **Gate hard at integration** — one PR, a full multi-lens adversarial panel (concurrent, clean contexts, no `Edit`/`Write`), every envelope validated with `scripts/sdlc/validate-review-envelope.mjs`, blockers and majors fixed at the root, then **re-dispatch the panel** and loop until none survive, to a maximum of three rounds (ADR-004); a survivor is disclosed in the PR body, not ground on. Then leave the PR open for the human.
 
 The only way a run asks for human help is by **escalating back into a judgment phase**: a `task:scope` blocker → `task-decomposition` re-plan; a `spec:*` blocker → `spec-amendment`. Handle those when they surface.
 

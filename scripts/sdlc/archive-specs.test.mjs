@@ -1,4 +1,4 @@
-// Tests for the archive boundary (SPEC-007 M3).
+// Tests for the archive boundary (the enforcement-tiers plan (M3)).
 //
 // `archivable` is pure so the denylist rules can be tested without touching the
 // filesystem. The two guards below were shipped as blockers downstream before this

@@ -1,4 +1,4 @@
-// Tests for id resolution across the archive boundary (SPEC-007 M3).
+// Tests for id resolution across the archive boundary (the enforcement-tiers plan (M3)).
 //
 // The fence hides archived material from search, which only pays if the archive
 // stays addressable. Ids are how the corpus refers to itself, so this is the

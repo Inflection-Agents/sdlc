@@ -206,7 +206,7 @@ for each task, ONE at a time:
      branch off the current feat/spec-NNN tip → implement inline
      → the task's own tests green → self-review the diff → PR → merge → delete the branch
 end-to-end validation ONCE (evidence attached)
-integration PR → adversarial panel → fix at the root → re-dispatch → loop until clean
+integration PR → adversarial panel → fix at the root → re-dispatch → loop until clean (≤3 rounds, ADR-004)
 human: merge the integration PR
 ```
 
@@ -260,7 +260,7 @@ Spec (active, decomposed, plan-approved)  →  "implement SPEC-NNN"  →  spec-e
   └─── integration PR (feat/spec-NNN → main)
             │   → adversarial panel: integration-reviewer vs success criteria, an adversarial
             │     task-reviewer, + every lens the registry fires on the whole diff
-            │   → envelopes validated → fix at the root → re-dispatch → loop until clean
+            │   → envelopes validated → fix at the root → re-dispatch → loop until clean (≤3, ADR-004)
             │
             └─── a HUMAN merges the integration PR
                       │

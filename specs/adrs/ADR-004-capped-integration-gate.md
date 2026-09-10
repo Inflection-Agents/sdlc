@@ -43,12 +43,12 @@ criterion or constraint it grades, the location it cites, and why it was not clo
 left open for the human, exactly as ADR-003 requires. What changes is that the human decides with the
 survivors named in front of them, at a bounded cost, on a known date.
 
-This supersedes exactly one row of ADR-003's capability table, `Capped fix loop (≤3)`, and with it
+This supersedes two sites in ADR-003: the `Capped fix loop (≤3)` row of its capability table and the closing clause of Decision item 10, which states the same uncapped loop as body prose, `Capped fix loop (≤3)`, and with it
 the "same integration finding surviving two panel rounds" halt trigger that row justified. Every
 other row stands: single-executor delivery, the multi-lens gate panel, the constraints-registry
 fan-out and the branch discipline are all unaffected. ADR-003's `superseded_by:` frontmatter stays
 empty on purpose, because stamping the whole ADR dead over one row would be false. The reversal is
-recorded twice instead, here and inline on the row itself.
+recorded inline at both sites instead, and named here.
 
 ## Consequences
 

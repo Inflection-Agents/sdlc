@@ -1,4 +1,4 @@
-// Tests for the stale-citation gate (SPEC-007 M4).
+// Tests for the stale-citation gate (the enforcement-tiers plan (M4)).
 //
 // Scoped by BLAST RADIUS, not by document. A superseded decision cited as current
 // in always-loaded context is what misleads an agent on its next run; the same

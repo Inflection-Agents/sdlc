@@ -118,12 +118,24 @@ test('the shipped registry parses and every declared agent resolves through it',
     }
 })
 
-// ── Path matching for write-time constraint injection (SPEC-007 M2) ────────────
+// ── Path matching for write-time constraint injection (the enforcement-tiers plan (M2)) ────────────
 
 test('globToRe: ** crosses path separators, * does not', () => {
     assert.ok(globToRe('packages/**/core.ts').test('packages/a/b/core.ts'))
     assert.ok(globToRe('src/*.ts').test('src/a.ts'))
     assert.equal(globToRe('src/*.ts').test('src/a/b.ts'), false)
+})
+
+test('globToRe: `**/` matches ZERO segments, in any position', () => {
+    // Parity with git, minimatch and fs.globSync. Compiling `**/` as `.*\/` requires at
+    // least one directory, so the write-time hook would decline a row that
+    // check-review-constraint-globs (which uses globSync) calls healthy - two engines
+    // disagreeing about the same registry row.
+    assert.ok(globToRe('**/domain/**').test('domain/user.ts'), 'leading, zero segments')
+    assert.ok(globToRe('**/domain/**').test('src/domain/b.ts'), 'leading, one segment')
+    assert.ok(globToRe('src/**/*.test.ts').test('src/x.test.ts'), 'mid-pattern, zero segments')
+    assert.ok(globToRe('src/**/*.test.ts').test('src/a/b.test.ts'), 'mid-pattern, one segment')
+    assert.ok(globToRe('a/**/b.ts').test('a/b.ts'), 'mid-pattern collapses cleanly')
 })
 
 test('globToRe: a literal dot is not a wildcard', () => {

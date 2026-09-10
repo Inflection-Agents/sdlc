@@ -1,4 +1,4 @@
-// Tests for spec completability grading (SPEC-007 M4).
+// Tests for spec completability grading (the enforcement-tiers plan (M4)).
 //
 // This grades and reports. It never writes: whether the evidence substantiates a
 // criterion is judgment, and that stays with the human at the integration PR.

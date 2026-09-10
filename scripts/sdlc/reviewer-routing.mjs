@@ -212,16 +212,18 @@ export function parseRowExtras(text) {
 export const globToRe = (g) =>
     new RegExp(
         '^' +
-            // A LEADING `**/` matches zero or more segments, which is what git,
+            // `**/` matches zero or more segments in ANY position, which is what git,
             // minimatch and fs.globSync all do. Compiling it as `.*\/` would require at
             // least one directory, so `**/domain/**` would miss a root-level `domain/`
-            // while check-review-constraint-globs (which uses globSync) called the same
-            // glob healthy - two engines disagreeing about the same registry row.
-            g.replace(/^\*\*\//, '\u0000')
+            // and `src/**/*.test.ts` would miss `src/x.test.ts`, while
+            // check-review-constraint-globs (which uses globSync) called the same glob
+            // healthy - two engines disagreeing about the same registry row.
+            g.replace(/(^|\/)\*\*\//g, (_m, lead) => (lead ? '\u0001' : '\u0000'))
                 .replace(/\*\*|\*|[.+^${}()|[\]\\?]/g, (m) =>
                     m === '**' ? '.*' : m === '*' ? '[^/]*' : '\\' + m
                 )
-                .replace(/\u0000/, '(?:.*\\/)?') +
+                .replace(/\u0000/g, '(?:.*\\/)?')
+                .replace(/\u0001/g, '\\/(?:.*\\/)?') +
             '$'
     )
 
