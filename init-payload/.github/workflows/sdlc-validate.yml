@@ -1,12 +1,15 @@
 name: SDLC
 
-# The framework's own gates, run on the framework. Every check here is one a
-# consuming repo is told to rely on, so if any of them is red HERE, the reference
-# is shipping a gate it does not itself pass.
+# The SDLC gates, run on YOUR repo.
 #
-# ADR-003 concentrates delivery rigor at one integration gate and re-homes the
-# engine's contracts into scripts/sdlc/. That only means anything if something
-# actually runs them — before this workflow existed, nothing did.
+# This is the adopter's workflow, deliberately NOT a copy of the framework's own. The
+# framework repo runs extra checks against artifacts only it has — its plugin manifest,
+# its own test suite — and copying that verbatim gives a fresh adopter a red build on
+# day one for missing files they were never supposed to have.
+#
+# Every validator here tolerates an unmatched glob as "nothing to check", which is the
+# state of a repo's very first PR. `node --test` does NOT tolerate one, so the test step
+# is guarded rather than globbed directly.
 
 on:
     push:
@@ -22,55 +25,43 @@ jobs:
 
             - uses: actions/setup-node@v4
               with:
-                  # fs.globSync (used by check-review-constraint-globs.mjs) needs 22+.
+                  # fs.globSync (check-review-constraint-globs.mjs) needs 22+.
                   node-version: '22'
 
-            - name: Tests — validators, delivery gates, and the goal leash
-              run: node --test scripts/sdlc/*.test.mjs hooks/__tests__/*.test.mjs
+            - name: Tests, if this repo has any
+              # Guarded: `node --test` on an unmatched glob receives the literal pattern
+              # and fails. A repo that has not written SDLC tests yet is normal.
+              run: |
+                  set -eu
+                  shopt -s nullglob
+                  files=(scripts/sdlc/*.test.mjs)
+                  if [ ${#files[@]} -eq 0 ]; then
+                    echo "no scripts/sdlc/*.test.mjs yet — nothing to run"
+                  else
+                    node --test "${files[@]}"
+                  fi
+              shell: bash
 
             - name: State machine is structurally and referentially valid
+              # Skills come from the installed plugin, so this skips the referential
+              # skill checks when there is no local skills/ dir and still grades the
+              # structure of your state machine.
               run: node scripts/sdlc/validate-state-machine.mjs
-
-            - name: Generated handoff footers match the state machine
-              run: node scripts/sdlc/gen-handoffs.mjs --check
 
             - name: Phase-memory blocks are valid
               run: node scripts/sdlc/validate-phase-memory.mjs specs/tasks/*/_index.yaml specs/archive/tasks/*/_index.yaml
 
             - name: Every decomposed spec carries a plan-review block
-              # PRESENCE, repo-wide — not approval. A spec mid-decomposition sits at
-              # `approved: false` until the owner signs off, so enforcing approval on
-              # every PR would redden unrelated PRs and pressure people to flip the flag.
-              # Approval is checked per-spec by `spec-execution` §1 before a run starts
-              # (ADR-002), which is the moment it actually matters.
               run: node scripts/sdlc/plan-gate.mjs --presence-only specs/tasks/*/_index.yaml specs/archive/tasks/*/_index.yaml
 
-            - name: Plugin manifest resolves to what is on disk
-              # A manifest naming a missing hook installs cleanly and never fires.
-              # Same dangling-name class as a registry routing to an agent no repo
-              # defines, which is why it is a gate rather than a convention.
-              run: node scripts/sdlc/validate-plugin-manifest.mjs
-
             - name: Archive boundary is correct (no expired spec in the live corpus)
-              # Corpus-wide and enforcing. Green because the arming commit arranged the
-              # corpus; it goes red when a spec reaches a terminal status and is not moved,
-              # or when an archived spec is reopened and not restored.
               run: node scripts/sdlc/archive-specs.mjs --check
 
             - name: No superseded decision cited as current in always-loaded context
-              # Corpus-wide, no `if:` scope. Every other gate here grades changed files,
-              # which is exactly how a stale citation survives: the defect sits in a file
-              # nobody is editing.
-              #
-              # Enforcing, but green today because this repo has no WHOLLY superseded ADR.
-              # ADR-003 has one row reversed by ADR-004 and is otherwise live authority, and
-              # a row-level reversal is deliberately out of scope: no automated check can
-              # tell which of an ADR's rows a citation relies on. The FAIL branch is
-              # exercised by fixture in check-stale-citations.test.mjs, not by the corpus.
               run: node scripts/sdlc/check-stale-citations.mjs
 
-            - name: Review-constraint globs (warn — this repo's registry is illustrative)
-              # Reports, never fails: the shipped rows deliberately match nothing in a
-              # docs-only repo. A consuming repo replaces them and switches to
-              # `--enforce`, at which point this step can actually go red.
+            - name: Review-constraint globs resolve
+              # Warn mode until your registry has rows. Switch to `--enforce` once
+              # `/sdlc:init` has filled it, so a rule that matches nothing goes red
+              # instead of sitting there never firing.
               run: node scripts/sdlc/check-review-constraint-globs.mjs

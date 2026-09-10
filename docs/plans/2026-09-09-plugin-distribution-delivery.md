@@ -42,7 +42,13 @@ feature proven at its own site whose propagation site was never checked.
    adopter would have been red immediately.
 2. **`validate-plugin-manifest.mjs` shipped in the payload.** A consuming repo consumes a
    plugin; it does not ship one, so there was no manifest to grade.
-3. **`reviewer-routing --list` printed nothing** against the empty registry an adopter
+3. **The payload shipped the framework's OWN CI workflow verbatim.** It ran
+   `node --test` on globs a consuming repo cannot match (node passes the literal
+   pattern and fails) and called `validate-plugin-manifest.mjs`, which the payload
+   correctly does not ship. An adopter's very first PR would have been red on two
+   steps. The payload now carries its own workflow, and every step of it was run in a
+   scratch consuming repo under bash.
+4. **`reviewer-routing --list` printed nothing** against the empty registry an adopter
    starts with — indistinguishable from the broken read it exists to reveal.
 
 ## Disclosed, not fixed
