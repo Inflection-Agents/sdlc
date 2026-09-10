@@ -1,7 +1,6 @@
 # Enforcement tiers and review-loop convergence — delivery record
 
-Branch `sdlc/enforcement-tiers-design`, 25 commits, 51 files, +2000/−70.
-Tests 107 → 170, all green. Every gate green. **Not merged; left open for review.**
+Branch `sdlc/enforcement-tiers-design`, 28 commits, 53 files. Tests 107 → 171, all green. Every gate green. **Not merged; left open for review.**
 
 Design: [`2026-09-09-enforcement-tiers-design.md`](2026-09-09-enforcement-tiers-design.md)
 Plan: [`2026-09-09-enforcement-tiers-implementation.md`](2026-09-09-enforcement-tiers-implementation.md)
@@ -32,15 +31,22 @@ Plan: [`2026-09-09-enforcement-tiers-implementation.md`](2026-09-09-enforcement-
 
 ## Review record — ADR-004 dogfooded on its own branch
 
-Three rounds, folded by resolved agent per the SOP change this branch makes.
+Four rounds, folded by resolved agent per the SOP change this branch makes.
 
 | Round | Findings | Outcome |
 | --- | --- | --- |
 | 1 | 3 blockers, 2 majors, 4 nits | all closed |
 | 2 | 1 blocker, 6 majors, 5 nits | all closed |
 | 3 | 1 blocker, 5 majors, 1 nit | all closed |
+| 4 | owner-requested, post-cap | all closed |
 
-**The cap held.** No round 4 was dispatched.
+**The cap held.** No *autonomous* round 4 was dispatched. Round 4 was requested by
+the repo owner before pushing — which is precisely the decision ADR-004 hands to the
+human rather than to the agent.
+
+Round 4 found two more instances of the same sibling pattern: `roles.md:39` still
+described an uncapped panel loop, and `globToRe`'s sentinel hop let a glob carrying a
+literal NUL compile as a zero-or-more-segments token.
 
 The three blockers were each a case of the doctrine not landing where it was read:
 the cap was verified by grepping for a deleted *phrase* rather than for the
@@ -56,10 +62,10 @@ hold.** Two are wired into CI, where a silent exit-0 reads as a passing gate.
 
 Nothing is disclosed as unfixed. Two disclosures about *verification*, not defects:
 
-1. **Round 3's findings were fixed after the final round, so they carry no
+1. **Rounds 3 and 4 were fixed after the agent's cap, so those fixes carry no
    independent panel verification.** ADR-004 caps rounds, not fixes; each was a
    one-clause edit and disclosing something that cheap would have been the cap's
-   first bad application. The fixes are covered by the 170-test suite and every gate,
+   first bad application. The fixes are covered by the 171-test suite and every gate,
    but no reviewer graded them.
 
 2. **The merge-time workflow is unproven by construction.** Nothing in a local
