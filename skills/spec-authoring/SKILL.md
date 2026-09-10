@@ -284,13 +284,22 @@ Iterate until the user is satisfied.
 
 This human walkthrough is **not replaced** by Step 10a — both run. The reviewer in Step 10a makes gap detection systematic and grounded; the walkthrough here keeps the owner in the loop on intent, framing, and judgment calls the reviewer is not positioned to make.
 
-### Step 10a: Run `spec-reviewer` before the sign-off gate
+### Step 10a: Dispatch `spec-reviewer` before the sign-off gate
 
-After Step 10 produces a draft the owner is broadly comfortable with, and BEFORE the "USER APPROVES SPEC" gate at the end of Phase 2, invoke the `spec-reviewer` skill on the draft. This is a mandatory step — the owner remains the sign-off authority, but the reviewer produces grounded, machine-parseable findings that the owner can act on or override explicitly.
+After Step 10 produces a draft the owner is broadly comfortable with, and BEFORE the "USER APPROVES SPEC" gate at the end of Phase 2, DISPATCH the `spec-reviewer` agent on the draft. This is a mandatory step — the owner remains the sign-off authority, but the reviewer produces grounded, machine-parseable findings that the owner can act on or override explicitly.
 
 **Why this step exists (and why it does not replace Step 10):** The owner's walkthrough confirms intent and framing. The `spec-reviewer` checks the spec against the schema, the authoring conventions, the originating intent, ADRs, and upstream/downstream specs for the 9 gap categories enumerated in `spec-reviewer/SKILL.md`. The two are complementary: the owner catches "this is not what I meant"; the reviewer catches "this AC is untestable" or "this contradicts SPEC-042". Skipping either loses coverage.
 
-**Dispatch inputs.** Invoke `spec-reviewer` with the following inputs (all paths are concrete; do not invent them):
+**Dispatch, do not invoke.** Call the `Agent` tool with `subagent_type: spec-reviewer`. Both
+variants — `default` and `adversarial` — go in ONE message so they run concurrently against the
+same draft.
+
+**The authoring context must never grade its own spec.** You wrote this; findings you produce in
+this turn are a self-review wearing a reviewer's output format, and the two are byte-identical in
+the artifact. The agent has no `Edit`/`Write` and a clean context, which is the whole of what makes
+its verdict worth having. If you are about to write findings inline, stop and dispatch.
+
+Seed each dispatch with these inputs (all paths concrete; do not invent them):
 
 - `spec_file`: `specs/SPEC-NNN-<short-description>.md` — the draft just written.
 - `spec_schema`: `spec-schema.md` — for required-section and frontmatter checks.
@@ -306,7 +315,7 @@ After Step 10 produces a draft the owner is broadly comfortable with, and BEFORE
 
 **Apply the routing policy.** Severity → action is defined in [`review-primitives.md`](../review-primitives.md) > Orchestrator severity→action policy — do not duplicate it here. In summary: blockers/majors route to `fix_loop`; nits/suggestions route to `batch_followup_and_accept` (appended to `spec_followups:` per SPEC-001 Design > Spec followups format); empty findings list routes to `accept`. Run the policy on the reviewer's output and proceed accordingly:
 
-- **`fix_loop`** (any blocker or major exists): loop with the author to fix each finding, OR loop with the owner to override severity via `spec_review_overrides:` (see below). Re-invoke `spec-reviewer` after edits, passing the previous output as `previous_output` so nit/suggestion findings on unchanged sections carry forward per the contract in `review-primitives.md`. Continue looping until there are no remaining un-overridden blockers or majors.
+- **`fix_loop`** (any blocker or major exists): loop with the author to fix each finding, OR loop with the owner to override severity via `spec_review_overrides:` (see below). Re-DISPATCH `spec-reviewer` after edits — a fix round is graded by a fresh agent, never inline — passing the previous output as `previous_output` so nit/suggestion findings on unchanged sections carry forward per the contract in `review-primitives.md`. Continue looping until there are no remaining un-overridden blockers or majors.
 - **`batch_followup_and_accept`** (only nits/suggestions remain): append the findings to a `spec_followups:` section in the spec body (after `Migration` and `spec_review_overrides`, per SPEC-001 Design > Spec followups format), then proceed to the sign-off gate.
 - **`accept`** (empty findings list): proceed directly to the sign-off gate.
 
