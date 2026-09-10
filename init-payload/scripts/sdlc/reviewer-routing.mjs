@@ -262,6 +262,31 @@ export const applicableConstraints = (rows, relPath) =>
         return Array.isArray(globs) && globs.some((g) => typeof g === 'string' && globToRe(g).test(relPath))
     })
 
+/**
+ * The task-scope constraints registered against ANY of these paths, deduped by id.
+ *
+ * A PR touches many files; `applicableConstraints` grades one. Both delegate to the
+ * SAME predicate on purpose. Two ways to compute one lens set is how a lens ends up
+ * firing at write time and not at review time — the shape this codebase has already
+ * been bitten by twice, in globToRe versus globSync and in three registry parsers
+ * that handled CRLF differently.
+ */
+export const applicableConstraintsFor = (rows, relPaths) => {
+    const paths = Array.isArray(relPaths) ? relPaths : []
+    const seen = new Set()
+    const out = []
+    for (const p of paths) {
+        for (const c of applicableConstraints(rows, p)) {
+            if (c?.id) {
+                if (seen.has(c.id)) continue
+                seen.add(c.id)
+            }
+            out.push(c)
+        }
+    }
+    return out
+}
+
 function main(argv) {
     const args = [...argv]
     let registry = DEFAULT_REGISTRY

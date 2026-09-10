@@ -11,6 +11,7 @@ import {
     GENERIC_REVIEWER,
     agentForLens,
     applicableConstraints,
+    applicableConstraintsFor,
     globToRe,
     loadConstraints,
     parseConstraints
@@ -251,5 +252,56 @@ test('no reviewer agent carries Edit or Write', () => {
         const tools = readFileSync(join(dir, f), 'utf8').match(/^tools:\s*(.+)$/m)
         assert.ok(tools, `${f} declares no tools: line`)
         assert.equal(/\bEdit\b|\bWrite\b/.test(tools[1]), false, `${f} grants Edit/Write to a reviewer`)
+    }
+})
+
+// ── Multi-path constraint selection ───────────────────────────────────────────
+// applicableConstraints grades ONE path; a PR touches many. Without a shared
+// helper the caller invents a loop, and two places compute the same lens set
+// differently — the two-engines-disagree failure this codebase has hit twice
+// (globToRe vs globSync, and three registry parsers with different CRLF handling).
+
+test('applicableConstraintsFor: unions across paths and dedupes by id', () => {
+    const rows = [
+        { id: 'A', scope: 'task', when: { touches: ['scripts/**'] }, check: 'a', cite: 'inv:A' },
+        { id: 'B', scope: 'task', when: { touches: ['docs/**'] }, check: 'b', cite: 'inv:B' }
+    ]
+    const hits = applicableConstraintsFor(rows, ['scripts/x.mjs', 'docs/y.md', 'scripts/z.mjs'])
+    assert.deepEqual(
+        hits.map((c) => c.id).sort(),
+        ['A', 'B']
+    )
+})
+
+test('applicableConstraintsFor: a row matching several paths appears once', () => {
+    const rows = [{ id: 'A', scope: 'task', when: { touches: ['scripts/**'] }, check: 'a', cite: 'inv:A' }]
+    assert.equal(applicableConstraintsFor(rows, ['scripts/a.mjs', 'scripts/b.mjs']).length, 1)
+})
+
+test('applicableConstraintsFor: no paths yields no constraints, and does not throw', () => {
+    const rows = [{ id: 'A', scope: 'task', when: { touches: ['**'] }, check: 'a', cite: 'inv:A' }]
+    assert.deepEqual(applicableConstraintsFor(rows, []), [])
+    assert.deepEqual(applicableConstraintsFor(rows, null), [])
+    assert.deepEqual(applicableConstraintsFor(null, ['a.ts']), [])
+})
+
+test('applicableConstraintsFor: integration-scope rows are excluded, as in the single-path form', () => {
+    const rows = [{ id: 'I', scope: 'integration', when: { touches: ['**'] }, check: 'i', cite: 'inv:I' }]
+    assert.deepEqual(applicableConstraintsFor(rows, ['a.ts']), [])
+})
+
+test('applicableConstraintsFor agrees with applicableConstraints on a single path', () => {
+    // One matcher, two entry points. If these ever disagree, a lens fires at write
+    // time and not at review time, or the reverse.
+    const rows = [
+        { id: 'A', scope: 'task', when: { touches: ['scripts/**'] }, check: 'a', cite: 'inv:A' },
+        { id: 'B', scope: 'task', when: { touches: ['docs/**'] }, check: 'b', cite: 'inv:B' }
+    ]
+    for (const p of ['scripts/x.mjs', 'docs/y.md', 'nothing/z.txt']) {
+        assert.deepEqual(
+            applicableConstraintsFor(rows, [p]).map((c) => c.id),
+            applicableConstraints(rows, p).map((c) => c.id),
+            `disagreement on ${p}`
+        )
     }
 })
