@@ -183,3 +183,11 @@ test('applicableConstraints: a non-array input yields no matches rather than thr
     assert.deepEqual(applicableConstraints(null, 'x.ts'), [])
     assert.deepEqual(applicableConstraints(undefined, 'x.ts'), [])
 })
+
+test('globToRe: a control character in a glob cannot hijack the substitution', () => {
+    // An earlier revision hopped through NUL/SOH sentinels, so a glob carrying one
+    // compiled as a zero-or-more-segments token. The single-pass alternation has no
+    // sentinel to collide with.
+    assert.equal(globToRe(`a${String.fromCharCode(0)}b`).test('a/x/b'), false)
+    assert.equal(globToRe(`a${String.fromCharCode(1)}b`).test('a/x/b'), false)
+})

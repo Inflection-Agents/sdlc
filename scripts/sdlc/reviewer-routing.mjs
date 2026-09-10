@@ -204,10 +204,13 @@ export function parseRowExtras(text) {
  * Glob to RegExp. `**` crosses path separators, `*` does not, and every other
  * regex metacharacter is escaped so a literal dot cannot act as a wildcard.
  *
- * One pass, because the alternation tries `**` before `*`. Do NOT rewrite this as
- * chained .replace() calls with a placeholder between the `**` and `*` passes: the
- * placeholder must be a byte no glob can contain, and every such byte is a control
- * character that corrupts whatever file it is written into.
+ * ONE pass, and no placeholder. The alternation orders the double-star-slash token
+ * before bare double-star before single-star, so each wins in turn. Do NOT rewrite
+ * this as chained .replace() calls hopping
+ * through a sentinel character: every byte no glob can legitimately contain is a
+ * control character, which corrupts whatever file it is written into AND lets a glob
+ * carrying that byte hijack the substitution: a literal NUL compiled as a
+ * zero-or-more-segments token.
  */
 export const globToRe = (g) =>
     new RegExp(
@@ -218,12 +221,13 @@ export const globToRe = (g) =>
             // and `src/**/*.test.ts` would miss `src/x.test.ts`, while
             // check-review-constraint-globs (which uses globSync) called the same glob
             // healthy - two engines disagreeing about the same registry row.
-            g.replace(/(^|\/)\*\*\//g, (_m, lead) => (lead ? '\u0001' : '\u0000'))
-                .replace(/\*\*|\*|[.+^${}()|[\]\\?]/g, (m) =>
-                    m === '**' ? '.*' : m === '*' ? '[^/]*' : '\\' + m
-                )
-                .replace(/\u0000/g, '(?:.*\\/)?')
-                .replace(/\u0001/g, '\\/(?:.*\\/)?') +
+            g.replace(/(^|\/)\*\*\/|\*\*|\*|[.+^${}()|[\]\\?]/g, (m, lead) => {
+                // `**/` first in the alternation, so it wins over the bare `**` branch.
+                if (m.endsWith('**/')) return lead ? '\\/(?:.*\\/)?' : '(?:.*\\/)?'
+                if (m === '**') return '.*'
+                if (m === '*') return '[^/]*'
+                return '\\' + m
+            }) +
             '$'
     )
 
