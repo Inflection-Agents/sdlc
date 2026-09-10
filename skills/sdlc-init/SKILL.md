@@ -30,15 +30,17 @@ Copy `${CLAUDE_PLUGIN_ROOT}/init-payload/` into `${CLAUDE_PROJECT_DIR}`:
 | `.github/workflows/*.yml` | `.github/workflows/` | skip if the repo uses different CI; say so |
 | `templates/*.md` | `templates/` | |
 | `.ignore` | `.ignore` | **append** if one exists, never overwrite |
+| `.gitattributes` | `.gitattributes` | **append** the LF rules if one exists |
 | `sdlc-state-machine.yaml` | `specs/` | |
 | `.ai/sdlc/review-constraints.stub.yaml` | `.ai/sdlc/review-constraints.yaml` | renamed on copy |
 
 Create the empty tree the framework expects: `specs/`, `specs/adrs/`, `specs/tasks/`,
 `specs/bugs/`.
 
-`.gitattributes` gets `* text=auto eol=lf` appended if absent — the hooks and
-validators are shell and `.mjs`, and a CRLF checkout parses several of them to zero
-rows.
+`.gitattributes`: append the line `* text=auto eol=lf` unless that exact line is
+already there. Create the file if it does not exist; never rewrite one that does. The
+hooks and validators are shell and `.mjs`, and a CRLF checkout parses several of them
+to zero rows while every gate still reports green.
 
 **Idempotency is the acceptance criterion.** Running init twice must leave the repo
 byte-identical after the first run and report every file as already present. Verify it

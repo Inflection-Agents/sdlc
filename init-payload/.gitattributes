@@ -1,0 +1,9 @@
+# LF everywhere. The hooks and validators are POSIX shell and .mjs, and several of
+# their parsers end row regexes with `$` and no `m` flag — a CRLF checkout parses the
+# constraints registry to zero rows while every gate still reports green. That exact
+# defect shipped once and was caught only by testing a CRLF file directly.
+* text=auto eol=lf
+
+# Shipped as executables; a CRLF shebang dies with `env: sh\r: No such file or directory`.
+*.sh text eol=lf
+*.mjs text eol=lf
