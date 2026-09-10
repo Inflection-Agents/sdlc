@@ -63,7 +63,7 @@ constraints:
     scope: task
     when: { touches: ["packages/shared/src/core/**", "**/domain/**"] }
     lens: core-purity
-    agent: invariants-reviewer
+    agent: task-reviewer
     severity: blocker
     check: >
       The pure core imports no I/O, platform, or framework API and contains no side effects
@@ -99,7 +99,7 @@ constraints:
     scope: task
     when: { touches: ["**/auth/**", "**/middleware/**", "**/api/**"] }
     lens: security
-    agent: invariants-reviewer
+    agent: security-reviewer
     severity: blocker
     check: >
       Authorization is fail-closed (missing/invalid credentials are denied, never defaulted to

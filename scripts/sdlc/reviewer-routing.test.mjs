@@ -8,6 +8,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+    GENERIC_REVIEWER,
     agentForLens,
     applicableConstraints,
     globToRe,
@@ -15,6 +16,11 @@ import {
     parseConstraints
 } from './reviewer-routing.mjs'
 import { PR_SIDE_PREFIXES } from './validate-review-envelope.mjs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const REPO_ROOT_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
 // fixture: a constraints array as parsed from review-constraints.yaml.
 const constraints = [
@@ -219,5 +225,31 @@ test('every shipped registry row carries a GROUNDED cite', () => {
             PR_SIDE_PREFIXES.some((p) => c.cite.startsWith(p)),
             `constraint ${c.id} cite "${c.cite}" is not a grounded prefix`
         )
+    }
+})
+
+// ── Every routing target must be a shipped agent ──────────────────────────────
+// ADR-001 makes lens -> reviewer routing registry DATA. That only means anything if
+// the data points at something: the registry routed `security` and `core-purity` to
+// an `invariants-reviewer` that existed in no repo, so the SOP's "dispatch one
+// reviewer per distinct resolved agent" resolved to nothing.
+
+test('every agent: named in the registry is a shipped agent definition', () => {
+    const dir = join(REPO_ROOT_DIR, '.claude', 'agents')
+    const named = new Set(loadConstraints().map((c) => c.agent).filter(Boolean))
+    named.add(GENERIC_REVIEWER) // the default for a lens with no agent:
+    for (const a of named) {
+        assert.ok(existsSync(join(dir, `${a}.md`)), `registry routes to "${a}" but .claude/agents/${a}.md does not exist`)
+    }
+})
+
+test('no reviewer agent carries Edit or Write', () => {
+    // The tools line IS the independence mechanism. "You grade, you never fix" is an
+    // instruction a model can talk itself out of; an absent tool is not.
+    const dir = join(REPO_ROOT_DIR, '.claude', 'agents')
+    for (const f of readdirSync(dir).filter((f) => f.endsWith('-reviewer.md'))) {
+        const tools = readFileSync(join(dir, f), 'utf8').match(/^tools:\s*(.+)$/m)
+        assert.ok(tools, `${f} declares no tools: line`)
+        assert.equal(/\bEdit\b|\bWrite\b/.test(tools[1]), false, `${f} grants Edit/Write to a reviewer`)
     }
 })

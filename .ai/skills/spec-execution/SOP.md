@@ -232,7 +232,8 @@ depth differ. Which lenses fold is therefore registry data — a one-line `agent
 
 Naming a specialist here instead would rebuild the hardcoded map ADR-001 deleted, and the two
 copies would drift. They already had: this section named `security-reviewer` for the security lens
-while the registry routed it to `invariants-reviewer`.
+while the registry routed it to an `invariants-reviewer` that no repo defined. The registry now
+routes that lens to the shipped `security-reviewer`, and a test holds every target resolvable.
 
 Always in the panel regardless of which lenses fire:
 
@@ -240,7 +241,12 @@ Always in the panel regardless of which lenses fire:
   constraint in the registry.
 - At least one **adversarial** pass over the whole diff.
 
-Dispatch concurrently, in one message, each with a clean context and no `Edit`/`Write`.
+Dispatch concurrently, in one message, each with a clean context.
+
+**Independence is structural, not instructed.** Every reviewer is defined in `.claude/agents/`, and
+its `tools:` line omits `Edit`/`Write`. "You grade, you never fix" is an instruction a model can
+talk itself out of; an absent tool is not. A registry `agent:` that names no file there fails
+`reviewer-routing.test.mjs`, so the routing cannot silently point at nothing.
 
 **Every verdict comes from a dispatched reviewer, never from you.** Validate each returned envelope
 with `node scripts/sdlc/validate-review-envelope.mjs <file>` — exit `0` fold the findings, `2`

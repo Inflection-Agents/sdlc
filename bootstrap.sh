@@ -198,6 +198,23 @@ if git rev-parse --git-dir &> /dev/null 2>&1; then
     fi
   fi
 
+  # Reviewer agent definitions. The registry routes a lens to an agent NAME
+  # (ADR-001), so without these files the routing resolves to nothing and the panel
+  # cannot be dispatched. Their `tools:` line is also the independence mechanism:
+  # a reviewer with no Edit/Write cannot fix what it grades, which is enforcement
+  # rather than instruction.
+  if [ -d "$SCRIPT_DIR/.claude/agents" ]; then
+    mkdir -p "$REPO_ROOT/.claude/agents"
+    for agent in "$SCRIPT_DIR/.claude/agents/"*.md; do
+      [ -f "$agent" ] || continue
+      agent_name=$(basename "$agent")
+      if [ ! -f "$REPO_ROOT/.claude/agents/$agent_name" ]; then
+        cp "$agent" "$REPO_ROOT/.claude/agents/$agent_name"
+      fi
+    done
+    ok "Copied reviewer agents to .claude/agents/ (no Edit/Write by design)"
+  fi
+
   # Wire hooks via .claude/settings.json (do NOT clobber an existing one)
   if [ -f "$SCRIPT_DIR/.claude/settings.json" ]; then
     mkdir -p "$REPO_ROOT/.claude"

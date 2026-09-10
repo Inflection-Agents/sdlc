@@ -172,6 +172,19 @@ schema ↔ the `pr-reviewer` GROUNDING block). `node --test
 .claude/hooks/__tests__/*.test.mjs` covers the goal leash and the merge
 carve-out. Both suites are dependency-free and hermetic.
 
+## Reviewer agents (`.claude/agents/`)
+
+The registry routes a lens to an agent NAME (ADR-001); these files are what those
+names resolve to. Their `tools:` line omits `Edit`/`Write`, which is how reviewer
+independence is enforced rather than merely instructed — a reviewer that cannot edit
+cannot fix what it grades.
+
+`task-reviewer` backs every lens that names no specialist. `security-reviewer`,
+`design-fidelity-reviewer` and `integration-reviewer` are dispatched by an `agent:`
+field in the registry or by the gate itself. Two tests in `reviewer-routing.test.mjs`
+hold the contract: every routed name resolves to a file, and no reviewer carries
+Edit/Write.
+
 ## `check-stale-citations.mjs`
 
 Corpus-wide, no changed-file scope: the defect this catches sits in files nobody is
