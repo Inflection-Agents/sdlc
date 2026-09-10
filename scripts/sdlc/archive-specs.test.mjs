@@ -81,3 +81,39 @@ test('a companion is never archived on its own', () => {
     const rows = [{ id: 'SPEC-016', status: 'completed', path: 'x', companion: true }]
     assert.deepEqual(archivable(rows, noProtection), [])
 })
+
+// ── The fence must exist in a CONSUMING repo, not just this one ────────────────
+// The fences were hand-committed upstream, so a repo that copied the framework got
+// archiving with zero retrieval effect - a plain `git mv`. The archiver writes them.
+
+test('ensureFence is exercised: archiving writes a .ignore beside what it moves', async () => {
+    const { execFileSync } = await import('node:child_process')
+    const { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync, rmSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const { tmpdir } = await import('node:os')
+
+    const repo = mkdtempSync(join(tmpdir(), 'sdlc-consumer-'))
+    try {
+        const git = (args) => execFileSync('git', args, { cwd: repo, encoding: 'utf8' })
+        git(['init', '-q', '.'])
+        git(['config', 'user.email', 't@t'])
+        git(['config', 'user.name', 't'])
+        mkdirSync(join(repo, 'specs'), { recursive: true })
+        mkdirSync(join(repo, 'scripts', 'sdlc'), { recursive: true })
+        for (const f of ['archive-specs.mjs']) {
+            writeFileSync(join(repo, 'scripts', 'sdlc', f), readFileSync(join(import.meta.dirname, f), 'utf8'))
+        }
+        writeFileSync(join(repo, 'specs', 'SPEC-009-demo.md'), '---\nid: SPEC-009\nstatus: completed\n---\n\nbody\n')
+        git(['add', '-A'])
+        git(['commit', '-qm', 'init'])
+
+        execFileSync('node', [join(repo, 'scripts', 'sdlc', 'archive-specs.mjs')], { cwd: repo, encoding: 'utf8' })
+
+        assert.ok(existsSync(join(repo, 'specs', 'archive', '.ignore')), 'archive root fence')
+        assert.ok(existsSync(join(repo, 'specs', 'archive', 'specs', '.ignore')), 'archived-specs fence')
+        assert.equal(readFileSync(join(repo, 'specs', 'archive', 'specs', '.ignore'), 'utf8').trim(), '*')
+        assert.ok(existsSync(join(repo, 'specs', 'archive', 'specs', 'SPEC-009-demo.md')), 'spec moved')
+    } finally {
+        rmSync(repo, { recursive: true, force: true })
+    }
+})

@@ -260,14 +260,29 @@ if git rev-parse --git-dir &> /dev/null 2>&1; then
   # Copy the CI workflow that runs the gates. Without it, a consuming repo has the
   # validators but nothing runs them — and the "and by CI" half of every re-homed
   # guarantee (ADR-002, ADR-003) would be true only in the upstream framework.
-  if [ -f "$SCRIPT_DIR/.github/workflows/sdlc-validate.yml" ]; then
+  # EVERY workflow, not just the validator one. A workflow added upstream but not
+  # listed here never reaches a consuming repo, which is how the merge-time completion
+  # check shipped as "delivered" while running nowhere but the framework itself.
+  if [ -d "$SCRIPT_DIR/.github/workflows" ]; then
     mkdir -p "$REPO_ROOT/.github/workflows"
-    if [ ! -f "$REPO_ROOT/.github/workflows/sdlc-validate.yml" ]; then
-      cp "$SCRIPT_DIR/.github/workflows/sdlc-validate.yml" "$REPO_ROOT/.github/workflows/sdlc-validate.yml"
-      ok "Copied .github/workflows/sdlc-validate.yml — runs the SDLC tests, validators and gates"
-    else
-      ok ".github/workflows/sdlc-validate.yml exists"
-    fi
+    for wf in "$SCRIPT_DIR/.github/workflows/"*.yml; do
+      [ -f "$wf" ] || continue
+      wf_name=$(basename "$wf")
+      if [ ! -f "$REPO_ROOT/.github/workflows/$wf_name" ]; then
+        cp "$wf" "$REPO_ROOT/.github/workflows/$wf_name"
+        ok "Copied .github/workflows/$wf_name"
+      else
+        ok ".github/workflows/$wf_name exists"
+      fi
+    done
+  fi
+
+  # The ripgrep fence for archived specs. archive-specs.mjs writes the per-directory
+  # fences itself, but the root file carries the rationale and the escape hatches, and
+  # a reader who greps and finds nothing needs it.
+  if [ -f "$SCRIPT_DIR/.ignore" ] && [ ! -f "$REPO_ROOT/.ignore" ]; then
+    cp "$SCRIPT_DIR/.ignore" "$REPO_ROOT/.ignore"
+    ok "Copied .ignore — hides archived specs from default search (still tracked in git)"
   fi
 
   # Per-session SDLC state must never be committed: a goal file carries the run's

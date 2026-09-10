@@ -79,7 +79,7 @@ test('validate-phase-memory still fails a bad file through a symlinked path', ()
     }
 })
 
-// ── The four CLIs added by the enforcement-tiers plan (M3)/M4 ─────────────────────────────────────
+// ── The four CLIs added by the enforcement-tiers plan (M3/M4) ─────────────────────────────────────
 // Each shipped with the raw `argv[1] === fileURLToPath(import.meta.url)` comparison
 // this file exists to prevent, and two of them are wired into sdlc-validate.yml —
 // where "silent no-op, exit 0" reads as a passing gate.

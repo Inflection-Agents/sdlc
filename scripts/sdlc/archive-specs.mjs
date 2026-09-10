@@ -24,7 +24,7 @@
  *   node scripts/sdlc/archive-specs.mjs --dry-run  # print the plan only
  */
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -101,7 +101,7 @@ export function archivable(specs, { citedIds, adrBoundIds }) {
  * the safe direction for an operation ending in `git mv` — a false protect leaves a
  * document searchable, a false archive hides one the skills still route readers to.
  */
-export function collectCitedIds(root = ROOT) {
+export function collectCitedIds(root = ROOT, knownIds = null) {
     const ids = new Set()
     const skills = join(root, '.ai', 'skills')
     const walk = (dir) => {
@@ -121,7 +121,12 @@ export function collectCitedIds(root = ROOT) {
         const p = join(skills, name)
         if (existsSync(p)) for (const m of read(p).matchAll(/\b(SPEC-\d{3})\b/g)) ids.add(m[1])
     }
-    return ids
+    // Keep only ids that name a spec THIS repo actually has. The shipped skills cite
+    // the framework's own SPEC-001/002/004/006 as provenance, so an unfiltered scan
+    // pinned those four numbers as permanently unarchivable in every repo that copied
+    // the framework - ids that have nothing to do with that repo's specs.
+    if (!knownIds) return ids
+    return new Set([...ids].filter((id) => knownIds.has(id)))
 }
 
 /** Spec ids bound by an ADR that is not itself archived. */
@@ -177,8 +182,25 @@ function scanArchived() {
 
 const git = (args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' })
 
+/**
+ * Write the ripgrep fence for an archive directory.
+ *
+ * The fence is what makes archiving mean anything: without it the move is a plain
+ * `git mv` with zero retrieval effect. It was hand-committed in the framework repo
+ * and therefore did not exist in any repo that copied the framework, so archiving
+ * downstream hid nothing. Each directory carries its OWN `*` because a repo-root
+ * pattern leaks whenever ripgrep is given several path arguments and the walk root
+ * shifts.
+ */
+function ensureFence(dir) {
+    mkdirSync(dir, { recursive: true })
+    const fence = join(dir, '.ignore')
+    if (!existsSync(fence)) writeFileSync(fence, '*\n')
+}
+
 function move(from, to) {
-    mkdirSync(dirname(to), { recursive: true })
+    ensureFence(ARCHIVE)
+    ensureFence(dirname(to))
     git(['mv', from, to])
 }
 
@@ -186,8 +208,10 @@ function main(argv) {
     const check = argv.includes('--check')
     const dryRun = argv.includes('--dry-run')
 
-    const protections = { citedIds: collectCitedIds(), adrBoundIds: collectAdrBoundIds() }
-    const toArchive = archivable(scanLive(), protections)
+    const live = scanLive()
+    const knownIds = new Set([...live, ...scanArchived()].map((s) => s.id).filter(Boolean))
+    const protections = { citedIds: collectCitedIds(ROOT, knownIds), adrBoundIds: collectAdrBoundIds() }
+    const toArchive = archivable(live, protections)
     // A spec whose status went back to draft/active is restored by the same run.
     const toRestore = scanArchived().filter((s) => s.status && LIVE_STATUSES.has(s.status))
 

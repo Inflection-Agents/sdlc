@@ -122,7 +122,7 @@ constraints:
     scope: integration
     lens: integration
     severity: major
-    cite: "standing review-lens checklist"
+    cite: "lens:integration"
     check: >
       For every test added or modified in this diff, confirm it actually fails against the
       pre-fix code (or an equivalent deliberately-broken variant) — a test that passes
@@ -132,7 +132,7 @@ constraints:
     scope: integration
     lens: integration
     severity: major
-    cite: "standing review-lens checklist"
+    cite: "lens:integration"
     check: >
       For any failing check the author claims is pre-existing (not introduced by this diff),
       independently confirm it also fails at the merge-base commit before accepting the claim —

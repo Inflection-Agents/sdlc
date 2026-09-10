@@ -221,11 +221,25 @@ export const globToRe = (g) =>
             // and `src/**/*.test.ts` would miss `src/x.test.ts`, while
             // check-review-constraint-globs (which uses globSync) called the same glob
             // healthy - two engines disagreeing about the same registry row.
-            g.replace(/(^|\/)\*\*\/|\*\*|\*|[.+^${}()|[\]\\?]/g, (m, lead) => {
-                // `**/` first in the alternation, so it wins over the bare `**` branch.
+            g.replace(/(^|\/)\*\*\/|\*\*|\*|\?|\[[^\]]*\]|\{[^}]*\}|[.+^${}()|\\]/g, (m, lead) => {
+                // Double-star-slash first in the alternation, so it wins over bare
+                // double-star.
                 if (m.endsWith('**/')) return lead ? '\\/(?:.*\\/)?' : '(?:.*\\/)?'
                 if (m === '**') return '.*'
                 if (m === '*') return '[^/]*'
+                // `?`, `[abc]` and `{a,b}` are wildcards to git, minimatch and
+                // fs.globSync. Escaping them to literals is the dangerous direction:
+                // check-review-constraint-globs (globSync) calls the row healthy while
+                // the write-time hook silently declines to inject it.
+                if (m === '?') return '[^/]'
+                if (m.startsWith('[')) return m
+                if (m.startsWith('{')) {
+                    const alts = m
+                        .slice(1, -1)
+                        .split(',')
+                        .map((a) => a.replace(/[.*+^${}()|[\]\\?]/g, '\\$&'))
+                    return `(?:${alts.join('|')})`
+                }
                 return '\\' + m
             }) +
             '$'

@@ -14,6 +14,7 @@ import {
     loadConstraints,
     parseConstraints
 } from './reviewer-routing.mjs'
+import { PR_SIDE_PREFIXES } from './validate-review-envelope.mjs'
 
 // fixture: a constraints array as parsed from review-constraints.yaml.
 const constraints = [
@@ -190,4 +191,33 @@ test('globToRe: a control character in a glob cannot hijack the substitution', (
     // sentinel to collide with.
     assert.equal(globToRe(`a${String.fromCharCode(0)}b`).test('a/x/b'), false)
     assert.equal(globToRe(`a${String.fromCharCode(1)}b`).test('a/x/b'), false)
+})
+
+test('globToRe: ?, [abc] and {a,b} are wildcards, matching fs.globSync', () => {
+    // Escaping these to literals is the dangerous direction: the glob-resolvability
+    // gate uses globSync and would call the row healthy while the write-time hook
+    // silently declined to inject it.
+    assert.ok(globToRe('scripts/?heck-a.mjs').test('scripts/check-a.mjs'))
+    assert.equal(globToRe('scripts/?heck-a.mjs').test('scripts/xx-a.mjs'), false)
+    assert.ok(globToRe('scripts/[rc]esolve.mjs').test('scripts/resolve.mjs'))
+    assert.equal(globToRe('scripts/[rc]esolve.mjs').test('scripts/zesolve.mjs'), false)
+    assert.ok(globToRe('scripts/{resolve,gen}.mjs').test('scripts/resolve.mjs'))
+    assert.ok(globToRe('scripts/{resolve,gen}.mjs').test('scripts/gen.mjs'))
+    assert.equal(globToRe('scripts/{resolve,gen}.mjs').test('scripts/other.mjs'), false)
+    assert.equal(globToRe('a?b').test('a/b'), false, '? must not cross a separator')
+})
+
+test('every shipped registry row carries a GROUNDED cite', () => {
+    // This branch is the first to read `cite:` programmatically and hand it to an
+    // author at write time, so a row shipping a citation the envelope validator
+    // refuses would put an ungrounded blocker in front of a reviewer.
+    const rows = loadConstraints()
+    assert.ok(rows.length > 0)
+    for (const c of rows) {
+        assert.ok(c.cite, `constraint ${c.id} has no cite`)
+        assert.ok(
+            PR_SIDE_PREFIXES.some((p) => c.cite.startsWith(p)),
+            `constraint ${c.id} cite "${c.cite}" is not a grounded prefix`
+        )
+    }
 })

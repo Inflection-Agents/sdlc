@@ -175,7 +175,8 @@ integration gate.**
       classifier. **This bullet is not backfilled to declare a clean result it has not seen**: every
       round's fixes are re-verified by dispatching the panel again in full, not by inspecting the
       diff, and the merge in decision 11 does not happen until a round returns with nothing left to
-      fix.
+      fix. **(ADR-004, 2026-09-09: bounded at three rounds; a survivor is disclosed in the PR body
+      rather than carried into a fourth. This is the third of the three sites ADR-004 supersedes.)**
 
       Round 6 followed the adversarial pass's own recommendation from round 5: a single narrow,
       targeted verification of round 5's fixes specifically, not a full three-lens re-dispatch. It
