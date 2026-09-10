@@ -268,7 +268,7 @@ Three modes:
 4. Cuts `feat/spec-NNN` off `main`; nothing for the spec reaches `main` any other way
 5. Burns the tasks down **serially, inline**: implement → the task's own tests → **self-review the diff** → PR into the integration branch → merge → delete the branch → next. Worktree-isolated subagents are the exception for a large spec
 6. Runs **end-to-end validation once** before the gate, with attached evidence
-7. Opens ONE integration PR and dispatches a **multi-lens adversarial panel** — independently, clean contexts, every envelope validated (`scripts/sdlc/validate-review-envelope.mjs`), the registry evaluated across the whole diff — looping until no blocker or major survives
+7. Opens ONE integration PR and dispatches a **multi-lens adversarial panel** — independently, clean contexts, every envelope validated (`scripts/sdlc/validate-review-envelope.mjs`), the registry evaluated across the whole diff — looping until no blocker or major survives (at most three rounds, ADR-004)
 8. Leaves the PR open — **a human merges; the agent never does** — and hands off to `spec-completion`
 9. Escalates rather than grinding: `task:scope` → task-decomposition re-plan; `spec:*` → spec-amendment (amendment cap); a `spec:gap` is recorded against the spec and never licenses widening the current task; security/data-loss/owner calls → hard stop
 

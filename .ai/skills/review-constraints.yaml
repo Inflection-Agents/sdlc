@@ -42,12 +42,28 @@ baseLenses:
   _default: [ac-completeness, conventions, adversarial]
 
 constraints:
+  # ── A row that matches THIS repo, so write-time injection is exercised end to end ─────────
+  # Every other row below is illustrative and matches nothing here, which meant the
+  # feature's only proof was a fictional path. Replace or delete this row in a consuming
+  # repo; keep one row that matches a real path so the canary stays meaningful.
+  - id: SDLC-GATE-TESTED
+    scope: task
+    when: { touches: ["scripts/sdlc/**", ".claude/hooks/**"] }
+    lens: conventions
+    agent: task-reviewer
+    severity: major
+    check: >
+      A gate or hook here is a contract other repos copy. It must fail loudly rather than
+      silently: guard direct invocation with isMain() (see cli-invocation.test.mjs), and
+      never let a catch turn a broken dependency into a passing no-op.
+    cite: "inv:SDLC-GATE-TESTED"
+
   # ── EXAMPLE: a hard architectural invariant on a "pure core" / shared package ──────────────
   - id: INV-CORE-PURITY
     scope: task
     when: { touches: ["packages/shared/src/core/**", "**/domain/**"] }
     lens: core-purity
-    agent: invariants-reviewer
+    agent: task-reviewer
     severity: blocker
     check: >
       The pure core imports no I/O, platform, or framework API and contains no side effects
@@ -83,7 +99,7 @@ constraints:
     scope: task
     when: { touches: ["**/auth/**", "**/middleware/**", "**/api/**"] }
     lens: security
-    agent: invariants-reviewer
+    agent: security-reviewer
     severity: blocker
     check: >
       Authorization is fail-closed (missing/invalid credentials are denied, never defaulted to
@@ -106,7 +122,7 @@ constraints:
     scope: integration
     lens: integration
     severity: major
-    cite: "standing review-lens checklist"
+    cite: "lens:integration"
     check: >
       For every test added or modified in this diff, confirm it actually fails against the
       pre-fix code (or an equivalent deliberately-broken variant) — a test that passes
@@ -116,7 +132,7 @@ constraints:
     scope: integration
     lens: integration
     severity: major
-    cite: "standing review-lens checklist"
+    cite: "lens:integration"
     check: >
       For any failing check the author claims is pre-existing (not introduced by this diff),
       independently confirm it also fails at the merge-base commit before accepting the claim —

@@ -214,6 +214,13 @@ What we decided.
 What follows from this decision — good and bad.
 ```
 
+> **Archived specs.** A spec whose status reaches a terminal value moves under
+> `specs/archive/` and is hidden from default search, while staying tracked in git —
+> unless a live skill cites it or a non-archived ADR binds it, which holds it in the
+> live corpus on purpose.
+> Resolve any id with `node scripts/sdlc/resolve.mjs SPEC-NNN`, or search with
+> `rg --no-ignore`. See [`.ignore`](.ignore) for why position beats a status label.
+
 ## Directory layout
 
 ```
@@ -236,6 +243,7 @@ specs/
 │   ├── spec.md
 │   ├── adr.md
 │   ├── bug.md
+│   ├── decisions.md
 │   └── gap.md
 └── spec-index.json              # auto-generated, agent-readable
 ```
@@ -246,7 +254,25 @@ Subdirectories:
 - `baselines/` — per-spec baseline metric files for success-criteria comparison (e.g., `SPEC-042.md` captures pre-change metrics that the spec's success criteria are measured against). Introduced by SPEC-001.
 - `bugs/` — bug specs (`BUG-NNN-*.md`).
 - `gaps/` — gap artifacts (`GAP-NNN-*.md`). Each file records a specification gap discovered during implementation, its resolution, and downstream impact. Introduced by SPEC-004.
-- `templates/` — copy-and-fill templates for new specs, ADRs, bugs, and gaps.
+- `templates/` — copy-and-fill templates for new specs, ADRs, bugs, gaps, and per-run decision logs.
+
+### `DECISIONS.md` — the per-run decision log
+
+One file per spec run, at `specs/tasks/SPEC-NNN/DECISIONS.md`, created from `templates/decisions.md`
+when `spec-execution` cuts the integration branch. Append-only, chronological.
+
+Three heading forms, and no others:
+
+- `## TASK-NNN — <title>` — one per task, appended after that task merges.
+- `## EXECUTIVE DECISION — <summary>` — a judgment call the executor made rather than escalated.
+- `## SPEC DEVIATION — <summary>` — the implementation diverged from the spec text.
+
+Plus a trailing `## Cross-task values` table for values a later task must match rather than re-derive.
+
+A `SPEC DEVIATION` may record an implementation-level mismatch. It may never narrow or reinterpret a
+stated success criterion; that is `spec-amendment`'s job and carries a version bump. The
+decide-and-log trade this log records is the `spec-execution` skill's; ADR-004 is narrower than that
+and only retired one escalation trigger.
 
 ## Bug spec schema
 

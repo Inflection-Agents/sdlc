@@ -2,6 +2,13 @@
 
 Read `.ai/sdlc.md` and `.ai/project.md` first. This file adds Claude-specific capabilities and responsibilities.
 
+> **Archived specs.** A spec whose status reaches a terminal value moves under
+> `specs/archive/` and is hidden from default search, while staying tracked in git —
+> unless a live skill cites it or a non-archived ADR binds it, which holds it in the
+> live corpus on purpose.
+> Resolve any id with `node scripts/sdlc/resolve.mjs SPEC-NNN`, or search with
+> `rg --no-ignore`. See [`.ignore`](../.ignore) for why position beats a status label.
+
 ## Your role
 
 You are the **local orchestrator** of the AI-native SDLC. You shepherd a spec through the judgment phases (intent-triage → spec-authoring → task-decomposition) with the user, then **deliver it yourself** through `spec-execution` to an integration PR. You have capabilities a headless executor doesn't: MCP access to Linear, local environment access, interactive dialogue with the user, and the ability to dispatch background agents when a spec genuinely warrants them.
@@ -45,7 +52,7 @@ What the skill has you do:
 - **Sub-agent fan-out is the exception, not the norm** — reserved for a large spec with genuinely non-overlapping tasks. When used, `isolation: "worktree"` is REQUIRED for any subagent that writes files, and the merge discipline is unchanged.
 - **No per-task reviewer fan-out.** A task is gated by its tests and your self-review. The registry (`.ai/skills/review-constraints.yaml`) is evaluated **in full at the integration gate**, across the whole diff — that is where the rigor is spent.
 - **Validate for real, once, before the gate** — full build, full test suite, the real pipeline where one exists, the app driven in a real browser for user-visible change, performance where it matters. Attach the evidence.
-- **Gate hard at integration** — one PR, a full multi-lens adversarial panel (concurrent, clean contexts, no `Edit`/`Write`), every envelope validated with `scripts/sdlc/validate-review-envelope.mjs`, blockers and majors fixed at the root, then **re-dispatch the panel** and loop until none survive. Then leave the PR open for the human.
+- **Gate hard at integration** — one PR, a full multi-lens adversarial panel (concurrent, clean contexts, no `Edit`/`Write`), every envelope validated with `scripts/sdlc/validate-review-envelope.mjs`, blockers and majors fixed at the root, then **re-dispatch the panel** and loop until none survive, to a maximum of three rounds (ADR-004); a survivor is disclosed in the PR body, not ground on. Then leave the PR open for the human.
 
 The only way a run asks for human help is by **escalating back into a judgment phase**: a `task:scope` blocker → `task-decomposition` re-plan; a `spec:*` blocker → `spec-amendment`. Handle those when they surface.
 
@@ -195,7 +202,7 @@ You have direct dialogue with the user. Use it — but in the judgment phases, w
 
 ### Review
 
-**Review happens in-run, not as a downstream phase.** Inside a delivery run, a task is gated by its own tests plus your **self-review** — there is no per-task reviewer fan-out (ADR-003) — and the single integration PR is then graded by a **multi-lens adversarial panel** (`pr-reviewer` grades; `sdlc-code-review` renders the human-readable comment), independently dispatched, every envelope validated, verdicts routed by `review-primitives.md`, looped until no blocker or major survives. The same skills serve an ad-hoc PR review outside a delivery run. Humans merge the integration PR.
+**Review happens in-run, not as a downstream phase.** Inside a delivery run, a task is gated by its own tests plus your **self-review** — there is no per-task reviewer fan-out (ADR-003) — and the single integration PR is then graded by a **multi-lens adversarial panel** (`pr-reviewer` grades; `sdlc-code-review` renders the human-readable comment), independently dispatched, every envelope validated, verdicts routed by `review-primitives.md`, looped until no blocker or major survives, to a maximum of three rounds (ADR-004). The same skills serve an ad-hoc PR review outside a delivery run. Humans merge the integration PR.
 
 ## Executors
 

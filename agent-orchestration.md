@@ -23,7 +23,8 @@ end-to-end validation, ONCE, with attached evidence
   ↓
 ONE integration PR (feat/spec-NNN → main)
      → multi-lens adversarial panel, independently dispatched, every envelope validated
-     → fix at the root, re-dispatch the panel, loop until no blocker or major survives
+     → fix at the root, re-dispatch the panel, loop until no blocker or major survives —
+       at most three rounds (ADR-004); a survivor is disclosed in the PR body, not ground on
   ↓
 LEAVE IT OPEN — a human merges
 ```
@@ -205,7 +206,7 @@ for each task, ONE at a time:
      branch off the current feat/spec-NNN tip → implement inline
      → the task's own tests green → self-review the diff → PR → merge → delete the branch
 end-to-end validation ONCE (evidence attached)
-integration PR → adversarial panel → fix at the root → re-dispatch → loop until clean
+integration PR → adversarial panel → fix at the root → re-dispatch → loop until clean (≤3 rounds, ADR-004)
 human: merge the integration PR
 ```
 
@@ -259,7 +260,7 @@ Spec (active, decomposed, plan-approved)  →  "implement SPEC-NNN"  →  spec-e
   └─── integration PR (feat/spec-NNN → main)
             │   → adversarial panel: integration-reviewer vs success criteria, an adversarial
             │     task-reviewer, + every lens the registry fires on the whole diff
-            │   → envelopes validated → fix at the root → re-dispatch → loop until clean
+            │   → envelopes validated → fix at the root → re-dispatch → loop until clean (≤3, ADR-004)
             │
             └─── a HUMAN merges the integration PR
                       │
@@ -271,7 +272,7 @@ Spec (active, decomposed, plan-approved)  →  "implement SPEC-NNN"  →  spec-e
 A delivery run escalates rather than grinds: set the goal file to `status: escalated`, write the reason, surface it, stop.
 - **Security, data-loss or payment risk** → hard stop, always
 - **A decision that is the owner's** (priority, scope, a tradeoff the spec does not settle) → escalate
-- **The same integration finding surviving two full panel rounds** → escalate instead of a third round
+- **Round 3 completes with a blocker or major still open** → disclose it in the PR body (ADR-004), do not run a fourth round
 - **`task:scope` blocker** → escalate to `task-decomposition` re-plan (a judgment phase)
 - **`spec:*` blocker** → escalate to `spec-amendment`, subject to the amendment cap (`spec.version − 1 ≥ 3`)
 - **Merge conflict into the integration branch** → escalate (the `touches` scoping was wrong); never hand-resolve

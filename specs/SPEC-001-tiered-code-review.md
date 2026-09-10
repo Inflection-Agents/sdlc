@@ -351,6 +351,12 @@ Entries are append-only at first. The `resolved` boolean and its companion field
 - **Consumer:** SPEC-006 aligns the engine (`execute-spec.js` `ALLOWED_PREFIX`) and the review envelope schema (`review-envelope.schema.json` `criterion`) to this canonical PR-side table, and pins the three sources with a parity test (SPEC-006 TASK-210). Existing skill prose still using legacy forms is migrated by SPEC-006 (TASK-209/TASK-210) per this mapping.
 - See SPEC-006 for the full design and rationale.
 
+### v1.3 (2026-09-09) — altitude routing transcribed into the live contract
+- Live `review-primitives.md` gained a **Lens and altitude attribution** section, transcribing the `lens` and `altitude` field semantics that ALREADY ship in `.ai/skills/review-envelope.schema.json` (the enum, the routing meaning, and the absent-implies-`implementation` default are copied verbatim from it). The defect was that `review-primitives.md` calls itself the operational contract for the output schema while omitting a field that schema defines, so a `design`-altitude finding had no documented route out of the fix loop.
+- **This is not an extension-pattern change and does not rely on one.** The rule in `review-primitives.md` > PR-side consequence catalog governs *new consequence rows and citation prefixes*; this entry adds neither. Severity grading is untouched: the severity spine and both consequence catalogs remain the sole grading inputs, and `lens`/`altitude` are transport-only fields that tell the orchestrator how to route a finding, not how severe it is.
+- Also records that the fix loop this field routes into is now bounded: [`ADR-004`](adrs/ADR-004-capped-integration-gate.md) caps the integration gate at three rounds, and a blocker or major surviving round 3 is disclosed in the integration PR body rather than carried into a fourth.
+- Rationale and the full port analysis: [`docs/plans/2026-09-09-enforcement-tiers-design.md`](../docs/plans/2026-09-09-enforcement-tiers-design.md).
+
 ## Appendix A — `pr-reviewer` prompt (draft)
 
 Lives in `.ai/skills/pr-reviewer/SKILL.md` on implementation.

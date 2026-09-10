@@ -68,7 +68,7 @@ The only way it asks for help is to **escalate back into a judgment phase**: a `
 
 1. **End-to-end validation runs once** — full build and test suite, the real pipeline where one exists, the app in a real browser for user-visible change, performance where it matters — captured as EVIDENCE
 2. The run opens the integration PR `feat/spec-NNN → main` with every success criterion mapped to its evidence
-3. A **multi-lens adversarial panel** is dispatched concurrently — `integration-reviewer` against the spec's **success criteria**, an adversarial `task-reviewer`, and every lens the registry fires across the whole diff — with each envelope validated (`scripts/sdlc/validate-review-envelope.mjs`). Blockers and majors are fixed at the root and **the panel is re-dispatched**, until none survive
+3. A **multi-lens adversarial panel** is dispatched concurrently — `integration-reviewer` against the spec's **success criteria**, an adversarial `task-reviewer`, and every lens the registry fires across the whole diff — with each envelope validated (`scripts/sdlc/validate-review-envelope.mjs`). Blockers and majors are fixed at the root and **the panel is re-dispatched**, until none survive, to a maximum of three rounds (ADR-004)
 4. **A human merges the integration PR.** The agent never merges or pushes to `main`.
 
 ## Phase 6: Complete

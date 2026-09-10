@@ -219,31 +219,55 @@ This is where all the rigor now lives.
 
 ### 7.2 Dispatch the adversarial panel
 
-Concurrently, in one message, each with a clean context and no `Edit`/`Write`:
+Collect every lens that fires across the whole diff — this is the one place
+`review-constraints.yaml` is evaluated in full — and resolve each to its reviewer with
+`node scripts/sdlc/reviewer-routing.mjs <lens>` (ADR-001: routing is registry data).
+
+**Dispatch one reviewer per DISTINCT resolved agent, not one per lens.** Lenses that resolve to
+the same agent fold into that agent's single pass: it reads the diff once and grades each of its
+lenses in sequence, and every finding names its `lens` so a later round can be scoped. Lenses that
+resolve to their own specialist keep their own dispatch, because a specialist's tools and reading
+depth differ. Which lenses fold is therefore registry data — a one-line `agent:` edit in
+`review-constraints.yaml`, never a list in this file.
+
+Naming a specialist here instead would rebuild the hardcoded map ADR-001 deleted, and the two
+copies would drift. They already had: this section named `security-reviewer` for the security lens
+while the registry routed it to an `invariants-reviewer` that no repo defined. The registry now
+routes that lens to the shipped `security-reviewer`, and a test holds every target resolvable.
+
+Always in the panel regardless of which lenses fire:
 
 - `integration-reviewer` — grades the spec's holistic success criteria and every `scope: integration`
   constraint in the registry.
-- At least one **adversarial** `task-reviewer`.
-- `security-reviewer` if the spec touched auth, sessions, permissions, migrations or any other
-  security surface.
-- `design-fidelity-reviewer` if it touched a user-visible surface.
-- Add the lens for **every** registry constraint that fires across the whole diff — this is the one
-  place `review-constraints.yaml` is evaluated in full. Resolve each lens to its reviewer with
-  `node scripts/sdlc/reviewer-routing.mjs <lens>` (ADR-001: routing is registry data).
+- At least one **adversarial** pass over the whole diff.
+
+Dispatch concurrently, in one message, each with a clean context.
+
+**Independence is structural, not instructed.** Every reviewer is defined in `.claude/agents/`, and
+its `tools:` line omits `Edit`/`Write`. "You grade, you never fix" is an instruction a model can
+talk itself out of; an absent tool is not. A registry `agent:` that names no file there fails
+`reviewer-routing.test.mjs`, so the routing cannot silently point at nothing.
 
 **Every verdict comes from a dispatched reviewer, never from you.** Validate each returned envelope
 with `node scripts/sdlc/validate-review-envelope.mjs <file>` — exit `0` fold the findings, `2`
 abstained (escalate), `3` malformed or absent (re-dispatch or escalate). A malformed envelope is
 never a clean review. Severity → action is `review-primitives.md`; do not freehand it.
 
-### 7.3 Loop until merge-ready
+### 7.3 Loop until merge-ready — at most three rounds
 
 Fix blockers and majors at the root, then **re-dispatch the panel** — not a spot-check of the fix.
-Repeat until no blocker or major survives. Nits and suggestions can be recorded in the PR body and
-accepted.
+Repeat until no blocker or major survives, or until round 3 completes.
 
-There is no fix-round cap here; the cap is judgment. If the same finding survives two rounds, or a
-round reveals the spec itself is wrong, escalate instead of grinding.
+**The cap is three rounds (ADR-004).** A fourth round is not run. Whatever blocker or major
+survives round 3 goes into a `## Disclosed, not fixed` section of the integration PR body: one
+line per finding, naming its criterion, its location, and why it was not closed. The PR is still
+left open for the human, who now decides with the survivors visible rather than after an
+unbounded grind.
+
+If a round reveals the spec itself is wrong, that is a `spec:*` finding and routes to
+`spec-amendment`, not to another round.
+
+Nits and suggestions can be recorded in the PR body and accepted.
 
 ### 7.4 Stop
 
@@ -258,7 +282,6 @@ Set the goal file to `status: escalated`, put the reason in `reason`, surface it
 
 - Security, data-loss or payment risk — hard stop.
 - A decision that is the owner's: priority, scope, a tradeoff the spec does not settle.
-- The same integration finding surviving two full panel rounds.
 - Amendment cap: `spec.version − 1 ≥ 3`.
 - A task that cannot land and cannot be fixed at the root.
 

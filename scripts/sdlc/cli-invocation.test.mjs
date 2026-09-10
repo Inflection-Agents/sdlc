@@ -78,3 +78,44 @@ test('validate-phase-memory still fails a bad file through a symlinked path', ()
         rmSync(dir, { recursive: true, force: true })
     }
 })
+
+// ── The four CLIs added by the enforcement-tiers plan (M3/M4) ─────────────────────────────────────
+// Each shipped with the raw `argv[1] === fileURLToPath(import.meta.url)` comparison
+// this file exists to prevent, and two of them are wired into sdlc-validate.yml —
+// where "silent no-op, exit 0" reads as a passing gate.
+
+test('resolve.mjs still reports a missing id through a symlinked path', () => {
+    const res = viaSymlink('resolve.mjs', ['SPEC-99999'], '')
+    assert.notEqual(res.status, 0, 'a missing id must not exit 0 through a symlink')
+    assert.match(res.stderr, /no file found/)
+})
+
+test('resolve.mjs still resolves a real id through a symlinked path', () => {
+    const res = viaSymlink('resolve.mjs', ['ADR-004'], '')
+    assert.equal(res.status, 0)
+    assert.match(res.stdout, /ADR-004/)
+})
+
+test('complete-spec.mjs still grades through a symlinked path', () => {
+    // SPEC-003 is active with unchecked criteria, so a working CLI exits 1 and says so.
+    const res = viaSymlink('complete-spec.mjs', ['SPEC-003'], '')
+    assert.notEqual(res.status, 0, 'an incomplete spec must not exit 0 through a symlink')
+    assert.match(res.stdout, /NOT COMPLETABLE/)
+})
+
+test('complete-spec.mjs still reports a missing spec through a symlinked path', () => {
+    const res = viaSymlink('complete-spec.mjs', ['SPEC-99999'], '')
+    assert.equal(res.status, 2)
+    assert.match(res.stderr, /no spec file found/)
+})
+
+test('archive-specs.mjs --check still produces output through a symlinked path', () => {
+    const res = viaSymlink('archive-specs.mjs', ['--check'], '')
+    // Exit code depends on corpus state; a silent no-op is the failure mode.
+    assert.notEqual(res.stdout.trim() + res.stderr.trim(), '', 'the gate must not run silently')
+})
+
+test('check-stale-citations.mjs still produces output through a symlinked path', () => {
+    const res = viaSymlink('check-stale-citations.mjs', [], '')
+    assert.notEqual(res.stdout.trim() + res.stderr.trim(), '', 'the gate must not run silently')
+})

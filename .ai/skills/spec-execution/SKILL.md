@@ -93,6 +93,12 @@ Cut `feat/spec-NNN` from `main` before the first task. **Every change for this s
 and nothing reaches `main` except by merging that branch.** No task PR targets `main`, no direct
 commits to `main`, ever.
 
+Alongside it, create `specs/tasks/SPEC-NNN/DECISIONS.md` from `templates/decisions.md`. This is not
+optional bookkeeping: §8's narrow escalation bar is only safe because almost every judgment call
+gets decided and logged rather than asked, and this log is what makes that reviewable after the fact
+instead of invisible. One entry per task appended after it merges; an `EXECUTIVE DECISION` or
+`SPEC DEVIATION` heading the moment either happens, not batched at the end.
+
 ## 4. Burn the tasks down — serially, by default
 
 **You implement each task inline.** One at a time, in dependency order:
@@ -133,7 +139,8 @@ surfaced and accepted.
 
 Open `feat/spec-NNN -> main` carrying the evidence and every spec success criterion mapped to how it
 was verified. Then dispatch a **full multi-lens adversarial panel** — concurrently, one message,
-clean contexts, no `Edit`/`Write` — and **loop until no blocker or major survives**, re-dispatching
+clean contexts, no `Edit`/`Write` — and **loop until no blocker or major survives, to a maximum of
+three rounds (ADR-004)**, re-dispatching
 the panel each round rather than spot-checking the fix. Panel composition, lens routing and the
 exit codes are in SOP §7.
 
@@ -166,9 +173,9 @@ When every exit criterion holds — verified, not assumed:
 ## 8. Escalate instead of spinning
 
 Set `status: escalated`, put why in `reason`, surface it, stop. Escalate on: security, data-loss or
-payment risk (hard stop); a decision that is the owner's; the same integration finding surviving two
-panel rounds; the amendment cap (`spec.version − 1 ≥ 3`); a task that cannot land and cannot be
-fixed at the root.
+payment risk (hard stop); a decision that is the owner's; the amendment cap
+(`spec.version − 1 ≥ 3`); a task that cannot land and cannot be fixed at the root. The gate itself
+is capped at three rounds (ADR-004) and survivors are disclosed, not escalated.
 
 Two signals route to a judgment phase rather than halting the run: a `task:scope` blocker goes to
 `task-decomposition` for a re-plan, and a `spec:*` blocker goes to `spec-amendment`. A `spec:gap`
@@ -226,7 +233,7 @@ This phase is **spec-execution** in the SDLC state machine (`specs/sdlc-state-ma
 - spec has status active and decomposed tasks with a dependency graph exist
 - the plan-review gate passes (ADR-002, fail-closed): the _index.yaml plan_review block is present, approved, and not needs-rework — verify with scripts/sdlc/plan-gate.mjs
 
-**Exit condition:** single-executor delivery (ADR-003): the owner skill armed a session goal leash (.claude/.sdlc-goal-<session_id>, enforced by the Stop hook), kept a visible task list covering every task plus end-to-end validation and the integration gate, cut the integration branch feat/spec-NNN off main, and burned the tasks down ITSELF one at a time — each task gated by its own tests (or the workspace equivalent) plus an executor self-review, landed via a short-lived PR into feat/spec-NNN that is merged and deleted before the next task starts, with no PR, branch or worktree left lingering; sub-agent fan-out is the exception, for large specs with genuinely non-overlapping tasks only, and carries the same merge discipline. End-to-end validation ran ONCE before the gate with attached evidence. Exit (success) = the goal file is status:met and ONE integration PR (feat/spec-NNN -> main) is open, carrying every spec success criterion mapped to its evidence, having survived a full multi-lens adversarial review panel — independently dispatched, every envelope validated with scripts/sdlc/validate-review-envelope.mjs, the constraints registry evaluated in full across the whole diff — looped until no blocker or major survives, and LEFT OPEN for the human to review and merge. Nothing for a spec reaches main except by merging that branch; the agent never merges or pushes to main. A HALT is goal file status:escalated with a surfaced reason — security/data-loss/payment risk, an owner decision, the same integration finding surviving two panel rounds, the amendment cap (spec.version reaching 4), or a task that cannot land and cannot be fixed at the root
+**Exit condition:** single-executor delivery (ADR-003): the owner skill armed a session goal leash (.claude/.sdlc-goal-<session_id>, enforced by the Stop hook), kept a visible task list covering every task plus end-to-end validation and the integration gate, cut the integration branch feat/spec-NNN off main, and burned the tasks down ITSELF one at a time — each task gated by its own tests (or the workspace equivalent) plus an executor self-review, landed via a short-lived PR into feat/spec-NNN that is merged and deleted before the next task starts, with no PR, branch or worktree left lingering; sub-agent fan-out is the exception, for large specs with genuinely non-overlapping tasks only, and carries the same merge discipline. End-to-end validation ran ONCE before the gate with attached evidence. Exit (success) = the goal file is status:met and ONE integration PR (feat/spec-NNN -> main) is open, carrying every spec success criterion mapped to its evidence, having survived a full multi-lens adversarial review panel — independently dispatched, every envelope validated with scripts/sdlc/validate-review-envelope.mjs, the constraints registry evaluated in full across the whole diff — looped until no blocker or major survives OR the three-round cap (ADR-004) is reached with every survivor named in a "## Disclosed, not fixed" section of the PR body, and LEFT OPEN for the human to review and merge. Nothing for a spec reaches main except by merging that branch; the agent never merges or pushes to main. A HALT is goal file status:escalated with a surfaced reason — security/data-loss/payment risk, an owner decision, the amendment cap (spec.version reaching 4), or a task that cannot land and cannot be fixed at the root
 
 **Next step:** `spec-completion` — trigger: "close out SPEC-NNN"
 <!-- sdlc:handoff:end -->

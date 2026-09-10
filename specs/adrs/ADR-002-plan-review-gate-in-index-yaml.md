@@ -1,7 +1,7 @@
 ---
 id: ADR-002
 title: "The plan-review gate is enforced in _index.yaml, two-stage, fail-closed"
-status: proposed
+status: accepted
 spec: SPEC-006
 date: 2026-06-23
 author: franklin

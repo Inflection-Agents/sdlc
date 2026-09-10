@@ -139,6 +139,29 @@ Per-artifact field constraints:
 - **`tier: 2`** — only valid when `artifact: "pr"`. Tier 2 outputs MUST NOT re-raise findings already present in the Tier 1 output they were given.
 - **`location`** — for PR findings, format is `file:line` (or `file` if the finding is whole-file). For spec findings, format is the spec section heading text (e.g., `"Success criteria > third bullet"`).
 
+### Lens and altitude attribution
+
+Both are **transport-only** fields. They do not change how a finding is graded — the severity
+spine and the consequence catalogs remain the sole grading inputs. They tell the orchestrator how
+to *route* a finding, not how severe it is.
+
+- **`lens`** — when one reviewer applies several lenses in a single pass, every finding MUST name
+  the lens it came from. A finding without its lens cannot be scoped on a fix round, so the
+  orchestrator re-reviews the whole panel instead of just the flagging lens. A single-lens reviewer
+  may omit it; its lens is known from dispatch.
+- **`altitude`** — every finding declares whether the code or the spec is wrong:
+    - `implementation` — a code edit can satisfy it. Routed into the bounded fix loop.
+    - `design` — no code edit can satisfy it; the spec or plan itself is wrong. Routed to
+      `spec-amendment` or a replan, skipping the fix loop.
+    - **Absent implies `implementation`** (conservative default): an omitted altitude keeps the
+      existing fix loop and never spuriously escalates to a replan.
+
+The fix loop these route into is bounded at three rounds (ADR-004); a blocker or major surviving
+round 3 is disclosed in the integration PR body rather than carried into a fourth.
+
+These definitions are transcribed from `review-envelope.schema.json`, which is the machine source
+of truth. If the two ever disagree, the schema wins and this file is the defect.
+
 ---
 
 ## Carry-forward across iterations

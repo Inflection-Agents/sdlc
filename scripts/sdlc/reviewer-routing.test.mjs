@@ -7,7 +7,20 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { agentForLens, loadConstraints, parseConstraints } from './reviewer-routing.mjs'
+import {
+    GENERIC_REVIEWER,
+    agentForLens,
+    applicableConstraints,
+    globToRe,
+    loadConstraints,
+    parseConstraints
+} from './reviewer-routing.mjs'
+import { PR_SIDE_PREFIXES } from './validate-review-envelope.mjs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const REPO_ROOT_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
 // fixture: a constraints array as parsed from review-constraints.yaml.
 const constraints = [
@@ -109,5 +122,134 @@ test('the shipped registry parses and every declared agent resolves through it',
     for (const c of parsed) {
         assert.ok(c.lens, `constraint ${c.id} declares no lens`)
         if (c.agent) assert.equal(agentForLens(parsed, c.lens), c.agent)
+    }
+})
+
+// ── Path matching for write-time constraint injection (the enforcement-tiers plan (M2)) ────────────
+
+test('globToRe: ** crosses path separators, * does not', () => {
+    assert.ok(globToRe('packages/**/core.ts').test('packages/a/b/core.ts'))
+    assert.ok(globToRe('src/*.ts').test('src/a.ts'))
+    assert.equal(globToRe('src/*.ts').test('src/a/b.ts'), false)
+})
+
+test('globToRe: `**/` matches ZERO segments, in any position', () => {
+    // Parity with git, minimatch and fs.globSync. Compiling `**/` as `.*\/` requires at
+    // least one directory, so the write-time hook would decline a row that
+    // check-review-constraint-globs (which uses globSync) calls healthy - two engines
+    // disagreeing about the same registry row.
+    assert.ok(globToRe('**/domain/**').test('domain/user.ts'), 'leading, zero segments')
+    assert.ok(globToRe('**/domain/**').test('src/domain/b.ts'), 'leading, one segment')
+    assert.ok(globToRe('src/**/*.test.ts').test('src/x.test.ts'), 'mid-pattern, zero segments')
+    assert.ok(globToRe('src/**/*.test.ts').test('src/a/b.test.ts'), 'mid-pattern, one segment')
+    assert.ok(globToRe('a/**/b.ts').test('a/b.ts'), 'mid-pattern collapses cleanly')
+})
+
+test('globToRe: a literal dot is not a wildcard', () => {
+    assert.equal(globToRe('src/a.ts').test('src/axts'), false)
+})
+
+test('globToRe: bare ** matches nested paths', () => {
+    assert.ok(globToRe('**').test('a/b/c.ts'))
+    assert.ok(globToRe('scripts/**').test('scripts/sdlc/x.mjs'))
+})
+
+test('globToRe: emits no control characters', () => {
+    // A placeholder-based multi-pass implementation needs a byte no glob can
+    // contain, and every such byte is a control character.
+    assert.equal(/[\x00-\x1f]/.test(globToRe('a/**/b*.ts').source), false)
+})
+
+test('applicableConstraints: returns task-scope rows whose touches match', () => {
+    const rows = [
+        { id: 'A', scope: 'task', when: { touches: ['scripts/**'] }, check: 'a', severity: 'major' },
+        { id: 'B', scope: 'task', when: { touches: ['apps/**'] }, check: 'b', severity: 'major' }
+    ]
+    assert.deepEqual(
+        applicableConstraints(rows, 'scripts/sdlc/x.mjs').map((c) => c.id),
+        ['A']
+    )
+})
+
+test('applicableConstraints: integration-scope rows never match a single edit', () => {
+    const rows = [{ id: 'I', scope: 'integration', when: { touches: ['**'] }, check: 'i' }]
+    assert.deepEqual(applicableConstraints(rows, 'anything.ts'), [])
+})
+
+test('applicableConstraints: a row with no when.touches is skipped, not thrown on', () => {
+    const rows = [{ id: 'W', scope: 'task', when: { workspace: ['app'] }, check: 'w' }]
+    assert.deepEqual(applicableConstraints(rows, 'anything.ts'), [])
+})
+
+test('applicableConstraints: a row with no scope defaults to task', () => {
+    const rows = [{ id: 'D', when: { touches: ['scripts/**'] }, check: 'd' }]
+    assert.deepEqual(applicableConstraints(rows, 'scripts/x.mjs').map((c) => c.id), ['D'])
+})
+
+test('applicableConstraints: a non-array input yields no matches rather than throwing', () => {
+    assert.deepEqual(applicableConstraints(null, 'x.ts'), [])
+    assert.deepEqual(applicableConstraints(undefined, 'x.ts'), [])
+})
+
+test('globToRe: a control character in a glob cannot hijack the substitution', () => {
+    // An earlier revision hopped through NUL/SOH sentinels, so a glob carrying one
+    // compiled as a zero-or-more-segments token. The single-pass alternation has no
+    // sentinel to collide with.
+    assert.equal(globToRe(`a${String.fromCharCode(0)}b`).test('a/x/b'), false)
+    assert.equal(globToRe(`a${String.fromCharCode(1)}b`).test('a/x/b'), false)
+})
+
+test('globToRe: ?, [abc] and {a,b} are wildcards, matching fs.globSync', () => {
+    // Escaping these to literals is the dangerous direction: the glob-resolvability
+    // gate uses globSync and would call the row healthy while the write-time hook
+    // silently declined to inject it.
+    assert.ok(globToRe('scripts/?heck-a.mjs').test('scripts/check-a.mjs'))
+    assert.equal(globToRe('scripts/?heck-a.mjs').test('scripts/xx-a.mjs'), false)
+    assert.ok(globToRe('scripts/[rc]esolve.mjs').test('scripts/resolve.mjs'))
+    assert.equal(globToRe('scripts/[rc]esolve.mjs').test('scripts/zesolve.mjs'), false)
+    assert.ok(globToRe('scripts/{resolve,gen}.mjs').test('scripts/resolve.mjs'))
+    assert.ok(globToRe('scripts/{resolve,gen}.mjs').test('scripts/gen.mjs'))
+    assert.equal(globToRe('scripts/{resolve,gen}.mjs').test('scripts/other.mjs'), false)
+    assert.equal(globToRe('a?b').test('a/b'), false, '? must not cross a separator')
+})
+
+test('every shipped registry row carries a GROUNDED cite', () => {
+    // This branch is the first to read `cite:` programmatically and hand it to an
+    // author at write time, so a row shipping a citation the envelope validator
+    // refuses would put an ungrounded blocker in front of a reviewer.
+    const rows = loadConstraints()
+    assert.ok(rows.length > 0)
+    for (const c of rows) {
+        assert.ok(c.cite, `constraint ${c.id} has no cite`)
+        assert.ok(
+            PR_SIDE_PREFIXES.some((p) => c.cite.startsWith(p)),
+            `constraint ${c.id} cite "${c.cite}" is not a grounded prefix`
+        )
+    }
+})
+
+// ── Every routing target must be a shipped agent ──────────────────────────────
+// ADR-001 makes lens -> reviewer routing registry DATA. That only means anything if
+// the data points at something: the registry routed `security` and `core-purity` to
+// an `invariants-reviewer` that existed in no repo, so the SOP's "dispatch one
+// reviewer per distinct resolved agent" resolved to nothing.
+
+test('every agent: named in the registry is a shipped agent definition', () => {
+    const dir = join(REPO_ROOT_DIR, '.claude', 'agents')
+    const named = new Set(loadConstraints().map((c) => c.agent).filter(Boolean))
+    named.add(GENERIC_REVIEWER) // the default for a lens with no agent:
+    for (const a of named) {
+        assert.ok(existsSync(join(dir, `${a}.md`)), `registry routes to "${a}" but .claude/agents/${a}.md does not exist`)
+    }
+})
+
+test('no reviewer agent carries Edit or Write', () => {
+    // The tools line IS the independence mechanism. "You grade, you never fix" is an
+    // instruction a model can talk itself out of; an absent tool is not.
+    const dir = join(REPO_ROOT_DIR, '.claude', 'agents')
+    for (const f of readdirSync(dir).filter((f) => f.endsWith('-reviewer.md'))) {
+        const tools = readFileSync(join(dir, f), 'utf8').match(/^tools:\s*(.+)$/m)
+        assert.ok(tools, `${f} declares no tools: line`)
+        assert.equal(/\bEdit\b|\bWrite\b/.test(tools[1]), false, `${f} grants Edit/Write to a reviewer`)
     }
 })

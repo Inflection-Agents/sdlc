@@ -1,7 +1,7 @@
 ---
 id: ADR-001
 title: "Reviewer routing is registry data, not engine code"
-status: proposed
+status: accepted
 spec: SPEC-006
 date: 2026-06-23
 author: franklin

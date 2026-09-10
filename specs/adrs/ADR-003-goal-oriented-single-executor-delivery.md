@@ -104,6 +104,9 @@ integration gate.**
 10. **The integration gate carries the full rigor.** One PR, a full multi-lens adversarial panel —
     independently dispatched, clean contexts, every envelope validated — with the constraints
     registry evaluated **in full across the whole diff**, looped until no blocker or major survives.
+    **(ADR-004, 2026-09-09: that loop is capped at three rounds; a survivor is disclosed in the PR
+    body rather than carried into a fourth round. This clause and the capability row below are the
+    two sites ADR-004 supersedes.)**
 
 11. **The integration PR is left open for the human.** *Within a spec delivery run*, the agent
     never merges or pushes to `main` and never self-approves. There is no phrasing in a user
@@ -172,7 +175,8 @@ integration gate.**
       classifier. **This bullet is not backfilled to declare a clean result it has not seen**: every
       round's fixes are re-verified by dispatching the panel again in full, not by inspecting the
       diff, and the merge in decision 11 does not happen until a round returns with nothing left to
-      fix.
+      fix. **(ADR-004, 2026-09-09: bounded at three rounds; a survivor is disclosed in the PR body
+      rather than carried into a fourth. This is the third of the three sites ADR-004 supersedes.)**
 
       Round 6 followed the adversarial pass's own recommendation from round 5: a single narrow,
       targeted verification of round 5's fixes specifically, not a full three-lens re-dispatch. It
@@ -274,7 +278,7 @@ integration gate.**
     | Reviewer-envelope schema validation | **PORT** → `scripts/sdlc/validate-review-envelope.mjs` | Unowned, a malformed envelope folds to zero findings and reads as a clean accept — the silent-accept path. Exit 0 valid / 2 abstained / 3 malformed-or-ungrounded. |
     | `ALLOWED_PREFIX` grounding check | **PORT** → the same validator (`PR_SIDE_PREFIXES`) | A blocking finding with an ungrounded citation is a contract violation. `prefix-parity.test.mjs` re-anchors to validator ↔ `review-primitives.md` ↔ schema. |
     | Severity→action routing policy | **KEEP** (`review-primitives.md`) | The policy was never in the engine; only its invoker was. The invoker is now the dispatching agent. |
-    | Capped fix loop (≤3) | **KEEP per task, judgment at the gate** | Per-task fix loops are gone with per-task review. At the gate there is no round cap: the same finding surviving two rounds escalates. |
+    | Capped fix loop (≤3) | **SUPERSEDED by ADR-004 at the gate** | Per-task fix loops are gone with per-task review. At the gate there is no round cap: the same finding surviving two rounds escalates. **ADR-004 (2026-09-09) reverses this row only: the gate is capped at three rounds and survivors are disclosed.** |
     | Mandatory Tier-0 `tester` gate | **DROP** (accepted loss) | Verification folds into the executor. There is no automatic pre-review gate, because there is no per-task review to gate. |
     | `validateContract` as an executing gate | **DROP as an executing gate** | Decomposition-time validation is unaffected — a task with no `touches` is a decomposition defect, caught there, not discovered mid-run. |
     | `integration_strategy: direct` (SPEC-005) | **DROP** (decision 6) | The integration branch is now unconditional. |

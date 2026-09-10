@@ -22,10 +22,17 @@ intent-triage → spec-authoring → task-decomposition │ spec-execution → s
 
 - **Front (judgment) phases are collaborative and human-gated.** Multiple humans — owner/PM, eng lead, domain experts, stakeholders — collaborate on the intent, the spec, and the decomposition. *What* to build and *how* to split it require judgment, and quality is cheapest to assure here. Each phase ends at a hard sign-off gate. See [Roles](roles.md).
 - **`spec-execution` is autonomous single-executor delivery** ([ADR-003](specs/adrs/ADR-003-goal-oriented-single-executor-delivery.md)). Once the spec + task graph are signed off, one agent arms a persistence goal leash, cuts `feat/spec-NNN`, and burns the tasks down itself — one at a time, behind a visible task list, each gated by its own tests plus an executor self-review and merged before the next starts. A deterministic Workflow engine used to do this; it was measured and retired for cost.
-- **Rigor is concentrated, not removed.** End-to-end validation runs once, then the single integration PR faces a multi-lens adversarial panel — independently dispatched, every envelope validated, the constraints registry evaluated across the whole diff — looped until no blocker or major survives. Review is LLM and happens in-run; there is no standalone review phase. Humans only merge that final PR to `main`.
+- **Rigor is concentrated, not removed.** End-to-end validation runs once, then the single integration PR faces a multi-lens adversarial panel — independently dispatched, every envelope validated, the constraints registry evaluated across the whole diff — looped until no blocker or major survives (at most three rounds, ADR-004). Review is LLM and happens in-run; there is no standalone review phase. Humans only merge that final PR to `main`.
 - **The escape hatch.** When a run finds the spec or decomposition is wrong (a `spec:*` or `task:scope` blocker), it escalates out into `spec-amendment` or `task-decomposition` re-planning — a judgment phase — then resumes.
 
 The single source of truth for the phases is [`specs/sdlc-state-machine.yaml`](specs/sdlc-state-machine.yaml); the per-spec `phase:` block in each `_index.yaml` records where a spec is and makes the process resumable.
+
+> **Archived specs.** A spec whose status reaches a terminal value moves under
+> `specs/archive/` and is hidden from default search, while staying tracked in git —
+> unless a live skill cites it or a non-archived ADR binds it, which holds it in the
+> live corpus on purpose.
+> Resolve any id with `node scripts/sdlc/resolve.mjs SPEC-NNN`, or search with
+> `rg --no-ignore`. See [`.ignore`](.ignore) for why position beats a status label.
 
 ## Documents
 

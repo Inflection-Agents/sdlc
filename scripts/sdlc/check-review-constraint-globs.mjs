@@ -57,7 +57,10 @@ const IGNORED_SEGMENTS = ['node_modules', '.git', 'dist', 'build', '.next']
  * (`when:` / `  touches:` / `    - a/**`). Returns [] on anything unreadable.
  */
 export function parseRegistryTouches(text) {
-    const lines = String(text).split('\n')
+    // Normalize CRLF: the row regexes below end `$` without the `m` flag, so on a Windows
+    // checkout not one line matches and every row parses to zero globs - which enrich()
+    // then hands to the write-time hook as an empty touches list.
+    const lines = String(text).replace(/\r\n?/g, '\n').split('\n')
     const rows = []
     let current = null
     let inTouchesBlock = false

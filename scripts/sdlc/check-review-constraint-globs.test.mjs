@@ -142,3 +142,12 @@ test('an unreadable registry does not fail the build in warn mode', () => {
     assert.equal(res.status, 0)
     assert.match(res.stderr, /cannot read/)
 })
+
+test('parseRegistryTouches survives a CRLF registry', () => {
+    // All three registry parsers end their row regexes with `$` and no `m` flag, so a
+    // Windows checkout (core.autocrlf=true) parses to zero rows. Two were fixed in the
+    // same pass and this one was missed, which would have left enrich() handing the
+    // write-time hook an empty touches list while the other parsers looked healthy.
+    const crlf = 'constraints:\r\n  - id: X\r\n    when: { touches: ["a/**"] }\r\n'
+    assert.deepEqual(parseRegistryTouches(crlf), [{ id: 'X', touches: ['a/**'] }])
+})

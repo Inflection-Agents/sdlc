@@ -26,6 +26,8 @@ import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(__dirname, '..', '..')
+import { parseRegistryTouches } from './check-review-constraint-globs.mjs'
+
 export const DEFAULT_REGISTRY = join(REPO_ROOT, '.ai', 'skills', 'review-constraints.yaml')
 
 /** The reviewer a lens with no registered specialist folds into. */
@@ -62,7 +64,10 @@ function scalar(raw) {
  * Returns [] on anything it cannot read.
  */
 export function parseConstraints(text) {
-    const lines = String(text).split('\n')
+    // Normalize CRLF once: every row regex below ends `$` without the `m` flag, so on a
+    // Windows checkout (core.autocrlf=true) not one line would match and the registry
+    // would silently parse to zero rows.
+    const lines = String(text).replace(/\r\n?/g, '\n').split('\n')
     const out = []
     let inList = false
     let current = null
@@ -107,8 +112,153 @@ export function parseConstraints(text) {
 
 /** Read + parse the registry. Throws only if the file cannot be read. */
 export function loadConstraints(registryPath = DEFAULT_REGISTRY) {
-    return parseConstraints(readFileSync(registryPath, 'utf8'))
+    const text = readFileSync(registryPath, 'utf8')
+    return enrich(parseConstraints(text), text)
 }
+
+/**
+ * Join the routing rows with the two fields a write-time reader needs and
+ * `parseConstraints` deliberately does not read: the `when.touches` globs and the
+ * `check:` block scalar.
+ *
+ * Touches come from `parseRegistryTouches`, which already handles both the flow and
+ * block YAML forms and the block-scalar hazard. Parsing them a second time here is
+ * exactly the two-copies drift ADR-001 deleted the hardcoded lens map to prevent.
+ */
+export function enrich(rows, text) {
+    const touchesById = new Map(parseRegistryTouches(text).map((r) => [r.id, r.touches]))
+    const extras = parseRowExtras(text)
+    return rows.map((c) => ({
+        ...c,
+        when: { ...(c.when ?? {}), touches: touchesById.get(c.id) ?? c.when?.touches ?? [] },
+        check: c.check ?? extras.get(c.id)?.check ?? null,
+        cite: c.cite ?? extras.get(c.id)?.cite ?? null
+    }))
+}
+
+/**
+ * The `check:` block scalar and the `cite:` scalar per constraint id.
+ *
+ * `parseConstraints` skips block scalars because a `check:` paragraph containing a
+ * line like `agent: x` would otherwise hijack a constraint's routing, and it reads
+ * only routing keys so its output shape stays pinned. That is right for routing and
+ * wrong for a reader that wants the prose, so this reads both deliberately — and
+ * never lets a line inside an open block become a key.
+ */
+export function parseRowExtras(text) {
+    const out = new Map()
+    const lines = String(text).replace(/\r\n?/g, '\n').split('\n')
+    const indentOf = (l) => l.match(/^(\s*)/)[1].length
+    let id = null
+    let collecting = null
+    let keyIndent = 0
+    let skipIndent = null
+    const row = (i) => {
+        if (!out.has(i)) out.set(i, { check: null, cite: null })
+        return out.get(i)
+    }
+    const flush = () => {
+        if (id && collecting && collecting.length) row(id).check = collecting.join(' ').trim()
+        collecting = null
+    }
+    for (const line of lines) {
+        if (skipIndent !== null) {
+            if (line.trim() === '' || indentOf(line) > skipIndent) continue
+            skipIndent = null
+        }
+        if (collecting) {
+            if (line.trim() === '' || indentOf(line) > keyIndent) {
+                if (line.trim() !== '') collecting.push(line.trim())
+                continue
+            }
+            flush()
+        }
+        const item = line.match(/^\s*-\s*id\s*:\s*(.+)$/)
+        if (item) {
+            flush()
+            id = item[1].trim().replace(/^["']|["']$/g, '')
+            continue
+        }
+        const opensAny = line.match(/^(\s*)[a-z_]+\s*:\s*[>|]/i)
+        if (opensAny) {
+            const isCheck = /^\s*check\s*:/.test(line)
+            if (isCheck && id) {
+                keyIndent = opensAny[1].length
+                collecting = []
+            } else {
+                // Any OTHER block scalar is prose too. Without this, a `cite:` line
+                // inside a `notes: |` block is captured as the row's citation - and a
+                // reviewer grounds a blocker on that value.
+                skipIndent = opensAny[1].length
+            }
+            continue
+        }
+        const cite = line.match(/^\s*cite\s*:\s*(.+)$/)
+        if (cite && id) row(id).cite = cite[1].trim().replace(/^["']|["']$/g, '')
+    }
+    flush()
+    return out
+}
+
+/**
+ * Glob to RegExp. `**` crosses path separators, `*` does not, and every other
+ * regex metacharacter is escaped so a literal dot cannot act as a wildcard.
+ *
+ * ONE pass, and no placeholder. The alternation orders the double-star-slash token
+ * before bare double-star before single-star, so each wins in turn. Do NOT rewrite
+ * this as chained .replace() calls hopping
+ * through a sentinel character: every byte no glob can legitimately contain is a
+ * control character, which corrupts whatever file it is written into AND lets a glob
+ * carrying that byte hijack the substitution: a literal NUL compiled as a
+ * zero-or-more-segments token.
+ */
+export const globToRe = (g) =>
+    new RegExp(
+        '^' +
+            // `**/` matches zero or more segments in ANY position, which is what git,
+            // minimatch and fs.globSync all do. Compiling it as `.*\/` would require at
+            // least one directory, so `**/domain/**` would miss a root-level `domain/`
+            // and `src/**/*.test.ts` would miss `src/x.test.ts`, while
+            // check-review-constraint-globs (which uses globSync) called the same glob
+            // healthy - two engines disagreeing about the same registry row.
+            g.replace(/(^|\/)\*\*\/|\*\*|\*|\?|\[[^\]]*\]|\{[^}]*\}|[.+^${}()|\\]/g, (m, lead) => {
+                // Double-star-slash first in the alternation, so it wins over bare
+                // double-star.
+                if (m.endsWith('**/')) return lead ? '\\/(?:.*\\/)?' : '(?:.*\\/)?'
+                if (m === '**') return '.*'
+                if (m === '*') return '[^/]*'
+                // `?`, `[abc]` and `{a,b}` are wildcards to git, minimatch and
+                // fs.globSync. Escaping them to literals is the dangerous direction:
+                // check-review-constraint-globs (globSync) calls the row healthy while
+                // the write-time hook silently declines to inject it.
+                if (m === '?') return '[^/]'
+                if (m.startsWith('[')) return m
+                if (m.startsWith('{')) {
+                    const alts = m
+                        .slice(1, -1)
+                        .split(',')
+                        .map((a) => a.replace(/[.*+^${}()|[\]\\?]/g, '\\$&'))
+                    return `(?:${alts.join('|')})`
+                }
+                return '\\' + m
+            }) +
+            '$'
+    )
+
+/**
+ * The task-scope constraints registered against one file path.
+ *
+ * `scope: integration` rows grade a whole spec diff at the gate, so a single edit
+ * is not the artifact they grade and they are excluded. A row with no
+ * `when.touches` (workspace- or task_has-gated) cannot be matched against a bare
+ * path and is skipped rather than treated as a match.
+ */
+export const applicableConstraints = (rows, relPath) =>
+    (Array.isArray(rows) ? rows : []).filter((c) => {
+        if ((c?.scope ?? 'task') !== 'task') return false
+        const globs = c?.when?.touches
+        return Array.isArray(globs) && globs.some((g) => typeof g === 'string' && globToRe(g).test(relPath))
+    })
 
 function main(argv) {
     const args = [...argv]

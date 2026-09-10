@@ -36,7 +36,7 @@ The collective deliverable is a **signed-off spec + an AI-coherent task graph** 
 | **Decomposition** | Build the AI-coherent task graph (bounded `touches`, routing), self-review, identify risks/deps | Confirm boundaries + dependencies + routing, **sign off** the task graph |
 | **Delivery** | One agent implements every task itself — code/tests, self-review, a short-lived PR per task onto the integration branch, evidence populated — tracked on a visible task list | Nothing until the integration PR (the autonomous half); the task list is there to follow along if you want to |
 | **Code review** | **In-run**: executor self-review per task, then the **LLM multi-lens adversarial panel** on the integration PR — routed lenses, validated envelopes, integration-reviewer vs success criteria | — (humans gate inputs, not per-task PRs) |
-| **Integration** | Runs end-to-end validation once (EVIDENCE), opens the integration PR, loops the panel until clean, leaves it open | **Merge the integration PR to `main`** (the agent never does) |
+| **Integration** | Runs end-to-end validation once (EVIDENCE), opens the integration PR, loops the panel until clean (≤3 rounds, ADR-004; survivors disclosed in the PR body), leaves it open | **Merge the integration PR to `main`** (the agent never does) |
 | **Completion** | Verify success criteria end-to-end, propose terminal state | Confirm completion, own the call |
 | **Triage** | Capture signals, normalize bug specs, attempt reproduction, classify | Confirm bugs, prioritize, decide tradeoffs |
 | **Deploy** | Execute deployment steps, monitor rollout | Approve releases, decide rollback |
