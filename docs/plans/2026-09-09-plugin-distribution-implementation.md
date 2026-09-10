@@ -137,6 +137,14 @@ Create `.claude/hooks/__tests__/project-root-resolution.test.mjs`. It builds a f
 
 The cheapest observable: run `pre-tool-use-edit-write.mjs` from the fake plugin dir with a payload targeting a path in the fake repo that has a matching constraint, and assert stdout is non-empty.
 
+**Corrected after execution.** That plugin-layout case alone does NOT discriminate for
+`pre-tool-use-edit-write.mjs`: a real cache path walks up to a directory with no `.claude/`, so even
+the old ordering fell through to `cwd` and passed. Verified by reverting the fix and re-running. The
+discriminating case is the ordering one — run the IN-REPO hook (whose own location is a valid repo)
+with `cwd` pointing at a different valid repo, and assert it prefers `cwd`. The plugin-layout cases
+DO discriminate for `stop-handoff.mjs` and `user-prompt-submit.mjs`, which have no `cwd` fallback at
+all. Write all four. Do not fake the fixture to force the first one red.
+
 **Step 2: Run it and watch it fail**
 
 ```bash
@@ -442,6 +450,13 @@ Copy (do not move — this repo still needs its own): `scripts/sdlc/*.mjs` exclu
 **Do NOT include** `specs/` content, `sdlc-state-machine.yaml` (the adopter needs their own `domain_routing`, but the phase spine is universal — copy it and let the interview edit only `domain_routing`), or anything under `docs/`.
 
 Add `init-payload/README.md` explaining that these files are copied into an adopting repo and are NOT loaded by Claude in this repo.
+
+**Trap, surfaced during Task 2.** `reviewer-routing.mjs` and `check-review-constraint-globs.mjs` both
+derive `REPO_ROOT` from their own `import.meta.url`, with no env or cwd escape. That is correct while
+they live in the repo, and it is why COPYING them into an adopting repo works. But if any part of
+`scripts/sdlc/` is ever shipped plugin-side instead of copied, `DEFAULT_REGISTRY` acquires the exact
+bug Task 2 fixed in the hooks — and `loadConstraints` is consumed through a `try/catch` returning
+`null`, so it fails open the same silent way. Validators are copied, never shipped.
 
 **Verify** the payload has no absolute paths and no reference to this repo's own specs:
 
