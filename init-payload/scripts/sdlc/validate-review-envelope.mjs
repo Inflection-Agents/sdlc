@@ -185,6 +185,28 @@ export function validateEnvelope(env, schema = loadSchema()) {
         }
     }
 
+    // Reviewer provenance. A self-graded review and an independent one are otherwise
+    // byte-identical in the artifact, which is how a self-review passes unnoticed.
+    // ABSENT is treated as `inline`: the conservative reading, since every envelope
+    // written before this field existed was produced without dispatch discipline.
+    //
+    // This is forensics, not enforcement - the field is self-declared and an inline
+    // grading can claim an agent value. The enforcement is the dispatch discipline in
+    // the calling skills plus the reviewer agents having no Edit/Write. What this
+    // catches is the honest mistake, which is the common one.
+    const reviewedBy = String(env.reviewed_by ?? 'inline')
+    const blocking = Array.isArray(env.findings)
+        ? env.findings.filter((f) => f?.severity === 'blocker' || f?.severity === 'major')
+        : []
+    if (reviewedBy === 'inline' && blocking.length > 0) {
+        errors.push(
+            `\`reviewed_by\` is "${env.reviewed_by ?? '(absent, read as inline)'}" but this envelope ` +
+                `carries ${blocking.length} blocking finding(s). A blocker or major must come from a ` +
+                `dispatched reviewer: call the Agent tool with the matching subagent_type and re-grade. ` +
+                `Nits and suggestions from an inline pass are fine.`
+        )
+    }
+
     const abstained = String(env.reviewer_status ?? 'assessed') === 'abstained'
     return { ok: errors.length === 0, abstained, errors }
 }

@@ -4,32 +4,64 @@
   "title": "review-envelope",
   "description": "The ONE canonical reviewer-output schema for the AI-native SDLC. Every reviewer (task-reviewer, the lens specialists, integration-reviewer, spec-reviewer) emits exactly this shape. scripts/sdlc/validate-review-envelope.mjs validates every returned envelope against THIS file (exit 0 valid, 2 abstained, 3 malformed/ungrounded). There is NO top-level verdict a reviewer self-reports: a malformed/absent envelope is a contract violation; an abstaining reviewer sets reviewer_status:abstained (the orchestrator escalates, never accepts). See review-primitives.md for the severity spine, grounding rules, and severity->action policy.",
   "type": "object",
-  "required": ["findings"],
+  "required": [
+    "findings"
+  ],
   "additionalProperties": true,
   "properties": {
     "reviewer_status": {
-      "enum": ["assessed", "abstained"],
+      "enum": [
+        "assessed",
+        "abstained"
+      ],
       "default": "assessed",
-      "description": "assessed = the reviewer graded the artifact (default). abstained = could NOT assess; the orchestrator MUST escalate, never accept — even with findings: []."
+      "description": "assessed = the reviewer graded the artifact (default). abstained = could NOT assess; the orchestrator MUST escalate, never accept \u2014 even with findings: []."
     },
-    "artifact": { "enum": ["pr", "spec"] },
-    "artifact_id": { "type": "string" },
+    "artifact": {
+      "enum": [
+        "pr",
+        "spec"
+      ]
+    },
+    "artifact_id": {
+      "type": "string"
+    },
     "findings": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["severity"],
-        "anyOf": [{ "required": ["criterion"] }, { "required": ["citation"] }],
+        "required": [
+          "severity"
+        ],
+        "anyOf": [
+          {
+            "required": [
+              "criterion"
+            ]
+          },
+          {
+            "required": [
+              "citation"
+            ]
+          }
+        ],
         "additionalProperties": true,
         "properties": {
-          "id": { "type": "string" },
+          "id": {
+            "type": "string"
+          },
           "severity": {
-            "enum": ["blocker", "major", "nit", "suggestion"],
+            "enum": [
+              "blocker",
+              "major",
+              "nit",
+              "suggestion"
+            ],
             "description": "The severity ladder. blocker/major route to fix_loop; nit/suggestion route to batch_followup_and_accept."
           },
           "criterion": {
             "type": "string",
-            "description": "The grounded citation — MUST start with an allowed prefix for this reviewer's role (see review-primitives.md > Grounding rules). The canonical PR-side prefix set (per review-primitives.md > PR-side canonical prefix table, mirrored by PR_SIDE_PREFIXES in scripts/sdlc/validate-review-envelope.mjs) is enumerated here as a machine-parseable list — PR_SIDE_PREFIXES = [ac:, adr:, std:, inv:, design:, lens:, monorepo:, task:, spec:]. Example citations: ac:AC-NNN, adr:ADR-NNN, std:<section-anchor>, inv:<INV-ID>, design:<token-or-component>, lens:<lens-name>, monorepo:boundary, task:scope, spec:<gap-kind>. Spec-side reviewers use the distinct spec-side prefix set."
+            "description": "The grounded citation \u2014 MUST start with an allowed prefix for this reviewer's role (see review-primitives.md > Grounding rules). The canonical PR-side prefix set (per review-primitives.md > PR-side canonical prefix table, mirrored by PR_SIDE_PREFIXES in scripts/sdlc/validate-review-envelope.mjs) is enumerated here as a machine-parseable list \u2014 PR_SIDE_PREFIXES = [ac:, adr:, std:, inv:, design:, lens:, monorepo:, task:, spec:]. Example citations: ac:AC-NNN, adr:ADR-NNN, std:<section-anchor>, inv:<INV-ID>, design:<token-or-component>, lens:<lens-name>, monorepo:boundary, task:scope, spec:<gap-kind>. Spec-side reviewers use the distinct spec-side prefix set."
           },
           "citation": {
             "type": "string",
@@ -39,28 +71,66 @@
             "type": "string",
             "description": "file:line (PR findings) or spec section heading (spec findings)."
           },
-          "finding": { "type": "string", "description": "One sentence: what is wrong." },
-          "suggested_fix": { "type": ["string", "null"], "description": "One sentence: what to do; null if unknown." },
+          "finding": {
+            "type": "string",
+            "description": "One sentence: what is wrong."
+          },
+          "suggested_fix": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "One sentence: what to do; null if unknown."
+          },
           "lens": {
             "type": "string",
             "description": "The lens this finding came from (a multi-lens single-pass reviewer MUST set it so a scoped fix re-review can target the lens; a single-lens reviewer may omit it)."
           },
           "altitude": {
-            "enum": ["design", "implementation"],
+            "enum": [
+              "design",
+              "implementation"
+            ],
             "description": "design = the spec/plan is wrong (escalate to replan/amend, no code edit can satisfy it); implementation = the code is wrong (enters the bounded fix loop). Absent => implementation (conservative default)."
           },
-          "carried_forward_from_previous": { "type": "boolean" }
+          "carried_forward_from_previous": {
+            "type": "boolean"
+          }
         }
       }
     },
     "verification": {
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "description": "PR-side: the commands the reviewer confirmed were run + their result. Spec-side: null.",
       "properties": {
-        "commands_run": { "type": "array", "items": { "type": "string" } },
-        "all_passed": { "type": "boolean" },
-        "details": { "type": "string" }
+        "commands_run": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "all_passed": {
+          "type": "boolean"
+        },
+        "details": {
+          "type": "string"
+        }
       }
+    },
+    "reviewed_by": {
+      "enum": [
+        "agent:spec-reviewer",
+        "agent:pr-reviewer",
+        "agent:task-reviewer",
+        "agent:integration-reviewer",
+        "agent:security-reviewer",
+        "agent:design-fidelity-reviewer",
+        "inline"
+      ],
+      "description": "Which context produced this verdict. SELF-DECLARED, so it is forensics rather than enforcement: an inline self-review can claim an agent value. The enforcement is the dispatch discipline in the calling skills plus the reviewer agents' absent Edit/Write tools. ABSENT is treated as `inline` by the validator, which rejects an inline envelope carrying a blocker or major - a self-review and an independent one are otherwise byte-identical in the artifact. Deliberately NOT in `required`: this schema is a contract, and a new required field invalidates every envelope in flight."
     }
   }
 }

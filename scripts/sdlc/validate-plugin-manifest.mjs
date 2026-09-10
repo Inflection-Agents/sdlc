@@ -20,7 +20,7 @@
  *   node scripts/sdlc/validate-plugin-manifest.mjs
  */
 import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
@@ -157,6 +157,34 @@ export function validate(root = ROOT) {
             if (!isDir) continue
             if (!existsSync(join(p, 'SKILL.md'))) problems.push(`skills/${entry}/ has no SKILL.md`)
         }
+    }
+
+    // Every `subagent_type:` a skill names must resolve to a shipped agent. This is a
+    // new dangling-name surface and every dangling-name defect this repo has hit came
+    // from exactly that shape - a registry routing to an agent no repo defined, a
+    // changelog citing a spec that does not exist, a `std:` anchor with no heading.
+    // A skill telling the model to dispatch `spec-reviewer` when agents/spec-reviewer.md
+    // is absent fails the worst way: nothing dispatches and nothing says so.
+    const skillsForDispatch = join(root, 'skills')
+    if (existsSync(skillsForDispatch)) {
+        const walk = (dir) => {
+            for (const entry of readdirSync(dir, { withFileTypes: true })) {
+                const p = join(dir, entry.name)
+                if (entry.isDirectory()) walk(p)
+                else if (entry.isFile() && entry.name.endsWith('.md')) {
+                    for (const m of read(p).matchAll(/subagent_type:\s*`?([a-z0-9-]+)`?/gi)) {
+                        const agent = m[1]
+                        if (!existsSync(join(root, 'agents', `${agent}.md`))) {
+                            problems.push(
+                                `${relative(root, p)} names \`subagent_type: ${agent}\`, but agents/${agent}.md ` +
+                                    `does not exist - nothing would dispatch`
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        walk(skillsForDispatch)
     }
 
     const agentsDir = join(root, 'agents')

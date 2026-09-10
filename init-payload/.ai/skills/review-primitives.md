@@ -139,6 +139,22 @@ Per-artifact field constraints:
 - **`tier: 2`** — only valid when `artifact: "pr"`. Tier 2 outputs MUST NOT re-raise findings already present in the Tier 1 output they were given.
 - **`location`** — for PR findings, format is `file:line` (or `file` if the finding is whole-file). For spec findings, format is the spec section heading text (e.g., `"Success criteria > third bullet"`).
 
+### Reviewer provenance (`reviewed_by`)
+
+Every envelope declares which context produced it: `agent:<name>` for a dispatched
+reviewer, `inline` for one graded in the calling context. **An envelope carrying a
+`blocker` or `major` with `reviewed_by: inline` — or with the field absent, which is
+read as `inline` — is a contract violation.** A self-graded review and an independent
+one are otherwise byte-identical in the artifact, which is exactly how a self-review
+passes unnoticed.
+
+This is forensics, not enforcement: the field is self-declared, and an inline grading
+can claim an agent value. The enforcement is the dispatch discipline in the calling
+skills plus the reviewer agents having no `Edit`/`Write`. What this catches is the
+honest mistake.
+
+Nits and suggestions from an inline pass are fine — the bar is on a blocking grading.
+
 ### Lens and altitude attribution
 
 Both are **transport-only** fields. They do not change how a finding is graded — the severity

@@ -8,6 +8,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+const mk = mkdirSync
+const wf = writeFileSync
 import { tmpdir } from 'node:os'
 import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -226,4 +228,28 @@ test('every script the payload workflow invokes is IN the payload', async () => 
             )
         }
     }
+})
+
+test('a skill naming a subagent_type with no shipped agent is caught', () => {
+    // The new dangling-name surface. A skill telling the model to dispatch an agent
+    // that does not exist fails the worst way: nothing dispatches, nothing says so.
+    withPlugin(
+        () => {},
+        (root) => {
+            mk(join(root, 'skills', 'caller'), { recursive: true })
+            wf(join(root, 'skills', 'caller', 'SKILL.md'), '---\nname: caller\n---\nDispatch `subagent_type: ghost-reviewer`.\n')
+            assert.match(validate(root).join('\n'), /subagent_type: ghost-reviewer.*does not exist/)
+        }
+    )
+})
+
+test('a skill naming a subagent_type that IS shipped passes', () => {
+    withPlugin(
+        () => {},
+        (root) => {
+            mk(join(root, 'skills', 'caller'), { recursive: true })
+            wf(join(root, 'skills', 'caller', 'SKILL.md'), '---\nname: caller\n---\nDispatch `subagent_type: task-reviewer`.\n')
+            assert.deepEqual(validate(root), [])
+        }
+    )
 })

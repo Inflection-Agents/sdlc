@@ -24,6 +24,10 @@ const clean = { artifact: 'pr', artifact_id: 'TASK-001', findings: [] }
 const withBlocker = {
     artifact: 'pr',
     artifact_id: 'TASK-001',
+    // A blocking finding requires reviewer provenance: an inline grading carrying a
+    // blocker is a contract violation, so every fixture that models a REAL dispatched
+    // review declares who produced it.
+    reviewed_by: 'agent:pr-reviewer',
     findings: [{ id: 'F-001', severity: 'blocker', criterion: 'ac:AC-003', finding: 'AC not addressed' }]
 }
 
@@ -79,6 +83,7 @@ test('a nit with an unrecognized prefix is allowed (only blocking severities mus
 test('spec-side envelopes are exempt from the PR-side prefix set', () => {
     const res = validateEnvelope({
         artifact: 'spec',
+        reviewed_by: 'agent:spec-reviewer',
         findings: [{ severity: 'blocker', criterion: 'spec-schema:success_criteria' }]
     })
     assert.equal(res.ok, true)
@@ -92,7 +97,7 @@ test('abstained is reported separately from malformed', () => {
 
 test('every canonical prefix grounds a blocking finding', () => {
     for (const p of PR_SIDE_PREFIXES) {
-        const res = validateEnvelope({ ...clean, findings: [{ severity: 'blocker', criterion: `${p}example` }] })
+        const res = validateEnvelope({ ...clean, reviewed_by: 'agent:pr-reviewer', findings: [{ severity: 'blocker', criterion: `${p}example` }] })
         assert.equal(res.ok, true, `prefix ${p} should ground a blocker: ${res.errors.join('; ')}`)
     }
 })
@@ -107,4 +112,49 @@ test('CLI exit codes distinguish valid / abstained / malformed', () => {
     assert.equal(run('{not json'), EXIT_MALFORMED)
     assert.equal(run(''), EXIT_MALFORMED)
     assert.equal(run(JSON.stringify({ artifact: 'pr' })), EXIT_MALFORMED)
+})
+
+// ── Reviewer provenance (0.2.0) ───────────────────────────────────────────────
+// A self-graded review and an independent one are byte-identical in the artifact.
+// This is forensics rather than enforcement — the field is self-declared — but it
+// catches the honest mistake, which is the common one.
+
+test('an inline-graded envelope carrying a blocker is a contract violation', () => {
+    const res = validateEnvelope({ ...clean, reviewed_by: 'inline', findings: [{ severity: 'blocker', criterion: 'ac:AC-001' }] })
+    assert.equal(res.ok, false)
+    assert.match(res.errors.join('\n'), /reviewed_by/)
+})
+
+test('an ABSENT reviewed_by is read as inline, not waved through', () => {
+    // Every envelope written before this field existed was produced without dispatch
+    // discipline, so absent must be the conservative reading.
+    const res = validateEnvelope({ ...clean, findings: [{ severity: 'major', criterion: 'ac:AC-001' }] })
+    assert.equal(res.ok, false)
+    assert.match(res.errors.join('\n'), /absent, read as inline/)
+})
+
+test('an inline envelope with only nits and suggestions is allowed', () => {
+    // The bar is on a BLOCKING grading. A nit from the authoring context costs nothing.
+    const res = validateEnvelope({
+        ...clean,
+        reviewed_by: 'inline',
+        findings: [{ severity: 'nit', criterion: 'ac:AC-001' }, { severity: 'suggestion', criterion: 'ac:AC-002' }]
+    })
+    assert.equal(res.ok, true)
+})
+
+test('an agent-graded envelope carrying a blocker passes', () => {
+    const res = validateEnvelope({ ...clean, reviewed_by: 'agent:spec-reviewer', findings: [{ severity: 'blocker', criterion: 'ac:AC-001' }] })
+    assert.equal(res.ok, true)
+})
+
+test('a clean inline envelope with no findings passes', () => {
+    // Nothing was graded, so there is nothing to have graded independently.
+    assert.equal(validateEnvelope({ ...clean, reviewed_by: 'inline' }).ok, true)
+})
+
+test('the CLI exits 3 on an inline blocking grading', () => {
+    const env = JSON.stringify({ ...clean, reviewed_by: 'inline', findings: [{ severity: 'blocker', criterion: 'ac:AC-001' }] })
+    const res = spawnSync('node', [CLI, '-'], { input: env, encoding: 'utf8' })
+    assert.equal(res.status, EXIT_MALFORMED)
 })
