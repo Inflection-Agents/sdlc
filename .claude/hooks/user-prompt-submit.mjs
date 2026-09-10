@@ -67,13 +67,21 @@ function inject(text) {
 }
 
 /**
- * Resolve the project root. Prefer the harness-provided CLAUDE_PROJECT_DIR;
- * otherwise walk up from this hook file to the dir containing `.claude`.
+ * Resolve the project root.
+ *
+ * Order matters. `CLAUDE_PROJECT_DIR` is authoritative. `cwd` comes next because it
+ * is the repo under work. Walking up from this file is LAST and is only correct when
+ * the hook ships inside the repo: from a plugin cache it resolves to the plugin's own
+ * directory, and because this hook fails open the result is a silent no-op rather than
+ * an error.
  */
-function projectRoot() {
+function projectRoot(cwd) {
+    const looksLikeRepo = (d) => d && existsSync(join(d, '.claude'))
     if (process.env.CLAUDE_PROJECT_DIR) return process.env.CLAUDE_PROJECT_DIR
-    const dir = dirname(fileURLToPath(import.meta.url)) // .../.claude/hooks
-    return resolve(dir, '..', '..') // hooks -> .claude -> <root>
+    if (looksLikeRepo(cwd)) return cwd
+    const fromHook = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
+    if (looksLikeRepo(fromHook)) return fromHook
+    return cwd || fromHook
 }
 
 /** Parse the hook payload from stdin; null on malformed input. */
@@ -383,7 +391,7 @@ function main() {
 
     const prompt = payload.prompt ?? payload.user_prompt ?? payload.text ?? ''
     const sessionId = payload.session_id ?? payload.sessionId ?? null
-    const root = projectRoot()
+    const root = projectRoot(payload.cwd ?? payload.workingDir ?? null)
 
     // (3) Override capture runs first and unconditionally — it must record the
     // reason even on a prompt that would otherwise be silent.
