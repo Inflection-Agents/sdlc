@@ -117,3 +117,77 @@ test('ensureFence is exercised: archiving writes a .ignore beside what it moves'
         rmSync(repo, { recursive: true, force: true })
     }
 })
+
+// ── Clause 1 must read the skill tree WHERE IT ACTUALLY LIVES ─────────────────
+// This framework authors its skills at `skills/`; a repo that adopted the framework
+// receives them at `.ai/skills/` and has no top-level `skills/`. A scanner that only
+// read `skills/` collected nothing in every consuming repo, so clause 1 protected
+// nothing there — the false-archive direction the denylist exists to prevent.
+
+const withRepo = async (fn) => {
+    const { mkdtempSync, rmSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const { tmpdir } = await import('node:os')
+    const repo = mkdtempSync(join(tmpdir(), 'sdlc-cited-'))
+    try {
+        return await fn(repo)
+    } finally {
+        rmSync(repo, { recursive: true, force: true })
+    }
+}
+
+test('clause 1 collects a citation from .ai/skills (the consuming-repo layout)', async () => {
+    const { mkdirSync, writeFileSync, existsSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const { collectCitedIds } = await import('./archive-specs.mjs')
+
+    await withRepo((repo) => {
+        mkdirSync(join(repo, '.ai', 'skills', 'pr-reviewer'), { recursive: true })
+        writeFileSync(join(repo, '.ai', 'skills', 'pr-reviewer', 'SKILL.md'), 'Defined by SPEC-001.\n')
+        assert.equal(existsSync(join(repo, 'skills')), false, 'fixture has no top-level skills/')
+        assert.deepEqual([...collectCitedIds(repo)], ['SPEC-001'])
+    })
+})
+
+test('clause 1 still collects a citation from skills/ (this framework repo layout)', async () => {
+    const { mkdirSync, writeFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const { collectCitedIds } = await import('./archive-specs.mjs')
+
+    await withRepo((repo) => {
+        mkdirSync(join(repo, 'skills', 'pr-reviewer'), { recursive: true })
+        writeFileSync(join(repo, 'skills', 'pr-reviewer', 'SKILL.md'), 'Defined by SPEC-002.\n')
+        assert.deepEqual([...collectCitedIds(repo)], ['SPEC-002'])
+    })
+})
+
+test('a .ai/skills symlink to skills/ resolves to the same ids, without error', async () => {
+    const { mkdirSync, writeFileSync, symlinkSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const { collectCitedIds } = await import('./archive-specs.mjs')
+
+    await withRepo((repo) => {
+        mkdirSync(join(repo, 'skills'), { recursive: true })
+        mkdirSync(join(repo, '.ai'), { recursive: true })
+        writeFileSync(join(repo, 'skills', 'review-primitives.md'), 'See SPEC-004 and SPEC-004.\n')
+        symlinkSync('../skills', join(repo, '.ai', 'skills'))
+        // Double-walking a symlinked root is invisible in a Set, so this asserts the
+        // reachable property: the layout this repo actually has resolves cleanly.
+        assert.deepEqual([...collectCitedIds(repo)], ['SPEC-004'])
+    })
+})
+
+test('regression: a consuming repo does not archive a spec its .ai/skills still cites', async () => {
+    const { mkdirSync, writeFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const { collectCitedIds, archivable } = await import('./archive-specs.mjs')
+
+    await withRepo((repo) => {
+        mkdirSync(join(repo, '.ai', 'skills'), { recursive: true })
+        mkdirSync(join(repo, 'specs'), { recursive: true })
+        writeFileSync(join(repo, '.ai', 'skills', 'review-primitives.md'), 'Grades against SPEC-007.\n')
+        const cited = collectCitedIds(repo, new Set(['SPEC-007']))
+        const out = archivable([spec('SPEC-007', 'completed')], { citedIds: cited, adrBoundIds: new Set() })
+        assert.deepEqual(out, [], 'cited spec must stay in the live corpus')
+    })
+})

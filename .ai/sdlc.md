@@ -243,7 +243,7 @@ condition. **Do not hand-edit this section** — change the YAML and re-run
 - **Owner skill:** `spec-completion`
 - **Entry triggers:** "is this spec finished", "all tasks are merged", "verify the spec", "close out SPEC-NNN"
 - **Preconditions:** all tasks for the spec are done or nearly done and the integration PR is merged — the delivery run's independent integration review already graded the success criteria, so completion does not re-grade (when the PR was opened outside a delivery run, with no integration-reviewer verdict on the record, verify the success criteria here)
-- **Exit condition:** spec success criteria verified end-to-end and spec status set to a terminal state
+- **Exit condition:** spec success criteria verified end-to-end, spec status set to a terminal state, and the closed spec archived out of the default search path (archive-specs.mjs), unless a denylist clause holds it in the live corpus
 - **Next step:** `none` (terminal phase)
 
 ### spec-amendment

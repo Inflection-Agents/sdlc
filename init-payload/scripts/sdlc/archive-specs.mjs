@@ -93,7 +93,15 @@ export function archivable(specs, { citedIds, adrBoundIds }) {
 }
 
 /**
- * Every `SPEC-NNN` token appearing anywhere under `skills/**`.
+ * Every `SPEC-NNN` token appearing anywhere in this repo's skill tree.
+ *
+ * TWO SKILL ROOTS, because the tree lives somewhere different depending on the repo.
+ * This framework authors its skills at `skills/`; a repo that adopted the framework
+ * receives them at `.ai/skills/` and has no top-level `skills/` at all. Scanning only
+ * `skills/` therefore collected NOTHING in every consuming repo, so clause 1 protected
+ * nothing there and a spec those skills still cite as authority was archived unguarded
+ * — the false-archive direction this denylist exists to prevent. Deduped by realpath
+ * because `.ai/skills` is a symlink to `skills` here, so both roots resolve to one.
  *
  * Deliberately over-broad: it is a token scan, not a spec-of-record test, so it also
  * protects ids that appear only as illustrative examples in skill prose (SPEC-026,
@@ -103,7 +111,8 @@ export function archivable(specs, { citedIds, adrBoundIds }) {
  */
 export function collectCitedIds(root = ROOT, knownIds = null) {
     const ids = new Set()
-    const skills = join(root, 'skills')
+    const skillRoots = [join(root, 'skills'), join(root, '.ai', 'skills')]
+    const seenRoots = new Set()
     const walk = (dir) => {
         if (!existsSync(dir)) return
         for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -116,12 +125,23 @@ export function collectCitedIds(root = ROOT, knownIds = null) {
             }
         }
     }
-    walk(skills)
-    // The constraints registry sits outside skills on purpose (that tree ships in
-    // the plugin and is overwritten on update), so it is read from its own path.
-    for (const p of [join(skills, 'review-primitives.md'), join(root, '.ai', 'sdlc', 'review-constraints.yaml')]) {
-        if (existsSync(p)) for (const m of read(p).matchAll(/\b(SPEC-\d{3})\b/g)) ids.add(m[1])
+    for (const skills of skillRoots) {
+        if (!existsSync(skills)) continue
+        // realpath, not the literal path: `.ai/skills -> ../skills` in this repo.
+        let key
+        try {
+            key = realpathSync(skills)
+        } catch {
+            key = skills
+        }
+        if (seenRoots.has(key)) continue
+        seenRoots.add(key)
+        walk(skills)
     }
+    // The constraints registry sits outside the skill tree on purpose (that tree ships
+    // in the plugin and is overwritten on update), so it is read from its own path.
+    const registry = join(root, '.ai', 'sdlc', 'review-constraints.yaml')
+    if (existsSync(registry)) for (const m of read(registry).matchAll(/\b(SPEC-\d{3})\b/g)) ids.add(m[1])
     // Keep only ids that name a spec THIS repo actually has. The shipped skills cite
     // the framework's own SPEC-001/002/004/006 as provenance, so an unfiltered scan
     // pinned those four numbers as permanently unarchivable in every repo that copied
