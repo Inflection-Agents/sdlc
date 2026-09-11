@@ -211,9 +211,30 @@ After user approval:
    - If any criteria are deferred-to-production, create a follow-up task or Linear issue to track the verification
    - Set a reminder with the deadline from Step 5
 
-5. **Commit:** `SPEC-NNN: mark completed — N/M success criteria verified, K deferred`
+5. **Move the closed spec out of the default search path:**
 
-6. **Announce:** "SPEC-NNN is complete. [N verified, K deferred to production with deadlines.]"
+   ```bash
+   node scripts/sdlc/archive-specs.mjs --dry-run   # read the plan first
+   node scripts/sdlc/archive-specs.mjs             # git mv spec + its task tree
+   ```
+
+   A terminal status is what makes a spec archivable, so this belongs in the same commit
+   as the status flip: `archive-specs.mjs --check` runs enforcing in CI, and a spec left
+   behind turns that gate red on the next push.
+
+   Nothing is deleted. The spec and its `specs/tasks/SPEC-NNN/` tree move under
+   `specs/archive/`, stay tracked in git, and remain addressable by id
+   (`node scripts/sdlc/resolve.mjs SPEC-NNN`). The repo-root `.ignore` explains why
+   position beats a status label.
+
+   **A no-op here is a legitimate outcome.** Two denylist clauses hold a spec in the live
+   corpus on purpose: a live skill citing its id, or a non-archived ADR binding it. If the
+   script reports nothing to archive, say which clause held it rather than re-running or
+   editing around it.
+
+6. **Commit:** `SPEC-NNN: mark completed — N/M success criteria verified, K deferred`
+
+7. **Announce:** "SPEC-NNN is complete. [N verified, K deferred to production with deadlines.]"
 
 ---
 
@@ -265,7 +286,7 @@ This phase is **spec-completion** in the SDLC state machine (`specs/sdlc-state-m
 
 - all tasks for the spec are done or nearly done and the integration PR is merged — the delivery run's independent integration review already graded the success criteria, so completion does not re-grade (when the PR was opened outside a delivery run, with no integration-reviewer verdict on the record, verify the success criteria here)
 
-**Exit condition:** spec success criteria verified end-to-end and spec status set to a terminal state
+**Exit condition:** spec success criteria verified end-to-end, spec status set to a terminal state, and the closed spec archived out of the default search path (archive-specs.mjs), unless a denylist clause holds it in the live corpus
 
 **Next step:** `none` (terminal phase — no next phase)
 <!-- sdlc:handoff:end -->
