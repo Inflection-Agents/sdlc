@@ -1,14 +1,14 @@
-{"ts": "2026-08-14T08:59:58Z", "spec": "SPEC-099", "event": "goal_armed", "exit_criteria": 4, "task_count": 6, "integration_branch": "feat/spec-099"}
+{"ts": "2026-08-14T08:59:58Z", "spec": "SPEC-099", "event": "goal_armed", "exit_criteria": 4, "integration_branch": "feat/spec-099", "step_count": 6}
 {"ts": "2026-08-14T09:00:12Z", "spec": "SPEC-099", "event": "plan_gate", "outcome": "approved", "source": "specs/tasks/SPEC-099/_index.yaml#plan_review"}
-{"ts": "2026-08-14T09:01:03Z", "task": "TASK-201", "event": "task_started", "mode": "inline"}
-{"ts": "2026-08-14T09:24:41Z", "task": "TASK-201", "event": "verification", "outcome": "pass", "commands": ["pnpm --filter @repo/auth test", "pnpm --filter @repo/auth build"], "duration_ms": 96412}
-{"ts": "2026-08-14T09:31:07Z", "task": "TASK-201", "event": "self_review", "outcome": "fixed", "findings": ["scope: removed an unrelated logging tweak", "dead code: deleted a stubbed helper"]}
-{"ts": "2026-08-14T09:38:55Z", "task": "TASK-201", "event": "task_merged", "pr": 412, "base": "feat/spec-099", "branch_deleted": true}
-{"ts": "2026-08-14T09:39:02Z", "task": "TASK-202", "event": "task_started", "mode": "inline"}
-{"ts": "2026-08-14T10:14:20Z", "task": "TASK-202", "event": "task_merged", "pr": 413, "base": "feat/spec-099", "branch_deleted": true}
-{"ts": "2026-08-14T10:15:00Z", "task": "TASK-203", "event": "task_started", "mode": "subagent", "isolation": "worktree", "reason": "non-overlapping touches with TASK-204"}
-{"ts": "2026-08-14T10:52:31Z", "task": "TASK-203", "event": "task_merged", "pr": 414, "base": "feat/spec-099", "branch_deleted": true, "worktree_pruned": true}
-{"ts": "2026-08-14T11:40:18Z", "task": "TASK-206", "event": "task_deferred", "reason": "routing: human — owner must approve the pricing copy", "surfaced": true}
+{"ts": "2026-08-14T09:01:03Z", "step": "S1", "event": "step_started", "mode": "inline"}
+{"ts": "2026-08-14T09:24:41Z", "step": "S1", "event": "verification", "outcome": "pass", "commands": ["pnpm --filter @repo/auth test", "pnpm --filter @repo/auth build"], "duration_ms": 96412}
+{"ts": "2026-08-14T09:31:07Z", "step": "S1", "event": "self_review", "outcome": "fixed", "findings": ["scope: removed an unrelated logging tweak", "dead code: deleted a stubbed helper"]}
+{"ts": "2026-08-14T09:38:55Z", "step": "S1", "event": "step_merged", "pr": 412, "base": "feat/spec-099", "branch_deleted": true}
+{"ts": "2026-08-14T09:39:02Z", "step": "S2", "event": "step_started", "mode": "inline"}
+{"ts": "2026-08-14T10:14:20Z", "step": "S2", "event": "step_merged", "pr": 413, "base": "feat/spec-099", "branch_deleted": true}
+{"ts": "2026-08-14T10:15:00Z", "step": "S3", "event": "step_started", "mode": "subagent", "isolation": "worktree", "reason": "disjoint Changes: and After: closure with S4"}
+{"ts": "2026-08-14T10:52:31Z", "step": "S3", "event": "step_merged", "pr": 414, "base": "feat/spec-099", "branch_deleted": true, "worktree_pruned": true}
+{"ts": "2026-08-14T11:40:18Z", "step": "S4", "event": "step_deferred", "reason": "deferred: D1 decided, owner accepted shipping without the pricing copy", "surfaced": true}
 {"ts": "2026-08-14T12:02:44Z", "spec": "SPEC-099", "event": "validation", "kind": "build", "outcome": "pass", "commands": ["pnpm -r build"]}
 {"ts": "2026-08-14T12:31:09Z", "spec": "SPEC-099", "event": "validation", "kind": "browser", "outcome": "pass", "artifacts": ["artifacts/spec-099/dashboard.png", "artifacts/spec-099/settings.png"], "note": "computed-style match at 1440x900"}
 {"ts": "2026-08-14T12:44:55Z", "spec": "SPEC-099", "event": "integration_pr_opened", "pr": 415, "base": "main", "head": "feat/spec-099"}

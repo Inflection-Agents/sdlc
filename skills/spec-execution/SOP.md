@@ -2,9 +2,9 @@
 
 The detailed procedures behind the `spec-execution` skill. The skill is the short version and the
 authority on _policy_; this file is the authority on _how_. Read it once at the start of a run; do
-not re-read it per task.
+not re-read it per step.
 
-**The shape of a run, in one line:** cut an integration branch → burn the tasks down one at a time
+**The shape of a run, in one line:** cut an integration branch → burn the guide's steps down one at a time
 behind a visible task list, each landing on that branch before the next starts → validate end-to-end
 once → open one integration PR and review it hard → leave it open for the human.
 
@@ -15,7 +15,7 @@ once → open one integration PR and review it hard → leave it open for the hu
 
 ## 1. The integration branch
 
-Every spec gets exactly one, cut from `main` before the first task:
+Every spec gets exactly one, cut from `main` before the first step:
 
 ```bash
 git fetch origin && git checkout main && git pull --ff-only
@@ -23,117 +23,120 @@ git checkout -b feat/spec-NNN && git push -u origin feat/spec-NNN
 ```
 
 **Nothing from a spec reaches `main` except by merging this branch.** No direct commits to `main`,
-no task PR targeting `main`, no cherry-picks. If a spec needs an urgent fix on `main` that cannot
+no step PR targeting `main`, no cherry-picks. If a spec needs an urgent fix on `main` that cannot
 wait for the integration PR, that is a separate bug spec, not a shortcut through this branch.
 
 ---
 
-## 2. The task loop
+## 2. The step loop
 
-One task at a time. Serial is the default — see §5 before considering anything else. Flip the task
-list entry to `in_progress` before step 1 and to `completed` only after step 6.
+One guide step at a time, in guide order. Serial is the default — see §5 before considering anything
+else. Flip the task-list entry to `in_progress` before item 1 below and to `completed` only after
+item 6.
 
 ```bash
 # 1. Always branch off the CURRENT integration tip
 git fetch origin && git checkout feat/spec-NNN && git pull --ff-only
-git checkout -b claude/SPEC-NNN-TASK-NNN
+git checkout -b claude/SPEC-NNN-S<n>
 
-# 2. Implement. Read the task file's Requirements, Constraints, Verification.
+# 2. Implement. The spec is the brief; the step's Covers:, Changes: and Notes: bound it.
 
-# 3. Verify: the task's own Verification section, at minimum its unit tests (§3)
+# 3. Verify: the step's own Verify: commands (§3)
 
 # 4. Self-review (§4), fix what it finds
 
 # 5. Land it
-git push -u origin claude/SPEC-NNN-TASK-NNN
-gh pr create --base feat/spec-NNN --title "SPEC-NNN TASK-NNN: <title>" --body "<evidence>"
+git push -u origin claude/SPEC-NNN-S<n>
+gh pr create --base feat/spec-NNN --title "SPEC-NNN S<n>: <title>" --body "<evidence per AC in Covers:>"
 # wait for CI green, then:
 gh pr merge <n> --squash --delete-branch
 
-# 6. Flip status: done in specs/tasks/SPEC-NNN/_index.yaml — then COMMIT AND PUSH it to
-#    feat/spec-NNN immediately, before starting the next task.
+# 6. Flip the step's status: done in specs/tasks/SPEC-NNN/_index.yaml and append its
+#    ## S<n> entry to DECISIONS.md — then COMMIT AND PUSH both to feat/spec-NNN
+#    immediately, before starting the next step.
 #
 #    The retired engine wrote the merge and the status flip in one commit, so a crash
 #    always left a consistent index. Two steps cannot be atomic — so close the window
-#    rather than widening it. A run interrupted between them leaves a merged task still
+#    rather than widening it. A run interrupted between them leaves a merged step still
 #    reading `pending`, and a resumed run will try to do it again.
 ```
 
-**Do not start task N+1 until task N is merged into `feat/spec-NNN`.** Every later task branches off
-that tip, so an unmerged task means the next one is built on a base that is missing it — a consumer
-cannot see its producer's interface, two tasks edit the same file from stale bases, and the
+**Do not start step N+1 until step N is merged into `feat/spec-NNN`.** Every later step branches off
+that tip, so an unmerged step means the next one is built on a base that is missing it — a consumer
+cannot see its producer's interface, two steps edit the same file from stale bases, and the
 integration diff stops matching the sum of what was built.
 
 ### Nothing lingers
 
-After a task is done there is **no** open PR for it, **no** remote branch, **no** local branch, and
+After a step is done there is **no** open PR for it, **no** remote branch, **no** local branch, and
 **no** worktree. `--delete-branch` handles the remote; clean the rest:
 
 ```bash
-git checkout feat/spec-NNN && git branch -D claude/SPEC-NNN-TASK-NNN
+git checkout feat/spec-NNN && git branch -D claude/SPEC-NNN-S<n>
 git worktree list && git worktree prune          # if a worktree was used at all
 ```
 
-A stale branch or worktree is how a later task gets cut from the wrong base.
+A stale branch or worktree is how a later step gets cut from the wrong base.
 
-### When a task cannot land
+### When a step cannot land
 
-Do not leave it open and move on. Either fix the root cause, or mark the task `blocked` in
-`_index.yaml` with the reason, leave its task-list entry open with that reason, and escalate. A task
+Do not leave it open and move on. Either fix the root cause, or mark the step `blocked` in
+`_index.yaml` with the reason, leave its task-list entry open with that reason, and escalate. A step
 PR that sits open is the single most expensive failure in this loop.
 
 ---
 
-## 3. Per-task verification: unit tests or the equivalent
+## 3. Per-step verification: the step's `Verify:` commands
 
-A task needs its own tests green and nothing more. No reviewer subagent, no envelope, no fix-loop
+A step needs its own `Verify:` commands green and nothing more. The table below is what a good
+`Verify:` line holds for each kind of workspace. No reviewer subagent, no envelope, no fix-loop
 ceremony — those live at the integration gate now.
 
 | Workspace kind          | The equivalent of "unit tests"                                                          |
 | ----------------------- | --------------------------------------------------------------------------------------- |
 | app / service           | the workspace's own test command + its build                                            |
 | shared library          | its own tests **and** the tests of every consumer it changes                            |
-| data / transform layer  | build + test the models the task touched; re-run the generator check if a generator ran |
+| data / transform layer  | build + test the models the step touched; re-run the generator check if a generator ran |
 | infrastructure          | the stack's unit tests + a plan/synth that must produce no unintended diff              |
-| database migrations     | apply to a local/dev database and run the task's own probes                             |
+| database migrations     | apply to a local/dev database and run the step's own probes                             |
 | docs / specs only       | the relevant `scripts/sdlc/*.mjs` validator                                             |
 
-Whole-pipeline runs, the browser, and performance measurement are **not** per-task work — §6.
+Whole-pipeline runs, the browser, and performance measurement are **not** per-step work — §6.
 
-If a task genuinely has no meaningful test (a pure doc edit, a config line), say so in the PR body
+If a step genuinely has no meaningful test (a pure doc edit, a config line), say so in the PR body
 rather than inventing one.
 
 ---
 
-## 4. Self-review before opening the task PR
+## 4. Self-review before opening the step PR
 
-The implementing agent reviews its own work at task level. This is a deliberate trade: independence
+The implementing agent reviews its own work at step level. This is a deliberate trade: independence
 is expensive, and it is bought back in full at the integration gate (§7), where every verdict comes
 from a separately dispatched reviewer.
 
 Read your own diff and check:
 
-- **The task's acceptance criteria** — each one actually satisfied, with the evidence you will paste
-  into the PR body. Populate `evidence:` in the task file.
-- **The task's declared `touches` and Constraints** — every "do not touch" respected. Run the
-  changed-path audit (`git diff --name-only`) against the declared set.
-- **Scope** — nothing in the diff the task did not ask for. Unrelated drive-by fixes belong in their
-  own task.
+- **The step's `Covers:` ACs** — each one actually satisfied, with its evidence written into the PR
+  body under the AC id. That PR body is where `task:evidence-missing` looks.
+- **The step's `Changes:`** — run the changed-path audit (`git diff --name-only`) against it. A path
+  outside it is either a guide change (log it, §4 of the skill) or scope creep (take it out).
+- **Scope** — nothing in the diff the step did not ask for. Unrelated drive-by fixes belong in their
+  own step.
 - **`sdlc-code-standards`** — no dead code, no commented-out blocks, no skipped tests, no deprecated
   stub left "for later". Delete outright. Check the Behavior Preservation gate: no silent
-  scope/behavior expansion beyond what the task asked for.
-- **Generated artifacts** — if a generator ran, the diff matches the task's allowlist and nothing in
+  scope/behavior expansion beyond what the step asked for.
+- **Generated artifacts** — if a generator ran, the diff matches the step's `Changes:` and nothing in
   its denylist moved.
 - **The obvious failure mode** — for the thing you just changed, what breaks it? Check that case.
 
-Fix what this finds before opening the PR. If it surfaces something the task or the spec got wrong,
+Fix what this finds before opening the PR. If it surfaces something the guide or the spec got wrong,
 escalate rather than silently widening scope.
 
 ---
 
 ## 5. Parallel execution — the exception
 
-**Serial is the norm.** Parallelism is for a genuinely large spec where several tasks have no
+**Serial is the norm.** Parallelism is for a genuinely large spec where several steps have no
 overlap in files, no dependency edge, and no shared generated artifact. It is not a default and not
 a speed trick — it costs a fresh context per agent, which is the expense this process exists to
 avoid.
@@ -145,30 +148,30 @@ If you do fan out:
   in-flight edits.
 - Name the base explicitly in the prompt: _"branch from the current tip of `feat/spec-NNN` (fetch
   first); open your PR against `feat/spec-NNN`."_
-- The merge discipline is unchanged: **each task merges into `feat/spec-NNN` as it is accepted**, and
-  any task that depends on it waits for that merge. Parallel does not mean batch-merge at the end.
-- The task list still shows every dispatched task as `in_progress` and each one is closed as it
+- The merge discipline is unchanged: **each step merges into `feat/spec-NNN` as it is accepted**, and
+  any step that depends on it waits for that merge. Parallel does not mean batch-merge at the end.
+- The task list still shows every dispatched step as `in_progress` and each one is closed as it
   merges — fan-out never makes the run less visible.
 - Clean up every worktree when the group finishes.
 
-Two tasks qualify for concurrent worktree-isolated execution iff all four hold: (a) neither task
-appears in the other's `depends_on` transitive closure; (b) both tasks declare a non-empty
-`touches` — a task declaring none of `touches`/`routing`/`tier`/`risk` has genuinely unknown scope,
-so unknown scope is treated as not disjoint (stays serial), never as vacuously disjoint; (c) with
-both `touches` sets non-empty, they are disjoint under a bidirectional glob-overlap test — a
+Two steps qualify for concurrent worktree-isolated execution iff all four hold: (a) neither step
+appears in the other's `After:` transitive closure (a step with no `After:` needs every earlier step,
+so the guide author must write `After:` to make a pair eligible at all); (b) both steps declare a
+non-empty `Changes:` — an empty one is unknown scope, treated as not disjoint (stays serial), never as
+vacuously disjoint; (c) with both `Changes:` sets non-empty, they are disjoint under a bidirectional glob-overlap test — a
 narrowly declared concrete path on one side and a broad `**` glob on the other can still cover the
 same files, so test both directions, not just a literal string match; (d) if the spec is
-contract-managed (task PRs declare `produces`/`consumes`), neither task `produces` a contract the
+contract-managed (step PRs declare `produces`/`consumes`), neither step `produces` a contract the
 other `consumes`. Any pair failing any one of the four stays serial.
 
-Two tasks that touch the same file are not parallel candidates, whatever the dependency graph says.
+Two steps that change the same file are not parallel candidates, whatever `After:` says.
 
 ---
 
 ## 6. End-to-end validation — once, before the gate
 
-These run **once per spec**, after the last task has merged and before the integration PR is
-reviewed. Not per task. Attach the output as evidence; never claim one ran without it.
+These run **once per spec**, after the last step has merged and before the integration PR is
+reviewed. Not per step. Start from the guide's `## End-to-end validation` list. Attach the output as evidence; never claim one ran without it.
 
 - **Repo-wide build and full test suite** — the whole workspace graph, not just the touched ones.
 - **The real pipeline, for any spec that touches a data/transform layer** — a full (non-incremental)
@@ -185,14 +188,14 @@ If a validation is genuinely not runnable, name it and say why in the PR body. D
 
 ### 6.1 Simplify pass — once, before the gate
 
-After the last task merges and §6's end-to-end validation passes, and before the panel's first
+After the last step merges and §6's end-to-end validation passes, and before the panel's first
 dispatch (§7.2) — not on every §7.3 fix-loop iteration — dispatch a code-simplification agent
 (`isolation: "worktree"`, mandatory — a shared working tree risks the agent's `git checkout` /
 `stash` / `reset` discarding in-flight edits) against a fresh worktree checked out from the
 integration branch's current tip.
 
 If the pass makes any change, fast-forward (or cherry-pick) that single commit from the worktree
-onto the integration branch directly, then remove the worktree. No task branch, no task PR, no
+onto the integration branch directly, then remove the worktree. No step branch, no step PR, no
 self-review-then-PR cycle.
 
 When it does, re-run whichever §6 checks that change could have affected — at minimum the
@@ -215,12 +218,15 @@ This is where all the rigor now lives.
 
 - Every spec **success criterion**, mapped to how it was verified.
 - The §6 evidence: build output, pipeline counts, screenshots, perf numbers.
-- The task list with each task's PR number.
+- The steps with each step's PR number.
+- A `## Guide changes` section listing every `## EXECUTIVE DECISION — guide change:` entry in
+  `DECISIONS.md`, one for one, or "none".
 
 ### 7.2 Dispatch the adversarial panel
 
 Collect every lens that fires across the whole diff — this is the one place
-`review-constraints.yaml` is evaluated in full — and resolve each to its reviewer with
+`review-constraints.yaml` is evaluated in full — and read the highest `Risk:` in the guide as the
+panel's intensity hint (the registry can only raise it). Resolve each lens to its reviewer with
 `node scripts/sdlc/reviewer-routing.mjs <lens>` (ADR-001: routing is registry data).
 
 **Fold by resolved agent, per [`../review-primitives.md`](../review-primitives.md) > Panel fold
@@ -279,15 +285,15 @@ Set the goal file to `status: escalated`, put the reason in `reason`, surface it
 - Security, data-loss or payment risk — hard stop.
 - A decision that is the owner's: priority, scope, a tradeoff the spec does not settle.
 - Amendment cap: `spec.version − 1 ≥ 3`.
-- A task that cannot land and cannot be fixed at the root.
+- A step that cannot land and cannot be fixed at the root.
 
-A crisp question early beats a task burned on a guess.
+A crisp question early beats a step burned on a guess.
 
 ---
 
 ## 9. Optional: run telemetry
 
-The delivery run is otherwise uninstrumented. Where it is cheap, append per-task events to
-`specs/tasks/SPEC-NNN/_execution.log.jsonl` (JSONL, append-only, restart-safe): `task_started`,
-`task_merged`, `validation`, `panel_round`, `escalated`. See `examples/example-execution.log.jsonl`.
+The delivery run is otherwise uninstrumented. Where it is cheap, append per-step events to
+`specs/tasks/SPEC-NNN/_execution.log.jsonl` (JSONL, append-only, restart-safe): `step_started`,
+`step_merged`, `validation`, `panel_round`, `escalated`. See `examples/example-execution.log.jsonl`.
 This is a recommendation, not a gate — no step in this SOP blocks on it.
