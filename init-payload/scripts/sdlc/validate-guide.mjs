@@ -36,8 +36,10 @@ import { fileURLToPath } from 'node:url'
 // The owner's limit for the prompt that arms a delivery goal (SPEC-008 Design > The kickoff prompt).
 export const KICKOFF_MAX_CHARS = 3800
 
-const AC_LINE = /^\s*- \[[ xX]\] (AC-\d{3})(?::| —)/
-const CHECKBOX = /^\s*- \[[ xX]\]/
+const AC_LINE = /^\s*[-*+] \[[ xX]\] (AC-\d{3})(?::| —)/
+const CHECKBOX = /^\s*[-*+] \[[ xX]\]/
+const AC_ID = /\bAC-\d{3}\b/g
+const FENCE = /^\s*(```|~~~)/
 const STEP_HEADING = /^### (S\d+):/
 const DECISION_LINE = /^- (D\d+):/
 const FIELD = /^- (Covers|Changes|Verify|Workspace|Risk|After|Run by|Notes):\s*(.*)$/
@@ -66,10 +68,29 @@ export function parseFrontmatter(text) {
     return out
 }
 
-/** The lines of a `## <name>` section, bounded by the next line-anchored `## ` heading. */
+/** Lines outside fenced code blocks, so a quoted example can neither open nor fill a section. */
+function unfenced(text) {
+    let inFence = false
+    return String(text)
+        .split('\n')
+        .filter((line) => {
+            if (FENCE.test(line)) {
+                inFence = !inFence
+                return false
+            }
+            return !inFence
+        })
+}
+
+/** How many line-anchored `## <name>` headings the text has outside fenced code. */
+export function countSections(text, name) {
+    return unfenced(text).filter((l) => l.trimEnd() === `## ${name}`).length
+}
+
+/** The lines of the first `## <name>` section, bounded by the next `## ` heading, fenced code excluded. */
 export function sectionLines(text, name) {
-    const lines = String(text).split('\n')
-    const start = lines.findIndex((l) => l.trim() === `## ${name}`)
+    const lines = unfenced(text)
+    const start = lines.findIndex((l) => l.trimEnd() === `## ${name}`)
     if (start === -1) return null
     const out = []
     for (let i = start + 1; i < lines.length; i += 1) {
@@ -91,7 +112,7 @@ export function parseSpecAcs(specText) {
         if (m) ids.add(m[1])
         else idless.push(line.trim())
     }
-    return { ids, idless, hasSection: section !== null }
+    return { ids, idless, hasSection: section !== null, sections: countSections(specText, 'Acceptance criteria') }
 }
 
 /** Steps (in order, with their fields) and owner-decision ids from a GUIDE.md. */
@@ -179,7 +200,7 @@ export function validateGuide(guidePath) {
         return [`spec: expected exactly one specs/${specId}-*.md, found ${matches.length}`]
     }
     const specText = readFileSync(join(specsDir, matches[0]), 'utf8')
-    const { ids: acIds, idless, hasSection } = parseSpecAcs(specText)
+    const { ids: acIds, idless, hasSection, sections } = parseSpecAcs(specText)
 
     const indexPath = join(dir, '_index.yaml')
     const index = existsSync(indexPath) ? parseIndex(readFileSync(indexPath, 'utf8')) : null
@@ -190,7 +211,7 @@ export function validateGuide(guidePath) {
     const covered = new Set()
     const coversIds = new Set()
     for (const step of guide.steps) {
-        const ids = (step.fields.Covers ?? '').match(/AC-\d{3}/g) ?? []
+        const ids = (step.fields.Covers ?? '').match(AC_ID) ?? []
         for (const id of ids) coversIds.add(id)
         if (statusOf.get(step.id) !== 'cancelled') for (const id of ids) covered.add(id)
     }
@@ -235,6 +256,7 @@ export function validateGuide(guidePath) {
 
     // Rule 6: an absent or id-less section would make rule 1 pass vacuously, so it fails closed.
     if (!hasSection) problems.push('rule 6: the spec has no line-anchored `## Acceptance criteria` section')
+    else if (sections > 1) problems.push(`rule 6: the spec has ${sections} \`## Acceptance criteria\` sections; it must have one`)
     else if (acIds.size === 0) problems.push('rule 6: the spec\'s `## Acceptance criteria` section has no `- [ ] AC-NNN:` line')
     for (const line of idless) problems.push(`rule 6: acceptance criterion has no AC-NNN id: "${line.slice(0, 60)}"`)
 

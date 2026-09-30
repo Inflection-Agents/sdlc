@@ -168,6 +168,10 @@ against the change:
 
 A spec that is `active` but has no guide yet has nothing to cascade into. Skip Steps 4 to 6, and hand
 off to `spec-authoring` with "write the guide for SPEC-NNN" after the owner approves the amendment.
+Write the phase block as `current: spec-amendment`, `next_action: spec-authoring`,
+`next_trigger: 'write the guide for SPEC-NNN'`. The Stop hook may still show the state machine's
+trigger for `spec-amendment` ("execute SPEC-NNN"); if that is followed, `spec-execution` §1 refuses
+the guide-less spec and routes it back to the guide step.
 
 Present the impact:
 

@@ -139,10 +139,12 @@ does not read it.
 1. an AC id in the spec is covered by no step whose status is not `cancelled`;
 2. a `Covers:` id does not exist in the spec;
 3. a step lacks `Changes:` or `Verify:`;
-4. the step ids, or the decision ids, in `GUIDE.md` and `_index.yaml` differ;
+4. the step ids, or the decision ids, in `GUIDE.md` and `_index.yaml` differ, or an id repeats in
+   either file;
 5. `spec_version` differs from the spec's `version`;
-6. a checkbox under `## Acceptance criteria` carries no `AC-NNN` id (`AC-NNN:` and the legacy
-   `AC-NNN —` both count);
+6. the spec has no `## Acceptance criteria` section, has more than one, or the section holds no AC
+   id; or a checkbox under it (`-`, `*` or `+`) carries no `AC-NNN` id (`AC-NNN:` and the legacy
+   `AC-NNN —` both count). Headings and checkboxes inside fenced code are ignored;
 7. an `After:` id names no step, or a step that is not earlier;
 8. `.ai/project.md` defines workspaces and a step has no `Workspace:`;
 9. `plan_review.approved` is `true` and `KICKOFF.md` is missing or over 3,800 characters.

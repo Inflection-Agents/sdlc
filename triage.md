@@ -70,7 +70,7 @@ Signal (Linear issue with bug label)
   │
   7. Prioritize → Human PM/lead makes the call
   │
-  8. Fix       → Agent writes the fix's delivery guide, hands off for implementation
+  8. Fix       → Agent opens a fix spec with its guide, hands off for implementation
 ```
 
 ## Stage details
@@ -202,20 +202,23 @@ The agent provides:
 
 Human makes the call. Agent drafts the rationale on the Linear issue for audit.
 
-### 8. Fix — agent writes the delivery guide
+### 8. Fix — agent opens a fix spec
 
-Once prioritized, the bug needs to become executable work:
+Once prioritized, the bug needs to become executable work. Delivery runs on a spec and its guide
+(`spec-execution` needs an `active` spec whose `GUIDE.md` passes `validate-guide.mjs`), and a bug
+spec under `specs/bugs/` is neither, so the fix is delivered as its own small spec:
 
-1. Agent writes a short delivery guide in `specs/tasks/BUG-NNN/` (schema: `skills/guide-schema.md`):
-   ```
-   specs/tasks/BUG-NNN/
-   ├── GUIDE.md        (steps: write the failing test, implement the fix, add the regression guard)
-   ├── _index.yaml
-   └── KICKOFF.md      (the prompt that starts the fix, at most 3,800 characters)
-   ```
-2. Work only a human can run becomes a `Run by:` step; questions the agent can't close become owner decisions
-3. Agent links the guide from the Linear bug issue
+1. Agent runs `spec-authoring` for a fix spec (`specs/SPEC-NNN-fix-<slug>.md`, `tags: [bug]`) that
+   links the bug spec (`BUG-NNN`), whose acceptance criteria are the failing test passing and the
+   regression guard in place
+2. Its guide (`specs/tasks/SPEC-NNN/GUIDE.md`) has the usual steps: write the failing test,
+   implement the fix, add the regression guard; work only a human can run becomes a `Run by:` step
+3. The owner approves spec and guide together and gets the kickoff prompt; the agent links both
+   from the Linear bug issue
 4. Fix proceeds through the normal delivery flow (`spec-execution`)
+
+A lighter path that delivers straight from the bug spec is not defined yet
+([GAP-001](specs/gaps/GAP-001-bug-fix-delivery-path.md)).
 
 ## The NOC agent
 

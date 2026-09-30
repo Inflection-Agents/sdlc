@@ -161,6 +161,24 @@ test('rule 6: an Acceptance criteria section with no checkbox AC ids fails close
     assert.ok(problems.some((p) => p.startsWith('rule 6:') && p.includes('no `- [ ] AC-NNN:` line')), problems.join('\n'))
 })
 
+test('rule 6: a heading quoted in a fence is ignored, and a second Acceptance criteria section fails', () => {
+    const fenced = SPEC.replace('## Design\n', '## Design\n\n```markdown\n## Acceptance criteria\n\n- [ ] AC-001: quoted example\n```\n')
+    assert.deepEqual(check({ 'specs/SPEC-900-example.md': fenced }), [], 'a fenced example must not open the section')
+    const twice = SPEC + '\n## Acceptance criteria\n\n- [ ] AC-003: Given G, when H, then I.\n'
+    const problems = check({ 'specs/SPEC-900-example.md': twice })
+    assert.ok(problems.some((p) => p.startsWith('rule 6:') && p.includes('2 `## Acceptance criteria` sections')), problems.join('\n'))
+})
+
+test('rule 1 and 6: star and plus checkboxes are AC lines, and Covers ids match whole ids only', () => {
+    const star = SPEC.replace('- [ ] AC-002: Given A', '* [ ] AC-002: Given A')
+    const uncovered = check({ 'specs/SPEC-900-example.md': star, 'specs/tasks/SPEC-900/GUIDE.md': GUIDE.replace('- Covers: AC-002', '- Covers: AC-001') })
+    assert.ok(uncovered.some((p) => p.startsWith('rule 1:') && p.includes('AC-002')), uncovered.join('\n'))
+    const idless = check({ 'specs/SPEC-900-example.md': SPEC.replace('- [ ] AC-002: Given A', '+ [ ] Given A') })
+    assert.ok(idless.some((p) => p.startsWith('rule 6:') && p.includes('Given A')), idless.join('\n'))
+    const prefix = check({ 'specs/tasks/SPEC-900/GUIDE.md': GUIDE.replace('- Covers: AC-001', '- Covers: AC-0012') })
+    assert.ok(prefix.some((p) => p.startsWith('rule 1:') && p.includes('AC-001')), prefix.join('\n'))
+})
+
 test('rule 4: a step or decision id repeated in GUIDE.md or _index.yaml fails and names it', () => {
     const dupGuide = check({ 'specs/tasks/SPEC-900/GUIDE.md': GUIDE.replace('### S2: Second', '### S1: Second') })
     assert.ok(dupGuide.some((p) => p.startsWith('rule 4:') && p.includes('S1 appears more than once in GUIDE.md')), dupGuide.join('\n'))

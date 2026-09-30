@@ -174,6 +174,33 @@ criterion maps to a guide step". The change is stricter only; it narrows no succ
 
 ---
 
+## SPEC DEVIATION — validate-guide.mjs ignores fenced code and reads every checkbox bullet
+
+**Date:** 2026-09-30
+**Spec says:** Design > `validate-guide.mjs` reads AC ids from `- [ ]` / `- [x]` lines under
+`## Acceptance criteria`.
+**Built instead:** headings and checkboxes inside fenced code are ignored; `*` and `+` checkbox
+bullets count as AC lines; a second `## Acceptance criteria` section fails rule 6; `Covers:` matches
+whole AC ids only (`AC-0012` no longer covers `AC-001`). Two tests cover them.
+**Why the spec was wrong:** gate round 2 (PR #57, adversarial lens) showed three inputs that still
+left an AC uncovered with exit 0. Stricter only; no success criterion narrows.
+
+---
+
+## EXECUTIVE DECISION — a bug fix is delivered as a fix spec (GAP-001)
+
+**Date:** 2026-09-30
+**Question:** the S8 rewrite of `triage.md` stage 8 told the agent to write `specs/tasks/BUG-NNN/GUIDE.md`,
+which `validate-guide.mjs` and `spec-execution` cannot accept (gate round 2, integration major). The
+spec never names a bug delivery path.
+**Decided:** `triage.md` stage 8 now delivers a bug fix as its own small fix spec with a normal guide;
+the missing direct path is recorded as `specs/gaps/GAP-001-bug-fix-delivery-path.md` (resolution:
+workaround) for the owner. The scope of SPEC-008 is not widened.
+**Why:** it is the only path every existing gate accepts, and a `spec:gap` is recorded, not absorbed.
+**Reversal path:** revert the stage-8 text; resolve GAP-001 with a follow-up spec.
+
+---
+
 ## Cross-step values
 
 Values a later step must match rather than re-derive.
