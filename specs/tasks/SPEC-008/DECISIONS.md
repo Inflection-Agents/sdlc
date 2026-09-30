@@ -34,9 +34,22 @@ decision changes.
 
 ---
 
+## S1 — Guide tooling
+
+**Merged:** PR #48
+**What changed:** `validate-guide.mjs` (nine rules, 16 tests), `skills/guide-schema.md`,
+`templates/guide.md`, and a CI step in both workflow copies. Run on this spec's own guide:
+`node scripts/sdlc/validate-guide.mjs specs/tasks/SPEC-008/GUIDE.md` printed `OK`, with
+`plan_review.approved: true` and `KICKOFF.md` at 3,060 characters, so rule 9 was exercised.
+**Anything a later step must match:** the kickoff limit is the exported `KICKOFF_MAX_CHARS` (3800);
+`guide-schema` is already under `exempt:`.
+
+---
+
 ## Cross-step values
 
 Values a later step must match rather than re-derive.
 
 | Value | Set by | Must match in |
 | --- | --- | --- |
+| `KICKOFF_MAX_CHARS` = 3800 (Unicode characters) | S1 | S4 `templates/kickoff.md`, skill text |
