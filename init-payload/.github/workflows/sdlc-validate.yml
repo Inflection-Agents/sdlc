@@ -63,7 +63,7 @@ jobs:
             - name: Phase-memory blocks are valid
               run: node scripts/sdlc/validate-phase-memory.mjs specs/tasks/*/_index.yaml specs/archive/tasks/*/_index.yaml
 
-            - name: Every decomposed spec carries a plan-review block
+            - name: Every spec with a plan carries a plan-review block
               run: node scripts/sdlc/plan-gate.mjs --presence-only specs/tasks/*/_index.yaml specs/archive/tasks/*/_index.yaml
 
             - name: Archive boundary is correct (no expired spec in the live corpus)
