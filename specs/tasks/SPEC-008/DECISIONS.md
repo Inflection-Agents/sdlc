@@ -120,6 +120,13 @@ decision changes.
 
 ---
 
+## S7 — Deletions and plan-gate wording
+
+**Merged:** PR #54
+**What changed:** skills/task-schema.md, both copies of templates/task.md and the unused evidence fixture are deleted; task-schema leaves exempt:; plan-gate.mjs and the CI plan-review step are reworded.
+
+---
+
 ## Cross-step values. GAP artifacts cite S<n>.
 **Anything a later step must match:** the guide-change heading is exactly `## EXECUTIVE DECISION — guide change: <summary>`; S3's PR template and AC-014 match against it.
 
