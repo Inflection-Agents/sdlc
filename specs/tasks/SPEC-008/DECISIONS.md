@@ -70,6 +70,14 @@ decision changes; `skills/spec-schema.md` was already in S2.
 
 ---
 
+## S4 — Authoring and amendment skills
+
+**Merged:** PR #51
+**What changed:** spec-authoring Step 10b writes the guide, index, phase block and KICKOFF.md (at most 3,800 characters) for one owner sign-off, and runs alone for an active spec with no guide. spec-amendment cascades into the guide and rewrites KICKOFF.md at re-approval. templates/kickoff.md added in both copies.
+**Anything a later step must match:** S6's state machine gives spec-authoring the entry trigger 'write the guide for' and its exit condition names the guide, plan_review and KICKOFF.md.
+
+---
+
 ## Cross-step values. GAP artifacts cite S<n>.
 **Anything a later step must match:** the guide-change heading is exactly `## EXECUTIVE DECISION — guide change: <summary>`; S3's PR template and AC-014 match against it.
 
