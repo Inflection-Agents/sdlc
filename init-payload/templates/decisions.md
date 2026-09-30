@@ -1,6 +1,6 @@
 # SPEC-NNN — decision log
 
-One entry per task, appended after it merges. An `EXECUTIVE DECISION` or `SPEC DEVIATION`
+One entry per guide step, appended after it merges. An `EXECUTIVE DECISION` or `SPEC DEVIATION`
 heading goes in the moment it happens, not batched at the end.
 
 This log is what makes the narrow escalation bar safe. `spec-execution` escalates on four
@@ -10,16 +10,20 @@ in chronological order.
 
 ---
 
-## TASK-NNN — <title>
+## S<n> — <title>
 
 **Merged:** PR #N
 **What changed:** one or two sentences. What a reader needs to know, not a diff summary.
-**Anything a later task must match:** values, names or shapes another task cannot re-derive.
+**Anything a later step must match:** values, names or shapes another step cannot re-derive.
 Omit the line if there are none.
 
 ---
 
 ## EXECUTIVE DECISION — <one-line summary>
+
+<!-- A mid-run change to the guide uses the fixed heading
+     "## EXECUTIVE DECISION — guide change: <summary>" and is listed in the integration PR's
+     "## Guide changes" section. -->
 
 **Date:** YYYY-MM-DD
 **Question:** what was genuinely open. If it was not open, this is not an executive decision.
@@ -42,9 +46,9 @@ version bump, not into this log.
 
 ---
 
-## Cross-task values
+## Cross-step values
 
-Values a later task must match rather than re-derive. Fill as they are set, not at the end.
+Values a later step must match rather than re-derive. Fill as they are set, not at the end.
 
 | Value | Set by | Must match in |
 | --- | --- | --- |

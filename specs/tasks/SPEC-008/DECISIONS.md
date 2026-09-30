@@ -46,6 +46,19 @@ decision changes.
 
 ---
 
+## EXECUTIVE DECISION — guide change: S2 lets a gap cite a guide step
+
+**Date:** 2026-09-30
+**Question:** the GAP schema in `skills/spec-schema.md` and `templates/gap.md` accept only a task id
+in `discovered_in` and `resolved_by`, and a spec delivered from a guide has no task ids.
+**Decided:** S2 changes both to a guide step `S<n>` and keeps a pre-ADR-007 task id valid on
+existing gaps. S2's `Changes:` gains both copies of `templates/gap.md`. No AC, scope item or design
+decision changes; `skills/spec-schema.md` was already in S2.
+**Why:** without it the first gap raised in a guide run has no valid value to record.
+**Reversal path:** revert the two template lines and the three schema rows.
+
+---
+
 ## Cross-step values
 
 Values a later step must match rather than re-derive.

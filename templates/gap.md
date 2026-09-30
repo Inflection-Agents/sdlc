@@ -5,7 +5,7 @@ title: "<one-line gap description>"
 status: open | resolved | wontfix
 owner: <github-handle>
 created: YYYY-MM-DD
-discovered_in: TASK-NNN | PR-NNN | review:<spec-reviewer-run-id>
+discovered_in: S<n> | PR-NNN | review:<spec-reviewer-run-id>
 resolution: clarification | workaround | deferred  # default: clarification for open gaps
 # Fields below are null while the gap is open; populate on resolution
 resolved_date: null
@@ -23,4 +23,4 @@ back_ported_to: null
 
 ## Impact
 
-(What downstream tasks or specs are affected, if any.)
+(What later steps or specs are affected, if any.)
