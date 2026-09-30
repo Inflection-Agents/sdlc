@@ -62,7 +62,12 @@ decision changes; `skills/spec-schema.md` was already in S2.
 ## S2 — Spec schema and templates
 
 **Merged:** PR #49
-**What changed:** Criterion ids are required (SC-1:, AC-001:, legacy AC-NNN em-dash accepted) and adding one is a Cosmetic id-only edit. DECISIONS.md headings are ## S<n>, the fixed guide-change form, and ## S3 — Delivery and completion skills
+**What changed:** Criterion ids are required (SC-1:, AC-001:, legacy AC-NNN em-dash accepted) and adding one is a Cosmetic id-only edit. DECISIONS.md headings are ## S<n>, the fixed guide-change form, and `## Cross-step values`. GAP artifacts cite S<n>.
+**Anything a later step must match:** the guide-change heading is exactly `## EXECUTIVE DECISION — guide change: <summary>`; S3's PR template and AC-014 match against it.
+
+---
+
+## S3 — Delivery and completion skills
 
 **Merged:** PR #50
 **What changed:** spec-execution and its SOP run on guide steps: validate-guide.mjs plus plan-gate.mjs gate the start, steps land on claude/SPEC-NNN-S<n>, the guide is re-planned in place with a ## Guide changes disclosure, and §6 blocks the integration PR on open decisions and unaccepted steps. spec-completion reads steps: and decisions:.
@@ -150,11 +155,6 @@ AC, scope item or design decision changes.
 
 **Merged:** PR #56
 **What changed:** plugin 0.3.0; both manifest descriptions drop tasks; RELEASING.md gains the pre-1.0 rule and the 0.3.0 row with four adopter actions; ADR-002 and ADR-003 point to ADR-007.
-
----
-
-## Cross-step values. GAP artifacts cite S<n>.
-**Anything a later step must match:** the guide-change heading is exactly `## EXECUTIVE DECISION — guide change: <summary>`; S3's PR template and AC-014 match against it.
 
 ---
 
