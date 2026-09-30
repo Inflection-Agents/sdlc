@@ -4,7 +4,7 @@ How defects move from raw signal to scheduled fix. Bugs are the one area where t
 
 ## The exception: bugs start in Linear
 
-Everything else in this SDLC starts in the repo (specs, tasks, ADRs). Bugs are different because:
+Everything else in this SDLC starts in the repo (specs, delivery guides, ADRs). Bugs are different because:
 
 - Non-technical stakeholders need to report them without touching markdown or YAML
 - The signal is often vague — "it's broken" — and needs agent-driven investigation before it becomes a structured artifact
@@ -70,7 +70,7 @@ Signal (Linear issue with bug label)
   │
   7. Prioritize → Human PM/lead makes the call
   │
-  8. Fix       → Agent creates task files, routes for implementation
+  8. Fix       → Agent writes the fix's delivery guide, hands off for implementation
 ```
 
 ## Stage details
@@ -202,21 +202,20 @@ The agent provides:
 
 Human makes the call. Agent drafts the rationale on the Linear issue for audit.
 
-### 8. Fix — agent creates task files
+### 8. Fix — agent writes the delivery guide
 
 Once prioritized, the bug needs to become executable work:
 
-1. Agent creates task files in `specs/tasks/BUG-NNN/`:
+1. Agent writes a short delivery guide in `specs/tasks/BUG-NNN/` (schema: `skills/guide-schema.md`):
    ```
    specs/tasks/BUG-NNN/
+   ├── GUIDE.md        (steps: write the failing test, implement the fix, add the regression guard)
    ├── _index.yaml
-   ├── TASK-NNN-write-failing-test.md     (if not already done in reproduce step)
-   ├── TASK-NNN-implement-fix.md
-   └── TASK-NNN-add-regression-guard.md
+   └── KICKOFF.md      (the prompt that starts the fix, at most 3,800 characters)
    ```
-2. Agent applies routing labels (`claude-code` or `human`) based on eligibility rules
-3. Agent creates corresponding Linear issues linked to the bug issue
-4. Fix proceeds through normal task execution flow
+2. Work only a human can run becomes a `Run by:` step; questions the agent can't close become owner decisions
+3. Agent links the guide from the Linear bug issue
+4. Fix proceeds through the normal delivery flow (`spec-execution`)
 
 ## The NOC agent
 

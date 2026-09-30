@@ -3,7 +3,7 @@
 A spec's plan is a **delivery guide**: a short, ordered list of steps at
 `specs/tasks/SPEC-NNN/GUIDE.md`, written at the end of `spec-authoring` and approved by the owner in
 the same sign-off that makes the spec `active` (ADR-007). `spec-execution` burns the steps down one at
-a time. The guide replaces the task-decomposition phase and its per-task files.
+a time. The guide replaces the separate decomposition phase and its per-task briefs.
 
 The guide is not graded by `spec-reviewer`. Everything mechanical about it is checked by
 [`scripts/sdlc/validate-guide.mjs`](../scripts/sdlc/validate-guide.mjs), which CI runs on every guide.

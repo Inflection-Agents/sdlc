@@ -49,7 +49,7 @@ spec_version: 1
 
 ### S8: Docs
 - Covers: AC-011
-- Changes: `README.md`, `playbook.md`, `skills.md`, `skill-architecture.md`, `roles.md`, `agent-orchestration.md`, `sync.md`, `triage.md`, `tooling.md`, `work-graph.md`, `specs/_index.md`, `.ai/*.md`, `templates/project.md`, `init-payload/templates/project.md`, `init-payload/.ai/project.stub.md`
+- Changes: `README.md`, `playbook.md`, `skills.md`, `skill-architecture.md`, `roles.md`, `agent-orchestration.md`, `sync.md`, `triage.md`, `tooling.md`, `work-graph.md`, `specs/_index.md`, `.ai/*.md`, `templates/project.md`, `init-payload/templates/project.md`, `init-payload/.ai/project.stub.md`, `skills/guide-schema.md` (one intro sentence)
 - Verify: the AC-011 `rg` command prints nothing
 - Notes: Describe four main-line phases and the guide. Do not edit SPEC-003's task files.
 

@@ -52,7 +52,7 @@ Whether a delivery run can execute a task in this workspace unattended, or it mu
 
 ### Workspace skills
 
-Domain skills encode technology-specific conventions, patterns, and workflows for each workspace. SDLC process skills (code-standards, code-review, task-decomposition) reference this table to apply the right domain conventions.
+Domain skills encode technology-specific conventions, patterns, and workflows for each workspace. SDLC process skills (code-standards, code-review, spec-authoring's guide step) reference this table to apply the right domain conventions.
 
 | Workspace | Domain skills | Purpose |
 |-----------|--------------|---------|
