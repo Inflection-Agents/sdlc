@@ -62,7 +62,15 @@ decision changes; `skills/spec-schema.md` was already in S2.
 ## S2 — Spec schema and templates
 
 **Merged:** PR #49
-**What changed:** Criterion ids are required (SC-1:, AC-001:, legacy AC-NNN em-dash accepted) and adding one is a Cosmetic id-only edit. DECISIONS.md headings are ## S<n>, the fixed guide-change form, and ## Cross-step values. GAP artifacts cite S<n>.
+**What changed:** Criterion ids are required (SC-1:, AC-001:, legacy AC-NNN em-dash accepted) and adding one is a Cosmetic id-only edit. DECISIONS.md headings are ## S<n>, the fixed guide-change form, and ## S3 — Delivery and completion skills
+
+**Merged:** PR #50
+**What changed:** spec-execution and its SOP run on guide steps: validate-guide.mjs plus plan-gate.mjs gate the start, steps land on claude/SPEC-NNN-S<n>, the guide is re-planned in place with a ## Guide changes disclosure, and §6 blocks the integration PR on open decisions and unaccepted steps. spec-completion reads steps: and decisions:.
+**Anything a later step must match:** S6 must rename spec-completion's state-machine entry trigger 'all tasks are merged' to 'all steps are merged' (the skill description already says so) and reword its precondition from tasks to guide steps.
+
+---
+
+## Cross-step values. GAP artifacts cite S<n>.
 **Anything a later step must match:** the guide-change heading is exactly `## EXECUTIVE DECISION — guide change: <summary>`; S3's PR template and AC-014 match against it.
 
 ---
