@@ -280,13 +280,13 @@ This phase is **spec-completion** in the SDLC state machine (`specs/sdlc-state-m
 **Entry triggers:**
 
 - is this spec finished
-- all tasks are merged
+- all steps are merged
 - verify the spec
 - close out SPEC-NNN
 
 **Preconditions:**
 
-- all tasks for the spec are done or nearly done and the integration PR is merged — the delivery run's independent integration review already graded the success criteria, so completion does not re-grade (when the PR was opened outside a delivery run, with no integration-reviewer verdict on the record, verify the success criteria here)
+- every guide step for the spec is done, cancelled, or deferred with a decided owner decision, and the integration PR is merged — the delivery run's independent integration review already graded the success criteria, so completion does not re-grade (when the PR was opened outside a delivery run, with no integration-reviewer verdict on the record, verify the success criteria here)
 
 **Exit condition:** spec success criteria verified end-to-end, spec status set to a terminal state, and the closed spec archived out of the default search path (archive-specs.mjs), unless a denylist clause holds it in the live corpus
 

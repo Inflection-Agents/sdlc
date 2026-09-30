@@ -217,32 +217,24 @@ condition. **Do not hand-edit this section** — change the YAML and re-run
 ### spec-authoring
 
 - **Owner skill:** `spec-authoring`
-- **Entry triggers:** "I want to build", "we need to refactor", "spec out", "new feature", "new initiative"
-- **Preconditions:** intent exists or owner confirms none is needed
-- **Exit condition:** spec status flips draft -> active (after spec-reviewer sign-off and owner approval)
-- **Next step:** `task-decomposition` — trigger: "decompose SPEC-NNN"
-
-### task-decomposition
-
-- **Owner skill:** `task-decomposition`
-- **Entry triggers:** "decompose this spec", "break this down", "this task is too big", "split this task", "we need another task before X", "merge these tasks", "re-route this task"
-- **Preconditions:** spec has status active
-- **Exit condition:** AI-coherent tasks + _index.yaml dependency graph exist with touches/routing declared
+- **Entry triggers:** "I want to build", "we need to refactor", "spec out", "new feature", "new initiative", "write the guide for"
+- **Preconditions:** intent exists or owner confirms none is needed (or, for "write the guide for", the spec is active and has no guide)
+- **Exit condition:** spec status flips draft -> active and plan_review.approved flips true in one owner sign-off (ADR-007), after spec-reviewer sign-off on the spec; specs/tasks/SPEC-NNN/GUIDE.md passes scripts/sdlc/validate-guide.mjs, and KICKOFF.md (at most 3,800 characters) is written and shown to the owner
 - **Next step:** `spec-execution` — trigger: "execute SPEC-NNN"
 
 ### spec-execution
 
 - **Owner skill:** `spec-execution`
-- **Entry triggers:** "execute this spec", "execute SPEC-NNN", "implement SPEC-NNN", "deliver SPEC-NNN", "finish SPEC-NNN", "run the spec", "start the execution loop", "dispatch the tasks"
-- **Preconditions:** spec has status active and decomposed tasks with a dependency graph exist; the plan-review gate passes (ADR-002, fail-closed): the _index.yaml plan_review block is present, approved, and not needs-rework — verify with scripts/sdlc/plan-gate.mjs
-- **Exit condition:** single-executor delivery (ADR-003): the owner skill armed a session goal leash (.claude/.sdlc-goal-<session_id>, enforced by the Stop hook), kept a visible task list covering every task plus end-to-end validation and the integration gate, cut the integration branch feat/spec-NNN off main, and burned the tasks down ITSELF one at a time — each task gated by its own tests (or the workspace equivalent) plus an executor self-review, landed via a short-lived PR into feat/spec-NNN that is merged and deleted before the next task starts, with no PR, branch or worktree left lingering; sub-agent fan-out is the exception, for large specs with genuinely non-overlapping tasks only, and carries the same merge discipline. End-to-end validation ran ONCE before the gate with attached evidence. Exit (success) = the goal file is status:met and ONE integration PR (feat/spec-NNN -> main) is open, carrying every spec success criterion mapped to its evidence, having survived a full multi-lens adversarial review panel — independently dispatched, every envelope validated with scripts/sdlc/validate-review-envelope.mjs, the constraints registry evaluated in full across the whole diff — looped until no blocker or major survives OR the three-round cap (ADR-004) is reached with every survivor named in a "## Disclosed, not fixed" section of the PR body, and LEFT OPEN for the human to review and merge. Nothing for a spec reaches main except by merging that branch; the agent never merges or pushes to main. A HALT is goal file status:escalated with a surfaced reason — security/data-loss/payment risk, an owner decision, the amendment cap (spec.version reaching 4), or a task that cannot land and cannot be fixed at the root
+- **Entry triggers:** "execute this spec", "execute SPEC-NNN", "implement SPEC-NNN", "deliver SPEC-NNN", "finish SPEC-NNN", "run the spec", "start the execution loop"
+- **Preconditions:** spec has status active and specs/tasks/SPEC-NNN/GUIDE.md passes scripts/sdlc/validate-guide.mjs (ADR-007); the plan-review gate passes (ADR-002, fail-closed): the _index.yaml plan_review block is present, approved, and not needs-rework — verify with scripts/sdlc/plan-gate.mjs
+- **Exit condition:** single-executor delivery (ADR-003): the owner skill armed a session goal leash (.claude/.sdlc-goal-<session_id>, enforced by the Stop hook), kept a visible task list covering every guide step plus end-to-end validation and the integration gate, cut the integration branch feat/spec-NNN off main, and burned the guide's steps down ITSELF one at a time — each step gated by its own Verify: commands plus an executor self-review, landed via a short-lived PR into feat/spec-NNN that is merged and deleted before the next step starts, with no PR, branch or worktree left lingering; guide changes mid-run are logged in DECISIONS.md and listed under "## Guide changes" in the integration PR; sub-agent fan-out is the exception, for large specs with steps whose After: closures and Changes: do not overlap, and carries the same merge discipline. End-to-end validation ran ONCE before the gate with attached evidence. Exit (success) = the goal file is status:met and ONE integration PR (feat/spec-NNN -> main) is open, carrying every spec success criterion mapped to its evidence, having survived a full multi-lens adversarial review panel — independently dispatched, every envelope validated with scripts/sdlc/validate-review-envelope.mjs, the constraints registry evaluated in full across the whole diff — looped until no blocker or major survives OR the three-round cap (ADR-004) is reached with every survivor named in a "## Disclosed, not fixed" section of the PR body, and LEFT OPEN for the human to review and merge. Nothing for a spec reaches main except by merging that branch; the agent never merges or pushes to main. A HALT is goal file status:escalated with a surfaced reason — security/data-loss/payment risk, an owner decision, the amendment cap (spec.version reaching 4), or a step that cannot land and cannot be fixed at the root
 - **Next step:** `spec-completion` — trigger: "close out SPEC-NNN"
 
 ### spec-completion
 
 - **Owner skill:** `spec-completion`
-- **Entry triggers:** "is this spec finished", "all tasks are merged", "verify the spec", "close out SPEC-NNN"
-- **Preconditions:** all tasks for the spec are done or nearly done and the integration PR is merged — the delivery run's independent integration review already graded the success criteria, so completion does not re-grade (when the PR was opened outside a delivery run, with no integration-reviewer verdict on the record, verify the success criteria here)
+- **Entry triggers:** "is this spec finished", "all steps are merged", "verify the spec", "close out SPEC-NNN"
+- **Preconditions:** every guide step for the spec is done, cancelled, or deferred with a decided owner decision, and the integration PR is merged — the delivery run's independent integration review already graded the success criteria, so completion does not re-grade (when the PR was opened outside a delivery run, with no integration-reviewer verdict on the record, verify the success criteria here)
 - **Exit condition:** spec success criteria verified end-to-end, spec status set to a terminal state, and the closed spec archived out of the default search path (archive-specs.mjs), unless a denylist clause holds it in the live corpus
 - **Next step:** `none` (terminal phase)
 
@@ -251,6 +243,6 @@ condition. **Do not hand-edit this section** — change the YAML and re-run
 - **Owner skill:** `spec-amendment`
 - **Entry triggers:** "the spec assumed X but it is actually Y", "we need to add scope", "this acceptance criterion is untestable", "the design does not work", "the requirements changed"
 - **Preconditions:** an active spec is found to be wrong, incomplete, or in need of change mid-flight; a spec is amendable IFF its status is active or draft — every other status (done, superseded, deprecated, cancelled) is CLOSED and immutable; route a change to a closed spec to a new spec (spec-authoring) or a bug spec under specs/bugs/ instead
-- **Exit condition:** spec is amended (version bumped) and spec-reviewer re-signs off
-- **Next step:** `task-decomposition` — trigger: "decompose SPEC-NNN"
+- **Exit condition:** spec is amended (version bumped), spec-reviewer re-signs off, the guide is updated in the same commit (Covers: re-mapped, spec_version bumped) and passes scripts/sdlc/validate-guide.mjs, KICKOFF.md is rewritten, and the owner re-approves plan_review; an active spec with no guide hands off to "write the guide for SPEC-NNN" instead
+- **Next step:** `spec-execution` — trigger: "execute SPEC-NNN"
 <!-- sdlc:phases:end -->
