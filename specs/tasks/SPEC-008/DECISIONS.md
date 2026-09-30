@@ -106,6 +106,20 @@ No AC, scope item or design decision changes.
 
 ---
 
+## EXECUTIVE DECISION — guide change: S7 rewords the CI plan-review step
+
+**Date:** 2026-09-30
+**Question:** both copies of `sdlc-validate.yml` name the plan-review presence step "Every
+decomposed spec carries a plan-review block" and explain it with "a spec mid-decomposition", which
+is false once decomposition is gone. The guide did not list the workflows in S7.
+**Decided:** S7 rewords that step's name and comment in both copies to match `plan-gate.mjs`'s new
+message. S7's `Changes:` gains the two workflow files (that step only). No AC, scope item or design
+decision changes.
+**Why:** the step name is what a reader sees in CI; it should describe the gate that runs.
+**Reversal path:** restore the two lines.
+
+---
+
 ## Cross-step values. GAP artifacts cite S<n>.
 **Anything a later step must match:** the guide-change heading is exactly `## EXECUTIVE DECISION — guide change: <summary>`; S3's PR template and AC-014 match against it.
 

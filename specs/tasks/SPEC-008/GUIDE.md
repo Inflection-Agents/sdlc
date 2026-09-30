@@ -43,7 +43,7 @@ spec_version: 1
 
 ### S7: Deletions and code comments
 - Covers: AC-010, AC-011
-- Changes: `skills/task-schema.md`, `templates/task.md`, `init-payload/templates/task.md`, `scripts/sdlc/__fixtures__/review-primitives-examples/test-fixtures/**`, `scripts/sdlc/plan-gate.mjs`, `init-payload/scripts/sdlc/plan-gate.mjs`, `specs/sdlc-state-machine.yaml`, `init-payload/sdlc-state-machine.yaml`
+- Changes: `skills/task-schema.md`, `templates/task.md`, `init-payload/templates/task.md`, `scripts/sdlc/__fixtures__/review-primitives-examples/test-fixtures/**`, `scripts/sdlc/plan-gate.mjs`, `init-payload/scripts/sdlc/plan-gate.mjs`, `specs/sdlc-state-machine.yaml`, `init-payload/sdlc-state-machine.yaml`, `.github/workflows/sdlc-validate.yml`, `init-payload/.github/workflows/sdlc-validate.yml` (the plan-review step's name and comment only)
 - Verify: `node --test scripts/sdlc/plan-gate.test.mjs`, `node scripts/sdlc/validate-state-machine.mjs`, `cmp scripts/sdlc/plan-gate.mjs init-payload/scripts/sdlc/plan-gate.mjs`
 - Notes: Change plan-gate wording only (comments and the `--presence-only` message). Leave its logic as it is. Drop `task-schema` from `exempt:` in both state machines.
 

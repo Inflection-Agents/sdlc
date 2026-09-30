@@ -162,7 +162,6 @@ exempt:
     - review-primitives
     # Schema documents living beside the skills that read them, not skills themselves.
     - spec-schema
-    - task-schema
     - guide-schema
 
 # Phase ids removed from `phases:`. An `_index.yaml` written before the removal may still name one in
