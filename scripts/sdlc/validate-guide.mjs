@@ -121,7 +121,9 @@ export function parseIndex(text) {
     let inPlanReview = false
     for (const line of String(text).split('\n')) {
         if (/^\S/.test(line)) {
-            list = /^steps\s*:\s*$/.test(line) ? out.steps : /^decisions\s*:\s*$/.test(line) ? out.decisions : null
+            if (/^steps\s*:\s*$/.test(line)) list = out.steps
+            else if (/^decisions\s*:\s*$/.test(line)) list = out.decisions
+            else list = null
             inPlanReview = /^plan_review\s*:\s*$/.test(line)
             continue
         }

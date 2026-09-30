@@ -34,6 +34,7 @@ const DEFAULT_MACHINE = join(REPO_ROOT, 'specs', 'sdlc-state-machine.yaml')
 
 const NONE = 'none'
 const REQUIRED_FIELDS = ['current', 'next_action', 'next_trigger', 'updated']
+const PHASE_ID_FIELDS = ['current', 'next_action']
 const BOOLEAN_FLAGS = ['exit_condition_met', 'handoff_surfaced']
 
 // ─── Minimal, dependency-free YAML reads ───────────────────────────────────
@@ -105,9 +106,11 @@ export function loadRetiredIds(machinePath = DEFAULT_MACHINE) {
  */
 export function retiredWarnings(phase, retiredIds) {
     if (!phase || typeof phase !== 'object') return []
-    return ['current', 'next_action']
-        .filter((field) => retiredIds.has(phase[field]))
-        .map((field) => `phase.${field}: '${phase[field]}' is a retired phase id; write this spec's delivery guide ("write the guide for SPEC-NNN")`)
+    return PHASE_ID_FIELDS.filter((field) => retiredIds.has(phase[field])).map(
+        (field) =>
+            `phase.${field}: '${phase[field]}' is a retired phase id; ` +
+            `write this spec's delivery guide ("write the guide for SPEC-NNN")`
+    )
 }
 
 /**
@@ -148,8 +151,10 @@ function toBool(v) {
 /**
  * Validate a single `phase:` block (object) against the set of valid phase ids.
  * A `null`/`undefined` block (no `phase:` key) is COMPLIANT (additive/optional).
+ * A retired id is accepted here; retiredWarnings reports it.
  * @param {Record<string,unknown>|null|undefined} phase
  * @param {Set<string>} phaseIds
+ * @param {Set<string>} [retiredIds]
  * @returns {string[]} human-readable problems (empty = compliant)
  */
 export function validatePhaseBlock(phase, phaseIds, retiredIds = new Set()) {
@@ -163,7 +168,7 @@ export function validatePhaseBlock(phase, phaseIds, retiredIds = new Set()) {
         if (!(field in phase)) problems.push(`phase: missing required field '${field}'`)
     }
 
-    for (const field of ['current', 'next_action']) {
+    for (const field of PHASE_ID_FIELDS) {
         if (!(field in phase)) continue
         const v = phase[field]
         if (v === NONE || retiredIds.has(v)) continue
@@ -188,6 +193,7 @@ export function validatePhaseBlock(phase, phaseIds, retiredIds = new Set()) {
  * Validate one `_index.yaml` file.
  * @param {string} path
  * @param {Set<string>} phaseIds
+ * @param {Set<string>} [retiredIds]
  * @returns {string[]}
  */
 export function validateFile(path, phaseIds, retiredIds = new Set()) {
@@ -196,6 +202,9 @@ export function validateFile(path, phaseIds, retiredIds = new Set()) {
 
 /**
  * Validate one `_index.yaml` file and collect retired-id warnings.
+ * @param {string} path
+ * @param {Set<string>} phaseIds
+ * @param {Set<string>} [retiredIds]
  * @returns {{problems: string[], warnings: string[]}}
  */
 export function checkFile(path, phaseIds, retiredIds = new Set()) {
@@ -206,7 +215,10 @@ export function checkFile(path, phaseIds, retiredIds = new Set()) {
         return { problems: [`cannot read file: ${err.message}`], warnings: [] }
     }
     const phase = parsePhaseBlock(text)
-    return { problems: validatePhaseBlock(phase, phaseIds, retiredIds), warnings: retiredWarnings(phase, retiredIds) }
+    return {
+        problems: validatePhaseBlock(phase, phaseIds, retiredIds),
+        warnings: retiredWarnings(phase, retiredIds),
+    }
 }
 
 /** Does this argument look like an unexpanded shell glob (contains * ? [ )? */
