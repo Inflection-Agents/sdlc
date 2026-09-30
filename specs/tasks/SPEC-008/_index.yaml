@@ -1,0 +1,41 @@
+spec: SPEC-008
+title: "Delivery guide replaces task decomposition"
+created: 2026-09-30
+updated: 2026-09-30
+
+# Plan-review verdict (ADR-002). The owner sets approved: true in the same sign-off that makes
+# SPEC-008 active (SPEC-008 Design > Who writes the guide).
+plan_review:
+  status: approve-ready
+  approved: false
+  reviewed: 2026-09-30
+
+steps:
+  - id: S1
+    status: pending
+  - id: S2
+    status: pending
+  - id: S3
+    status: pending
+  - id: S4
+    status: pending
+  - id: S5
+    status: pending
+  - id: S6
+    status: pending
+  - id: S7
+    status: pending
+  - id: S8
+    status: pending
+  - id: S9
+    status: pending
+
+decisions: []
+
+phase:
+  current: spec-authoring
+  next_action: spec-execution
+  next_trigger: 'execute SPEC-008'
+  exit_condition_met: false
+  handoff_surfaced: false
+  updated: 2026-09-30
