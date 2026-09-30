@@ -1,6 +1,6 @@
 ---
 name: sdlc-code-standards
-description: Use when writing or reviewing any code during implementation tasks, before committing, or when evaluating code quality
+description: Use when writing or reviewing any code during implementation, before committing, or when evaluating code quality
 ---
 
 # SDLC Code Standards
@@ -11,14 +11,14 @@ Non-negotiable coding principles for all implementation work. These apply whethe
 
 **This is a rigid skill.** Follow exactly. Don't adapt away discipline.
 
-**Task briefs and spec designs must not instruct violations of these standards.** If a task file's Constraints section, a spec's Design section, or a dispatching prompt tells you to "leave X deprecated for now," "skip the test because Y," "comment out Z to preserve the old path," or otherwise contradicts a standard in this skill — **flag it back to the author before complying**. The standards in this file are the floor, not the ceiling: they cannot be overridden by upstream SDLC artifacts without an explicit documented reason (and usually that reason is itself a signal to re-evaluate the task / spec). Seen live on 2026-04-24 when a TASK-023 brief instructed the implementer to keep a deprecated dbt var with a "DEPRECATED" comment rather than remove it; a grep confirmed zero references and the var was removed cleanly in a follow-up. The brief overrode the `### No Dead Code` standard by accident — the fix is to catch the conflict upstream.
+**Guides and spec designs must not instruct violations of these standards.** If a guide step's `Notes:`, a spec's Design section, or a dispatching prompt tells you to "leave X deprecated for now," "skip the test because Y," "comment out Z to preserve the old path," or otherwise contradicts a standard in this skill — **flag it back to the author before complying**. The standards in this file are the floor, not the ceiling: they cannot be overridden by upstream SDLC artifacts without an explicit documented reason (and usually that reason is itself a signal to re-evaluate the task / spec). Seen live on 2026-04-24 when a TASK-023 brief instructed the implementer to keep a deprecated dbt var with a "DEPRECATED" comment rather than remove it; a grep confirmed zero references and the var was removed cleanly in a follow-up. The brief overrode the `### No Dead Code` standard by accident — the fix is to catch the conflict upstream.
 
 **Companion skills (auto-invoked if installed):**
 - `test-driven-development` — full TDD discipline with anti-rationalization defenses
 - `verification-before-completion` — no completion claims without fresh evidence
 - `finishing-a-development-branch` — structured branch completion with test gates
 
-**Domain skills:** Check `.ai/project.md` → Workspace skills table. If your task targets a workspace with domain skills listed, apply those domain-specific conventions ALONGSIDE this skill. Domain skills define technology-specific patterns (e.g., dbt CTE ordering, Next.js component patterns). This skill defines universal principles (TDD, DRY, YAGNI). Both apply. Domain conventions take precedence when they conflict with generic examples in this skill.
+**Domain skills:** Check `.ai/project.md` → Workspace skills table. If your work targets a workspace with domain skills listed, apply those domain-specific conventions ALONGSIDE this skill. Domain skills define technology-specific patterns (e.g., dbt CTE ordering, Next.js component patterns). This skill defines universal principles (TDD, DRY, YAGNI). Both apply. Domain conventions take precedence when they conflict with generic examples in this skill.
 
 ## The Standards
 
@@ -30,7 +30,7 @@ Non-negotiable coding principles for all implementation work. These apply whethe
 - Run it. Watch it fail. Confirm it fails for the RIGHT reason (missing feature, not typo).
 - Write the MINIMAL code to make it pass. Nothing more.
 - Red → Green → Refactor. Every cycle.
-- Each acceptance criterion from the task file → one or more tests
+- Each acceptance criterion in the step's `Covers:` → one or more tests
 - Tests read like spec requirements: Given/When/Then
 
 **If you wrote production code before the test: delete the code.** Not "adapt it." Not "keep it as reference." Delete it and start with the test. Tests-after is NOT TDD — tests written after code are biased by implementation.
@@ -51,7 +51,7 @@ Non-negotiable coding principles for all implementation work. These apply whethe
 ### YAGNI — You Aren't Gonna Need It
 
 - If the spec doesn't ask for it, don't build it
-- No "while I'm here" improvements outside task scope
+- No "while I'm here" improvements outside the step's scope
 - No feature flags for hypothetical future requirements
 - No configurability beyond what's specified
 - No backwards-compatibility shims — change the code directly
@@ -74,7 +74,7 @@ Seen live on 2026-08-13: a correct, fully-tested fix to make the prod SFTP mirro
 
 - Each function does one thing. If you can't name it in 3 words, split it.
 - Each module has one reason to change
-- Each PR addresses one task
+- Each PR addresses one guide step
 
 ### Explicit Over Implicit
 
@@ -93,7 +93,7 @@ Seen live on 2026-08-13: a correct, fully-tested fix to make the prod SFTP mirro
 ### Commit Discipline
 
 - Small, frequent commits — each is a coherent unit of work
-- Commit message: `SPEC-NNN: [what you did]` or `TASK-NNN: [what you did]`
+- Commit message: `SPEC-NNN: [what you did]` or `SPEC-NNN S<n>: [what you did]`
 - Don't batch unrelated changes
 - Commit after each red-green-refactor cycle
 
@@ -101,14 +101,14 @@ Seen live on 2026-08-13: a correct, fully-tested fix to make the prod SFTP mirro
 
 - Don't comment out code — delete it. Git has history.
 - Don't leave unused imports, variables, or functions
-- Don't add TODO comments for the current task — do it or don't
+- Don't add TODO comments for the current step — do it or don't
 - Don't add "removed X" comments — the diff shows what was removed
 - **No DEPRECATED zombies.** If nothing references a thing, remove it cleanly. "DEPRECATED" is a signal that a removal is owed, not a permanent label. Adding a multi-line "DEPRECATED — left in place for now" comment to dead code is the worst of both worlds: future readers see the item, assume it matters, hesitate to touch it, and the code stays forever. Before adding a deprecation label, grep for active usage; if zero, just remove. If active usages exist, update them in the same PR (or a sequenced one with a concrete tracking issue) — then remove. Applies to: dbt vars, TypeScript types / functions, React component props, API schema fields, frontmatter fields, config keys.
 
 ### Tests Are Documentation
 
 - Test names describe behavior: `should_return_401_when_token_expired`
-- Tests follow acceptance criteria from the task file
+- Tests follow the acceptance criteria in the step's `Covers:`
 - A reader should understand the spec by reading the tests
 - No test without an assertion. No assertion without a reason.
 
@@ -126,8 +126,8 @@ Seen live on 2026-08-13: a correct, fully-tested fix to make the prod SFTP mirro
 Sometimes the code doesn't work because the spec is wrong — the design assumes something that isn't true, or acceptance criteria contradict each other. If you hit a wall during implementation and the root cause is in the spec, not the code:
 
 1. **Stop implementing.** Do not work around a known-wrong spec.
-2. **Invoke the `spec-amendment` skill.** It classifies the change, bumps the spec version, assesses impact on all tasks, and gets user approval before work resumes.
-3. **Do not patch the task file yourself.** The amendment process ensures the spec, all affected tasks, and Linear stay in sync.
+2. **Invoke the `spec-amendment` skill.** It classifies the change, bumps the spec version, assesses impact on the delivery guide, and gets user approval before work resumes.
+3. **Do not patch the guide to absorb a spec change yourself.** The amendment process keeps the spec, the guide and its kickoff prompt in sync.
 
 Signs the spec is the problem:
 - The framework or API doesn't support what the design describes
@@ -135,39 +135,52 @@ Signs the spec is the problem:
 - The design creates a circular dependency or impossible ordering
 - A constraint in the spec conflicts with an ADR or existing architecture
 
-## When the task breakdown is the problem
+## When the guide is the problem
 
-Sometimes the spec is fine but the task you're working on is wrong — too big, missing a prerequisite, or scoped incorrectly. If you're implementing and realize the task itself needs restructuring (but the spec's requirements are correct):
+Sometimes the spec is fine but the guide step you're working on is wrong — too big, missing a
+prerequisite, or scoped incorrectly. If the spec's requirements are correct:
 
-1. **Flag it.** Note specifically what's wrong: "this task is not coherent — it spans two workspaces," "there's a missing prerequisite task," "this should be deferred to a human, not run by claude-code."
-2. **Use `task-decomposition` re-planning mode.** It handles splitting, merging, adding, cancelling, and re-routing tasks while keeping `_index.yaml` and Linear in sync.
-3. **Don't silently expand scope.** If the work doesn't fit the task's declared `touches`, re-plan — don't quietly grow the change beyond its bounded file set.
+1. **Flag it.** Note specifically what's wrong: "this step spans two workspaces," "there's a missing
+   prerequisite step," "this needs a human `Run by:`, not an unattended run."
+2. **Re-plan the guide in place.** Reorder, split, merge, add or cancel steps under `spec-execution`
+   §4 > Changing the guide during a run, re-run `validate-guide.mjs`, and log it as a guide change. It
+   is listed in the integration PR's `## Guide changes`.
+3. **Don't silently expand scope.** If the work doesn't fit the step's `Changes:`, re-plan — don't
+   quietly grow the change beyond its bounded file set.
 
-Signs the task breakdown is the problem (but the spec is fine) — note these are about *coherence and scope*, not diff size:
-- The work doesn't fit within the task's declared `touches`, or would need to cross into another workspace
-- The task turns out to bundle two independent concerns that should be separate AI-coherent tasks
-- You need to build something first that no existing task covers
-- Two tasks you're working on in parallel keep conflicting (their `touches` overlap)
-- The task is a trivial fragment that should be merged into the coherent whole it belongs to
+Signs the guide is the problem (but the spec is fine) — note these are about *coherence and scope*,
+not diff size:
+- The work doesn't fit within the step's `Changes:`, or would need to cross into another workspace
+- The step turns out to bundle two independent concerns that should be separate steps
+- You need to build something first that no step covers
+- Two steps running in parallel keep conflicting (their `Changes:` overlap)
+- The step is a trivial fragment that should be merged into the coherent whole it belongs to
+
+A change that alters an AC, the scope or the design is not a guide problem. It goes to
+`spec-amendment`.
 
 ## Verify upstream contracts before implementing
 
-**When your task has `depends_on` entries, verify the upstream contracts before writing code.** Don't assume the upstream task produced exactly what the boundary constraints promise — check.
+**When an earlier step's `Notes:` promises a contract your step consumes, verify it before writing
+code.** Don't assume the earlier step produced exactly what its `Notes:` promise — check.
 
-For each dependency listed in your task's `depends_on`:
-1. Read the upstream task's boundary constraints (its Constraints section, under "Produces for TASK-NNN")
+For each such contract:
+1. Read the contract in the earlier step's `Notes:` and in `DECISIONS.md` > Cross-step values
 2. **Verify the contract exists in the codebase.** Check the actual file, schema, export, or column that was promised:
    - dbt: check `schema.yml` for the column name and type
    - shared types: check the export exists with the right signature
    - API: check the endpoint exists with the right shape
 3. If the contract matches → proceed with implementation
 4. If the contract is missing or different → **stop and flag it**:
-   - If the deviation is minor (e.g., slightly different column name): flag in your task and update your consuming code to match reality
-   - If the deviation is significant (wrong type, missing entirely): invoke `spec-amendment` — the boundary constraints across tasks are out of sync
+   - If the deviation is minor (e.g., slightly different column name): record it in `DECISIONS.md` and update your consuming code to match reality
+   - If the deviation is significant (wrong type, missing entirely): invoke `spec-amendment` — the contracts across steps are out of sync
 
 This takes 2 minutes and prevents hours of rework from building on a contract that doesn't exist.
 
-**Whoever implements the task** — the delivery agent or a dispatched subagent — verifies the upstream contract before implementing. You are working against the task file's declared `touches` and boundary constraints; if the promised contract isn't actually in the codebase, stop and flag it rather than building on a contract that doesn't exist.
+**Whoever implements the step** — the delivery agent or a dispatched subagent — verifies the
+upstream contract before implementing. You are working against the step's `Changes:` and the
+contracts in earlier steps' `Notes:`; if the promised contract isn't actually in the codebase, stop
+and flag it rather than building on a contract that doesn't exist.
 
 ## Red Flags — STOP
 
@@ -200,7 +213,7 @@ If `.ai/project.md` defines workspaces:
 
 ## Checklist (apply before every commit)
 
-- [ ] (First commit only) Upstream contracts verified — dependencies produce what this task expects
+- [ ] (First commit only) Upstream contracts verified — earlier steps produce what this step expects
 - [ ] Tests exist for each acceptance criterion addressed
 - [ ] Tests were written BEFORE implementation (TDD)
 - [ ] Tests were run and output was read — all pass
@@ -209,6 +222,6 @@ If `.ai/project.md` defines workspaces:
 - [ ] Behavior preserved — if this touches a routing/delivery/gating/scope path, the behavior delta is stated and any *expansion* (new data/scope/tenant flowing, an inert config path activated) is flagged for approval, not assumed from existing config
 - [ ] Behavioral/infra changes were validated off-prod (dry-run or non-prod), not by mutating production
 - [ ] No dead code, unused imports, or TODO comments for current work
-- [ ] Commit message references SPEC or TASK ID
+- [ ] Commit message references the SPEC id and step
 - [ ] Error handling only at system boundaries
 - [ ] All names are descriptive and specific

@@ -1,55 +1,49 @@
 # Sync: repo ↔ Linear
 
-Linear is the view layer for human visibility. The repo is the source of truth for task definition. This document defines what lives where, what stays in sync, and how.
+Linear is the view layer for human visibility. The repo is the source of truth for the spec and its delivery guide. This document defines what lives where, what stays in sync, and how.
+
+Since ADR-007 there is no per-task issue graph to mirror. A spec is delivered from a short guide (`specs/tasks/SPEC-NNN/GUIDE.md`) that the owner approves with the spec, so Linear tracks the spec as one project and follows delivery through project updates.
 
 ## Ownership model
 
 | Data | Owner | Direction |
 |------|-------|-----------|
 | Spec content (problem, design, scope) | Repo | → Linear project description (link to spec file) |
-| Task definition (requirements, constraints, verification) | Repo | → Linear issue description |
-| Acceptance criteria definitions | Repo | → Linear issue description |
-| Dependency graph | Repo (`_index.yaml`) | → Linear issue relations |
-| Agent assignment | Repo (task file `agent` field) | → Linear issue label |
-| Task status | **Bidirectional** | See sync rules below |
-| Acceptance criteria pass/fail | Repo (updated by agent on completion) | → Linear issue comment |
+| Delivery guide (steps, owner decisions) | Repo (`GUIDE.md`) | → Linear project description (link to the guide) |
+| Acceptance criteria definitions | Repo | → Linear project description (link to spec file) |
+| Step and decision status | Repo (`_index.yaml`) | → Linear project updates |
+| Spec status | **Bidirectional** | See sync rules below |
+| Acceptance criteria evidence | Repo (step PRs and the integration PR) | → Linear project update at the gate |
 | Comments / discussion | Linear | Does not sync to repo |
 | Cycle / sprint assignment | Linear | Does not sync to repo |
 | Priority | Linear | Does not sync to repo |
 | Notifications | Linear | Does not sync to repo |
 | Board / roadmap views | Linear | Does not sync to repo |
 
-## Sync rules for task status
+## Sync rules for spec status
 
-Task status is the one field that can change in both systems. Rules:
+Spec status is the one field that can change in both systems. Rules:
 
-### Agent completes a task
-1. Agent updates the task file frontmatter: `status: done`, acceptance criteria → `pass`
-2. Agent updates the Linear issue status via MCP
-3. Agent commits the task file changes in the same PR as the implementation
-4. Both systems agree. No conflict.
+### The owner approves a spec and its guide
+1. `status: active` and `plan_review.approved: true` land in the repo in one commit
+2. The agent sets the Linear project to in progress via MCP and links the spec, the guide and `KICKOFF.md`
 
-### Agent starts a task
-1. Agent updates the task file frontmatter: `status: in-progress`
-2. Agent updates the Linear issue status via MCP
-3. Both systems agree.
+### A delivery run makes progress
+1. The executor flips step statuses in `_index.yaml` as each step's PR merges
+2. The agent posts a Linear project update at the milestones that matter to a reader: run started, integration PR opened, gate result
+3. Both systems agree. No conflict.
 
-### Human re-prioritizes or reassigns in Linear
+### Human re-prioritizes or pauses in Linear
 This is a signal, not a source-of-truth change. The agent should:
-1. Read the Linear issue for updated priority/assignment
-2. If the change affects task definition → update the task file and commit
+1. Read the Linear project for the updated priority or status
+2. If the change affects what gets built → that is a `spec-amendment`, done in the repo
 3. If it's just priority/cycle → respect it without repo changes (priority lives in Linear)
 
-### Human blocks or cancels a task in Linear
-1. Agent detects the status change via Linear MCP
-2. Agent updates the task file frontmatter: `status: blocked` or `status: cancelled`
-3. Agent commits the change
-
 ### Conflict resolution
-If the repo and Linear disagree on status:
-- **Repo wins for definition** (requirements, acceptance criteria, constraints)
-- **Linear wins for status** (the most recent status update is truth)
-- Agent reconciles by reading Linear and updating the repo task file
+If the repo and Linear disagree:
+- **Repo wins for definition** (spec, guide, acceptance criteria)
+- **Linear wins for priority and scheduling**
+- Step status is read from `_index.yaml`; a Linear update that disagrees is corrected from it
 
 ## Sync mechanism
 
@@ -58,26 +52,25 @@ If the repo and Linear disagree on status:
 No automation. The agents are the sync layer.
 
 **Claude Code (local agent):**
-- Creates task files in repo → creates corresponding Linear issues via MCP
-- Reads Linear for status updates → updates task files if needed
-- Reviews PRs → updates Linear issue with results
+- Creates the Linear project when a spec is approved, linking the spec, guide and kickoff prompt
+- Reads Linear for priority and discussion before starting work
+- Posts project updates at the delivery milestones
 
 **The delivery agent (or, exceptionally, a worktree-isolated subagent):**
-- Reads task files from repo for definition
-- Updates Linear issue status as tasks move through the execution loop
-- Commits task file status updates in the same PR as implementation
+- Reads the spec and guide from the repo for definition
+- Flips step statuses in `_index.yaml` as steps merge
 
 **Human:**
 - Reads Linear for status, boards, dashboards
-- Comments on Linear issues for discussion
+- Comments on the Linear project for discussion
 - Changes priority/cycle in Linear
-- Reviews and merges PRs (which contain task file updates)
+- Reviews and merges the integration PR
 
 This works for a small team. The agents maintain consistency because they touch both systems every time they act.
 
 ### Phase 2: CI-assisted (when friction emerges)
 
-Add a GitHub Action that runs on PRs touching `specs/tasks/`:
+Add a GitHub Action that runs on pushes touching `specs/tasks/`:
 
 ```yaml
 # .github/workflows/sync-linear.yml
@@ -91,32 +84,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Sync task files to Linear
+      - name: Sync delivery status to Linear
         run: node scripts/sync-to-linear.js
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
 ```
 
 The sync script:
-1. Reads all `_index.yaml` files
-2. For each task: compares repo status with Linear status
-3. Updates Linear issues where repo has newer changes
+1. Reads every `_index.yaml`
+2. For each spec: summarizes step and decision statuses
+3. Posts or updates the Linear project status where the repo has newer changes
 4. Reports any conflicts for human review
 
-This is a safety net — catches cases where an agent updated the repo but missed Linear, or vice versa.
+This is a safety net — it catches cases where an agent updated the repo but missed Linear.
 
 ### Phase 3: Webhook-driven (at scale)
 
-Linear webhooks → a small service → updates task files via PR. This is the full bidirectional sync. Only build this if Phase 2 isn't sufficient.
+Linear webhooks → a small service → opens a PR for a status change. This is the full bidirectional sync. Only build this if Phase 2 isn't sufficient.
 
 ## What this means for stakeholders
 
 | Stakeholder | Where they look | What they see |
 |-------------|----------------|---------------|
-| Developer | Repo (task files) + Linear | Full context: definition in repo, discussion in Linear |
-| PM | Linear boards | Status, cycles, roadmap, initiative progress |
+| Developer | Repo (spec + guide) + Linear | Full context: definition in repo, discussion in Linear |
+| PM | Linear boards | Spec status, cycles, roadmap, initiative progress |
 | Stakeholder | Linear dashboards | High-level: what's done, what's in progress, what's blocked |
-| Agent | Repo + Linear (MCP) | Task definition + live status + discussion |
+| Agent | Repo + Linear (MCP) | Spec and guide + live status + discussion |
 
 Nobody needs to know about the sync mechanism. Developers work in the repo + Linear. PMs and stakeholders work in Linear. Agents work in both. The system keeps them consistent.
 
@@ -129,18 +122,18 @@ Flow direction for bugs:
 ```
 Linear (raw signal) → Agent normalizes → Repo (structured bug spec)
                                         → Agent updates Linear issue with structured data
-                                        → Agent creates task files in repo for the fix
-                                        → Agent creates Linear issues for the fix tasks
+                                        → Agent writes the fix's delivery guide in the repo
+                                        → Agent links the guide from the Linear issue
 ```
 
-After normalization, the bug spec in the repo is the source of truth for definition. The Linear issue becomes the view + discussion layer, same as for feature tasks.
+After normalization, the bug spec in the repo is the source of truth for definition. The Linear issue becomes the view + discussion layer, same as for a feature spec.
 
 See [triage.md](triage.md) for the full pipeline.
 
 ## Anti-patterns
 
-- **Editing task definitions in Linear.** Linear issue descriptions are synced FROM the repo. Edit the task file, not the Linear issue body.
-- **Creating feature tasks in Linear without a task file.** Feature tasks must exist in the repo first. Linear issues are created as a downstream step. (Bugs are the exception — they start in Linear.)
+- **Editing definitions in Linear.** Linear descriptions link to the repo. Edit the spec or guide, not the Linear body.
+- **Creating feature work in Linear without a spec.** Feature work must exist in the repo first. The Linear project is created as a downstream step. (Bugs are the exception — they start in Linear.)
 - **Ignoring Linear comments.** Discussion happens in Linear, not in the repo. Agents should read Linear comments before starting work — there may be context from the team.
-- **Manual status tracking.** Don't manually update task file status. Let the agents do it as part of their implementation flow. Human status changes happen in Linear and flow back.
+- **Manual status tracking.** Don't hand-edit step statuses. The delivery run flips them as steps merge. Human status changes happen in Linear and flow back as priority, not as step state.
 - **Requiring reporters to write structured bug reports.** The agent does the structuring. Non-technical reporters write a sentence and the agent handles the rest.

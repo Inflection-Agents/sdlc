@@ -19,8 +19,8 @@ linear_project:
 
 ## Success criteria
 
-<!-- Measurable outcomes. How we know this spec is done. -->
-- [ ] 
+<!-- Measurable outcomes. How we know this spec is done. Every criterion needs an id. -->
+- [ ] SC-1: 
 
 ## Scope
 
@@ -38,8 +38,9 @@ linear_project:
 
 ## Acceptance criteria
 
-<!-- Testable conditions. Each should be verifiable by an agent or a test. -->
-- [ ] Given X, when Y, then Z
+<!-- Testable conditions. Each should be verifiable by an agent or a test. Every criterion needs an id,
+     which a delivery guide's Covers: names. -->
+- [ ] AC-001: Given X, when Y, then Z
 
 ## Risks & constraints
 

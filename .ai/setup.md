@@ -21,7 +21,7 @@ Otherwise, run the SDLC's own bootstrap from this directory:
 
 This script:
 1. Checks prerequisites (Node.js for the hooks + validators, Git, GitHub CLI, Claude Code)
-2. Scaffolds `specs/` and `.ai/`, and copies the spec/task templates
+2. Scaffolds `specs/` and `.ai/`, and copies the spec, guide and kickoff templates
 3. Copies the spine: the state machine (`specs/sdlc-state-machine.yaml`), the reference hooks (`.claude/hooks/`), the review contracts (`skills/review-*.yaml` / `.json` / `.md`), and the validators + gates (`scripts/sdlc/`)
 4. Wires the hooks into `.claude/settings.json` (advisory by default — and never clobbers an existing settings.json; it prints merge guidance instead)
 5. Links `.claude/skills` → `skills`
@@ -44,7 +44,7 @@ The SDLC is agent-agnostic. You can use Claude Code, Gemini CLI, or both. We rec
 1. **Install:** follow the [Gemini CLI installation guide](https://github.com/google/generative-ai-docs).
 2. **Superpowers (recommended):** `gemini install-skill brainstorming verification-before-completion`.
 
-> **Executors.** There is nothing extra to install: the agent running `spec-execution` implements the tasks itself, dispatching worktree-isolated subagents only as an exception for a large spec (ADR-003). There is no cloud executor and no separate engine.
+> **Executors.** There is nothing extra to install: the agent running `spec-execution` implements the guide's steps itself, dispatching worktree-isolated subagents only as an exception for a large spec (ADR-003). There is no cloud executor and no separate engine.
 
 ## 4. Wire skills into your agents
 
@@ -63,9 +63,9 @@ The autonomous half of the SDLC runs on a small spine of machine-checkable piece
 - **Reference hooks** — `.claude/hooks/` (`.mjs`, Node-based), wired via **`.claude/settings.json`** so they travel with the repo (NOT `settings.local.json`). **Advisory by default** — they nudge, they don't block:
   - `user-prompt-submit.mjs` — classify the prompt to its current phase
   - `stop-handoff.mjs` (Stop + SubagentStop) — advisory next-phase handoff at a phase exit, **and the delivery goal leash** on `Stop`: while `.claude/.sdlc-goal-<session_id>` is `status: active` it blocks a premature stop and feeds back the run's exit criteria (bounded, fails open)
-  - `pre-tool-use-edit-write.mjs` — flag implementation-code edits with no active task context
+  - `pre-tool-use-edit-write.mjs` — flag implementation-code edits made off a spec work branch
   - `pre-tool-use-review-identity.mjs` — flag an author reviewing their own PR
-- **Delivery gates** — `scripts/sdlc/plan-gate.mjs` (the fail-closed plan-review gate a run checks before it starts), `scripts/sdlc/validate-review-envelope.mjs` (every reviewer verdict is validated through it), `scripts/sdlc/reviewer-routing.mjs` (lens → reviewer, from the registry), `scripts/sdlc/check-review-constraint-globs.mjs` (registry rows must resolve to real files).
+- **Delivery gates** — `scripts/sdlc/validate-guide.mjs` (a spec's delivery guide is complete, current and within the 3,800-character kickoff limit), `scripts/sdlc/plan-gate.mjs` (the fail-closed plan-review gate a run checks before it starts), `scripts/sdlc/validate-review-envelope.mjs` (every reviewer verdict is validated through it), `scripts/sdlc/reviewer-routing.mjs` (lens → reviewer, from the registry), `scripts/sdlc/check-review-constraint-globs.mjs` (registry rows must resolve to real files).
 - **Review contracts** — `skills/review-primitives.md`, `skills/review-envelope.schema.json` (universal, identical in every repo).
 - **Constraint registry** — `.ai/sdlc/review-constraints.yaml`, this repo's own invariants. It sits outside `skills/` so a skills-tree update can never overwrite it.
 
@@ -74,8 +74,8 @@ There is **no execution engine to install.** A deterministic `execute-spec` Work
 ## 5. Linear labels
 
 Create these labels in your Linear workspace (if they don't already exist):
-- `claude-code` — for tasks the delivery run implements (the default)
-- `human` — for tasks requiring a human decision
+- `claude-code` — for work the delivery run implements (the default)
+- `human` — for work requiring a human decision or a human-run step
 
 ## 6. Verify
 
@@ -103,7 +103,7 @@ claude "list my Linear teams"
 ├── project.md      ← repo structure, commands, code conventions
 ├── CLAUDE.md       ← instructions for the Claude Code orchestrator
 ├── GEMINI.md       ← instructions for the Gemini CLI orchestrator (if used)
-├── AGENTS.md       ← the executor brief (any agent dispatched to a task)
+├── AGENTS.md       ← the executor brief (any agent dispatched to one guide step)
 ├── setup.md        ← you are here
 ├── sdlc/           ← this repo's own SDLC config, never overwritten by an update
 │   └── review-constraints.yaml   ← lens/constraint registry (yours to edit)
@@ -121,19 +121,19 @@ scripts/sdlc/       ← validators + gates: validate-state-machine.mjs, validate
 
 specs/
 ├── sdlc-state-machine.yaml  ← single source of truth for phases + transitions
-├── templates/      ← templates for new specs, ADRs, bugs
+├── templates/      ← templates for new specs, ADRs, bugs, guides, kickoff prompts
 ├── adrs/           ← architecture decision records
 ├── bugs/           ← bug specs
-├── tasks/          ← per-spec task graphs (_index.yaml carries the phase: memory block)
+├── tasks/          ← per-spec delivery guides: GUIDE.md, _index.yaml (phase: memory), KICKOFF.md
 └── spec-index.json ← auto-generated, agent-readable index
 ```
 
 ## 8. Daily workflow
 
 1. **Start a session:** `claude` or `gemini`.
-2. **Check work:** the orchestrator reads Linear for your assigned tasks.
-3. **Judgment phases (with the user):** intent-triage → spec-authoring → task-decomposition. This is where human attention goes.
-4. **Delivery (autonomous):** once the spec is `active`, decomposed and plan-approved, say "implement SPEC-NNN". The run arms its goal leash, tracks a visible task list, burns the tasks down serially onto `feat/spec-NNN`, validates end-to-end once, and opens one integration PR graded by an adversarial panel. A human merges it to `main`.
+2. **Check work:** the orchestrator reads Linear for the specs assigned to you.
+3. **Judgment phases (with the user):** intent-triage → spec-authoring, which ends with the spec and its delivery guide approved together. This is where human attention goes.
+4. **Delivery (autonomous):** once the spec is `active` with its guide approved, paste its `KICKOFF.md` (or say "implement SPEC-NNN"). The run arms its goal leash, tracks a visible task list, burns the guide's steps down serially onto `feat/spec-NNN`, validates end-to-end once, and opens one integration PR graded by an adversarial panel. A human merges it to `main`.
 5. **For spec changes mid-flight:** the run escalates `spec:*` back to `spec-amendment`; update the spec in a PR.
 
 ## 9. Troubleshooting
@@ -143,7 +143,7 @@ specs/
 | Skills not found | Re-run the repo's `setup-sdlc.sh` (or re-symlink) and restart your agent session. |
 | Hooks not firing | Confirm they're wired in `.claude/settings.json` (not `settings.local.json`) and that `node` is on PATH. Most hooks are advisory — they log/nudge, they don't block — except the delivery goal leash (`stop-handoff.mjs`'s `Stop` branch), which deliberately blocks while a run is active. |
 | State-machine / phase-memory validation fails | Run `node scripts/sdlc/validate-state-machine.mjs` and `node scripts/sdlc/validate-phase-memory.mjs` and fix the reported drift. |
-| A delivery run refuses to start | It needs a spec with `status: active`, a decomposed task graph (`specs/tasks/SPEC-NNN/_index.yaml`), and an approved `plan_review:` block — check with `node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml`. |
+| A delivery run refuses to start | It needs a spec with `status: active`, a delivery guide that passes `node scripts/sdlc/validate-guide.mjs specs/tasks/SPEC-NNN/GUIDE.md`, and an approved `plan_review:` block — check with `node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml`. A spec specced before guides existed needs "write the guide for SPEC-NNN" first. |
 | A session won't stop / keeps being blocked | A delivery goal leash is armed. Finish the run and set `status: met` in `.claude/.sdlc-goal-<session_id>`, set `status: escalated` if you are blocked on a human, or delete that file to disarm it. |
 | Claude Code can't reach Linear | Check MCP config: `claude mcp list` — is `linear` listed? |
 | CI fails on spec validation | Check frontmatter against schema in `skills/spec-schema.md` |

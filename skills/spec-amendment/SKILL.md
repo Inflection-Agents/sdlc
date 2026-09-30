@@ -7,11 +7,11 @@ description: Use when implementation reveals the spec is wrong, incomplete, or n
 
 ## Overview
 
-The backward path in the SDLC. Spec-authoring moves forward (intent → spec). This skill handles what happens when reality pushes back — a task reveals a bad assumption, the user changes direction, or an external dependency shifts.
+The backward path in the SDLC. Spec-authoring moves forward (intent → spec). This skill handles what happens when reality pushes back — a delivery step reveals a bad assumption, the user changes direction, or an external dependency shifts.
 
 Spec amendment is normal, not failure. Every non-trivial spec will be amended at least once. The goal is to amend cleanly: classify the change, assess impact on in-flight work, update all artifacts, and get approval before continuing.
 
-**This is a rigid skill.** No implementation continues against a known-wrong spec. No task changes without assessing the full impact.
+**This is a rigid skill.** No implementation continues against a known-wrong spec. No guide changes without assessing the full impact.
 
 **Announce at start:** "Using spec-amendment — the spec needs a change. Let me classify the impact before we continue."
 
@@ -19,7 +19,7 @@ Spec amendment is normal, not failure. Every non-trivial spec will be amended at
 
 1. **No implementation against a known-wrong spec.** If you discover the spec is wrong, stop implementing and invoke this skill. Continuing wastes effort and creates artifacts that need rework.
 2. **No breaking changes without user approval.** Cosmetic fixes can proceed. Additive and breaking changes require the user to review and approve before work resumes.
-3. **No silent task invalidation.** If a spec change affects in-flight tasks, every affected task must be explicitly updated or cancelled. Don't leave stale tasks in the graph.
+3. **No silent step invalidation.** If a spec change affects guide steps, every affected step must be explicitly rewritten, reworked or cancelled, and the guide must pass `validate-guide.mjs` again. Don't leave stale steps in the guide.
 
 ---
 
@@ -43,11 +43,11 @@ If the change qualifies as a gap, create a GAP-NNN-*.md file under `specs/gaps/`
 
 Something prompted this amendment. Name it clearly:
 
-- **Implementation discovery:** "TASK-003 revealed that the auth middleware can't intercept at the route level — it needs to be app-level middleware."
+- **Implementation discovery:** "Step S3 revealed that the auth middleware can't intercept at the route level — it needs to be app-level middleware."
 - **User direction change:** "The user decided to drop feature X from scope."
 - **External shift:** "The API we planned to integrate deprecated endpoint Y."
-- **Review finding:** "Code review on TASK-002's PR found the design creates a circular dependency."
-- **Bug during implementation:** "Tests for TASK-004 exposed a flaw in the acceptance criteria — criterion AC-005 contradicts AC-002."
+- **Review finding:** "The integration panel on S2's work found the design creates a circular dependency."
+- **Bug during implementation:** "The Verify: commands for S4 exposed a flaw in the acceptance criteria — criterion AC-005 contradicts AC-002."
 
 Document the trigger. This becomes the "why" for the version bump.
 
@@ -61,13 +61,15 @@ Every spec change falls into one of three categories. The classification determi
 
 **Rules:**
 - No version bump
-- No task impact analysis needed
+- No guide impact analysis needed
 - No user approval needed (but commit clearly)
 - Update `updated` date in frontmatter
 
 **Examples:**
 - Fix a typo in the design section
-- Clarify that "user" means "authenticated user" (if all tasks already assumed this)
+- Clarify that "user" means "authenticated user" (if every step already assumed this)
+- Add an id to the front of an existing acceptance or success criterion line and change nothing else
+  on it (an id-only edit, needed before a guide can name the criterion)
 - Add a code example to a constraint
 
 ### Additive
@@ -76,9 +78,9 @@ Every spec change falls into one of three categories. The classification determi
 
 **Rules:**
 - Version bump required
-- Task impact analysis required (new tasks may be needed)
+- Guide impact analysis required (new steps may be needed)
 - User approval required
-- No existing task should break — but new tasks may be needed
+- No existing step should break — but new steps may be needed
 
 **Examples:**
 - Add a new acceptance criterion: "Given admin user, when deleting account, then soft-delete only"
@@ -91,15 +93,15 @@ Every spec change falls into one of three categories. The classification determi
 
 **Rules:**
 - Version bump required
-- Full task impact analysis required (existing tasks may be invalid)
+- Full guide impact analysis required (existing steps may be invalid)
 - User approval required
-- In-flight tasks must be assessed for rework, cancellation, or re-scoping
+- In-flight steps must be assessed for rework, cancellation, or re-scoping
 
 **Examples:**
-- Change design: "Use app-level middleware instead of route-level" (affects tasks already built against the old design)
+- Change design: "Use app-level middleware instead of route-level" (affects steps already built against the old design)
 - Remove acceptance criterion: "Drop the real-time notification requirement"
 - Change scope: "This spec now covers only the API, not the UI"
-- Change architecture decision: "Switch from PostgreSQL to DynamoDB" (invalidates ADR + tasks)
+- Change architecture decision: "Switch from PostgreSQL to DynamoDB" (invalidates ADR + steps)
 
 ## Step 3: Write the amendment
 
@@ -111,7 +113,7 @@ Done. No further steps needed.
 
 ### For additive and breaking changes
 
-**3a. Create a change summary** — before editing the spec, write a concise summary of what's changing and why. This becomes the basis for user review and task impact analysis.
+**3a. Create a change summary** — before editing the spec, write a concise summary of what's changing and why. This becomes the basis for user review and guide impact analysis.
 
 ```markdown
 ## Amendment to SPEC-NNN v[current] → v[next]
@@ -143,137 +145,85 @@ Done. No further steps needed.
 ## Changelog
 
 ### v2 (YYYY-MM-DD)
-- **Breaking:** Changed auth middleware from route-level to app-level (TASK-003 discovery)
+- **Breaking:** Changed auth middleware from route-level to app-level (step S3 discovery)
 - **Additive:** Added admin soft-delete acceptance criterion
 
 ### v1 (YYYY-MM-DD)
 - Initial spec
 ```
 
-## Step 4: Task impact analysis
+## Step 4: Guide impact analysis
 
-This is the critical step. For every task in `specs/tasks/SPEC-NNN/`:
+For every step in `specs/tasks/SPEC-NNN/GUIDE.md`, read its status in `_index.yaml` and classify it
+against the change:
 
-Read `_index.yaml` and each task file. For each task, classify:
+| Step status | Impact | Action |
+|-------------|--------|--------|
+| `pending` | Not affected | None |
+| `pending` | Affected by change | Rewrite the step: its `Covers:`, `Changes:`, `Verify:` or `Notes:` |
+| `in_progress` | Affected by change | Pause the step (Step 5), then rewrite it |
+| `done` (PR merged) | Not affected | None |
+| `done` (PR merged) | Invalidated by change | Add a rework step (Step 6) |
+| N/A | New work needed | Add a new step (Step 6) |
 
-| Task status | Impact | Action |
-|------------|--------|--------|
-| `pending` (not started) | Affected by change | Update task file to reflect new spec |
-| `pending` (not started) | Not affected | No action |
-| `in-progress` | Affected by change | Signal the agent — see Step 5 |
-| `in-progress` | Not affected | No action |
-| `done` (PR merged) | Invalidated by change | Create a **rework task** — see Step 6 |
-| `done` (PR merged) | Not affected | No action |
-| N/A | New work needed | Create new task(s) — see Step 6 |
+A spec that is `active` but has no guide yet has nothing to cascade into. Skip Steps 4 to 6, and hand
+off to `spec-authoring` with "write the guide for SPEC-NNN" after the owner approves the amendment.
+Write the phase block as `current: spec-amendment`, `next_action: spec-authoring`,
+`next_trigger: 'write the guide for SPEC-NNN'`. The Stop hook may still show the state machine's
+trigger for `spec-amendment` ("execute SPEC-NNN"); if that is followed, `spec-execution` §1 refuses
+the guide-less spec and routes it back to the guide step.
 
-Build the impact table:
+Present the impact:
 
 ```markdown
-### Task impact
+### Guide impact
 
-| Task | Status | Impact | Action |
+| Step | Status | Impact | Action |
 |------|--------|--------|--------|
-| TASK-001 | done | Not affected | None |
-| TASK-002 | in-progress | Breaking — design changed | Signal agent, update task |
-| TASK-003 | pending | Breaking — acceptance criteria changed | Update task file |
-| TASK-004 | pending | Not affected | None |
-| NEW | — | Additive — new acceptance criterion | Create TASK-005 |
+| S1 | done | Not affected | None |
+| S2 | in_progress | Breaking — design changed | Pause, rewrite S2 |
+| S3 | pending | Breaking — acceptance criteria changed | Re-map Covers: |
+| NEW | — | Additive — new acceptance criterion | Add S5 |
 ```
 
-## Step 5: Handle in-progress tasks
+## Step 5: Handle an in-flight run
 
-When a spec amendment affects a task that an agent is actively working on:
+When a delivery run is working on the spec, the run has already stopped: a `spec:*` finding routes it
+here (`spec-execution` §8). Before it resumes:
 
-**For executor (`claude-code`) tasks:**
-- If the executor hasn't started or no PR exists yet: stop the in-flight executor and re-dispatch the task with the updated requirements.
-- If the PR already exists but not merged: add a review comment explaining the spec change and what needs to change in the PR. Request changes.
-- If the task is fundamentally invalidated: stop the executor and create a replacement task.
-- If you're implementing the task by hand: stop implementation, apply the amendment, adjust your work.
+- An `in_progress` step that the change affects is rewritten in the guide. Its branch is either
+  rebased onto the amended step or closed and restarted from the integration tip.
+- A step the change does not affect keeps its status.
+- The run's goal file stays `escalated` until the owner re-approves the plan (Step 8).
 
-**For `human` tasks:**
-- Add a comment on the Linear issue explaining the spec change and its impact on this task.
+## Step 6: Update the guide
 
-## Step 6: Update the task graph
+Edit `GUIDE.md` and `_index.yaml` in the same commit as the spec:
 
-Based on the impact analysis:
+- **Re-map `Covers:`** so every AC in the amended spec is covered by a step that is not cancelled, and
+  no step names an AC the spec no longer defines.
+- **Rewrite affected pending steps** to match the new spec.
+- **Add a rework step** for merged work the change invalidates. Scope it to the delta only, title it
+  "Rework: <original step title> for v<new version>", and give it `After:` on the step it reworks
+  when later steps depend on the reworked output.
+- **Add a new step** for additive scope, in the position its dependencies need.
+- **Cancel an obsolete step** by setting its status to `cancelled` with a `reason:` naming this
+  amendment. It stays in both files as the record.
+- **Bump `spec_version`** in `GUIDE.md` to the spec's new `version`.
+- **Reset `plan_review.approved` to `false`** in `_index.yaml`. The owner re-approves in Step 7.
 
-**Update existing pending task files:**
-- Change acceptance criteria to match new spec
-- Update constraints if design changed
-- Update verification commands if scope changed
-- Update `updated` date
+Then run the validator. It must exit 0 before Step 6b:
 
-**Create rework tasks** for completed work that's now invalid:
-- ID: next available TASK-NNN
-- Title: "Rework: [original task title] for SPEC-NNN v[new version]"
-- Context: reference original task, explain what changed, link the amendment
-- Scope to ONLY the delta — not a redo of the entire original task
-
-**Create new tasks** for additive scope:
-- Follow the same process as task-decomposition Step 6
-- Wire into the dependency graph correctly
-
-**Cancel obsolete tasks:**
-- Set `status: cancelled` in the task file
-- Update Linear issue to cancelled
-- Remove from `_index.yaml` dependency graph (update `depends_on`/`blocks` on other tasks)
-
-### Dependency wiring rules for rework tasks
-
-Rework tasks inherit the dependency position of the task they're reworking. The principle: **any task that depended on the original's output now depends on the rework landing first.**
-
-**Rule 1: Rework tasks replace their original in the dependency graph.**
-
-If TASK-001 is done and needs rework (→ TASK-005), then every task that had `depends_on: [TASK-001]` gets updated to `depends_on: [TASK-005]`.
-
+```bash
+node scripts/sdlc/validate-guide.mjs specs/tasks/SPEC-NNN/GUIDE.md
 ```
-Before amendment:
-  TASK-001 [done] → TASK-003 [pending, depends_on: [TASK-001]]
-
-After amendment:
-  TASK-001 [done]
-  TASK-005 [pending, rework of 001] → TASK-003 [pending, depends_on: [TASK-005]]
-```
-
-**Rule 2: Multiple rework tasks respect the original ordering.**
-
-If TASK-001 blocked TASK-002, and both need rework, the rework tasks preserve that ordering:
-
-```
-Before amendment:
-  TASK-001 [done] → TASK-002 [done] → TASK-003 [pending]
-
-After amendment (both need rework):
-  TASK-005 [rework of 001] → TASK-006 [rework of 002, depends_on: [TASK-005]] → TASK-003 [depends_on: [TASK-006]]
-```
-
-**Rule 3: Rework tasks don't depend on the original.**
-
-The original is done — its code is on main. The rework task modifies that code. It doesn't wait for anything the original waited for (those are also done). Its only dependencies are other rework tasks that must land first.
-
-**Rule 4: In-progress tasks that are affected get a new dependency, not a replacement.**
-
-If TASK-003 is in-progress and a rework task TASK-005 is created for upstream work it depends on, TASK-003 gets `depends_on: [TASK-005]` added (not replacing existing deps). TASK-003 is blocked until TASK-005 lands.
-
-**Rule 5: Unaffected tasks keep their original dependencies.**
-
-If TASK-004 depends on TASK-002, and TASK-002 is done and NOT affected by the amendment, TASK-004's dependencies don't change.
-
-### Update `_index.yaml`
-
-After all task file changes:
-- Add new tasks (rework + additive)
-- Remove cancelled tasks
-- Rewire dependency edges per the rules above
-- Update `updated` date
-- Verify: no circular dependencies, no dangling references
 
 ## Step 6b: Self-review (mandatory)
 
 Before presenting to the user, verify:
 
 - [ ] The amendment's "What's changing" / "Why" / Changelog entries don't introduce instructions that violate `sdlc-code-standards` — no "leave X deprecated for N cycles," "skip the test because Y," "comment out Z to preserve the old path," or similar. Amendments cannot un-enforce universal standards any more than original specs can. If a genuine exception is needed, document the exact reason.
-- [ ] Rework task files follow the same rule: no Constraints section instructs a standards violation.
+- [ ] Rework and new guide steps follow the same rule: no `Notes:` instructs a standards violation.
 - [ ] The amendment doesn't reintroduce dead code, deprecated-zombies, or similar patterns that this project has committed to retiring.
 
 ## Step 6c: Dispatch `spec-reviewer` on the amended spec (mandatory for additive and breaking)
@@ -343,7 +293,7 @@ When the routing policy returns `accept` or `batch_followup_and_accept` (after a
 Scan open `clarification` gaps for the parent spec (files in `specs/gaps/` where `spec: SPEC-NNN` and `status: open` and `resolution: clarification`). For each:
 - If the gap's resolution is still applicable to the new amendment, incorporate it into the amendment text.
 - Set the gap's `back_ported_to: SPEC-NNN-v<new-version>` (use `SPEC-NNN-v1.1` if the parent spec is `status: completed` and uses the Changelog-annotation extension pattern from SPEC-004).
-- Set the gap's `status: resolved` and `resolved_date: <today>` and `resolved_by: <amendment commit SHA or this task's id>` in the gap file.
+- Set the gap's `status: resolved` and `resolved_date: <today>` and `resolved_by: <amendment commit SHA>` in the gap file.
 - List the back-ported gaps in the amendment's commit message (e.g., `closes GAP-001, GAP-002`).
 
 ## Step 7: Review with the user
@@ -351,39 +301,44 @@ Scan open `clarification` gaps for the parent spec (files in `specs/gaps/` where
 Present the full picture:
 
 1. **The amendment summary** (from Step 3a)
-2. **The task impact table** (from Step 4)
-3. **Specific changes to task files** (updated, new, cancelled)
-4. **Dependency graph changes** (if any)
+2. **The guide impact table** (from Step 4)
+3. **The guide changes** (rewritten, rework, new and cancelled steps)
+4. **The rewritten kickoff prompt** (below)
 
 Ask:
 - Does the amendment capture the right change?
-- Is the task impact assessment correct?
-- Are the new/rework tasks scoped correctly?
+- Is the guide impact assessment correct?
+- Are the new and rework steps scoped correctly?
 - Any in-progress work I should handle differently?
 
-**Do not proceed until the user approves.**
+**Rewrite the kickoff prompt.** A changed guide or AC set changes the prompt that starts delivery.
+Regenerate `specs/tasks/SPEC-NNN/KICKOFF.md` whole from `templates/kickoff.md` against the amended
+spec and guide, keep it within **3,800 characters** (Unicode characters, not bytes), and show it to
+the owner in full. Validator rule 9 fails an approved guide whose prompt is missing or too long.
+
+**Do not proceed until the user approves.** On approval the owner sets `plan_review.approved: true`
+in `_index.yaml`, and `validate-guide.mjs` must exit 0 with it set. Write the `phase:` block with
+`current: spec-amendment`, `next_action: spec-execution`, `next_trigger: 'execute SPEC-NNN'`,
+`exit_condition_met: true` and `updated`, then set `handoff_surfaced: true` after surfacing the
+handoff.
 
 ## Step 8: Commit and update Linear
 
-**Commit everything together** — the spec change and all task file updates in one commit:
-- Message: `SPEC-NNN v[new]: [amendment summary] (N tasks updated, M new, K cancelled)`
+**Commit everything together** — the spec change, `GUIDE.md`, `_index.yaml` and `KICKOFF.md` in one commit:
+- Message: `SPEC-NNN v[new]: [amendment summary] (N steps rewritten, M new, K cancelled)`
 - If the change is large enough for a PR: branch `amend/SPEC-NNN-v[new]-short-description`
 
 **Update Linear:**
 - Update the Linear project description to reference the new spec version
-- For updated tasks: update Linear issue descriptions
-- For new tasks: create Linear issues
-- For cancelled tasks: cancel Linear issues
-- For rework tasks: create Linear issues with `rework` label
 - Add a comment on the Linear project: "Spec amended to v[new]: [summary]"
 
 ## Step 9: Resume work
 
 After the amendment is committed and Linear is updated:
 
-1. Re-read `_index.yaml` for the current ready queue
-2. Dispatch ready tasks (new, updated, or rework)
-3. Continue the normal SDLC flow
+1. The owner starts (or resumes) delivery by pasting the rewritten `KICKOFF.md`
+2. `spec-execution` re-checks `validate-guide.mjs` and `plan-gate.mjs` and continues at the first
+   unfinished step
 
 ---
 
@@ -395,10 +350,10 @@ After the amendment is committed and Linear is updated:
 | User adds a requirement | Amend (this skill) |
 | User changes direction fundamentally | **Supersede** — create a new spec via spec-authoring |
 | External shift invalidates most of the design | **Supersede** |
-| More than ~50% of tasks would need rework | **Supersede** |
+| More than ~50% of steps would need rework | **Supersede** |
 | Original spec was the wrong solution to the problem | **Supersede** |
 
-**Superseding means:** Create SPEC-NNN+1 via spec-authoring with `supersedes: SPEC-NNN`. Set the old spec to `status: superseded`. Cancel all remaining tasks for the old spec. Start fresh decomposition.
+**Superseding means:** Create SPEC-NNN+1 via spec-authoring with `supersedes: SPEC-NNN`. Set the old spec to `status: superseded`. Cancel the old spec's remaining steps. Write a fresh guide for the new spec.
 
 Amending means the spec is still fundamentally right — you're adjusting, not replacing.
 
@@ -407,12 +362,12 @@ Amending means the spec is still fundamentally right — you're adjusting, not r
 | Mistake | Fix |
 |---------|-----|
 | Continuing implementation against a known-wrong spec | Stop and amend. Wasted work is worse than a pause. |
-| Amending without checking task impact | Always run Step 4. A "small" spec change can invalidate multiple tasks. |
-| Silently updating a task file without the amendment trail | The spec version bump + changelog + commit message create the audit trail. |
+| Amending without checking guide impact | Always run Step 4. A "small" spec change can invalidate several steps. |
+| Silently editing the guide without the amendment trail | The spec version bump + changelog + commit message create the audit trail. |
 | Treating every change as breaking | Classify honestly. Additive changes are lower-friction and don't require rework analysis. |
-| Amending when you should supersede | If >50% of tasks need rework, the spec is fundamentally wrong. Start over. |
-| Forgetting to update `_index.yaml` | The index must always match the task files. New, cancelled, and re-wired tasks all change it. |
-| Not signaling in-progress executor tasks | An in-flight executor won't know the spec changed unless you stop and re-dispatch it, or leave PR review comments. If you're implementing by hand, just adjust your work. |
+| Amending when you should supersede | If >50% of steps need rework, the spec is fundamentally wrong. Start over. |
+| Forgetting to update `_index.yaml` or `spec_version` | `validate-guide.mjs` fails on a step list that differs from the guide and on a stale `spec_version`. Run it before Step 6b. |
+| Leaving the old kickoff prompt | The prompt names the steps and ACs. Rewrite it at re-approval, within 3,800 characters. |
 
 <!-- sdlc:handoff:start -->
 <!-- GENERATED from specs/sdlc-state-machine.yaml by scripts/sdlc/gen-handoffs.mjs — do not edit between markers; re-run the generator. -->
@@ -434,7 +389,7 @@ This phase is **spec-amendment** in the SDLC state machine (`specs/sdlc-state-ma
 - an active spec is found to be wrong, incomplete, or in need of change mid-flight
 - a spec is amendable IFF its status is active or draft — every other status (done, superseded, deprecated, cancelled) is CLOSED and immutable; route a change to a closed spec to a new spec (spec-authoring) or a bug spec under specs/bugs/ instead
 
-**Exit condition:** spec is amended (version bumped) and spec-reviewer re-signs off
+**Exit condition:** spec is amended (version bumped), spec-reviewer re-signs off, the guide is updated in the same commit (Covers: re-mapped, spec_version bumped) and passes scripts/sdlc/validate-guide.mjs, KICKOFF.md is rewritten, and the owner re-approves plan_review; an active spec with no guide hands off to "write the guide for SPEC-NNN" instead
 
-**Next step:** `task-decomposition` — trigger: "decompose SPEC-NNN"
+**Next step:** `spec-execution` — trigger: "execute SPEC-NNN"
 <!-- sdlc:handoff:end -->

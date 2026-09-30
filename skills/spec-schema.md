@@ -40,20 +40,26 @@ linear_project: PRJ-XYZ         # Linear project id, for bidirectional linking
 | `owner` | yes | yes | GitHub username. The human accountable for this spec's intent. |
 | `created` | yes | no | ISO date. |
 | `updated` | yes | yes | ISO date. Updated on every material change. |
-| `workspaces` | no | yes | Array of workspace names from `.ai/project.md`. Omit for single-app repos. Informs task decomposition scope. |
+| `workspaces` | no | yes | Array of workspace names from `.ai/project.md`. Omit for single-app repos. Informs each guide step's `Workspace:`. |
 | `integration_strategy` | — | — | **Retired by ADR-003.** The integration branch `feat/spec-NNN` is now unconditional: every spec cuts one, and nothing reaches `main` except by merging it. The field is ignored where it still appears on an older spec; `direct` mode no longer exists. |
 | `tags` | no | yes | Array of strings. |
 | `linear_project` | no | yes | Set when the Linear project is created. |
 
 **Plan-review verdict.** The plan-review gate's verdict for a spec is not recorded in the spec
 frontmatter — it lives in the `plan_review:` block of the spec's `specs/tasks/SPEC-NNN/_index.yaml`
-(owned by `task-schema.md`), since the plan being attested is the spec *and* its decomposition. That
+(owned by `guide-schema.md`), since the plan being attested is the spec *and* its delivery guide. That
 block is what a delivery run checks before it starts, and fails closed on
 (`node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml`).
 
 ## Body structure
 
 After frontmatter, every spec follows this section order. Sections can be brief but must be present — an empty section signals "not yet defined" and blocks the spec from moving to `active`.
+
+**Criterion ids are required.** Every success criterion starts with an id (`SC-1:`) and every
+acceptance criterion with one (`AC-001:`), because a delivery guide's `Covers:` names AC ids and the
+integration PR maps its evidence to SC ids. `validate-guide.mjs` also accepts the older `AC-NNN —`
+form. Adding an id to the front of an existing criterion line, and changing nothing else on it, is an
+id-only edit: a Cosmetic change under `spec-amendment`, with no version bump and no re-review.
 
 ```markdown
 ## Problem
@@ -63,8 +69,8 @@ What's wrong or missing. Why this matters. Who's affected.
 ## Success criteria
 
 Measurable outcomes. How we know this spec is done.
-- [ ] Criterion 1
-- [ ] Criterion 2
+- [ ] SC-1: Criterion one
+- [ ] SC-2: Criterion two
 
 ## Scope
 
@@ -84,8 +90,8 @@ Link ADRs here: `ADR-NNN: [title](../adrs/ADR-NNN.md)`
 Testable conditions that must be true for the spec to be considered implemented.
 Each criterion should be verifiable by an agent or a test.
 
-- [ ] Given X, when Y, then Z
-- [ ] Given A, when B, then C
+- [ ] AC-001: Given X, when Y, then Z
+- [ ] AC-002: Given A, when B, then C
 
 ## Risks & constraints
 
@@ -161,7 +167,7 @@ Records nit and suggestion findings deferred by the orchestrator's `batch_follow
 | `deferred_date` | yes | ISO date | When the finding was appended here. |
 | `resolved` | yes | boolean | `false` on append; flipped to `true` when a follow-up grooming task closes the item. |
 | `resolved_date` | no | ISO date \| null | Null until resolved; ISO date when resolved. |
-| `resolved_by` | no | string \| null | Null until resolved; commit SHA or task id (e.g., `TASK-NNN`) when resolved. |
+| `resolved_by` | no | string \| null | Null until resolved; commit SHA or guide step id (e.g., `S3`) when resolved. |
 
 Position constraint: appended after `## spec_review_overrides` (or after `## Migration` if `spec_review_overrides` is absent) and before `## Changelog`. See `SPEC-001-tiered-code-review.md` → Design > Spec followups format for the canonical YAML example.
 
@@ -239,12 +245,20 @@ specs/
 ├── gaps/
 │   ├── GAP-001-auth-edge-case.md
 │   └── GAP-002-pipeline-schema-ambiguity.md
+├── tasks/
+│   └── SPEC-001/
+│       ├── GUIDE.md             # the delivery guide (guide-schema.md)
+│       ├── _index.yaml          # plan_review, step and decision statuses, phase
+│       ├── KICKOFF.md           # the prompt that starts delivery, at most 3,800 characters
+│       └── DECISIONS.md         # the run's decision log
 ├── templates/
 │   ├── spec.md
 │   ├── adr.md
 │   ├── bug.md
 │   ├── decisions.md
-│   └── gap.md
+│   ├── gap.md
+│   ├── guide.md
+│   └── kickoff.md
 └── spec-index.json              # auto-generated, agent-readable
 ```
 
@@ -254,7 +268,8 @@ Subdirectories:
 - `baselines/` — per-spec baseline metric files for success-criteria comparison (e.g., `SPEC-042.md` captures pre-change metrics that the spec's success criteria are measured against). Introduced by SPEC-001.
 - `bugs/` — bug specs (`BUG-NNN-*.md`).
 - `gaps/` — gap artifacts (`GAP-NNN-*.md`). Each file records a specification gap discovered during implementation, its resolution, and downstream impact. Introduced by SPEC-004.
-- `templates/` — copy-and-fill templates for new specs, ADRs, bugs, gaps, and per-run decision logs.
+- `tasks/SPEC-NNN/` — each spec's delivery guide and its companions. See `guide-schema.md`.
+- `templates/` — copy-and-fill templates for new specs, ADRs, bugs, gaps, guides, kickoff prompts, and per-run decision logs.
 
 ### `DECISIONS.md` — the per-run decision log
 
@@ -263,11 +278,13 @@ when `spec-execution` cuts the integration branch. Append-only, chronological.
 
 Three heading forms, and no others:
 
-- `## TASK-NNN — <title>` — one per task, appended after that task merges.
-- `## EXECUTIVE DECISION — <summary>` — a judgment call the executor made rather than escalated.
+- `## S<n> — <title>` — one per guide step, appended after that step merges.
+- `## EXECUTIVE DECISION — <summary>` — a judgment call the executor made rather than escalated. A
+  mid-run change to the guide uses the fixed form `## EXECUTIVE DECISION — guide change: <summary>`,
+  so the integration PR's `## Guide changes` section can be matched against it one for one.
 - `## SPEC DEVIATION — <summary>` — the implementation diverged from the spec text.
 
-Plus a trailing `## Cross-task values` table for values a later task must match rather than re-derive.
+Plus a trailing `## Cross-step values` table for values a later step must match rather than re-derive.
 
 A `SPEC DEVIATION` may record an implementation-level mismatch. It may never narrow or reinterpret a
 stated success criterion; that is `spec-amendment`'s job and carries a version bump. The
@@ -309,7 +326,7 @@ title: "<one-line gap description>"
 status: open | resolved | wontfix
 owner: <github-handle>
 created: YYYY-MM-DD
-discovered_in: TASK-NNN | PR-NNN | review:<spec-reviewer-run-id>
+discovered_in: S<n> | PR-NNN | review:<spec-reviewer-run-id>
 resolution: clarification | workaround | deferred  # default: clarification for open gaps
 # Fields below are null while the gap is open; populate on resolution
 resolved_date: null
@@ -328,10 +345,10 @@ back_ported_to: null
 | `status` | yes | yes | enum | `open` \| `resolved` \| `wontfix`. |
 | `owner` | yes | yes | string | GitHub handle of the person responsible for resolving the gap. |
 | `created` | yes | no | date | ISO date (`YYYY-MM-DD`). When the gap was first recorded. |
-| `discovered_in` | yes | no | typed union | One of: `TASK-NNN`, `PR-NNN`, or `review:<spec-reviewer-run-id>`. Where the gap surfaced. |
+| `discovered_in` | yes | no | typed union | One of: a guide step `S<n>`, `PR-NNN`, or `review:<spec-reviewer-run-id>`. Where the gap surfaced. A gap recorded before ADR-007 may carry a task id instead. |
 | `resolution` | yes | yes | enum | `clarification` \| `workaround` \| `deferred`. How the gap is being handled. |
 | `resolved_date` | yes | yes | date \| null | ISO date when resolved; `null` while open. |
-| `resolved_by` | yes | yes | string \| null | Commit SHA or `TASK-NNN` that closed the gap; `null` while open. |
+| `resolved_by` | yes | yes | string \| null | Commit SHA or guide step `S<n>` that closed the gap; `null` while open. |
 | `back_ported_to` | yes | yes | string \| null | If a clarification was back-ported to the spec (e.g., `SPEC-NNN-vN` or `SPEC-NNN-v1.1`); `null` otherwise. |
 
 ### GAP body sections
@@ -443,7 +460,7 @@ When a PR touches any file under `specs/gaps/`, the CI validator is extended to 
 
 - **Missing required field** — any of the 11 fields absent from frontmatter.
 - **Invalid enum value** — `status` not in `{open, resolved, wontfix}`; `resolution` not in `{clarification, workaround, deferred}`.
-- **Malformed `discovered_in`** — value does not match `TASK-NNN`, `PR-NNN`, or `review:<id>`.
+- **Malformed `discovered_in`** — value does not match `S<n>`, `PR-NNN`, or `review:<id>` (a pre-ADR-007 task id is accepted on an existing gap).
 - **Malformed `back_ported_to`** — value does not match `SPEC-NNN-vN`, `SPEC-NNN-v1.1`, or `null`.
 
 The GAP validator is additive — existing specs, tasks, and baselines validation is unchanged. The actual validator script update is a separate infrastructure task (declared here as a contract; out of scope for this schema change).

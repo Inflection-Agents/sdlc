@@ -4,12 +4,12 @@
 // Generic reference implementation shipped by the AI-native SDLC framework.
 // Dependency-free (Node built-ins only — a minimal YAML reader is inlined).
 //
-// A spec may not be executed until its PLAN — the spec *and* the decomposition
+// A spec may not be executed until its PLAN — the spec *and* the delivery guide
 // that will actually run — has been reviewed and approved. The verdict is a
 // top-level `plan_review:` block in `specs/tasks/SPEC-NNN/_index.yaml`:
 //
 //   plan_review:
-//       approved: true            # the OWNER sets this; task-decomposition stamps false
+//       approved: true            # the OWNER sets this; spec-authoring stamps false
 //       status: approve-ready     # approve-ready | approve-after-fixes | needs-rework
 //       reviewed: 2026-08-14      # ISO date the plan review was recorded
 //
@@ -29,7 +29,7 @@
 //   default          — is this plan APPROVED? The question a delivery run asks about
 //                      the ONE spec it is about to execute.
 //   --presence-only  — does this plan carry a `plan_review:` block at all? The question
-//                      CI can ask repo-wide. A spec mid-decomposition legitimately sits
+//                      CI can ask repo-wide. A spec awaiting sign-off legitimately sits
 //                      at `approved: false` until the owner signs off, so enforcing
 //                      approval across every spec on every PR would turn every
 //                      unrelated PR red and create pressure to rubber-stamp the flag.
@@ -158,7 +158,7 @@ function main(argv) {
     if (!ok) {
         process.stderr.write(
             presenceOnly
-                ? 'Every decomposed spec needs a plan_review: block (task-decomposition stamps it).\n'
+                ? 'Every spec with a plan needs a plan_review: block (spec-authoring stamps it).\n'
                 : 'Run plan review, then set plan_review.approved: true (status must not be needs-rework).\n'
         )
     }

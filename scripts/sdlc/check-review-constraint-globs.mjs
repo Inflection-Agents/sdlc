@@ -19,7 +19,7 @@
  *
  * Deliberately NOT checked here (out of scope, stated so the gap is explicit):
  *   - `when.workspace` values (a name, not a path — nothing to resolve).
- *   - `when.task_has` fields (task frontmatter, not a path).
+ *   - `when.task_has` fields (guide-step fields, not a path).
  *   - whether the registry's COVERAGE is adequate. ADR-003 records, as an owner
  *     decision, that a change matching no constraint gets no mandatory reviewer;
  *     this gate only guarantees that the rows which DO exist are honest.

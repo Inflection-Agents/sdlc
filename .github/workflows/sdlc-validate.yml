@@ -34,11 +34,17 @@ jobs:
             - name: Generated handoff footers match the state machine
               run: node scripts/sdlc/gen-handoffs.mjs --check
 
+            - name: Delivery guides are complete and current
+              # Every spec AC covered, every step verifiable, guide and index in step, and an
+              # approved guide's KICKOFF.md within 3,800 characters (ADR-007). An unmatched glob
+              # (no guides yet) is nothing to check.
+              run: node scripts/sdlc/validate-guide.mjs specs/tasks/*/GUIDE.md
+
             - name: Phase-memory blocks are valid
               run: node scripts/sdlc/validate-phase-memory.mjs specs/tasks/*/_index.yaml specs/archive/tasks/*/_index.yaml
 
-            - name: Every decomposed spec carries a plan-review block
-              # PRESENCE, repo-wide — not approval. A spec mid-decomposition sits at
+            - name: Every spec with a plan carries a plan-review block
+              # PRESENCE, repo-wide — not approval. A spec awaiting sign-off sits at
               # `approved: false` until the owner signs off, so enforcing approval on
               # every PR would redden unrelated PRs and pressure people to flip the flag.
               # Approval is checked per-spec by `spec-execution` §1 before a run starts

@@ -46,15 +46,15 @@ copy-once: nothing it installs is ever updated.
 ## The phase model — collaborate up front, then run
 
 ```
-intent-triage → spec-authoring → task-decomposition │ spec-execution → spec-completion
-  (human+LLM)     (human+LLM)       (human+LLM)      │  (AUTONOMOUS)     (human+LLM)
-        ── JUDGMENT PHASES: collaborative, gated ──  │  ── DELIVERY ──
+intent-triage → spec-authoring (spec + delivery guide) │ spec-execution → spec-completion
+  (human+LLM)     (human+LLM)                          │  (AUTONOMOUS)     (human+LLM)
+        ── JUDGMENT PHASES: collaborative, gated ──     │  ── DELIVERY ──
 ```
 
-- **Front (judgment) phases are collaborative and human-gated.** Multiple humans — owner/PM, eng lead, domain experts, stakeholders — collaborate on the intent, the spec, and the decomposition. *What* to build and *how* to split it require judgment, and quality is cheapest to assure here. Each phase ends at a hard sign-off gate. See [Roles](roles.md).
-- **`spec-execution` is autonomous single-executor delivery** ([ADR-003](specs/adrs/ADR-003-goal-oriented-single-executor-delivery.md)). Once the spec + task graph are signed off, one agent arms a persistence goal leash, cuts `feat/spec-NNN`, and burns the tasks down itself — one at a time, behind a visible task list, each gated by its own tests plus an executor self-review and merged before the next starts. A deterministic Workflow engine used to do this; it was measured and retired for cost.
+- **Front (judgment) phases are collaborative and human-gated.** Multiple humans — owner/PM, eng lead, domain experts, stakeholders — collaborate on the intent, the spec, and its delivery guide. *What* to build and *in what order* require judgment, and quality is cheapest to assure here. Each phase ends at a hard sign-off gate. See [Roles](roles.md).
+- **`spec-execution` is autonomous single-executor delivery** ([ADR-003](specs/adrs/ADR-003-goal-oriented-single-executor-delivery.md)). Once the spec and its short delivery guide are signed off together ([ADR-007](specs/adrs/ADR-007-delivery-guide-replaces-decomposition.md)), the owner pastes the generated kickoff prompt; one agent arms a persistence goal leash, cuts `feat/spec-NNN`, and burns the guide's steps down itself — one at a time, behind a visible task list, each gated by its own `Verify:` commands plus an executor self-review and merged before the next starts. A deterministic Workflow engine used to do this; it was measured and retired for cost.
 - **Rigor is concentrated, not removed.** End-to-end validation runs once, then the single integration PR faces a multi-lens adversarial panel — independently dispatched, every envelope validated, the constraints registry evaluated across the whole diff — looped until no blocker or major survives (at most three rounds, ADR-004). Review is LLM and happens in-run; there is no standalone review phase. Humans only merge that final PR to `main`.
-- **The escape hatch.** When a run finds the spec or decomposition is wrong (a `spec:*` or `task:scope` blocker), it escalates out into `spec-amendment` or `task-decomposition` re-planning — a judgment phase — then resumes.
+- **The escape hatch.** When a run finds the guide is wrong (a `task:scope` blocker), it re-plans the guide in place and discloses the change in the integration PR. When it finds the spec is wrong (a `spec:*` blocker), it escalates into `spec-amendment` — a judgment phase — then resumes.
 
 The single source of truth for the phases is [`specs/sdlc-state-machine.yaml`](specs/sdlc-state-machine.yaml); the per-spec `phase:` block in each `_index.yaml` records where a spec is and makes the process resumable.
 
@@ -70,7 +70,7 @@ The single source of truth for the phases is [`specs/sdlc-state-machine.yaml`](s
 | Doc | Purpose |
 |-----|---------|
 | [Spec Schema](skills/spec-schema.md) | Spec, ADR, and bug spec formats, frontmatter schema, validation |
-| [Task Schema](skills/task-schema.md) | Task files, dependency graph, `touches`/`risk`/`tier`, phase memory |
+| [Guide Schema](skills/guide-schema.md) | Delivery guide, `_index.yaml` step and decision statuses, plan-review and phase-memory blocks, the 3,800-character kickoff prompt |
 | [Sync](sync.md) | Repo ↔ Linear sync: ownership model, sync rules, phased mechanism |
 | [Agent Orchestration](agent-orchestration.md) | Goal-oriented single-executor delivery; the worktree-isolated subagent exception |
 | [Work Graph](work-graph.md) | Data model — node types, edges, events |
@@ -87,7 +87,7 @@ The single source of truth for the phases is [`specs/sdlc-state-machine.yaml`](s
 |----------|---------|
 | [`specs/sdlc-state-machine.yaml`](specs/sdlc-state-machine.yaml) | Single source of truth for phases, triggers, exit conditions, transitions, and per-workspace domain-skill routing. The `.ai/sdlc.md` narrative and each skill's `## Handoff` footer are generated/validated from it. |
 | [`scripts/sdlc/`](scripts/sdlc/) | Validators and delivery gates: state machine + phase memory, handoff generation, the fail-closed `plan-gate.mjs`, registry-driven `reviewer-routing.mjs`, `validate-review-envelope.mjs`, and the registry checkers. **Copied into your repo by `/sdlc-init`**, because a GitHub Actions runner checks out your repo, not the plugin cache. |
-| [`.ai/sdlc/review-constraints.yaml`](.ai/sdlc/review-constraints.yaml) | Lens/constraint registry keyed on a task's `touches`; `baseLenses` per workspace. Drives review-lens routing + tier. Lives outside `skills/` because every repo replaces its rows with its own invariants. |
+| [`.ai/sdlc/review-constraints.yaml`](.ai/sdlc/review-constraints.yaml) | Lens/constraint registry keyed on changed paths (`touches` globs); `baseLenses` per workspace. Drives review-lens routing + tier. Lives outside `skills/` because every repo replaces its rows with its own invariants. |
 | [`skills/review-envelope.schema.json`](skills/review-envelope.schema.json) | The one reviewer-output schema (severity blocker/major/nit/suggestion, altitude, grounded criteria). |
 | [`skills/review-primitives.md`](skills/review-primitives.md) | Human-readable runtime contract: severity spine, grounding rules, severity→action policy. |
 | [`hooks/`](hooks/) | Enforcement hooks (Node, advisory by default): prompt→phase classifier, phase-exit handoff **and the delivery goal leash**, edit-without-task guard, review-identity guard. **Ship with the plugin** and are wired by `hooks/hooks.json`; this repo also wires them locally via `.claude/settings.json` so it can run them on itself. |
@@ -99,9 +99,9 @@ The SDLC is codified in `.ai/` so agents understand the process. `/sdlc-init` se
 | File | Who reads it | Purpose |
 |------|-------------|---------|
 | `.ai/project.md` | All agents + humans | Project-specific context: repo structure, commands, conventions, data architecture |
-| `.ai/sdlc.md` | All agents | Agent-agnostic process: phase model, spec system, task lifecycle, boundaries, escalation |
+| `.ai/sdlc.md` | All agents | Agent-agnostic process: phase model, spec system, delivery guide, boundaries, escalation |
 | `.ai/CLAUDE.md` | Claude Code (or any local agent) | Local orchestrator config: MCP access, delivering a spec through `spec-execution`, the spine (state machine, hooks) |
-| `.ai/AGENTS.md` | Any agent handed a single task | Generic executor brief: read the task file, stay within declared `touches`, verify, self-review, open a PR to the integration branch, populate AC evidence |
+| `.ai/AGENTS.md` | Any agent handed a single guide step | Generic executor brief: read the spec and the step, stay within its `Changes:`, run its `Verify:`, self-review, open a PR to the integration branch with AC evidence |
 | `.ai/setup.md` | Humans | Onboarding guide: prerequisites (incl. Node for hooks/validators), install steps, verification |
 | `skills/` | Skill-aware agents | The SDLC skills + the runtime review contracts; `spec-execution` (policy) and its `SOP.md` (procedures) |
 

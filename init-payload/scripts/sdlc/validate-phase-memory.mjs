@@ -10,7 +10,9 @@
 // accepted. When a `phase:` block IS present:
 //   - `current` and `next_action` must each be a valid state-machine phase id
 //     (a `phases[].id` in specs/sdlc-state-machine.yaml) or the sentinel `none`;
-//     an unrecognized phase id is REJECTED.
+//     an unrecognized phase id is REJECTED. A RETIRED id (listed under the machine's
+//     top-level `retired_phases:`) is accepted with a warning: an `_index.yaml` written
+//     before the phase was removed must not turn CI red (ADR-007).
 //   - `next_trigger` and `updated` must be present.
 //   - the optional `exit_condition_met` / `handoff_surfaced` flags, if present,
 //     must be booleans (or the YAML-ish strings true/false/yes/no).
@@ -32,6 +34,7 @@ const DEFAULT_MACHINE = join(REPO_ROOT, 'specs', 'sdlc-state-machine.yaml')
 
 const NONE = 'none'
 const REQUIRED_FIELDS = ['current', 'next_action', 'next_trigger', 'updated']
+const PHASE_ID_FIELDS = ['current', 'next_action']
 const BOOLEAN_FLAGS = ['exit_condition_met', 'handoff_surfaced']
 
 // ─── Minimal, dependency-free YAML reads ───────────────────────────────────
@@ -73,6 +76,44 @@ export function loadPhaseIds(machinePath = DEFAULT_MACHINE) {
 }
 
 /**
+ * Load the retired phase ids from the state-machine source's top-level
+ * `retired_phases:` list. A machine without the list retires nothing.
+ * @param {string} [machinePath]
+ * @returns {Set<string>}
+ */
+export function loadRetiredIds(machinePath = DEFAULT_MACHINE) {
+    const text = readFileSync(machinePath, 'utf8')
+    const ids = new Set()
+    let inList = false
+    for (const line of text.split('\n')) {
+        if (/^retired_phases\s*:/.test(line)) {
+            inList = true
+            continue
+        }
+        if (inList && /^\S/.test(line)) break
+        if (!inList) continue
+        const m = line.match(/^\s*-\s*(.+)$/)
+        if (m) ids.add(scalar(m[1]))
+    }
+    return ids
+}
+
+/**
+ * Warnings for `current` / `next_action` values that name a retired phase.
+ * @param {Record<string,unknown>|null|undefined} phase
+ * @param {Set<string>} retiredIds
+ * @returns {string[]}
+ */
+export function retiredWarnings(phase, retiredIds) {
+    if (!phase || typeof phase !== 'object') return []
+    return PHASE_ID_FIELDS.filter((field) => retiredIds.has(phase[field])).map(
+        (field) =>
+            `phase.${field}: '${phase[field]}' is a retired phase id; ` +
+            `write this spec's delivery guide ("write the guide for SPEC-NNN")`
+    )
+}
+
+/**
  * Extract the top-level `phase:` block from an `_index.yaml` text. Returns an
  * object of the block's scalar fields, or null/undefined if there is no
  * `phase:` block (so callers can treat absence as compliant).
@@ -110,11 +151,13 @@ function toBool(v) {
 /**
  * Validate a single `phase:` block (object) against the set of valid phase ids.
  * A `null`/`undefined` block (no `phase:` key) is COMPLIANT (additive/optional).
+ * A retired id is accepted here; retiredWarnings reports it.
  * @param {Record<string,unknown>|null|undefined} phase
  * @param {Set<string>} phaseIds
+ * @param {Set<string>} [retiredIds]
  * @returns {string[]} human-readable problems (empty = compliant)
  */
-export function validatePhaseBlock(phase, phaseIds) {
+export function validatePhaseBlock(phase, phaseIds, retiredIds = new Set()) {
     const problems = []
     if (phase === undefined || phase === null) return problems
     if (typeof phase !== 'object' || Array.isArray(phase)) {
@@ -125,10 +168,10 @@ export function validatePhaseBlock(phase, phaseIds) {
         if (!(field in phase)) problems.push(`phase: missing required field '${field}'`)
     }
 
-    for (const field of ['current', 'next_action']) {
+    for (const field of PHASE_ID_FIELDS) {
         if (!(field in phase)) continue
         const v = phase[field]
-        if (v === NONE) continue
+        if (v === NONE || retiredIds.has(v)) continue
         if (typeof v !== 'string' || !phaseIds.has(v)) {
             problems.push(
                 `phase.${field}: ${JSON.stringify(v)} is not a valid state-machine phase id ` +
@@ -150,16 +193,32 @@ export function validatePhaseBlock(phase, phaseIds) {
  * Validate one `_index.yaml` file.
  * @param {string} path
  * @param {Set<string>} phaseIds
+ * @param {Set<string>} [retiredIds]
  * @returns {string[]}
  */
-export function validateFile(path, phaseIds) {
+export function validateFile(path, phaseIds, retiredIds = new Set()) {
+    return checkFile(path, phaseIds, retiredIds).problems
+}
+
+/**
+ * Validate one `_index.yaml` file and collect retired-id warnings.
+ * @param {string} path
+ * @param {Set<string>} phaseIds
+ * @param {Set<string>} [retiredIds]
+ * @returns {{problems: string[], warnings: string[]}}
+ */
+export function checkFile(path, phaseIds, retiredIds = new Set()) {
     let text
     try {
         text = readFileSync(path, 'utf8')
     } catch (err) {
-        return [`cannot read file: ${err.message}`]
+        return { problems: [`cannot read file: ${err.message}`], warnings: [] }
     }
-    return validatePhaseBlock(parsePhaseBlock(text), phaseIds)
+    const phase = parsePhaseBlock(text)
+    return {
+        problems: validatePhaseBlock(phase, phaseIds, retiredIds),
+        warnings: retiredWarnings(phase, retiredIds),
+    }
 }
 
 /** Does this argument look like an unexpanded shell glob (contains * ? [ )? */
@@ -207,10 +266,12 @@ function main() {
         process.exit(2)
     }
     const phaseIds = loadPhaseIds(args.machine)
+    const retiredIds = loadRetiredIds(args.machine)
 
     let failed = false
     for (const file of files) {
-        const problems = validateFile(file, phaseIds)
+        const { problems, warnings } = checkFile(file, phaseIds, retiredIds)
+        for (const w of warnings) console.log(`WARN ${file}: ${w}`)
         if (problems.length === 0) {
             console.log(`OK   ${file}`)
         } else {

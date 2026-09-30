@@ -7,14 +7,14 @@ spec_version: 1
 
 ### S1: Guide tooling
 - Covers: AC-003, AC-004, AC-010, AC-014, AC-020
-- Changes: `skills/guide-schema.md`, `templates/guide.md`, `init-payload/templates/guide.md`, `scripts/sdlc/validate-guide.mjs`, `scripts/sdlc/validate-guide.test.mjs`, `init-payload/scripts/sdlc/validate-guide.mjs`, `.github/workflows/sdlc-validate.yml`, `init-payload/.github/workflows/sdlc-validate.yml`, `specs/tasks/SPEC-008/DECISIONS.md`
+- Changes: `skills/guide-schema.md`, `templates/guide.md`, `init-payload/templates/guide.md`, `scripts/sdlc/validate-guide.mjs`, `scripts/sdlc/validate-guide.test.mjs`, `init-payload/scripts/sdlc/validate-guide.mjs`, `.github/workflows/sdlc-validate.yml`, `init-payload/.github/workflows/sdlc-validate.yml`, `specs/sdlc-state-machine.yaml`, `init-payload/sdlc-state-machine.yaml` (the `guide-schema` entry under `exempt:` only), `specs/tasks/SPEC-008/DECISIONS.md`
 - Verify: `node --test scripts/sdlc/validate-guide.test.mjs`, `node scripts/sdlc/validate-guide.mjs specs/tasks/SPEC-008/GUIDE.md`, `cmp scripts/sdlc/validate-guide.mjs init-payload/scripts/sdlc/validate-guide.mjs`
 - Notes: Match section headings only at the start of a line. SPEC-008 quotes `## Acceptance criteria` inline, and an unanchored search reads the wrong section. Rule 9 caps `KICKOFF.md` at 3,800 Unicode characters on any approved guide; count with `[...text].length`, not bytes. Run the new validator on this guide and record the result in `DECISIONS.md`, next to the bootstrap `EXECUTIVE DECISION` logged at run start. `guide-schema.md` holds the guide fields, the `steps:` and `decisions:` lists, the plan-review and phase-memory blocks, and the 10-step split rule.
 
 ### S2: Spec schema and templates
 - Covers: AC-005, AC-018
-- Changes: `skills/spec-schema.md`, `templates/spec.md`, `init-payload/templates/spec.md`, `templates/decisions.md`, `init-payload/templates/decisions.md`
-- Verify: `node scripts/sdlc/check-stale-citations.mjs`, `cmp templates/decisions.md init-payload/templates/decisions.md`, `cmp templates/spec.md init-payload/templates/spec.md`
+- Changes: `skills/spec-schema.md`, `templates/spec.md`, `init-payload/templates/spec.md`, `templates/decisions.md`, `init-payload/templates/decisions.md`, `templates/gap.md`, `init-payload/templates/gap.md`
+- Verify: `node scripts/sdlc/check-stale-citations.mjs`, `cmp templates/decisions.md init-payload/templates/decisions.md`, `cmp templates/spec.md init-payload/templates/spec.md`, `cmp templates/gap.md init-payload/templates/gap.md`
 - Notes: AC and SC ids become required. The legacy `AC-NNN —` form stays valid. `DECISIONS.md` headings: `## S<n> — <title>`, the guide-change form, `## Cross-step values`.
 
 ### S3: Delivery and completion skills
@@ -37,19 +37,19 @@ spec_version: 1
 
 ### S6: State machine and phase memory
 - Covers: AC-001, AC-002, AC-019
-- Changes: `specs/sdlc-state-machine.yaml`, `init-payload/sdlc-state-machine.yaml`, `skills/task-decomposition/**`, `scripts/sdlc/validate-phase-memory.mjs`, `scripts/sdlc/validate-phase-memory.test.mjs`, `init-payload/scripts/sdlc/validate-phase-memory.mjs`, `skills/*/SKILL.md` (generated footers only)
+- Changes: `specs/sdlc-state-machine.yaml`, `init-payload/sdlc-state-machine.yaml`, `skills/task-decomposition/**`, `scripts/sdlc/validate-phase-memory.mjs`, `scripts/sdlc/validate-phase-memory.test.mjs`, `init-payload/scripts/sdlc/validate-phase-memory.mjs`, `skills/*/SKILL.md` and `.ai/sdlc.md` (generated regions only)
 - Verify: `node scripts/sdlc/validate-state-machine.mjs`, `node scripts/sdlc/gen-handoffs.mjs --check`, `node --test scripts/sdlc/validate-phase-memory.test.mjs`, `cmp scripts/sdlc/validate-phase-memory.mjs init-payload/scripts/sdlc/validate-phase-memory.mjs`
-- Notes: Runs after S3 and S4, so the footers are regenerated from skills that already describe the guide. Delete `skills/task-decomposition/` here, in the same commit that removes its phase, because `validate-state-machine.mjs` fails on a skill directory that no phase or `exempt:` entry names. Add `guide-schema` to `exempt:`. Remove `task-schema` in S7, when the file goes.
+- Notes: Runs after S3 and S4, so the footers are regenerated from skills that already describe the guide. Delete `skills/task-decomposition/` here, in the same commit that removes its phase, because `validate-state-machine.mjs` fails on a skill directory that no phase or `exempt:` entry names. `guide-schema` is already under `exempt:` (S1). Remove `task-schema` in S7, when the file goes.
 
 ### S7: Deletions and code comments
 - Covers: AC-010, AC-011
-- Changes: `skills/task-schema.md`, `templates/task.md`, `init-payload/templates/task.md`, `scripts/sdlc/__fixtures__/review-primitives-examples/test-fixtures/**`, `scripts/sdlc/plan-gate.mjs`, `init-payload/scripts/sdlc/plan-gate.mjs`, `specs/sdlc-state-machine.yaml`, `init-payload/sdlc-state-machine.yaml`
+- Changes: `skills/task-schema.md`, `templates/task.md`, `init-payload/templates/task.md`, `scripts/sdlc/__fixtures__/review-primitives-examples/test-fixtures/**`, `scripts/sdlc/plan-gate.mjs`, `init-payload/scripts/sdlc/plan-gate.mjs`, `specs/sdlc-state-machine.yaml`, `init-payload/sdlc-state-machine.yaml`, `.github/workflows/sdlc-validate.yml`, `init-payload/.github/workflows/sdlc-validate.yml` (the plan-review step's name and comment only)
 - Verify: `node --test scripts/sdlc/plan-gate.test.mjs`, `node scripts/sdlc/validate-state-machine.mjs`, `cmp scripts/sdlc/plan-gate.mjs init-payload/scripts/sdlc/plan-gate.mjs`
 - Notes: Change plan-gate wording only (comments and the `--presence-only` message). Leave its logic as it is. Drop `task-schema` from `exempt:` in both state machines.
 
 ### S8: Docs
 - Covers: AC-011
-- Changes: `README.md`, `playbook.md`, `skills.md`, `skill-architecture.md`, `roles.md`, `agent-orchestration.md`, `sync.md`, `triage.md`, `tooling.md`, `work-graph.md`, `specs/_index.md`, `.ai/*.md`, `templates/project.md`, `init-payload/templates/project.md`, `init-payload/.ai/project.stub.md`
+- Changes: `README.md`, `playbook.md`, `skills.md`, `skill-architecture.md`, `roles.md`, `agent-orchestration.md`, `sync.md`, `triage.md`, `tooling.md`, `work-graph.md`, `specs/_index.md`, `.ai/*.md`, `templates/project.md`, `init-payload/templates/project.md`, `init-payload/.ai/project.stub.md`, `skills/guide-schema.md` (one intro sentence)
 - Verify: the AC-011 `rg` command prints nothing
 - Notes: Describe four main-line phases and the guide. Do not edit SPEC-003's task files.
 

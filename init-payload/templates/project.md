@@ -52,7 +52,7 @@ Whether a delivery run can execute a task in this workspace unattended, or it mu
 
 ### Workspace skills
 
-Domain skills encode technology-specific conventions, patterns, and workflows for each workspace. SDLC process skills (code-standards, code-review, task-decomposition) reference this table to apply the right domain conventions.
+Domain skills encode technology-specific conventions, patterns, and workflows for each workspace. SDLC process skills (code-standards, code-review, spec-authoring's guide step) reference this table to apply the right domain conventions.
 
 | Workspace | Domain skills | Purpose |
 |-----------|--------------|---------|
@@ -71,7 +71,7 @@ Domain skills live in `skills/` at the repo root alongside SDLC skills. Name the
 
 ### Workspace interfaces
 
-How workspaces interact at runtime. Agents use this during task decomposition to understand what crosses boundaries and to write correct constraints on boundary tasks.
+How workspaces interact at runtime. Agents use this while writing a delivery guide to understand what crosses boundaries and to write the contract a later step must match into a step's `Notes:`.
 
 <!-- For each interface between workspaces, document: what produces, what consumes, -->
 <!-- the contract (schema, types, format), and where the contract is defined. -->
@@ -94,7 +94,7 @@ How workspaces interact at runtime. Agents use this during task decomposition to
 
 ### Change propagation patterns
 
-When a change in one workspace requires coordinated changes in others, follow these patterns during task decomposition. Each pattern defines the task ordering and boundary constraints.
+When a change in one workspace requires coordinated changes in others, follow these patterns while writing the delivery guide. Each pattern defines the step ordering and boundary constraints.
 
 <!-- Document recurring cross-workspace change patterns. Remove patterns that -->
 <!-- don't apply. Add project-specific ones as they emerge. -->

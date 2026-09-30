@@ -5,15 +5,16 @@
 # and the review TIER a change earns follows constraint severity:
 #     a matched blocker → fortified · a matched major → at least standard (express vetoed)
 # Since ADR-003 this is READ BY THE AGENT composing the panel at the integration gate, not
-# resolved by code. It can only raise rigor: a task's declared `tier: express` never shrinks
+# resolved by code. It can only raise rigor: a guide step's `Risk:` is a hint and never shrinks
 # the panel.
 #
 # Per ADR-003 this registry is evaluated IN FULL at the integration gate, across the whole diff —
-# not per task, where matching against one task's narrowly declared `touches` is unreliable in both
+# not per step, where matching against one step's narrowly declared `Changes:` is unreliable in both
 # directions (a broad `**` glob trips constraints it should not; concrete paths miss ones they should).
 #
-# `when` matches if ANY of: a `touches` glob overlaps the task's `touches`; the task's
-# workspace is in `workspace`; or the task declares the `task_has` field.
+# `when` matches if ANY of: a `touches` glob overlaps the PR's changed paths; a guide step's
+# `Workspace:` is in `workspace`; or a guide step declares the field named by `task_has` (the key
+# keeps its name from before ADR-007).
 # `scope:` names WHAT a row grades, not when it runs. Both scopes are evaluated at the
 # integration gate, against the whole diff: `scope: task` rows grade task-level concerns
 # (a boundary, a convention, a risky surface a change touched) and are graded by their
