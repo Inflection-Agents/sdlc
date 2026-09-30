@@ -5,7 +5,7 @@
 # and the review TIER a change earns follows constraint severity:
 #     a matched blocker → fortified · a matched major → at least standard (express vetoed)
 # Since ADR-003 this is READ BY THE AGENT composing the panel at the integration gate, not
-# resolved by code. It can only raise rigor: a task's declared `tier: express` never shrinks
+# resolved by code. It can only raise rigor: a guide step's `Risk:` is a hint and never shrinks
 # the panel.
 #
 # Per ADR-003 this registry is evaluated IN FULL at the integration gate, across the whole diff —

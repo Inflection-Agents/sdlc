@@ -1,6 +1,6 @@
 ---
 name: [pattern-name]
-description: Use when [trigger — e.g., "a spec requires changes that flow from dbt through shared types to app UIs"]. Guides task decomposition and boundary constraint definition for cross-workspace changes.
+description: Use when [trigger — e.g., "a spec requires changes that flow from dbt through shared types to app UIs"]. Guides the delivery guide's step order and boundary constraint definition for cross-workspace changes.
 ---
 
 # [Pattern Name]
@@ -9,11 +9,11 @@ description: Use when [trigger — e.g., "a spec requires changes that flow from
 
 [What cross-workspace change pattern this skill codifies. When to use it.]
 
-**This is not an implementation skill.** It guides task decomposition and review for changes that cross workspace boundaries. It tells you how to split the work and what contracts to enforce — not how to write code.
+**This is not an implementation skill.** It guides the delivery guide and review for changes that cross workspace boundaries. It tells you how to split the work and what contracts to enforce — not how to write code.
 
 ## When to apply
 
-Apply this skill during task decomposition when:
+Apply this skill while writing a spec's delivery guide (`spec-authoring` Step 10b) when:
 - [Condition 1 — e.g., "a spec's `workspaces` field includes both `dbt` and an app workspace"]
 - [Condition 2 — e.g., "acceptance criteria reference data that flows from one workspace to another"]
 

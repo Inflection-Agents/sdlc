@@ -12,7 +12,7 @@
 // task context (the branch does not match a work-branch prefix). PROCESS-
 // ARTIFACT paths (specs/**, .ai/**, .claude/skills/**, docs/**, the state
 // machine) are categorically EXEMPT — authoring them IS the SDLC. The intent
-// is to keep implementation code anchored to a decomposed task instead of
+// is to keep implementation code anchored to a spec's guide step instead of
 // landing ad-hoc edits with no spec/task lineage.
 //
 // What counts as a path
@@ -29,7 +29,7 @@
 // -------------------
 // Deterministic: the current git branch matches one of the work-branch
 // prefixes (`claude/SPEC-…`, `task/…`, `spec/…`, `feat/spec-…`). A delivery run
-// (ADR-003) creates `claude/SPEC-NNN-TASK-NNN` task branches and one
+// (ADR-003) creates `claude/SPEC-NNN-S<n>` step branches and one
 // `feat/spec-NNN` integration branch, both of which satisfy this.
 //
 // Logged override hatch

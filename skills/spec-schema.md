@@ -40,7 +40,7 @@ linear_project: PRJ-XYZ         # Linear project id, for bidirectional linking
 | `owner` | yes | yes | GitHub username. The human accountable for this spec's intent. |
 | `created` | yes | no | ISO date. |
 | `updated` | yes | yes | ISO date. Updated on every material change. |
-| `workspaces` | no | yes | Array of workspace names from `.ai/project.md`. Omit for single-app repos. Informs task decomposition scope. |
+| `workspaces` | no | yes | Array of workspace names from `.ai/project.md`. Omit for single-app repos. Informs each guide step's `Workspace:`. |
 | `integration_strategy` | — | — | **Retired by ADR-003.** The integration branch `feat/spec-NNN` is now unconditional: every spec cuts one, and nothing reaches `main` except by merging it. The field is ignored where it still appears on an older spec; `direct` mode no longer exists. |
 | `tags` | no | yes | Array of strings. |
 | `linear_project` | no | yes | Set when the Linear project is created. |

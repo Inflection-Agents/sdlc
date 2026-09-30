@@ -130,7 +130,7 @@ ADR-003). Reads the top-level `plan_review:` block from one or more
 what `spec-execution` runs, per-spec, before a delivery run starts. `--presence-only`
 checks only that the block **exists**, run repo-wide in CI — approval is a
 per-spec, run-start question, so enforcing it on every PR would redden any PR
-touching a spec still mid-decomposition. An unmatched shell glob (no
+touching a spec still awaiting sign-off. An unmatched shell glob (no
 `specs/tasks/` yet on a fresh repo) is a clean no-op in either mode, not a
 failure — see `empty-glob.test.mjs`. Exports `planApproved` / `parsePlanReviewBlock`
 / `checkPlanGate`. Run: `node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml`

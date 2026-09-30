@@ -150,6 +150,24 @@ test('rule 6: an acceptance criterion with no id fails and quotes the line', () 
     assert.ok(problems.some((p) => p.startsWith('rule 6:') && p.includes('Given A')), problems.join('\n'))
 })
 
+test('rule 6: a missing or differently cased Acceptance criteria heading fails closed', () => {
+    const problems = check({ 'specs/SPEC-900-example.md': SPEC.replace('\n## Acceptance criteria\n', '\n## Acceptance Criteria\n') })
+    assert.ok(problems.some((p) => p.startsWith('rule 6:') && p.includes('no line-anchored')), problems.join('\n'))
+})
+
+test('rule 6: an Acceptance criteria section with no checkbox AC ids fails closed', () => {
+    const plain = SPEC.replace('- [ ] AC-001: Given X', '- AC-001: Given X').replace('- [ ] AC-002: Given A', '- AC-002: Given A')
+    const problems = check({ 'specs/SPEC-900-example.md': plain, 'specs/tasks/SPEC-900/GUIDE.md': GUIDE.replace(/- Covers: AC-00\d\n/g, '') })
+    assert.ok(problems.some((p) => p.startsWith('rule 6:') && p.includes('no `- [ ] AC-NNN:` line')), problems.join('\n'))
+})
+
+test('rule 4: a step or decision id repeated in GUIDE.md or _index.yaml fails and names it', () => {
+    const dupGuide = check({ 'specs/tasks/SPEC-900/GUIDE.md': GUIDE.replace('### S2: Second', '### S1: Second') })
+    assert.ok(dupGuide.some((p) => p.startsWith('rule 4:') && p.includes('S1 appears more than once in GUIDE.md')), dupGuide.join('\n'))
+    const dupIndex = check({ 'specs/tasks/SPEC-900/_index.yaml': INDEX.replace('decisions:\n  - id: D1\n    status: pending\n', 'decisions:\n  - id: D1\n    status: pending\n  - id: D1\n    status: pending\n') })
+    assert.ok(dupIndex.some((p) => p.startsWith('rule 4:') && p.includes('D1 appears more than once in _index.yaml')), dupIndex.join('\n'))
+})
+
 test('rule 7: an After id that is unknown or not earlier fails and names it', () => {
     const unknown = check({ 'specs/tasks/SPEC-900/GUIDE.md': GUIDE.replace('- After: S1', '- After: S9') })
     assert.ok(unknown.some((p) => p.startsWith('rule 7:') && p.includes('S9')), unknown.join('\n'))

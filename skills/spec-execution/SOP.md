@@ -283,7 +283,8 @@ push to `main`, do not self-approve. Close out the task list and hand off to `sp
 Set the goal file to `status: escalated`, put the reason in `reason`, surface it, stop. Escalate on:
 
 - Security, data-loss or payment risk — hard stop.
-- A decision that is the owner's: priority, scope, a tradeoff the spec does not settle.
+- A decision that is the owner's (priority, scope, a tradeoff the spec does not settle) and that every
+  remaining step depends on.
 - Amendment cap: `spec.version − 1 ≥ 3`.
 - A step that cannot land and cannot be fixed at the root.
 

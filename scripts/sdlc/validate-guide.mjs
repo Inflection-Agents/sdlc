@@ -11,9 +11,10 @@
 //   1. every spec AC is covered by a step that is not `cancelled`
 //   2. every `Covers:` id exists in the spec
 //   3. every step has `Changes:` and `Verify:`
-//   4. step ids, and owner-decision ids, match between GUIDE.md and _index.yaml
+//   4. step ids, and owner-decision ids, match between GUIDE.md and _index.yaml, each once
 //   5. the guide's `spec_version` equals the spec's `version`
-//   6. every checkbox under `## Acceptance criteria` carries an `AC-NNN` id
+//   6. the spec has a `## Acceptance criteria` section with at least one AC id, and every
+//      checkbox under it carries an `AC-NNN` id (an empty or missing section fails closed)
 //   7. every `After:` id names an earlier step
 //   8. when .ai/project.md defines workspaces, every step has `Workspace:`
 //   9. an approved guide has a KICKOFF.md of at most 3,800 characters
@@ -78,9 +79,10 @@ export function sectionLines(text, name) {
     return out
 }
 
-/** Spec AC ids, plus the checkbox lines under Acceptance criteria that carry no id. */
+/** Spec AC ids, the checkbox lines under Acceptance criteria that carry no id, and whether the section exists. */
 export function parseSpecAcs(specText) {
-    const lines = sectionLines(specText, 'Acceptance criteria') ?? []
+    const section = sectionLines(specText, 'Acceptance criteria')
+    const lines = section ?? []
     const ids = new Set()
     const idless = []
     for (const line of lines) {
@@ -89,7 +91,7 @@ export function parseSpecAcs(specText) {
         if (m) ids.add(m[1])
         else idless.push(line.trim())
     }
-    return { ids, idless }
+    return { ids, idless, hasSection: section !== null }
 }
 
 /** Steps (in order, with their fields) and owner-decision ids from a GUIDE.md. */
@@ -154,6 +156,7 @@ export function definesWorkspaces(repoRoot) {
 }
 
 const diff = (a, b) => [...a].filter((x) => !b.has(x))
+const duplicates = (ids) => [...new Set(ids.filter((id, i) => ids.indexOf(id) !== i))]
 
 /**
  * Validate one guide. The repo root is three levels above the guide
@@ -176,7 +179,7 @@ export function validateGuide(guidePath) {
         return [`spec: expected exactly one specs/${specId}-*.md, found ${matches.length}`]
     }
     const specText = readFileSync(join(specsDir, matches[0]), 'utf8')
-    const { ids: acIds, idless } = parseSpecAcs(specText)
+    const { ids: acIds, idless, hasSection } = parseSpecAcs(specText)
 
     const indexPath = join(dir, '_index.yaml')
     const index = existsSync(indexPath) ? parseIndex(readFileSync(indexPath, 'utf8')) : null
@@ -204,6 +207,15 @@ export function validateGuide(guidePath) {
     }
 
     // Rule 4
+    // A repeated id would let one `done` status mark two steps done on resume.
+    for (const [where, ids] of [
+        ['GUIDE.md', guide.steps.map((s) => s.id)],
+        ['GUIDE.md', guide.decisions],
+        ['_index.yaml', (index?.steps ?? []).map((s) => s.id)],
+        ['_index.yaml', (index?.decisions ?? []).map((d) => d.id)],
+    ]) {
+        for (const id of duplicates(ids)) problems.push(`rule 4: ${id} appears more than once in ${where}`)
+    }
     if (index) {
         const guideSteps = new Set(guide.steps.map((s) => s.id))
         const indexSteps = new Set(index.steps.map((s) => s.id))
@@ -221,7 +233,9 @@ export function validateGuide(guidePath) {
         problems.push(`rule 5: guide spec_version ${guide.frontmatter.spec_version} differs from spec version ${specVersion}`)
     }
 
-    // Rule 6
+    // Rule 6: an absent or id-less section would make rule 1 pass vacuously, so it fails closed.
+    if (!hasSection) problems.push('rule 6: the spec has no line-anchored `## Acceptance criteria` section')
+    else if (acIds.size === 0) problems.push('rule 6: the spec\'s `## Acceptance criteria` section has no `- [ ] AC-NNN:` line')
     for (const line of idless) problems.push(`rule 6: acceptance criterion has no AC-NNN id: "${line.slice(0, 60)}"`)
 
     // Rule 7

@@ -158,6 +158,22 @@ AC, scope item or design decision changes.
 
 ---
 
+## SPEC DEVIATION — validate-guide.mjs rejects an empty AC section and repeated ids
+
+**Date:** 2026-09-30
+**Spec says:** Design > `validate-guide.mjs` rule 4, "the step ids, or the decision ids, in `GUIDE.md`
+and `_index.yaml` differ", and rule 6, "a checkbox line under `## Acceptance criteria` carries no
+`AC-NNN` id".
+**Built instead:** rule 6 also fails when the spec has no line-anchored `## Acceptance criteria`
+section or the section yields no AC id; rule 4 also fails when a step or decision id repeats in
+either file. Three tests cover them.
+**Why the spec was wrong:** gate round 1 (PR #57, both reviewers) showed that as written, a spec
+with a differently cased heading or non-checkbox ACs made rule 1 pass vacuously, and a repeated
+`S1` let one `done` status close two steps on resume. Both break SC-3's "every spec acceptance
+criterion maps to a guide step". The change is stricter only; it narrows no success criterion.
+
+---
+
 ## Cross-step values
 
 Values a later step must match rather than re-derive.
