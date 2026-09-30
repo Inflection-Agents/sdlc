@@ -1,7 +1,7 @@
 ## Completion report: SPEC-NNN v<version>
 
-### Task summary
-- Total: N | Done: N | Cancelled: N (reasons)
+### Step summary
+- Total: N | Done: N | Cancelled or deferred: N (reasons)
 
 ### Success criteria
 
