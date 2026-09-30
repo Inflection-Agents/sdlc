@@ -85,6 +85,19 @@ decision changes; `skills/spec-schema.md` was already in S2.
 
 ---
 
+## EXECUTIVE DECISION — guide change: S6 regenerates the generated region of .ai/sdlc.md
+
+**Date:** 2026-09-30
+**Question:** `gen-handoffs.mjs` writes the phase narrative in `.ai/sdlc.md` as well as the skill
+footers, and CI runs `gen-handoffs.mjs --check`. The guide put `.ai/*.md` in S8.
+**Decided:** S6 commits the regenerated region of `.ai/sdlc.md` with the state machine that
+produced it. S6's `Changes:` names it (generated region only); S8 still owns the hand-written text.
+No AC, scope item or design decision changes.
+**Why:** a state machine without its regenerated consumers fails CI on the S6 PR.
+**Reversal path:** none needed; the region is generated.
+
+---
+
 ## Cross-step values. GAP artifacts cite S<n>.
 **Anything a later step must match:** the guide-change heading is exactly `## EXECUTIVE DECISION — guide change: <summary>`; S3's PR template and AC-014 match against it.
 

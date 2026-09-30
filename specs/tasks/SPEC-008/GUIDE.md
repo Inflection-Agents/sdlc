@@ -37,7 +37,7 @@ spec_version: 1
 
 ### S6: State machine and phase memory
 - Covers: AC-001, AC-002, AC-019
-- Changes: `specs/sdlc-state-machine.yaml`, `init-payload/sdlc-state-machine.yaml`, `skills/task-decomposition/**`, `scripts/sdlc/validate-phase-memory.mjs`, `scripts/sdlc/validate-phase-memory.test.mjs`, `init-payload/scripts/sdlc/validate-phase-memory.mjs`, `skills/*/SKILL.md` (generated footers only)
+- Changes: `specs/sdlc-state-machine.yaml`, `init-payload/sdlc-state-machine.yaml`, `skills/task-decomposition/**`, `scripts/sdlc/validate-phase-memory.mjs`, `scripts/sdlc/validate-phase-memory.test.mjs`, `init-payload/scripts/sdlc/validate-phase-memory.mjs`, `skills/*/SKILL.md` and `.ai/sdlc.md` (generated regions only)
 - Verify: `node scripts/sdlc/validate-state-machine.mjs`, `node scripts/sdlc/gen-handoffs.mjs --check`, `node --test scripts/sdlc/validate-phase-memory.test.mjs`, `cmp scripts/sdlc/validate-phase-memory.mjs init-payload/scripts/sdlc/validate-phase-memory.mjs`
 - Notes: Runs after S3 and S4, so the footers are regenerated from skills that already describe the guide. Delete `skills/task-decomposition/` here, in the same commit that removes its phase, because `validate-state-machine.mjs` fails on a skill directory that no phase or `exempt:` entry names. `guide-schema` is already under `exempt:` (S1). Remove `task-schema` in S7, when the file goes.
 

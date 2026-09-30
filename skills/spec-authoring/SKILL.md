@@ -486,12 +486,13 @@ This phase is **spec-authoring** in the SDLC state machine (`specs/sdlc-state-ma
 - spec out
 - new feature
 - new initiative
+- write the guide for
 
 **Preconditions:**
 
-- intent exists or owner confirms none is needed
+- intent exists or owner confirms none is needed (or, for "write the guide for", the spec is active and has no guide)
 
-**Exit condition:** spec status flips draft -> active (after spec-reviewer sign-off and owner approval)
+**Exit condition:** spec status flips draft -> active and plan_review.approved flips true in one owner sign-off (ADR-007), after spec-reviewer sign-off on the spec; specs/tasks/SPEC-NNN/GUIDE.md passes scripts/sdlc/validate-guide.mjs, and KICKOFF.md (at most 3,800 characters) is written and shown to the owner
 
-**Next step:** `task-decomposition` — trigger: "decompose SPEC-NNN"
+**Next step:** `spec-execution` — trigger: "execute SPEC-NNN"
 <!-- sdlc:handoff:end -->
