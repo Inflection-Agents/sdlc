@@ -13,8 +13,8 @@ spec_version: 1
 
 ### S2: Spec schema and templates
 - Covers: AC-005, AC-018
-- Changes: `skills/spec-schema.md`, `templates/spec.md`, `init-payload/templates/spec.md`, `templates/decisions.md`, `init-payload/templates/decisions.md`
-- Verify: `node scripts/sdlc/check-stale-citations.mjs`, `cmp templates/decisions.md init-payload/templates/decisions.md`, `cmp templates/spec.md init-payload/templates/spec.md`
+- Changes: `skills/spec-schema.md`, `templates/spec.md`, `init-payload/templates/spec.md`, `templates/decisions.md`, `init-payload/templates/decisions.md`, `templates/gap.md`, `init-payload/templates/gap.md`
+- Verify: `node scripts/sdlc/check-stale-citations.mjs`, `cmp templates/decisions.md init-payload/templates/decisions.md`, `cmp templates/spec.md init-payload/templates/spec.md`, `cmp templates/gap.md init-payload/templates/gap.md`
 - Notes: AC and SC ids become required. The legacy `AC-NNN —` form stays valid. `DECISIONS.md` headings: `## S<n> — <title>`, the guide-change form, `## Cross-step values`.
 
 ### S3: Delivery and completion skills
