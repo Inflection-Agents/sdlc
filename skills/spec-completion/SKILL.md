@@ -1,15 +1,15 @@
 ---
 name: spec-completion
-description: Use when all tasks for a spec are done or nearly done — "is this spec finished?", "all tasks are merged", "verify the spec", "close out SPEC-NNN", or when checking whether a spec's success criteria are actually met end-to-end
+description: Use when every step of a spec's delivery guide is done or nearly done — "is this spec finished?", "all steps are merged", "verify the spec", "close out SPEC-NNN", or when checking whether a spec's success criteria are actually met end-to-end
 ---
 
 # Spec Completion
 
 ## Overview
 
-The bookend to spec-authoring. Spec-authoring opens the loop (intent → spec). This skill closes it (all tasks done → spec verified → completed).
+The bookend to spec-authoring. Spec-authoring opens the loop (intent → spec). This skill closes it (all guide steps done → spec verified → completed).
 
-Individual tasks verify their own acceptance criteria. But a spec's **success criteria** are holistic — they describe outcomes that may not be covered by any single task. "p99 latency < 200ms" or "all dealer reports load within 3 seconds" require verifying the system as a whole, not just that each piece was built.
+Individual steps verify the acceptance criteria they cover. But a spec's **success criteria** are holistic — they describe outcomes that may not be covered by any single step. "p99 latency < 200ms" or "all dealer reports load within 3 seconds" require verifying the system as a whole, not just that each piece was built.
 
 Without this skill, specs stay `active` forever. You can't answer "what shipped this quarter" because nothing is ever formally done.
 
@@ -19,32 +19,34 @@ Without this skill, specs stay `active` forever. You can't answer "what shipped 
 
 ## Hard gates
 
-1. **All tasks must be done or cancelled.** If any task is `pending`, `in-progress`, or `blocked`, the spec is not ready for completion. Cancelled tasks are acceptable only if the cancelled scope was intentional (documented in a spec amendment).
-2. **Success criteria must be verified, not assumed.** "All tasks passed their acceptance criteria" does not mean the success criteria are met. Verify each one independently.
+1. **All steps must be done, cancelled or deferred with a decided owner decision.** If any step is `pending`, `in_progress`, or `blocked`, or any owner decision is `pending`, the spec is not ready for completion. A cancelled step is acceptable only if its ACs were re-covered by another step or its scope was removed by a spec amendment.
+2. **Success criteria must be verified, not assumed.** "Every step passed its acceptance criteria" does not mean the success criteria are met. Verify each one independently.
 3. **Behavioral changes need an armed regression guard, not a deferred check.** If the spec changes a production behavioral metric (prompts, matching/scoring, gating rules, retrieval inputs, thresholds), it is not complete until it has a declared guardrail (baseline + threshold), a realized measurement on the first production exposure, and an armed rollback with an automatic trigger. See Step 5a. A "monitor the dashboard next week" deferral does not satisfy this.
 4. **User signs off.** The spec owner (human) makes the final call. The agent presents evidence; the human decides.
 
 ---
 
-## Step 1: Check task graph status
+## Step 1: Check step and decision status
 
-Read `specs/tasks/SPEC-NNN/_index.yaml`. Verify:
+Read the `steps:` and `decisions:` lists in `specs/tasks/SPEC-NNN/_index.yaml`, with step titles from
+`GUIDE.md`. Verify:
 
-- [ ] Every task has `status: done` or `status: cancelled`
-- [ ] No task is `pending`, `in-progress`, or `blocked`
-- [ ] Cancelled tasks have a documented reason (spec amendment, scope reduction, or superseded by another task)
+- [ ] Every step is `done`, `cancelled`, or `deferred` with a `reason:` naming a `decided` owner decision
+- [ ] No step is `pending`, `in_progress`, or `blocked`
+- [ ] No owner decision is `pending`
+- [ ] Every cancelled step has a `reason:`, and its ACs were re-covered by another step or removed by an amendment
 
-If tasks remain incomplete, report what's outstanding and stop. The spec isn't ready.
+If anything remains open, report what's outstanding and stop. The spec isn't ready.
 
 ```markdown
-### Task status: SPEC-NNN
+### Step status: SPEC-NNN
 
-| Task | Title | Status | Notes |
+| Step | Title | Status | Notes |
 |------|-------|--------|-------|
-| TASK-001 | Add auth middleware | done | |
-| TASK-002 | Write auth tests | done | |
-| TASK-003 | Add login endpoint | done | |
-| TASK-004 | Update API docs | cancelled | Scope removed in v2 amendment |
+| S1 | Add auth middleware | done | |
+| S2 | Add login endpoint | done | |
+| S3 | Update API docs | cancelled | Scope removed in v2 amendment |
+| S4 | Rotate the staging secret | deferred | D1 decided: owner runs it after launch |
 ```
 
 ## Step 2: Map success criteria to evidence
@@ -53,8 +55,8 @@ Read the spec's **Success criteria** section. For each criterion, determine what
 
 | Verification type | Description | Example |
 |------------------|-------------|---------|
-| **Task-covered** | The criterion is directly satisfied by one or more task acceptance criteria passing | "Auth middleware rejects invalid tokens" → covered by TASK-001 AC-002 |
-| **Integration** | The criterion requires multiple completed tasks working together | "User can log in end-to-end" → requires middleware + endpoint + tests working together |
+| **Step-covered** | The criterion is directly satisfied by acceptance criteria that a step's `Covers:` names, with evidence in that step's PR and the integration PR | "Auth middleware rejects invalid tokens" → AC-002, covered by S1 |
+| **Integration** | The criterion requires multiple completed steps working together | "User can log in end-to-end" → requires middleware + endpoint + tests working together |
 | **Measurement** | The criterion requires measuring the running system | "p99 latency < 200ms" → requires load test or production metrics |
 | **Manual** | The criterion requires human judgment | "Admin UI is intuitive" → needs human review |
 
@@ -65,25 +67,25 @@ Build the verification plan:
 
 | # | Criterion | Type | How to verify | Status |
 |---|-----------|------|---------------|--------|
-| 1 | Invalid tokens return 401 | Task-covered | TASK-001 AC-002 passed | verified |
+| 1 | Invalid tokens return 401 | Step-covered | AC-002 via S1, evidence in the step PR | verified |
 | 2 | End-to-end login works | Integration | Run integration test suite | pending |
 | 3 | p99 auth latency < 200ms | Measurement | Load test against staging | pending |
 | 4 | No regression in existing endpoints | Integration | Full test suite passes | pending |
 ```
 
-## Step 3: Verify task-covered criteria
+## Step 3: Verify step-covered criteria
 
-For each **task-covered** criterion:
+For each **step-covered** criterion:
 
-1. Find the task(s) and acceptance criteria that cover it
-2. Confirm the acceptance criteria passed (check task file frontmatter: `status: pass`)
-3. If the task's PR is merged, the criteria are verified
+1. Find the acceptance criteria that support it, and the guide steps whose `Covers:` names them
+2. Confirm the evidence for each AC in those steps' PR bodies and in the integration PR's criterion map
+3. If the step PRs and the integration PR are merged with that evidence, the criteria are verified
 
 This is usually straightforward — the work is already done. Document the mapping:
 
 ```
 Success criterion 1: "Invalid tokens return 401"
-  → Covered by TASK-001 / AC-002: "Invalid tokens return 401 with error body" [pass]
+  → Covered by AC-002 via S1: "Invalid tokens return 401 with error body" [evidence in PR #N]
   → Verified: yes
 ```
 
@@ -158,16 +160,16 @@ Assemble everything into a completion report:
 ```markdown
 ## Completion report: SPEC-NNN v[version]
 
-### Task summary
-- Total tasks: N
-- Completed: N
-- Cancelled: N (with reasons)
+### Step summary
+- Total steps: N
+- Done: N
+- Cancelled or deferred: N (with reasons)
 
 ### Success criteria
 
 | # | Criterion | Type | Evidence | Status |
 |---|-----------|------|----------|--------|
-| 1 | Invalid tokens return 401 | Task-covered | TASK-001 AC-002 | verified |
+| 1 | Invalid tokens return 401 | Step-covered | AC-002 via S1 | verified |
 | 2 | End-to-end login works | Integration | e2e test suite: 12/12 passed | verified |
 | 3 | p99 latency < 200ms | Measurement | Deferred to production (1 week) | deferred |
 | 4 | No regression in existing endpoints | Integration | Full suite: 347/347 passed | verified |
@@ -208,14 +210,14 @@ After user approval:
    - Close any remaining open Linear issues for this spec
 
 4. **Check for deferred verifications:**
-   - If any criteria are deferred-to-production, create a follow-up task or Linear issue to track the verification
+   - If any criteria are deferred-to-production, create a follow-up Linear issue to track the verification
    - Set a reminder with the deadline from Step 5
 
 5. **Move the closed spec out of the default search path:**
 
    ```bash
    node scripts/sdlc/archive-specs.mjs --dry-run   # read the plan first
-   node scripts/sdlc/archive-specs.mjs             # git mv spec + its task tree
+   node scripts/sdlc/archive-specs.mjs             # git mv spec + its specs/tasks/SPEC-NNN/ tree
    ```
 
    A terminal status is what makes a spec archivable, so this belongs in the same commit
@@ -254,18 +256,18 @@ A spec with waived criteria is still `completed` — the decision to waive is it
 |-----------|-------------------|
 | Spec is being replaced by a new spec | Set `status: superseded`, not completed |
 | Spec was a bad idea and work is being abandoned | Set `status: deprecated` with a note |
-| Some tasks are done but others are in-progress | Wait. Come back when all tasks are done or cancelled. |
-| Tasks are done but you discover the spec needs changes | Use `spec-amendment` first, then come back to completion |
+| Some steps are done but others are in progress | Wait. Come back when every step is done, cancelled, or deferred with a decided owner decision. |
+| Steps are done but you discover the spec needs changes | Use `spec-amendment` first, then come back to completion |
 
 ## Common mistakes
 
 | Mistake | Fix |
 |---------|-----|
 | Marking complete because all PRs merged | PRs merged ≠ success criteria met. Verify each criterion. |
-| Skipping integration verification | Individual task tests don't prove the pieces work together. Run integration checks. |
-| Deferring everything to production | Only measurement criteria should be deferred. Task-covered and integration criteria can be verified now. |
+| Skipping integration verification | Individual step checks don't prove the pieces work together. Run integration checks. |
+| Deferring everything to production | Only measurement criteria should be deferred. Step-covered and integration criteria can be verified now. |
 | No deferred verification plan | "We'll check in prod" without an owner, trigger, and method is not a plan. |
-| Completing a spec with cancelled tasks and no explanation | Every cancelled task needs a documented reason (amendment, scope reduction, superseded). |
+| Completing a spec with cancelled steps and no explanation | Every cancelled step needs a `reason:`, and its ACs must be re-covered or removed by an amendment. |
 | Forgetting to update Linear | The spec, spec-index, and Linear project must all reflect completion. |
 
 <!-- sdlc:handoff:start -->
