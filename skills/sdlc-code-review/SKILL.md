@@ -7,7 +7,7 @@ description: Use when reviewing any PR — an executor's or a teammate's — to 
 
 ## Overview
 
-Review PRs against the spec, not just code quality. Every PR traces to a task, every task traces to a spec. The review verifies that chain.
+Review PRs against the spec, not just code quality. Every PR traces to a guide step, every step traces to a spec. The review verifies that chain.
 
 **This is a rigid skill.** Every step must be followed. No shortcuts.
 
@@ -31,12 +31,14 @@ Review PRs against the spec, not just code quality. Every PR traces to a task, e
 
 ## Process
 
-### Step 1: Identify the spec and task
+### Step 1: Identify the spec and step
 
-From the PR title or branch name, extract `SPEC-NNN` and/or `TASK-NNN`.
+From the PR title or branch name, extract `SPEC-NNN` and the step id `S<n>`
+(`claude/SPEC-NNN-S<n>`, or a title starting `SPEC-NNN S<n>:`).
 
 Read:
-- The task file: `specs/tasks/SPEC-NNN/TASK-NNN-*.md`
+- The step's block in the delivery guide: `specs/tasks/SPEC-NNN/GUIDE.md` (`Covers:`, `Changes:`,
+  `Verify:`, `Workspace:`, `Notes:`)
 - The parent spec: `specs/SPEC-NNN-*.md`
 - Linked ADRs referenced in either
 
@@ -46,7 +48,7 @@ Read the full PR diff. Understand what changed and why.
 
 ### Step 3: Acceptance criteria checklist
 
-For each acceptance criterion in the task file:
+For each spec acceptance criterion in the step's `Covers:`:
 
 | Criterion | Addressed in diff? | Test exists? | Test passes? |
 |-----------|-------------------|-------------|-------------|
@@ -73,40 +75,40 @@ Check:
 - [ ] Naming — clear, specific, descriptive
 - [ ] Error handling — at boundaries only
 - [ ] No dead code — no commented-out blocks, unused imports
-- [ ] Commit messages — reference SPEC/TASK IDs
+- [ ] Commit messages — reference the SPEC id and step
 
 ### Step 6: Scope check
 
-- Does the PR change anything outside the task's scope?
+- Does the PR change anything outside the step's `Changes:`?
 - Does it introduce features the spec didn't ask for?
-- Does it touch files the task constraints said not to touch?
+- Does it touch files the step's `Notes:` or the spec said not to touch?
 
-**Monorepo scope check (if `workspace` is set in the task):**
+**Monorepo scope check (if the step sets `Workspace:`):**
 
 Enforce the following checks — these are blockers, not advisories:
 
-- **`monorepo:workspace-scope`** — PR modifies files outside the declared `workspace` field in the task frontmatter. Every modified file path must fall within the workspace's root directory as defined in `.ai/project.md`.
-- **`monorepo:verify-coverage`** — PR fails tests in any workspace listed in `verify_workspaces`. Run ALL workspaces in `verify_workspaces`, not just the primary.
+- **`monorepo:workspace-scope`** — PR modifies files outside the step's `Workspace:`. Every modified file path must fall within the workspace's root directory as defined in `.ai/project.md`.
+- **`monorepo:verify-coverage`** — PR fails any command in the step's `Verify:`, which must include each consuming workspace's command. Run all of them, not just the primary workspace's.
 - **`monorepo:boundary`** — Import-graph violation: a file in workspace A imports from workspace B against the dependency graph in `.ai/project.md`. Distinct from file-touch violations (`monorepo:workspace-scope`) — this is about import semantics, not file location.
 
 Three non-overlapping prefixes, all blockers (severity assigned in SPEC-004 AC-006). Use the matching prefix when raising the finding.
 
-**Boundary task check:** If this task produces output that a downstream task consumes (check `blocks` in the task file):
-- Does the implementation match the boundary constraints specified in the task? (column names, types, export signatures)
-- Is the contract visible where downstream tasks expect it? (schema.yml, exported types, etc.)
-- If the implementation deviates from the specified contract, flag it — the downstream task's constraints need updating too
+**Boundary step check:** If this step produces output a later step consumes (a contract in its `Notes:`):
+- Does the implementation match the contract the `Notes:` states? (column names, types, export signatures)
+- Is the contract visible where the later step expects it? (schema.yml, exported types, etc.)
+- If the implementation deviates from the stated contract, raise it citing `task:blocks:<later step id>` — the later step needs updating too
 
-**Task breakdown check:** If the PR reveals the decomposition was wrong (but the spec is fine). Note: **diff size is NOT a defect** — a large but coherent PR that stays within its declared `touches` is fine. The defects are incoherence and scope leak:
-- PR modifies files OUTSIDE the task's declared `touches` → scope leak / unbounded task. Raise a `blocker` finding citing `task:scope` so the policy routes to `fix_loop` and the orchestrator opens a `task-decomposition` re-plan.
-- PR bundles two independent concerns that should be separate AI-coherent tasks → raise a `blocker` finding citing `task:scope` and propose the split in `suggested_fix`.
-- PR includes work that belongs in a different task → scope leak. Raise a `blocker` finding citing `task:scope` and propose the scope reduction in `suggested_fix`, or flag for re-planning if the task boundaries themselves were wrong.
-- PR needed a prerequisite that doesn't exist as a task → raise a `blocker` finding citing `task:scope` so re-planning adds the missing task.
+**Guide check:** If the PR reveals the guide was wrong (but the spec is fine). Note: **diff size is NOT a defect** — a large but coherent PR that stays within its `Changes:` is fine. The defects are incoherence and scope leak:
+- PR modifies files OUTSIDE the step's `Changes:` → scope leak. Raise a `blocker` finding citing `task:scope`; it routes to an in-place guide re-plan.
+- PR bundles two independent concerns that should be separate steps → raise a `blocker` finding citing `task:scope` and propose the split in `suggested_fix`.
+- PR includes work that belongs in a different step → scope leak. Raise a `blocker` finding citing `task:scope` and propose the scope reduction in `suggested_fix`.
+- PR needed a prerequisite that no step covers → raise a `blocker` finding citing `task:scope` so the re-plan adds the missing step.
 
-When this happens: don't just push the PR back into `fix_loop` and stop. Use `task-decomposition` re-planning mode to fix the task graph, then the PR can be adjusted to match the corrected scope.
+When this happens: the executor re-plans the guide in place (`spec-execution` §4 > Changing the guide during a run), logs it as a guide change, and adjusts the PR to the corrected scope.
 
 ### Step 7: Regression check
 
-- Could these changes break anything outside the task scope?
+- Could these changes break anything outside the step's scope?
 - Are there related tests that should still pass?
 - Were any existing tests modified? If so, is it justified?
 
@@ -118,34 +120,35 @@ When this happens: don't just push the PR back into `fix_loop` and stop. Use `ta
 **Monorepo regression check:**
 - If shared code changed, were ALL consuming workspaces tested?
 - If data models changed (dbt), could downstream app queries break?
-- Check `verify_workspaces` in the task — were all of them actually run?
+- Check the step's `Verify:` — were all of its commands actually run?
 
 ### Step 8: Verification (mandatory)
 
-**Run the verification commands from the task file.** Read the full output. Do not skip this.
+**Run the step's `Verify:` commands.** Read the full output. Do not skip this.
 
-- If the task specifies `Run: npm test` → run it, read the output, confirm pass/fail.
+- If the step's `Verify:` says `npm test` → run it, read the output, confirm pass/fail.
 - If tests fail, that's a finding. Report it.
 - "Tests should pass" without running them is not acceptable.
 
-**Monorepo verification:** Run tests for ALL workspaces listed in `verify_workspaces`, not just the primary workspace. A PR that passes `dealer-app` tests but breaks `admin-app` (because shared code changed) is not passing.
+**Monorepo verification:** Run every workspace command in the step's `Verify:`, not just the primary workspace's. A PR that passes `dealer-app` tests but breaks `admin-app` (because shared code changed) is not passing.
 
 ### Step 8b: Evidence content quality check
 
-For each acceptance criterion in the task file, read the `evidence:` field:
+For each spec acceptance criterion in the step's `Covers:`, read the evidence the step PR body gives
+under that AC id:
 
-- If `evidence:` is present but content is insufficient — e.g., "tests passed" with no output excerpt, "verified" with no proof, a one-word claim with nothing to inspect — raise a `task:evidence-missing` **major** finding. Include a one-sentence explanation of what is missing.
+- If evidence is present but content is insufficient — e.g., "tests passed" with no output excerpt, "verified" with no proof, a one-word claim with nothing to inspect — raise a `task:evidence-missing` **major** finding. Include a one-sentence explanation of what is missing.
 
 **Insufficient evidence examples:**
-- `evidence: "tests passed"` — no output excerpt
-- `evidence: "verified manually"` — no screenshot, log, or artifact
-- `evidence: "done"` — no proof of any kind
+- "AC-001: tests passed" — no output excerpt
+- "AC-001: verified manually" — no screenshot, log, or artifact
+- "AC-001: done" — no proof of any kind
 
 **Sufficient evidence examples:**
-- `evidence: "npm test -- --grep 'AC-001': 3 passing (42ms)"` — includes command + output excerpt
-- `evidence: "grep output: <paste>"` — includes the actual artifact
+- "AC-001: `npm test -- --grep 'AC-001'`: 3 passing (42ms)" — includes command + output excerpt
+- "AC-001: grep output: <paste>" — includes the actual artifact
 
-Note: `evidence:` presence (empty vs populated) is checked by the executor's own self-review, not a CI gate — ADR-003 retired the automatic pre-review gate along with per-task review. This step grades **content quality** on populated fields.
+Note: evidence presence is checked by the executor's own self-review, not a CI gate — ADR-003 retired the automatic pre-review gate along with per-step review. This step grades **content quality** on the evidence given.
 
 ### Step 9: Consume graded findings from pr-reviewer
 
@@ -154,7 +157,7 @@ This skill does not decide a verdict on its own. The graded findings come from `
 For each finding produced by `pr-reviewer`, you have:
 
 - `severity` — one of `blocker | major | nit | suggestion`. Severity definitions live in `review-primitives.md` ("Severity spine" and "PR-side consequence catalog"); do not redefine them here.
-- `criterion` — the grounded citation (e.g., `AC-003`, `ADR-007`, `sdlc-code-standards:dry`, `monorepo:boundary`, `task:blocks:TASK-088`, `task:scope`, or a cross-skill signal prefix such as `spec:ambiguous-ac`).
+- `criterion` — the grounded citation (e.g., `AC-003`, `ADR-007`, `sdlc-code-standards:dry`, `monorepo:boundary`, `task:blocks:S4`, `task:scope`, or a cross-skill signal prefix such as `spec:ambiguous-ac`).
 - `location` — `file:line` (or `file` for whole-file findings).
 - `finding` — one sentence describing what is wrong.
 - `suggested_fix` — one sentence describing what to do (may be `null`).
@@ -173,17 +176,17 @@ The action recommendation is **derived**, not chosen. Apply the orchestrator sev
 
 Do not invent additional action values, and do not substitute your own judgment for the policy. If you believe the policy's verdict is wrong for this PR, that is a SPEC-001 amendment, not a per-PR override — surface it through `spec-amendment`, not through the rendered comment.
 
-**Cross-skill signals** raised by `pr-reviewer` as `blocker` findings with `criterion` prefixes `task:scope`, `spec:ambiguous-ac`, `spec:contradictory-ac`, `spec:wrong-design`, or `spec:missing-section` route to `fix_loop` like any other blocker, but the fix loop is opened against `task-decomposition` (for `task:scope`) or `spec-amendment` (for the `spec:*` prefixes) rather than against the PR author. Render the criterion verbatim in the comment so the reader can see which hand-off is implied.
+**Cross-skill signals** raised by `pr-reviewer` as `blocker` findings with `criterion` prefixes `task:scope`, `spec:ambiguous-ac`, `spec:contradictory-ac`, `spec:wrong-design`, or `spec:missing-section` route to `fix_loop` like any other blocker, but the fix is an in-place guide re-plan (for `task:scope`) or `spec-amendment` (for the `spec:*` prefixes) rather than a patch from the PR author. Render the criterion verbatim in the comment so the reader can see which hand-off is implied.
 
 ### After the action is rendered: check for spec completion
 
-When the rendered action is `accept` (or `batch_followup_and_accept` once the follow-up is filed), check whether this was the last task for the spec:
+When the rendered action is `accept` (or `batch_followup_and_accept` once the follow-up is filed), check whether this was the last step for the spec:
 
-1. Read `specs/tasks/SPEC-NNN/_index.yaml`
-2. If ALL tasks are now `done` or `cancelled`, and the spec is still `active`:
-   - Announce: "All tasks for SPEC-NNN are done. Invoking spec-completion to verify success criteria."
+1. Read the `steps:` list in `specs/tasks/SPEC-NNN/_index.yaml`
+2. If every step is now `done`, `cancelled`, or `deferred` with a decided owner decision, and the spec is still `active`:
+   - Announce: "Every step of SPEC-NNN is done. Invoking spec-completion to verify success criteria."
    - Invoke the `spec-completion` skill.
-3. If tasks remain, report progress: "SPEC-NNN: N/M tasks done, K remaining."
+3. If steps remain, report progress: "SPEC-NNN: N/M steps done, K remaining."
 
 This is the primary automated trigger for spec completion. Don't let specs stay `active` after all work is finished.
 
@@ -192,14 +195,14 @@ This is the primary automated trigger for spec completion. Don't let specs stay 
 The rendered comment groups findings by severity (highest first), shows the policy-derived action at the top, and surfaces a per-finding badge (`[criterion]`) plus `location` for every finding. Severity definitions are not duplicated here — see [`review-primitives.md`](../review-primitives.md) ("Severity spine" and "PR-side consequence catalog"). The shape:
 
 ```markdown
-## Review: SPEC-NNN / TASK-NNN — fix_loop (1 blocker, 2 majors, 3 nits)
+## Review: SPEC-NNN / S<n> — fix_loop (1 blocker, 2 majors, 3 nits)
 
 ### Blockers (1)
 - **[AC-003]** `apps/dealer-app/src/Foo.tsx:42` — Acceptance criterion not addressed in diff. Fix: implement the validation logic.
 
 ### Majors (2)
 - **[sdlc-code-standards:dry]** `apps/dealer-app/src/utils.ts:12-34` — Reimplements existing helper in @repo/shared. Fix: import from @repo/shared.
-- **[task:blocks:TASK-088]** `dbt/models/marts/dim_loans.sql:15` — Column rename breaks the contract this task is supposed to produce. Fix: revert column name or update TASK-088 spec.
+- **[task:blocks:S4]** `dbt/models/marts/dim_loans.sql:15` — Column rename breaks the contract this step's `Notes:` promises S4. Fix: revert the column name, or re-plan S4 to match.
 
 ### Nits (3)
 - [...]
@@ -233,6 +236,6 @@ _(none — omit the section when empty.)_
 
 The reviewer treats all executor PRs identically — apply the same scrutiny regardless of which executor produced the PR:
 - An executor may have worked around issues in non-obvious ways
-- Check that the implementation follows patterns in the codebase, not just the task file
+- Check that the implementation follows patterns in the codebase, not just the guide step
 - Verify the executor didn't add unnecessary dependencies or deviate from project conventions
 - Run the full test suite, not just the tests the executor wrote — check for regressions

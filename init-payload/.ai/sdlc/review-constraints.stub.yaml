@@ -12,7 +12,7 @@
 #   scope     task | integration   (task = graded per change; integration = once, at the gate)
 #   when      selector — ANY match applies the row:
 #               touches:   [glob, ...]   matched against changed paths
-#               workspace: [name, ...]   matched against the task's workspace
+#               workspace: [name, ...]   matched against a guide step's Workspace:
 #   lens      the review lens that enforces it; routed to a reviewer by `agent:`
 #   agent     optional; omit to use the generic task-reviewer
 #   severity  blocker | major | nit      the floor a violation is graded at

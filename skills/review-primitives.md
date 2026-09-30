@@ -27,8 +27,9 @@ ADR-003 retired the automatic pre-review **Tier-0 gate** along with per-task rev
 no longer a stage that returns a PR unreviewed. What survives is the check itself, re-homed to
 the two places that now do the reading:
 
-- **The executor's self-review**, before it opens a task PR: every AC has a non-empty
-  `evidence:` field. An empty one is the executor's own defect to fix, not a reviewer's to find.
+- **The executor's self-review**, before it opens a step PR: every AC in the step's `Covers:` has
+  evidence written into the PR body under the AC id. A missing one is the executor's own defect to
+  fix, not a reviewer's to find.
 - **The integration gate**, before grading: a reviewer that finds evidence absent raises
   `task:evidence-missing` rather than silently grading around it.
 
@@ -72,15 +73,15 @@ This is the **single, canonical** allowed-prefix set for `pr-reviewer` (Tier 1) 
 
 | Prefix | Form | Meaning |
 |---|---|---|
-| `ac:` | `ac:AC-NNN` | Finding grounds in a specific acceptance criterion of the task under review (criterion fails / is untestable / contradicts another). |
+| `ac:` | `ac:AC-NNN` | Finding grounds in a specific spec acceptance criterion that the step under review covers (criterion fails / is untestable / contradicts another). |
 | `adr:` | `adr:ADR-NNN` | Deviation from a cited Architecture Decision Record. |
 | `std:` | `std:<section-anchor>` | Deviation from `sdlc-code-standards` (anchor refers to a heading slug in that skill). |
 | `monorepo:` | `monorepo:boundary` | Blocker: import-graph violation — a file in workspace A imports from workspace B against the dependency graph in `.ai/project.md` (distinct from file-touch violations, which use `monorepo:workspace-scope`). |
-| `monorepo:` | `monorepo:workspace-scope` | Blocker: PR touches files outside the declared workspace. |
-| `monorepo:` | `monorepo:verify-coverage` | Blocker: PR fails tests in any `verify_workspaces`. |
-| `task:` | `task:blocks:<id>` | Finding grounds in a `blocks:` relationship declared in the task frontmatter. |
-| `task:` | `task:scope` | Cross-skill signal (blocker): PR scope reveals the task was decomposed wrong; routes to `task-decomposition` (see SPEC-002). |
-| `task:` | `task:evidence-missing` | `major`: an AC's `evidence:` field is absent, or populated but insufficient. |
+| `monorepo:` | `monorepo:workspace-scope` | Blocker: PR touches files outside the step's `Workspace:`. |
+| `monorepo:` | `monorepo:verify-coverage` | Blocker: PR fails any command in the step's `Verify:`, which includes each consuming workspace's command. |
+| `task:` | `task:blocks:<id>` | Finding grounds in a contract in a step's `Notes:` that later step `<id>` must match. |
+| `task:` | `task:scope` | Cross-skill signal (blocker): the step's diff leaves its `Changes:`; routes to an in-place guide re-plan (`spec-execution` §4, ADR-007). |
+| `task:` | `task:evidence-missing` | `major`: the step PR body gives no evidence, or insufficient evidence, for an AC in the step's `Covers:`. |
 | `spec:` | `spec:ambiguous-ac` / `spec:contradictory-ac` / `spec:wrong-design` / `spec:missing-section` | Cross-skill signals: implementation reveals the spec is wrong; route to `spec-amendment` (see SPEC-002). |
 | `spec:` | `spec:gap` | A gap in the spec, recorded against it. Since ADR-003 there is no mechanical gap-capture handler to intercept a mandatory blocker — grade `spec:gap` on its actual severity (often a `nit` or `suggestion`) rather than forcing `blocker`; see the `spec-execution` skill §8. |
 | `inv:` | `inv:<INV-ID>` | Violation of a named review invariant from the constraints registry (`review-constraints.yaml`), e.g. `inv:INV-CORE-PURITY`. |
@@ -108,7 +109,7 @@ Both reviewers emit the same JSON envelope. Illustrative pseudo-JSON (unions are
 ```jsonc
 {
   "artifact": "pr | spec",
-  "artifact_id": "TASK-NNN | SPEC-NNN",
+  "artifact_id": "SPEC-NNN/S<n> | SPEC-NNN",
   "reviewed_by": "agent:<reviewer-name> | inline",
   "spec_id": "SPEC-NNN",
   "pr_number": "null | <int>",
