@@ -1,6 +1,6 @@
 # Specs
 
-Live specs for the upstream SDLC framework itself. Each spec is a markdown file at `specs/SPEC-NNN-*.md`; tasks (once decomposed) live under `specs/tasks/SPEC-NNN/`.
+Live specs for the upstream SDLC framework itself. Each spec is a markdown file at `specs/SPEC-NNN-*.md`; each spec's delivery guide, index and kickoff prompt live under `specs/tasks/SPEC-NNN/` (ADR-007). Specs planned before ADR-007 keep their per-task briefs there as history.
 
 This framework dogfoods itself — improvements to the SDLC ship as specs in this directory.
 

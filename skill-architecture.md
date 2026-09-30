@@ -18,7 +18,7 @@ How behavioral discipline, SDLC process, and domain expertise compose into a coh
 │  skills/  (.claude/skills → it)                 │
 │                                                     │
 │  intent-triage, spec-authoring, spec-reviewer,      │
-│  task-decomposition, spec-execution, pr-reviewer,   │
+│  spec-execution, pr-reviewer,                       │
 │  sdlc-code-review, sdlc-code-standards,             │
 │  spec-amendment, spec-completion,                   │
 │  create-domain-skill                                │
@@ -40,35 +40,37 @@ Each layer has a different job:
 | Layer | Question it answers | Examples |
 |-------|-------------------|---------|
 | Behavioral | How should I approach any task? | Write failing test first. Verify before claiming done. No sycophancy. |
-| SDLC Process | What lifecycle phase am I in and what's the process? | Spec → decompose → route → implement → review. Check acceptance criteria. |
+| SDLC Process | What lifecycle phase am I in and what's the process? | Spec + delivery guide → implement → review. Check acceptance criteria. |
 | Domain | What are the rules for THIS technology/workspace? | dbt: CTE ordering, naming, macros. Next.js: App Router, Server Components. |
 
 ## The delivery engine and the spine
 
-The three skill layers describe *knowledge* agents apply. Underneath the SDLC-process layer sits the **delivery engine** — which is itself a skill — and the **spine** that carries it: the machinery that turns a signed-off task graph into merged code without further human attention.
+The three skill layers describe *knowledge* agents apply. Underneath the SDLC-process layer sits the **delivery engine** — which is itself a skill — and the **spine** that carries it: the machinery that turns a signed-off spec and its delivery guide into merged code without further human attention.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │  JUDGMENT (human + LLM)          │  DELIVERY (autonomous)             │
 │  intent-triage → spec-authoring  │  spec-execution                    │
-│   → task-decomposition           │   = the skill IS the engine        │
+│   (spec + delivery guide)        │   = the skill IS the engine        │
 │  (Layer-2 skills, gated)         │   (policy: SKILL.md · how: SOP.md) │
 └─────────────────────────────────────────────────────────────────────┘
                           rides on the SPINE:
   specs/sdlc-state-machine.yaml   ← single source of truth: phases, triggers, transitions
   _index.yaml `phase:` block      ← per-spec phase memory (read on entry, written on exit)
   _index.yaml `plan_review:` block← the fail-closed gate a delivery run checks before it starts
+  specs/tasks/SPEC-NNN/GUIDE.md   ← the delivery guide, checked by validate-guide.mjs (ADR-007)
   .claude/.sdlc-goal-<session_id> ← the run's goal leash, enforced by the Stop hook
   .claude/hooks/*.mjs             ← classify prompt, handoff at phase exit + goal leash, guard edits/review
   skills/review-primitives.md │ review-envelope.schema.json
                                    ← review contracts: severity spine, output schema
   .ai/sdlc/review-constraints.yaml← the lens registry; repo-specific, so outside skills/
   scripts/sdlc/*.mjs              ← validators + gates: state machine, phase memory, gen-handoffs,
-                                     plan-gate, reviewer-routing, envelope validation, registry globs
+                                     plan-gate, validate-guide, reviewer-routing, envelope validation,
+                                     registry globs
 ```
 
-- **Delivery is single-executor and agent-agnostic.** The agent running `spec-execution` implements every task itself; specialization is *data* on the task (`touches`, `risk`, `tier`, routing, workspace constraints), not a separate executor backend. Worktree-isolated subagents are an exception for large specs.
-- **Code review's reviewer of record is the LLM multi-lens panel** (`pr-reviewer` grades → `sdlc-code-review` renders), dispatched at the integration gate and routed by `review-primitives.md`. Per task, the gate is the task's own tests plus the executor's self-review. Humans gate the judgment-phase inputs and merge the integration PR; they are not the per-PR reviewers.
+- **Delivery is single-executor and agent-agnostic.** The agent running `spec-execution` implements every guide step itself; specialization is *data* on the step (`Changes:`, `Workspace:`, `Risk:`, `Run by:`, `Notes:` contracts), not a separate executor backend. Worktree-isolated subagents are an exception for large specs.
+- **Code review's reviewer of record is the LLM multi-lens panel** (`pr-reviewer` grades → `sdlc-code-review` renders), dispatched at the integration gate and routed by `review-primitives.md`. Per step, the gate is the step's `Verify:` commands plus the executor's self-review. Humans gate the judgment-phase inputs and merge the integration PR; they are not the per-PR reviewers.
 - **The state machine is authoritative.** The `.ai/sdlc.md` phase narrative and each skill's `## Handoff` footer are generated/validated from `specs/sdlc-state-machine.yaml` — don't restate phase info in the skills.
 
 ## The three review moments
@@ -77,48 +79,48 @@ Review happens at three distinct moments in the lifecycle, each with its own tri
 
 ```
 plan review          self-review            integration review
-(spec + tasks)        (per-task diff)        (whole spec, adversarial panel)
+(spec + guide)        (per-step diff)        (whole spec, adversarial panel)
 before any code  →    during delivery     →  at the gate
 spec-reviewer +       the executor itself     integration-reviewer + pr-reviewer
-task-decomposition    (no reviewer dispatch)  lenses → sdlc-code-review renders
+validate-guide.mjs    (no reviewer dispatch)  lenses → sdlc-code-review renders
 ```
 
 | Moment | When (trigger) | Artifact reviewed | Owner |
 |--------|----------------|-------------------|-------|
-| **Plan review** | At the spec sign-off gate and decomposition gate, *before any code exists* | The spec + the task decomposition (graph, `touches`, routing) | `spec-reviewer` (graded findings) + the `task-decomposition` gate |
-| **Self-review** | Per task, *during* delivery, before its PR opens | One task's diff vs its task file, ACs, constraints and declared `touches` | The executor itself — the deliberate exception to author≠reviewer independence |
+| **Plan review** | At the one spec-and-guide sign-off gate, *before any code exists* | The spec + its delivery guide (steps, `Covers:`, `Changes:`, owner decisions) | `spec-reviewer` grades the spec; `validate-guide.mjs` checks the guide; the owner approves both |
+| **Self-review** | Per guide step, *during* delivery, before its PR opens | One step's diff vs its `Covers:` ACs, its `Changes:` and the spec | The executor itself — the deliberate exception to author≠reviewer independence |
 | **Integration review** | At the *end*, on the integration PR (`feat/spec-NNN → main`) | The assembled diff: the whole spec vs its success criteria, plus every registry constraint that fires across it | An independently dispatched panel — `integration-reviewer` + adversarial `task-reviewer` + routed lenses; `pr-reviewer` grades, `sdlc-code-review` renders |
 
-Spending review effort up front (plan review) is the cheapest place to assure quality — the central wager of "judgment up front, autonomous delivery behind." The pre-code gate is **plan review**, never "spec review" alone (the spec is only half of it — the decomposition is reviewed too). Independence is traded away per task and bought back in full at the integration gate, where every verdict comes from a separately dispatched reviewer.
+Spending review effort up front (plan review) is the cheapest place to assure quality — the central wager of "judgment up front, autonomous delivery behind." The pre-code gate is **plan review**, never "spec review" alone (the spec is only half of it — the guide is approved with it). Independence is traded away per step and bought back in full at the integration gate, where every verdict comes from a separately dispatched reviewer.
 
 ## How they compose
 
-All three layers are active simultaneously. They don't conflict because they answer different questions. When an agent works on a dbt task:
+All three layers are active simultaneously. They don't conflict because they answer different questions. When an agent works on a dbt step:
 
 1. **Behavioral** (superpowers): Write a failing test first. Verify before saying done.
-2. **SDLC Process** (sdlc-code-standards): Check acceptance criteria from the task file. Reference SPEC-NNN in commits. Open a PR with the right format.
+2. **SDLC Process** (sdlc-code-standards): Check the acceptance criteria in the step's `Covers:`. Reference SPEC-NNN in commits. Open a PR with the right format.
 3. **Domain** (dbt-craftsman): Use CTE ordering. No raw CAST. snake_case naming. `is_*` boolean prefix.
 
 ### The wiring
 
 ```
-Task file                    .ai/project.md               .claude/skills/
+Guide step                   .ai/project.md               .claude/skills/
 ┌──────────────┐            ┌──────────────────┐          ┌──────────────────┐
-│ workspace:   │───────────▶│ Workspace skills │─���───────▶│ dbt-craftsman/   │
+│ Workspace:   │───────────▶│ Workspace skills │─���───────▶│ dbt-craftsman/   │
 │   dbt        │            │                  │          │   SKILL.md       │
 │              │            │ dbt:             │          │                  │
-│ agent:       │            │   dbt-cartographer│         │ dbt-cartographer/│
-│   claude-code│            │   dbt-craftsman  │          │   SKILL.md       │
+│ Covers:      │            │   dbt-cartographer│         │ dbt-cartographer/│
+│   AC-003     │            │   dbt-craftsman  │          │   SKILL.md       │
 └──────────────┘            └──────────────────┘          └──────────────────┘
                                                           ┌──────────────────┐
-SDLC skills read the task's                               │ sdlc-code-       │
-workspace field, look up                                  │   standards/     │
+SDLC skills read the step's                               │ sdlc-code-       │
+Workspace: field, look up                                  │   standards/     │
 domain skills in project.md,                              │   SKILL.md       │
 and apply them alongside                                  └──────────────────┘
 the SDLC process.
 ```
 
-**The task file's `workspace` field is the link.** It connects the SDLC process layer to the domain layer via the workspace-skills mapping in `.ai/project.md`.
+**A guide step's `Workspace:` field is the link.** It connects the SDLC process layer to the domain layer via the workspace-skills mapping in `.ai/project.md`.
 
 ## Where skills physically live
 
@@ -130,7 +132,6 @@ skills/               ← single source of truth for all SDLC skills
   intent-triage/SKILL.md
   spec-authoring/SKILL.md
   spec-reviewer/SKILL.md
-  task-decomposition/SKILL.md
   spec-execution/SKILL.md
   spec-amendment/SKILL.md
   spec-completion/SKILL.md
@@ -185,49 +186,49 @@ Excel spec → gap analysis → plan → human approval → spawn craftsman agen
 
 **SDLC model:**
 ```
-Spec → task decomposition → routing → implementation → review
+Spec + delivery guide → implementation → review
 ```
 
 **Integrated:**
 ```
 SDLC spec (includes dbt changes)
-  → task decomposition creates dbt-workspace tasks
-    → dbt task says: "Use dbt-cartographer to plan and dbt-craftsman to implement"
-      → cartographer reads the SDLC task's acceptance criteria
+  → the delivery guide has a step with Workspace: dbt
+    → the step's Notes: say: "Use dbt-cartographer to plan and dbt-craftsman to implement"
+      → cartographer reads the acceptance criteria in the step's Covers:
       → craftsman follows dbt conventions AND SDLC commit/PR discipline
     → SDLC code review applies dbt-craftsman rules + acceptance criteria check
 ```
 
-The SDLC provides the lifecycle wrapper (spec, task, review). The domain skills provide the implementation expertise. Task files are the integration point — they carry acceptance criteria from the SDLC and reference domain skills for how to implement.
+The SDLC provides the lifecycle wrapper (spec, guide, review). The domain skills provide the implementation expertise. Guide steps are the integration point — they name acceptance criteria from the spec and the workspace whose domain skills say how to implement.
 
 ## Cross-workspace changes
 
-**Hard rule: one workspace per task.** A task must target exactly one workspace. Cross-workspace changes are decomposed into separate tasks with explicit dependency edges.
+**Hard rule: one workspace per guide step.** When `.ai/project.md` defines workspaces, every step names exactly one `Workspace:` (validator rule 8). A cross-workspace change becomes separate steps, ordered upstream first.
 
 This enables:
 - Independent testing per workspace
-- Clear agent routing (dbt → human, app → claude-code)
-- Parallel execution of non-dependent consumer tasks
+- Clear handling of work only a human can run (a `Run by:` step)
+- Parallel execution of independent consumer steps (`After:` makes the independence explicit)
 - Clean PRs that reviewers can evaluate against one domain's conventions
 
-### What makes cross-workspace decomposition work
+### What makes cross-workspace guides work
 
-Three things in `.ai/project.md` give the decomposing agent the knowledge it needs:
+Three things give the agent writing the guide the knowledge it needs:
 
 1. **Workspace interfaces** — how workspaces interact at runtime (contracts, schemas, exports). The agent reads these to understand what crosses boundaries.
 
-2. **Change propagation patterns** — recurring cross-workspace sequences (e.g., "new field: dbt → shared types → apps"). The agent follows these for task ordering.
+2. **Change propagation patterns** — recurring cross-workspace sequences (e.g., "new field: dbt → shared types → apps"). The agent follows these for step ordering.
 
-3. **Boundary constraints on task files** — when a task produces output a downstream task consumes, its Constraints section specifies the exact contract (column names, types, exports). Without these, downstream tasks guess at the interface.
+3. **Contracts in a step's `Notes:`** — when a step produces output a later step consumes, its `Notes:` state the exact contract (column names, types, exports), and `task:blocks:<id>` grounds on it. Without these, later steps guess at the interface.
 
 ### Cross-cutting skills
 
-Some cross-workspace patterns are complex enough to warrant a full skill — not a domain skill (which targets one workspace) but a **cross-cutting skill** that guides task decomposition and review across boundaries.
+Some cross-workspace patterns are complex enough to warrant a full skill — not a domain skill (which targets one workspace) but a **cross-cutting skill** that guides guide-writing and review across boundaries.
 
 Use a cross-cutting skill when:
 - The propagation pattern has non-obvious ordering or rollback requirements
 - The boundary verification is complex (more than "check types match")
-- The pattern recurs frequently and agents keep getting the decomposition wrong
+- The pattern recurs frequently and agents keep getting the step order wrong
 
 Use project.md propagation patterns when:
 - The ordering is straightforward (upstream → shared → consumers)
@@ -257,7 +258,7 @@ The new skill should define:
 - Any domain-specific orchestration model (like cartographer → craftsman)
 
 It does NOT need to:
-- Know about the SDLC lifecycle (specs, tasks, Linear)
+- Know about the SDLC lifecycle (specs, guides, Linear)
 - Duplicate behavioral discipline (TDD, verification)
 - Define PR format or commit conventions (SDLC handles that)
 
@@ -270,9 +271,8 @@ It does NOT need to:
 | `brainstorming` | Behavioral | Design phases |
 | `systematic-debugging` | Behavioral | Bug investigation |
 | `intent-triage` | SDLC Process | Intent capture and prioritization |
-| `spec-authoring` | SDLC Process | Brainstorming + spec creation |
+| `spec-authoring` | SDLC Process | Brainstorming + spec creation + delivery guide and kickoff prompt |
 | `spec-reviewer` | SDLC Process | Spec quality gate (graded JSON findings) |
-| `task-decomposition` | SDLC Process | Planning |
 | `spec-execution` | SDLC Process | End-to-end delivery: goal leash, task list, serial burn-down, integration gate |
 | `spec-amendment` | SDLC Process | Spec changes mid-flight |
 | `spec-completion` | SDLC Process | Verify success criteria and close specs |

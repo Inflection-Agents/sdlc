@@ -11,7 +11,7 @@ Current and target tooling architecture for the AI-native SDLC.
 | Process spine | Tribal knowledge / wiki                | Executable state machine + phase memory + enforcement hooks | `specs/sdlc-state-machine.yaml` + per-spec `phase:` block + `.claude/hooks/` (Node) |
 | Orchestration | Humans assign + chase                   | One agent delivering against a stated goal, with a machine-readable floor | `spec-execution` skill + goal leash (`.claude/hooks/stop-handoff.mjs`) |
 | Execution   | Humans only                              | Agents as first-class assignees with run telemetry          | One executor, serial burn-down onto `feat/spec-NNN`, tracked on a visible task list (worktree-isolated subagents by exception) |
-| Review      | Human PR review                          | LLM multi-lens panel, routed by change surface              | Self-review per task, then a routed adversarial panel on the integration PR (lenses from `review-constraints.yaml`); human merges it |
+| Review      | Human PR review                          | LLM multi-lens panel, routed by change surface              | Self-review per guide step, then a routed adversarial panel on the integration PR (lenses from `review-constraints.yaml`); human merges it |
 | CI/CD       | Jenkins/Actions                          | Same, plus eval pipelines                                   | GitHub Actions              |
 | Reporting   | Jira dashboards (story points, velocity) | Graph queries (cost/feature, defect/spec, agent throughput) | Linear insights + manual    |
 
@@ -59,11 +59,11 @@ Claude Code connects to Linear via MCP, making the agent a direct participant in
 
 `spec-execution` **is** the engine — a policy an agent applies with judgment above a machine-readable floor, not a fixed pipeline. A deterministic Workflow engine held this slot first and was retired after live measurement ([ADR-003](specs/adrs/ADR-003-goal-oriented-single-executor-delivery.md)); the residual per-task ceremony, not the orchestration layer, was the cost.
 
-- **One executor per spec:** the agent running the skill implements every task itself, keeping repo context across tasks instead of rebuilding it in a fresh agent per task. Fan-out to worktree-isolated subagents is an exception for large, genuinely independent work.
-- **Serial burn-down on one integration branch:** `feat/spec-NNN`, task N merged before task N+1 starts, nothing lingering between tasks, nothing reaching `main` except by merging that branch.
-- **Id-derived branches** (`claude/SPEC-NNN-TASK-NNN`) → a resumed run recreates the same name rather than forking a differently-named one; the branch itself is deleted at merge, so resume is solely a read of `_index.yaml` status.
+- **One executor per spec:** the agent running the skill implements every guide step itself, keeping repo context across steps instead of rebuilding it in a fresh agent per step. Fan-out to worktree-isolated subagents is an exception for large, genuinely independent work.
+- **Serial burn-down on one integration branch:** `feat/spec-NNN`, step N merged before step N+1 starts, nothing lingering between steps, nothing reaching `main` except by merging that branch.
+- **Id-derived branches** (`claude/SPEC-NNN-S<n>`) → a resumed run recreates the same name rather than forking a differently-named one; the branch itself is deleted at merge, so resume is solely a read of `_index.yaml` status.
 - **A repo-side persistence leash:** `.claude/.sdlc-goal-<session_id>` + the `Stop` hook keep a run from stopping half-done. `met` and `escalated` are the only release words; the leash is bounded by a hook-owned counter, expires 24h after `armed_at`, and fails open whenever that bound cannot be enforced.
-- **Transparency by default:** a visible task list covering every task plus end-to-end validation and the gate, so the run is followable in-session.
+- **Transparency by default:** a visible task list covering every guide step plus end-to-end validation and the gate, so the run is followable in-session.
 - **Machine-checkable gates around the judgment:** `plan-gate.mjs` (fail-closed entry), `reviewer-routing.mjs` (lens → reviewer, from the registry), `validate-review-envelope.mjs` (every verdict), `check-review-constraint-globs.mjs` (registry rows resolve).
 - **Runtime requirement:** Node.js (also runs the reference hooks).
 
@@ -74,7 +74,7 @@ The reviewer of record for code is an **LLM multi-lens panel**, not a human.
 - **Routed by change surface:** lenses = `baseLenses(workspace) ∪ {constraints in [`review-constraints.yaml`](.ai/sdlc/review-constraints.yaml) whose `when` matches the change}`. Matched constraint severity resolves the review tier. The registry is evaluated **in full at the integration gate**, across the whole diff — per-task matching on a narrowly declared `touches` set is unreliable in both directions.
 - **One reviewer-output schema:** [`review-envelope.schema.json`](skills/review-envelope.schema.json) (severity blocker/major/nit/suggestion, altitude, grounded criteria). Every envelope is validated by [`scripts/sdlc/validate-review-envelope.mjs`](scripts/sdlc/validate-review-envelope.mjs) before anything routes on it — exit 0 fold, 2 abstained, 3 malformed/ungrounded; the latter two escalate and never read as a clean accept.
 - **Contract:** [`review-primitives.md`](skills/review-primitives.md) — severity spine, grounding rules, severity→action policy.
-- **Cheap gates first, expensive review once:** a task is gated by its own tests plus the executor's self-review; the independent panel is spent once, on the assembled integration diff, where it can see cross-task interactions. Humans gate the inputs and merge the integration PR.
+- **Cheap gates first, expensive review once:** a step is gated by its own `Verify:` commands plus the executor's self-review; the independent panel is spent once, on the assembled integration diff, where it can see cross-task interactions. Humans gate the inputs and merge the integration PR.
 
 ## Process spine (decided)
 

@@ -127,6 +127,18 @@ decision changes.
 
 ---
 
+## EXECUTIVE DECISION — guide change: S8 fixes the intro sentence of guide-schema.md
+
+**Date:** 2026-09-30
+**Question:** `skills/guide-schema.md` (landed in S1) opens by naming the retired phase, which the
+AC-011 search forbids. The guide did not list the file in S8.
+**Decided:** S8 rewords that one sentence. S8's `Changes:` names the file (that sentence only). No
+AC, scope item or design decision changes.
+**Why:** AC-011 cannot pass otherwise.
+**Reversal path:** none needed.
+
+---
+
 ## Cross-step values. GAP artifacts cite S<n>.
 **Anything a later step must match:** the guide-change heading is exactly `## EXECUTIVE DECISION — guide change: <summary>`; S3's PR template and AC-014 match against it.
 

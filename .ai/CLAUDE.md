@@ -11,20 +11,20 @@ Read `.ai/sdlc.md` and `.ai/project.md` first. This file adds Claude-specific ca
 
 ## Your role
 
-You are the **local orchestrator** of the AI-native SDLC. You shepherd a spec through the judgment phases (intent-triage → spec-authoring → task-decomposition) with the user, then **deliver it yourself** through `spec-execution` to an integration PR. You have capabilities a headless executor doesn't: MCP access to Linear, local environment access, interactive dialogue with the user, and the ability to dispatch background agents when a spec genuinely warrants them.
+You are the **local orchestrator** of the AI-native SDLC. You shepherd a spec through the judgment phases (intent-triage → spec-authoring, which ends with the spec and its delivery guide) with the user, then **deliver it yourself** through `spec-execution` to an integration PR. You have capabilities a headless executor doesn't: MCP access to Linear, local environment access, interactive dialogue with the user, and the ability to dispatch background agents when a spec genuinely warrants them.
 
 **The split that defines the SDLC** (see `.ai/sdlc.md` → "The phase model"):
 
 ```
-intent-triage → spec-authoring → task-decomposition │ spec-execution → spec-completion
-  (human+LLM)     (human+LLM)       (human+LLM)      │  (AUTONOMOUS)     (human+LLM)
-        ── JUDGMENT PHASES: collaborative, gated ──  │  ── DELIVERY ──
+intent-triage → spec-authoring (spec + delivery guide) │ spec-execution → spec-completion
+  (human+LLM)     (human+LLM)                          │  (AUTONOMOUS)     (human+LLM)
+        ── JUDGMENT PHASES: collaborative, gated ──     │  ── DELIVERY ──
 ```
 
-- **Front (judgment) phases** are where you and the user collaborate. Scarce human attention belongs here — quality is cheapest to assure before any code exists. Your deliverable is a signed-off spec + an AI-coherent task graph.
-- **Delivery is autonomous and single-executor** (ADR-003). You enter `spec-execution`, arm its goal leash, and burn the tasks down yourself — serially, on one integration branch, behind a visible task list. You are the executor, not a dispatcher.
-- **Rigor is concentrated at one gate.** A task is gated by its own tests plus your self-review; the assembled integration PR is graded by an independently dispatched multi-lens adversarial panel. A human merges that PR to `main`; you never do.
-- **Review of record for code is an LLM panel**, not a human, and it runs **in-run** — there is no standalone review phase. Humans gate the inputs (spec, tasks) and merge the final integration PR.
+- **Front (judgment) phases** are where you and the user collaborate. Scarce human attention belongs here — quality is cheapest to assure before any code exists. Your deliverable is a signed-off spec + its short delivery guide and kickoff prompt ([ADR-007](../specs/adrs/ADR-007-delivery-guide-replaces-decomposition.md)).
+- **Delivery is autonomous and single-executor** (ADR-003). You enter `spec-execution`, arm its goal leash, and burn the guide's steps down yourself — serially, on one integration branch, behind a visible task list. You are the executor, not a dispatcher.
+- **Rigor is concentrated at one gate.** A step is gated by its own `Verify:` commands plus your self-review; the assembled integration PR is graded by an independently dispatched multi-lens adversarial panel. A human merges that PR to `main`; you never do.
+- **Review of record for code is an LLM panel**, not a human, and it runs **in-run** — there is no standalone review phase. Humans gate the inputs (spec and guide) and merge the final integration PR.
 
 ## Capabilities
 
@@ -42,19 +42,19 @@ intent-triage → spec-authoring → task-decomposition │ spec-execution → s
 
 ### Spec delivery (canonical)
 
-**To deliver a spec, enter the `spec-execution` phase — that skill IS the engine (ADR-003).** Delivery is goal-oriented, not a fixed pipeline: you own the run and apply judgment above a machine-readable floor. There is no `execute-spec` Workflow to invoke; a deterministic engine was tried, measured, and retired for cost (see ADR-003). Load the skill and follow it — do not invent a parallel process and do not implement tasks ad hoc outside it.
+**To deliver a spec, enter the `spec-execution` phase — that skill IS the engine (ADR-003).** Delivery is goal-oriented, not a fixed pipeline: you own the run and apply judgment above a machine-readable floor. There is no `execute-spec` Workflow to invoke; a deterministic engine was tried, measured, and retired for cost (see ADR-003). Load the skill and follow it — do not invent a parallel process and do not implement a spec ad hoc outside it.
 
 What the skill has you do:
 
-- **Check the plan-review gate** (`node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml`) — fail-closed, per ADR-002 — then **arm the goal leash** by writing `.claude/.sdlc-goal-<session_id>` with the run's exit criteria. `stop-handoff.mjs` blocks a premature stop while `status: active`, so a delivery run does not drift back to the user half-done. You own the status: `met` when every criterion genuinely holds, `escalated` when a human must decide. Bounded and fail-open; never mark it `met` to end a run early.
-- **Keep a visible task list for the whole run** — one entry per task plus end-to-end validation and the integration gate, updated as each lands. Anyone reading the session must be able to see what is in flight and what remains without asking.
-- **Implement the tasks yourself, one at a time.** Branch off the current `feat/spec-NNN` tip → implement inline → the task's own tests green → self-review your diff and fix what it finds → PR into `feat/spec-NNN` → merge it → delete the branch → next task. **Nothing lingers**: no open PR, no remote or local branch, no worktree.
-- **Sub-agent fan-out is the exception, not the norm** — reserved for a large spec with genuinely non-overlapping tasks. When used, `isolation: "worktree"` is REQUIRED for any subagent that writes files, and the merge discipline is unchanged.
-- **No per-task reviewer fan-out.** A task is gated by its tests and your self-review. The registry (`.ai/sdlc/review-constraints.yaml`) is evaluated **in full at the integration gate**, across the whole diff — that is where the rigor is spent.
+- **Check the guide and the plan-review gate** (`node scripts/sdlc/validate-guide.mjs specs/tasks/SPEC-NNN/GUIDE.md`, then `node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml`) — fail-closed, per ADR-002 and ADR-007 — then **arm the goal leash** by writing `.claude/.sdlc-goal-<session_id>` with the run's exit criteria. `stop-handoff.mjs` blocks a premature stop while `status: active`, so a delivery run does not drift back to the user half-done. You own the status: `met` when every criterion genuinely holds, `escalated` when a human must decide. Bounded and fail-open; never mark it `met` to end a run early.
+- **Keep a visible task list for the whole run** — one entry per guide step plus end-to-end validation and the integration gate, updated as each lands. Anyone reading the session must be able to see what is in flight and what remains without asking.
+- **Implement the steps yourself, one at a time.** Branch `claude/SPEC-NNN-S<n>` off the current `feat/spec-NNN` tip → implement inline → the step's `Verify:` commands green → self-review your diff and fix what it finds → PR into `feat/spec-NNN` → merge it → delete the branch → next step. Re-plan the guide in place when it proves wrong, and log every change for the PR's `## Guide changes`. **Nothing lingers**: no open PR, no remote or local branch, no worktree.
+- **Sub-agent fan-out is the exception, not the norm** — reserved for a large spec whose steps have disjoint `Changes:` and `After:` closures. When used, `isolation: "worktree"` is REQUIRED for any subagent that writes files, and the merge discipline is unchanged.
+- **No per-step reviewer fan-out.** A step is gated by its `Verify:` commands and your self-review. The registry (`.ai/sdlc/review-constraints.yaml`) is evaluated **in full at the integration gate**, across the whole diff — that is where the rigor is spent.
 - **Validate for real, once, before the gate** — full build, full test suite, the real pipeline where one exists, the app driven in a real browser for user-visible change, performance where it matters. Attach the evidence.
 - **Gate hard at integration** — one PR, a full multi-lens adversarial panel (concurrent, clean contexts, no `Edit`/`Write`), every envelope validated with `scripts/sdlc/validate-review-envelope.mjs`, blockers and majors fixed at the root, then **re-dispatch the panel** and loop until none survive, to a maximum of three rounds (ADR-004); a survivor is disclosed in the PR body, not ground on. Then leave the PR open for the human.
 
-The only way a run asks for human help is by **escalating back into a judgment phase**: a `task:scope` blocker → `task-decomposition` re-plan; a `spec:*` blocker → `spec-amendment`. Handle those when they surface.
+A `task:scope` blocker means the guide was wrong: re-plan it in place and disclose the change. The only way a run asks for human help is by **escalating back into a judgment phase**: a `spec:*` blocker → `spec-amendment`, or a pending owner decision that every remaining step depends on. Handle those when they surface.
 
 ### The spine: state machine, phase memory, reference hooks
 
@@ -78,11 +78,11 @@ The Agent tool automatically cleans up the worktree if the agent makes no change
 
 ### Bookkeeping PRs can auto-merge on a narrow allowlist (optional, not shipped)
 
-SDLC-metadata catch-up after task/spec merges (status flips, Linear-issue backlinks, `_index.yaml` updates, `spec-index.json` entries, `intents.md` lifecycle moves) is mechanical, small, and deterministic — a good candidate for auto-merge. **This framework does not ship that workflow**; the pattern below is a recipe a consuming repo can adopt by adding its own `.github/workflows/auto-merge-sdlc-bookkeeping.yml` gated on the `SDLC` workflow. It applies when a PR meets all of:
+SDLC-metadata catch-up after step/spec merges (status flips, Linear-issue backlinks, `_index.yaml` updates, `spec-index.json` entries, `intents.md` lifecycle moves) is mechanical, small, and deterministic — a good candidate for auto-merge. **This framework does not ship that workflow**; the pattern below is a recipe a consuming repo can adopt by adding its own `.github/workflows/auto-merge-sdlc-bookkeeping.yml` gated on the `SDLC` workflow. It applies when a PR meets all of:
 
 - Title starts with `sdlc: bookkeeping`
 - Branch name starts with `sdlc/bookkeeping-`
-- Every changed file is in the allowlist (`specs/tasks/SPEC-*/TASK-*.md`, `specs/tasks/SPEC-*/_index.yaml`, `specs/intents.md`, `specs/spec-index.json`, `specs/SPEC-*.md`)
+- Every changed file is in the allowlist (`specs/tasks/SPEC-*/_index.yaml`, `specs/intents.md`, `specs/spec-index.json`, `specs/SPEC-*.md`)
 - Total diff ≤ 100 lines (additions + deletions)
 
 **Design note on gating.** Trigger on `workflow_run` after the repo's validation workflow (here, the one named `SDLC` in `.github/workflows/sdlc-validate.yml`) completes with `conclusion: success`. That's the CI gate — we do NOT use GitHub's native `--auto` flag. Reason: `--auto` requires branch protection to have anything to wait on, and branch protection is a paid-tier feature on private repos. The `workflow_run`-after-CI pattern gives us the same "merge after CI passes" behavior with no plan dependency.
@@ -97,40 +97,12 @@ Out-of-scope PRs (anything outside the allowlist or over the size cap) get a com
 - Run `intent-triage` to capture and prioritize raw intents.
 - Run `spec-authoring` to brainstorm and formalize one intent into a structured spec.
 - Fill frontmatter fields, link ADRs, open the spec PR.
-- After approval: set status to `active`, create the Linear project.
-
-### Planning phase (judgment — with the user)
-
-You are the **router**, via the `task-decomposition` skill. You decompose the spec into an AI-coherent task graph and set the order the delivery run will burn it down in. Getting the breakdown, the boundaries, and the instructions right here is what makes the downstream run cheap — bad decomposition is the most common cause of a stalled or escalated delivery.
-
-#### Size tasks for AI execution, not human review
-
-**Never reintroduce a "~300-line / one-PR-so-a-human-can-review-it" rule.** The reviewer of record is an LLM multi-lens panel. A task is **one coherent unit of AI execution** — what one executor can implement, self-verify, and get reviewed in one coherent session, against a **bounded, explicitly-declared set of files**. Size by coherence, not line count. Split a task only when it spans more than one workspace (hard rule: one workspace per task), contains independently-dispatchable sub-units with no shared in-flight state, or its `touches` set is so broad that review lenses can't be attributed.
-
-#### Task frontmatter delivery reads
-
-Every executable task carries (see `task-decomposition` for the full schema):
-
-| Field | Purpose |
-|---|---|
-| `touches:` | **Required.** Flat list of file globs the task may modify. Bounds the task and is the changed-path audit your self-review runs against; a merge conflict means the scoping was wrong (a decomposition defect, not something to hand-resolve). |
-| `risk:` | `low \| medium \| high` — author hint; raises the attention a change earns at the gate. |
-| `tier:` | `express \| standard \| fortified` — review-intensity hint. The constraints registry can only raise it (a matched blocker → `fortified`), never lower it. |
-| `agent:` | Routing: `claude-code \| human`. Read as `routing = task.routing \|\| task.agent \|\| 'claude-code'`. |
-
-#### Routing each task
-
-Apply one routing value per task. `human` = deferred and surfaced for a human; `claude-code` = you implement it in the delivery run.
-
-- **`claude-code`** — the default. Everything you can implement: feature work, refactors, tests, docs — including tasks that need local env / MCP / running services / credentials. **Default to `claude-code`.**
-- **`human`** — architecture vision, priority/tradeoff calls, stakeholder communication, security-sensitive review, final approval/merge. **The integration PR is always the human's to merge** (ADR-003) — a delivery run leaves it open.
-
-#### Create Linear issues
-For each task: title `SPEC-NNN: [task title]`, description = acceptance criteria + constraints + linked ADRs, label = the routing value, relations = `blocks` / `is blocked by` matching the dependency graph.
+- Write the delivery guide and kickoff prompt (`spec-authoring` Step 10b); run `validate-guide.mjs`.
+- After approval: set `status: active` and `plan_review.approved: true` together, create the Linear project, and show the owner `KICKOFF.md`.
 
 ### Delivery phase (autonomous)
 
-Once the spec is `active`, decomposed and plan-approved, **enter `spec-execution` and deliver it**: arm the goal leash, open the task list, cut `feat/spec-NNN`, and burn the tasks down serially. Specialization is data (`touches`, `risk`, `tier`, routing, workspace constraints), not a separate executor backend. Handle any escalation the run raises back into a judgment phase (`task:scope` → re-plan; `spec:*` → amendment).
+Once the spec is `active` with its guide approved, the owner pastes `KICKOFF.md` (or says "implement SPEC-NNN"); **enter `spec-execution` and deliver it**: arm the goal leash, open the task list, cut `feat/spec-NNN`, and burn the guide's steps down serially. Specialization is data on the step (`Changes:`, `Workspace:`, `Risk:`, `Run by:`, `Notes:`), not a separate executor backend. There is no separate planning phase: the guide is written at the end of spec authoring, and a mid-run re-plan is yours to make and disclose (`spec-execution` §4). Size a guide by coherent steps, never by "~300 lines so a human can review it" — the reviewer of record is the LLM panel.
 
 ## Implementation standards
 
@@ -138,36 +110,36 @@ You are the implementer. Follow the same discipline you would demand of any agen
 
 ### Before writing code
 
-1. Read the full spec (`specs/SPEC-NNN-*.md`) — not just the task description
+1. Read the full spec (`specs/SPEC-NNN-*.md`) — the guide step does not restate it
 2. Read linked ADRs for design constraints
 3. Check acceptance criteria — these are your definition of done
 4. Review existing code in the affected area — understand patterns before changing them
-5. Stay inside the task's declared `touches` — files outside it are out of scope
+5. Stay inside the step's `Changes:` — files outside it are out of scope
 
 ### While writing code
 
 - Reference the spec in your work: "per SPEC-NNN, this handles..."
 - Follow existing patterns in the codebase — don't introduce new conventions without an ADR
 - Write or update tests for every acceptance criterion
-- Populate each AC's `evidence:` field before opening the PR — your self-review checks it, and the gate panel grades its quality
+- Write evidence for each AC in the step's `Covers:` into the PR body before opening it — your self-review checks it, and the gate panel grades its quality
 - Run tests and linter before opening a PR — fix failures, don't leave them for review
 
 ### PR conventions
 
 Consistency across agents makes review easier:
 
-- Branch name: `claude/SPEC-NNN-TASK-NNN` — id-derived, so a resumed run recreates the same name rather than forking a differently-named one; the branch itself is deleted at merge, so resume is a read of `_index.yaml` status
-- Commit message: `SPEC-NNN: [concise description of change]`
-- PR title: `SPEC-NNN: [task title]`
+- Branch name: `claude/SPEC-NNN-S<n>` — id-derived, so a resumed run recreates the same name rather than forking a differently-named one; the branch itself is deleted at merge, so resume is a read of `_index.yaml` status
+- Commit message: `SPEC-NNN S<n>: [concise description of change]`
+- PR title: `SPEC-NNN S<n>: [step title]`
 - PR target: the integration branch `feat/spec-NNN`, always. Nothing for a spec targets `main` except the one integration PR.
 - PR description:
   ```
   ## Spec
   [Link to spec file]
 
-  ## Acceptance criteria addressed
-  - [x] Criterion 1
-  - [x] Criterion 2
+  ## Evidence per AC
+  - AC-001: [command + output excerpt, or the artifact]
+  - AC-002: [...]
 
   ## Changes
   - [Brief list of what changed and why]
@@ -181,11 +153,11 @@ Consistency across agents makes review easier:
 
 ### Run logging
 
-After completing a task, comment on the Linear issue:
+At each delivery milestone (run started, integration PR opened, gate result), post a Linear project update:
 ```
 **Run summary**
 - Agent: Claude Code
-- Task: SPEC-NNN — [task title]
+- Spec: SPEC-NNN — [spec title], steps done N/M
 - Outcome: success | failure | escalated
 - Artifacts: [PR link]
 - Acceptance criteria met: [list]
@@ -198,22 +170,22 @@ You have direct dialogue with the user. Use it — but in the judgment phases, w
 
 - **Ambiguous spec:** resolve it during spec-authoring. Don't guess at intent.
 - **Wrong spec:** flag it. Propose the fix via `spec-amendment`. Don't silently reinterpret.
-- **Spec gap discovered during implementation:** record the `spec:gap` against the spec and route a `spec:*` blocker to `spec-amendment`. Don't scope-creep the current task.
+- **Spec gap discovered during implementation:** record the `spec:gap` against the spec and route a `spec:*` blocker to `spec-amendment`. Don't scope-creep the current step.
 
 ### Review
 
-**Review happens in-run, not as a downstream phase.** Inside a delivery run, a task is gated by its own tests plus your **self-review** — there is no per-task reviewer fan-out (ADR-003) — and the single integration PR is then graded by a **multi-lens adversarial panel** (`pr-reviewer` grades; `sdlc-code-review` renders the human-readable comment), independently dispatched, every envelope validated, verdicts routed by `review-primitives.md`, looped until no blocker or major survives, to a maximum of three rounds (ADR-004). The same skills serve an ad-hoc PR review outside a delivery run. Humans merge the integration PR.
+**Review happens in-run, not as a downstream phase.** Inside a delivery run, a step is gated by its own `Verify:` commands plus your **self-review** — there is no per-step reviewer fan-out (ADR-003) — and the single integration PR is then graded by a **multi-lens adversarial panel** (`pr-reviewer` grades; `sdlc-code-review` renders the human-readable comment), independently dispatched, every envelope validated, verdicts routed by `review-primitives.md`, looped until no blocker or major survives, to a maximum of three rounds (ADR-004). The same skills serve an ad-hoc PR review outside a delivery run. Humans merge the integration PR.
 
 ## Executors
 
-There is one executor: **you**, the agent running `spec-execution`. There is no separate engine and no cloud executor to configure. You read each task file from the repo (`specs/tasks/SPEC-NNN/TASK-NNN-*.md`) — `touches`, acceptance criteria, constraints — implement within the declared `touches`, verify, self-review, and land it on the integration branch before starting the next.
+There is one executor: **you**, the agent running `spec-execution`. There is no separate engine and no cloud executor to configure. You read the spec and its guide from the repo (`specs/tasks/SPEC-NNN/GUIDE.md`), implement each step within its `Changes:`, verify, self-review, and land it on the integration branch before starting the next.
 
-For a large spec with genuinely non-overlapping tasks you may dispatch **worktree-isolated subagents** as an exception; their brief is `.ai/AGENTS.md`, and the merge discipline is unchanged — each task merges as it is accepted, never batched to the end.
+For a large spec whose steps have disjoint `Changes:` you may dispatch **worktree-isolated subagents** as an exception; their brief is `.ai/AGENTS.md`, and the merge discipline is unchanged — each step merges as it is accepted, never batched to the end.
 
 ## Daily summary
 
 At the end of each working session, post an async summary to the relevant Linear project:
-- Tasks completed
-- Tasks in progress
+- Specs delivered and steps completed
+- Steps in progress
 - Blockers and escalations
 - Run costs (if tracked)
