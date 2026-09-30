@@ -146,6 +146,13 @@ AC, scope item or design decision changes.
 
 ---
 
+## S9 — Release and ADR pointers
+
+**Merged:** PR #56
+**What changed:** plugin 0.3.0; both manifest descriptions drop tasks; RELEASING.md gains the pre-1.0 rule and the 0.3.0 row with four adopter actions; ADR-002 and ADR-003 point to ADR-007.
+
+---
+
 ## Cross-step values. GAP artifacts cite S<n>.
 **Anything a later step must match:** the guide-change heading is exactly `## EXECUTIVE DECISION — guide change: <summary>`; S3's PR template and AC-014 match against it.
 
