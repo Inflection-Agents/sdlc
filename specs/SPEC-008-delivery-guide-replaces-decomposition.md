@@ -1,7 +1,7 @@
 ---
 id: SPEC-008
 title: "Delivery guide replaces task decomposition"
-status: draft
+status: active
 version: 1
 supersedes:
 initiative: INI-001
@@ -73,6 +73,8 @@ guardrails, and the process with guardrails costs as much to plan as to specify.
   artifact, plus a one-line pointer to ADR-007 in ADR-002 and ADR-003.
 - The guide artifact (`specs/tasks/SPEC-NNN/GUIDE.md`), its schema (`skills/guide-schema.md`), its
   template (`templates/guide.md`) and its validator (`scripts/sdlc/validate-guide.mjs`).
+- The kickoff prompt (`specs/tasks/SPEC-NNN/KICKOFF.md`) and its template (`templates/kickoff.md`,
+  both copies), which the owner pastes to start delivery.
 - The state machine, in both copies (`specs/` and `init-payload/`), and the regenerated handoff
   footers.
 - The skills that produce or read a plan: `spec-authoring`, `spec-execution` (SKILL and SOP),
@@ -278,6 +280,9 @@ Otherwise it exits 0. CI runs it on every `specs/tasks/*/GUIDE.md`. `spec-execut
    `current: spec-amendment`. `spec-execution` accepts `spec-authoring`, `spec-amendment` or
    `spec-execution` (resuming) as `phase.current` on entry.
 
+5. at sign-off, writes `specs/tasks/SPEC-NNN/KICKOFF.md` from `templates/kickoff.md` and shows it to
+   the owner in full.
+
 `spec-reviewer` is not dispatched on the guide. The validator covers the mechanical part, and the
 owner judges the rest. The owner reviews spec and guide together and, in one sign-off, sets the spec
 to `active` and `plan_review.approved: true`. One spec PR carries both.
@@ -285,6 +290,27 @@ to `active` and `plan_review.approved: true`. One spec PR carries both.
 The same step runs on its own for a spec that is already `active` but has no guide, triggered by
 "write the guide for SPEC-NNN". That covers SPEC-003 and every adopter spec decomposed before this
 change. The owner approves that guide by setting `plan_review.approved: true`.
+
+### The kickoff prompt
+
+Every spec that becomes ready for delivery gets a kickoff prompt, so the owner starts the run by
+pasting one prompt and does not have to write it. The prompt is at most 3,800 characters, the owner's
+limit for the prompt that arms a goal (`wc -c` on `KICKOFF.md`). It carries:
+
+- the trigger `execute SPEC-NNN` and the spec's title;
+- the goal statement, one sentence taken from the spec's Problem;
+- the exit criteria in the shape of the `spec-execution` goal file (`skills/spec-execution/SKILL.md`
+  §1): every step done or deferred with a decided owner decision, end-to-end validation run with
+  evidence, and one integration PR open and panel-reviewed;
+- the paths the executor reads first (spec, guide, `_index.yaml`, the SOP);
+- any `pending` owner decisions, so the run knows what it cannot close alone;
+- the standing limits: never merge or push to `main`, stop and escalate on the `spec-execution` §8
+  triggers.
+
+`spec-authoring` writes it at sign-off, and the standalone guide step writes it when it runs alone.
+`spec-amendment` rewrites it at re-approval, because a changed guide or AC set changes the prompt.
+`KICKOFF.md` is generated output. Each writer rewrites it whole, nobody hand-edits it, and
+`spec-execution` does not read it.
 
 ### Changing the guide during a run
 
@@ -445,6 +471,12 @@ list, integration branch, end-to-end validation, capped panel, PR left open for 
       naming the retired id; a test covering both fields in `scripts/sdlc/` proves it, building its fixture from
       the state machine's `retired_phases:` list so the test source holds no literal retired id; and
       `init-payload/scripts/sdlc/validate-phase-memory.mjs` is byte-identical to the repo copy.
+
+- [ ] AC-020: Given `skills/spec-authoring/SKILL.md` and `skills/spec-amendment/SKILL.md`, when read,
+      then both write `specs/tasks/SPEC-NNN/KICKOFF.md` from `templates/kickoff.md` at sign-off or
+      re-approval and show it to the owner; `templates/kickoff.md` exists in both copies,
+      byte-identical, and names every item in Design > The kickoff prompt; and
+      `wc -c < specs/tasks/SPEC-008/KICKOFF.md` prints 3800 or less.
 
 ## Risks & constraints
 

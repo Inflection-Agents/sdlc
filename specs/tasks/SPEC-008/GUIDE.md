@@ -24,9 +24,9 @@ spec_version: 1
 - Notes: §1 runs `validate-guide.mjs` before `plan-gate.mjs`. §6 carries every block in SPEC-008 Design > What blocks the integration PR. Leave the generated `## Handoff` footers alone; S6 regenerates them.
 
 ### S4: Authoring and amendment skills
-- Covers: AC-006, AC-008
-- Changes: `skills/spec-authoring/SKILL.md`, `skills/spec-amendment/SKILL.md`
-- Verify: `rg -n "GUIDE.md|write the guide for|guide/SPEC" skills/spec-authoring/SKILL.md skills/spec-amendment/SKILL.md`
+- Covers: AC-006, AC-008, AC-020
+- Changes: `skills/spec-authoring/SKILL.md`, `skills/spec-amendment/SKILL.md`, `templates/kickoff.md`, `init-payload/templates/kickoff.md`
+- Verify: `rg -n "GUIDE.md|KICKOFF.md|write the guide for|guide/SPEC" skills/spec-authoring/SKILL.md skills/spec-amendment/SKILL.md`, `cmp templates/kickoff.md init-payload/templates/kickoff.md`, `wc -c < specs/tasks/SPEC-008/KICKOFF.md`
 - Notes: The new spec-authoring step runs after Step 10a and can run alone on an active spec. The id-only edit goes in spec-amendment's Cosmetic class.
 
 ### S5: Review rules

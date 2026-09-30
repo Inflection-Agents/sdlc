@@ -1,7 +1,7 @@
 ---
 id: ADR-007
 title: "A delivery guide, approved with the spec, replaces the task-decomposition phase"
-status: proposed
+status: accepted
 spec: SPEC-008
 date: 2026-09-29
 author: franklin

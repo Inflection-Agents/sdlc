@@ -7,7 +7,7 @@ updated: 2026-09-30
 # SPEC-008 active (SPEC-008 Design > Who writes the guide).
 plan_review:
   status: approve-ready
-  approved: false
+  approved: true
   reviewed: 2026-09-30
 
 steps:
@@ -36,6 +36,6 @@ phase:
   current: spec-authoring
   next_action: spec-execution
   next_trigger: 'execute SPEC-008'
-  exit_condition_met: false
-  handoff_surfaced: false
+  exit_condition_met: true
+  handoff_surfaced: true
   updated: 2026-09-30
