@@ -139,6 +139,13 @@ AC, scope item or design decision changes.
 
 ---
 
+## S8 — Docs
+
+**Merged:** PR #55
+**What changed:** Every doc describes the spec-plus-guide process; sync.md tracks one Linear project per spec; .ai/AGENTS.md briefs an executor on one guide step. The AC-011 search prints nothing.
+
+---
+
 ## Cross-step values. GAP artifacts cite S<n>.
 **Anything a later step must match:** the guide-change heading is exactly `## EXECUTIVE DECISION — guide change: <summary>`; S3's PR template and AC-014 match against it.
 
