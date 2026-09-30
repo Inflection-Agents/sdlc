@@ -98,6 +98,14 @@ No AC, scope item or design decision changes.
 
 ---
 
+## S6 — State machine and phase memory
+
+**Merged:** PR #53
+**What changed:** Both state machines drop the task-decomposition phase; spec-authoring and spec-amendment hand off to spec-execution; retired_phases: keeps old _index.yaml files valid with a warning; skills/task-decomposition/ deleted in the same commit; footers and .ai/sdlc.md regenerated.
+**Anything a later step must match:** S7 removes task-schema from exempt: in both state machines when skills/task-schema.md goes.
+
+---
+
 ## Cross-step values. GAP artifacts cite S<n>.
 **Anything a later step must match:** the guide-change heading is exactly `## EXECUTIVE DECISION — guide change: <summary>`; S3's PR template and AC-014 match against it.
 
