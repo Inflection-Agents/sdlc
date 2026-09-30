@@ -8,6 +8,8 @@ author: franklin
 superseded_by:
 ---
 
+> **ADR-007 (2026-09-30):** supersedes the precondition that tasks are decomposed (and the tier-resolution row's `tier:` task input); delivery runs on an approved delivery guide.
+
 ## Context
 
 SPEC-002 (and its consumers SPEC-005, SPEC-006) made a deterministic `execute-spec` Workflow script

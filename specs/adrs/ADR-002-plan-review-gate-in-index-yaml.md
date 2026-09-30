@@ -8,6 +8,8 @@ author: franklin
 superseded_by:
 ---
 
+> **ADR-007 (2026-09-30):** the gate is kept; the plan it attests is now the delivery guide, approved in the same sign-off as the spec.
+
 ## Context
 
 Plan review in the upstream engine is conversational: `spec-authoring` Step 10a runs `spec-reviewer` over
