@@ -78,6 +78,13 @@ decision changes; `skills/spec-schema.md` was already in S2.
 
 ---
 
+## S5 — Review rules
+
+**Merged:** PR #52
+**What changed:** The task: and monorepo: review prefixes keep their names and ground on guide fields (Changes:, the step PR body, Notes:, Workspace:, Verify:). Reviewer skills, the pr-reviewer agent, create-domain-skill and the registry headers follow.
+
+---
+
 ## Cross-step values. GAP artifacts cite S<n>.
 **Anything a later step must match:** the guide-change heading is exactly `## EXECUTIVE DECISION — guide change: <summary>`; S3's PR template and AC-014 match against it.
 
