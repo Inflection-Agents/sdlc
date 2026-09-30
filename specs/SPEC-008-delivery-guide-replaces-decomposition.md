@@ -1,7 +1,7 @@
 ---
 id: SPEC-008
 title: "Delivery guide replaces task decomposition"
-status: active
+status: completed
 version: 1
 supersedes:
 initiative: INI-001
@@ -49,19 +49,19 @@ guardrails, and the process with guardrails costs as much to plan as to specify.
 
 ## Success criteria
 
-- [ ] SC-1: A spec moves from `active` to `spec-execution` with one owner sign-off and one PR. In
+- [x] SC-1: A spec moves from `active` to `spec-execution` with one owner sign-off and one PR. In
       `specs/sdlc-state-machine.yaml`, `spec-authoring.next_phase` is `spec-execution` and no
       `task-decomposition` phase exists.
-- [ ] SC-2: The planning artifact costs less than the spec it plans. For SPEC-008,
+- [x] SC-2: The planning artifact costs less than the spec it plans. For SPEC-008,
       `wc -w specs/tasks/SPEC-008/GUIDE.md` ÷ `wc -w specs/SPEC-008-*.md` ≤ 0.30, against the 1.02
       baseline in `## Problem`. Measured at the integration gate.
-- [ ] SC-3: The guardrails that decomposition carried still hold. `spec-execution` refuses to start
+- [x] SC-3: The guardrails that decomposition carried still hold. `spec-execution` refuses to start
       a spec whose guide fails `validate-guide.mjs` or whose `plan_review` is unapproved, refuses to
       open the integration PR while an owner decision is pending, and every spec acceptance
       criterion maps to a guide step.
-- [ ] SC-4: SPEC-008 is itself delivered from its own guide, ending in one open integration PR that
+- [x] SC-4: SPEC-008 is itself delivered from its own guide, ending in one open integration PR that
       is panel-clean or carries a `## Disclosed, not fixed` section (ADR-004).
-- [ ] SC-5: One delivery path exists. No live doctrine file names `task-decomposition`,
+- [x] SC-5: One delivery path exists. No live doctrine file names `task-decomposition`,
       `task-schema` or `templates/task.md`, apart from the `retired_phases:` list that keeps old
       `_index.yaml` files valid (AC-001 and AC-011 define the checks).
 
