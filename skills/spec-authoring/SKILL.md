@@ -9,7 +9,7 @@ description: Use when intent arrives — "I want to build X," "we need to refact
 
 The entry point to the entire SDLC. Everything starts with intent — a vague idea, a problem statement, a direction. This skill takes that intent through two phases: **brainstorming** (refine intent into clear requirements through conversation) and **formalization** (produce a structured, reviewable spec).
 
-The spec is the root artifact. Everything downstream — tasks, PRs, reviews, bugs — traces back to it.
+The spec is the root artifact. Everything downstream — the delivery guide, PRs, reviews, bugs — traces back to it.
 
 **This is a rigid skill.** No implementation until the spec is approved. No spec until the design is approved. No design until the intent is understood.
 
@@ -27,7 +27,7 @@ The spec is the root artifact. Everything downstream — tasks, PRs, reviews, bu
 
 These are non-negotiable. The entire SDLC depends on them.
 
-1. **No implementation until the spec is approved.** Do NOT write code, scaffold, create task files, or invoke implementation skills until Phase 2 is complete and the user has explicitly approved. No exceptions. Not even "let me prototype something quick." The spec IS the prototype.
+1. **No implementation until the spec is approved.** Do NOT write code, scaffold, or invoke implementation skills until Phase 2 is complete and the user has explicitly approved. No exceptions. Not even "let me prototype something quick." The spec IS the prototype.
 2. **No spec until the design is agreed.** Do NOT start writing the formal spec document until Phase 1 produces a design the user has signed off on. Premature formalization wastes effort when the direction changes.
 3. **One question at a time.** Ask clarifying questions individually. Prefer multiple choice when possible. Never present a wall of questions — have a conversation.
 
@@ -67,7 +67,7 @@ Now dig deeper. One question at a time. Target the gaps:
 - Whether the work could conflict (touching the same models, APIs, or components)
 - Whether to sequence the specs or proceed in parallel with awareness
 
-This is cheaper to catch here than during task decomposition, and much cheaper than discovering it when two PRs conflict at merge time.
+This is cheaper to catch here than when the guide is written (Step 10b), and much cheaper than discovering it when two PRs conflict at merge time.
 
 **Open-PR id check:** `specs/spec-index.json` and a `specs/` directory listing are both generated from `main` and will not show an id already claimed on an unmerged branch or open PR. Before finalizing a new SPEC id, also run `gh pr list --state open --limit 200 --json number,title,headRefName --jq '.[] | select(.title + .headRefName | test("SPEC-<N>"))'` (substituting the candidate id) to check for an open PR already claiming it; if found, increment past it and re-check.
 
@@ -183,8 +183,8 @@ This comes directly from Phase 1 Steps 1-2.]
 ## Success criteria
 
 [Measurable outcomes from Phase 1 Step 5.]
-- [ ] Criterion 1
-- [ ] Criterion 2
+- [ ] SC-1: Criterion one
+- [ ] SC-2: Criterion two
 
 ## Scope
 
@@ -207,8 +207,8 @@ This comes directly from Phase 1 Steps 1-2.]
 [Testable conditions. Given/When/Then format.
  Each criterion must be independently verifiable by an agent or test.
  These come from success criteria + design decisions.]
-- [ ] Given X, when Y, then Z
-- [ ] Given A, when B, then C
+- [ ] AC-001: Given X, when Y, then Z
+- [ ] AC-002: Given A, when B, then C
 
 ## Risks & constraints
 
@@ -331,7 +331,7 @@ carrying blockers, or carrying none at all, is rejected — an empty envelope is
 - **`batch_followup_and_accept`** (only nits/suggestions remain): append the findings to a `spec_followups:` section in the spec body (after `Migration` and `spec_review_overrides`, per SPEC-001 Design > Spec followups format), then proceed to the sign-off gate.
 - **`accept`** (empty findings list): proceed directly to the sign-off gate.
 
-**Owner override format.** When the owner judges a finding's severity is too high — e.g., the reviewer raised a `major` for an ambiguity the owner believes is intentional and will be sharpened in the first task — the owner downgrades severity by appending a `spec_review_overrides:` entry to the spec body. The section lives after `Migration` and before any other appendix, per SPEC-001 Design > Owner override format. Example entry:
+**Owner override format.** When the owner judges a finding's severity is too high — e.g., the reviewer raised a `major` for an ambiguity the owner believes is intentional and will be sharpened in the first step — the owner downgrades severity by appending a `spec_review_overrides:` entry to the spec body. The section lives after `Migration` and before any other appendix, per SPEC-001 Design > Owner override format. Example entry:
 
 ```yaml
 ## spec_review_overrides
@@ -339,7 +339,7 @@ carrying blockers, or carrying none at all, is rejected — an empty envelope is
 - finding_id: F-003
   reviewer_severity: major
   owner_severity: nit
-  reason: "Spec is intentionally ambiguous in this domain; will sharpen after first task."
+  reason: "Spec is intentionally ambiguous in this domain; will sharpen after the first step."
   override_date: 2026-05-18
 ```
 
@@ -347,25 +347,81 @@ carrying blockers, or carrying none at all, is rejected — an empty envelope is
 
 When the routing policy returns `accept` or `batch_followup_and_accept` (after any overrides), proceed to the sign-off gate. The owner's sign-off remains the authority — the reviewer's output is informational and grounded; the owner approves.
 
+### Step 10b: Write the delivery guide
+
+Once the spec review has converged (Step 10a returns `accept` or `batch_followup_and_accept`), write
+the plan the delivery run will execute. The guide is short: the executor already holds the spec.
+Schema: [`skills/guide-schema.md`](../guide-schema.md). Template: `templates/guide.md`.
+
+1. **Write `specs/tasks/SPEC-NNN/GUIDE.md` and `_index.yaml`.** Ordered steps, each with the spec AC
+   ids it covers, the paths it may change and the commands that verify it; the owner decisions the run
+   cannot close alone; the end-to-end validation. `_index.yaml` lists every step and decision as
+   `pending` and carries `plan_review:` with `approved: false`. A guide over 10 steps means the spec
+   is too big: split it.
+2. **Run the validator** and fix what it reports:
+
+   ```bash
+   node scripts/sdlc/validate-guide.mjs specs/tasks/SPEC-NNN/GUIDE.md
+   ```
+
+3. **Check for collisions with other open specs.** Compare this guide's `Changes:` globs with the
+   guide of every other `active` or `draft` spec. For a spec that has no guide yet, compare against
+   the `touches` in its `TASK-*.md` frontmatter, falling back to its `_index.yaml` `tasks:` list, and
+   ask the owner when neither declares any. Put any overlap to the owner with three options: proceed
+   with awareness, sequence the specs, or coordinate on the specific files at risk. The owner decides.
+4. **Write the `phase:` block** in `_index.yaml` on exit: `current: spec-authoring`,
+   `next_action: spec-execution`, `next_trigger: 'execute SPEC-NNN'`, `exit_condition_met: true` and
+   `updated: <date>`. Set `handoff_surfaced: true` only after you surface the handoff, because
+   `stop-handoff.mjs` reads it and never writes it.
+5. **At sign-off, write the kickoff prompt** `specs/tasks/SPEC-NNN/KICKOFF.md` from
+   `templates/kickoff.md` and show it to the owner in full. **It holds at most 3,800 characters**,
+   counted as Unicode characters, not bytes. That is the owner's limit for the prompt that arms a
+   delivery goal, and validator rule 9 fails an approved guide whose prompt is missing or longer.
+
+**`spec-reviewer` is not dispatched on the guide.** The validator covers the mechanical part (every
+AC covered, every step verifiable, index and guide in step, the kickoff limit), and the owner judges
+the rest at sign-off.
+
+**The owner approves spec and guide together.** In one sign-off the owner sets the spec to
+`status: active` and `plan_review.approved: true`, and one spec PR carries the spec, the guide, the
+index and the kickoff prompt.
+
+#### Writing the guide for an active spec on its own
+
+"Write the guide for SPEC-NNN" runs this step alone, for a spec that is already `active` but has no
+guide (one specced before guides existed, or one whose amendment landed before its guide).
+
+1. **Make any id-only edits first.** A guide's `Covers:` names AC ids, so every acceptance criterion
+   line needs one. Adding an id to the front of an existing criterion line, and changing nothing else
+   on it, is a Cosmetic change under `spec-amendment`: no version bump and no re-review. The legacy
+   `AC-NNN —` form already counts.
+2. **Run items 1 to 5 above.** A spec's existing task briefs can serve as step briefs through
+   `Notes:`.
+3. **Open a `guide/SPEC-NNN` PR** carrying the guide, the index, the kickoff prompt and the id-only
+   edits, and list each id-only edit in its body. The owner approves by setting
+   `plan_review.approved: true`.
+
 ### Step 11: Open a PR
 
 - Branch: `spec/SPEC-NNN-short-description`
 - Commit: `SPEC-NNN: draft spec for [title]`
 - PR title: `SPEC-NNN: [title]`
+- Carries: the spec, any ADRs, and `specs/tasks/SPEC-NNN/` (`GUIDE.md`, `_index.yaml`, `KICKOFF.md`)
 - PR body: summary of the spec + link to the approaches considered
 
 ### Step 12: After approval
 
-1. Update `status: draft` → `status: active`
+1. Update `status: draft` → `status: active`, and set `plan_review.approved: true` in the same commit
 2. Create the Linear project linked to the initiative
 3. Set `linear_project` field in the spec frontmatter
 4. If this spec came from `specs/intents.md`: update the intent's status to `done` and set its `Spec` field to `SPEC-NNN`
 5. Commit and push the status change
-6. Announce: "Spec is active. Ready for task decomposition."
+6. Announce: "Spec is active. Ready for delivery." and show the owner `KICKOFF.md`, the prompt that
+   starts the run.
 
-**Next:** Use the `task-decomposition` skill to break the spec into tasks.
+**Next:** The owner pastes `KICKOFF.md` to start `spec-execution`.
 
-**Later:** If implementation reveals the spec needs to change, use the `spec-amendment` skill. That's the backward path — this skill is the forward path. When all tasks are done, use the `spec-completion` skill to verify success criteria and close the loop.
+**Later:** If implementation reveals the spec needs to change, use the `spec-amendment` skill. That's the backward path — this skill is the forward path. When every guide step is done, use the `spec-completion` skill to verify success criteria and close the loop.
 
 ---
 
@@ -389,19 +445,16 @@ When the routing policy returns `accept` or `batch_followup_and_accept` (after a
        │  self-review
        │  human walkthrough (Step 10)
        │  spec-reviewer + owner overrides (Step 10a)
-       │  ✓ USER APPROVES SPEC
+       │  delivery guide + kickoff prompt (Step 10b)
+       │  ✓ USER APPROVES SPEC AND GUIDE
        │
-   task-decomposition             ← next skill
-       │  break into tasks
-       │  route to agents
-       │  ✓ USER APPROVES PLAN
+   spec-execution                 ← next skill: burns the guide's steps down
+       │  one integration PR, adversarial panel
        │
-   implementation                 ← sdlc-code-standards + domain skills
-       │
-   review                        ← sdlc-code-review
+   spec-completion                ← verifies the success criteria
 ```
 
-Two human gates in this skill: design approval (end of Phase 1) and spec approval (end of Phase 2). Nothing moves forward without explicit user sign-off. On exit (spec flips `draft` → `active`), hand off to `task-decomposition`; the canonical handoff fields are in the generated `## Handoff` footer below.
+Two human gates in this skill: design approval (end of Phase 1) and spec-and-guide approval (end of Phase 2). Nothing moves forward without explicit user sign-off. On exit (spec flips `draft` → `active` with `plan_review.approved: true`), hand off to `spec-execution` with the kickoff prompt; the canonical handoff fields are in the generated `## Handoff` footer below.
 
 ## Common mistakes
 
