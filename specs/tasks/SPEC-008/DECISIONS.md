@@ -201,6 +201,21 @@ workaround) for the owner. The scope of SPEC-008 is not widened.
 
 ---
 
+## EXECUTIVE DECISION — gate closed at round 3; nits recorded as follow-ups
+
+**Date:** 2026-09-30
+**Question:** round 3 (the last round under ADR-004) returned no blocker or major, and 6 nits plus 1
+suggestion. Fix them after the final round, or record them?
+**Decided:** record them as follow-ups in the PR #57 body and change no code after the final
+round, so the merged code is the code the panel graded. One correction: the second SPEC DEVIATION
+above calls the fence change "stricter only". Round 3 showed it is not: a `~~~` line inside a
+triple-backtick fence, or an inline triple backtick, hides later ACs. That edge is follow-up 1.
+**Why:** the severity policy routes nits and suggestions to follow-up and accept; a fix now would
+merge unreviewed code.
+**Reversal path:** fold the follow-ups into a small follow-up spec.
+
+---
+
 ## Cross-step values
 
 Values a later step must match rather than re-derive.

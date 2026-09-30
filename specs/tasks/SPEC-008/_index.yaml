@@ -33,9 +33,9 @@ steps:
 decisions: []
 
 phase:
-  current: spec-authoring
-  next_action: spec-execution
-  next_trigger: 'execute SPEC-008'
+  current: spec-execution
+  next_action: spec-completion
+  next_trigger: 'close out SPEC-008'
   exit_condition_met: true
   handoff_surfaced: true
   updated: 2026-09-30
