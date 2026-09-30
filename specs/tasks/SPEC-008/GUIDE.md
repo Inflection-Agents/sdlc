@@ -6,10 +6,10 @@ spec_version: 1
 ## Steps
 
 ### S1: Guide tooling
-- Covers: AC-003, AC-004, AC-010, AC-014
+- Covers: AC-003, AC-004, AC-010, AC-014, AC-020
 - Changes: `skills/guide-schema.md`, `templates/guide.md`, `init-payload/templates/guide.md`, `scripts/sdlc/validate-guide.mjs`, `scripts/sdlc/validate-guide.test.mjs`, `init-payload/scripts/sdlc/validate-guide.mjs`, `.github/workflows/sdlc-validate.yml`, `init-payload/.github/workflows/sdlc-validate.yml`, `specs/tasks/SPEC-008/DECISIONS.md`
 - Verify: `node --test scripts/sdlc/validate-guide.test.mjs`, `node scripts/sdlc/validate-guide.mjs specs/tasks/SPEC-008/GUIDE.md`, `cmp scripts/sdlc/validate-guide.mjs init-payload/scripts/sdlc/validate-guide.mjs`
-- Notes: Match section headings only at the start of a line. SPEC-008 quotes `## Acceptance criteria` inline, and an unanchored search reads the wrong section. Run the new validator on this guide and record the result in `DECISIONS.md`, next to the bootstrap `EXECUTIVE DECISION` logged at run start. `guide-schema.md` holds the guide fields, the `steps:` and `decisions:` lists, the plan-review and phase-memory blocks, and the 10-step split rule.
+- Notes: Match section headings only at the start of a line. SPEC-008 quotes `## Acceptance criteria` inline, and an unanchored search reads the wrong section. Rule 9 caps `KICKOFF.md` at 3,800 Unicode characters on any approved guide; count with `[...text].length`, not bytes. Run the new validator on this guide and record the result in `DECISIONS.md`, next to the bootstrap `EXECUTIVE DECISION` logged at run start. `guide-schema.md` holds the guide fields, the `steps:` and `decisions:` lists, the plan-review and phase-memory blocks, and the 10-step split rule.
 
 ### S2: Spec schema and templates
 - Covers: AC-005, AC-018
@@ -26,7 +26,7 @@ spec_version: 1
 ### S4: Authoring and amendment skills
 - Covers: AC-006, AC-008, AC-020
 - Changes: `skills/spec-authoring/SKILL.md`, `skills/spec-amendment/SKILL.md`, `templates/kickoff.md`, `init-payload/templates/kickoff.md`
-- Verify: `rg -n "GUIDE.md|KICKOFF.md|write the guide for|guide/SPEC" skills/spec-authoring/SKILL.md skills/spec-amendment/SKILL.md`, `cmp templates/kickoff.md init-payload/templates/kickoff.md`, `wc -c < specs/tasks/SPEC-008/KICKOFF.md`
+- Verify: `rg -n "GUIDE.md|KICKOFF.md|write the guide for|guide/SPEC" skills/spec-authoring/SKILL.md skills/spec-amendment/SKILL.md`, `cmp templates/kickoff.md init-payload/templates/kickoff.md`, `node scripts/sdlc/validate-guide.mjs specs/tasks/SPEC-008/GUIDE.md`
 - Notes: The new spec-authoring step runs after Step 10a and can run alone on an active spec. The id-only edit goes in spec-amendment's Cosmetic class.
 
 ### S5: Review rules

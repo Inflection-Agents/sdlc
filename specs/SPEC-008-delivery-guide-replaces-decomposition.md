@@ -256,7 +256,10 @@ the problem when:
    amendment);
 6. a checkbox line under `## Acceptance criteria` carries no `AC-NNN` id in either form;
 7. an `After:` id names no step, or names a step that is not earlier in the guide;
-8. `.ai/project.md` defines workspaces and a step has no `Workspace:`.
+8. `.ai/project.md` defines workspaces and a step has no `Workspace:`;
+9. `_index.yaml` has `plan_review.approved: true` and `KICKOFF.md` next to the guide is missing or
+   holds more than 3,800 characters. The count is Unicode characters, not bytes, and the error
+   prints it.
 
 Otherwise it exits 0. CI runs it on every `specs/tasks/*/GUIDE.md`. `spec-execution` runs it before
 `plan-gate.mjs`. `guide-schema` joins the state machine's `exempt:` list, as `task-schema` is today
@@ -294,8 +297,11 @@ change. The owner approves that guide by setting `plan_review.approved: true`.
 ### The kickoff prompt
 
 Every spec that becomes ready for delivery gets a kickoff prompt, so the owner starts the run by
-pasting one prompt and does not have to write it. The prompt is at most 3,800 characters, the owner's
-limit for the prompt that arms a goal (`wc -c` on `KICKOFF.md`). It carries:
+pasting one prompt and does not have to write it. The prompt holds at most 3,800 characters, the
+owner's hard limit for the prompt that arms a goal. Characters means Unicode characters, not bytes,
+so a `—` counts once. `validate-guide.mjs` rule 9 enforces the limit on every approved guide, and CI
+runs that rule on every PR, so an over-long prompt fails the build, not the owner's paste.
+`templates/kickoff.md` states the limit at its top. The prompt carries:
 
 - the trigger `execute SPEC-NNN` and the spec's title;
 - the goal statement, one sentence taken from the spec's Problem;
@@ -362,7 +368,7 @@ SPEC-008 is delivered from its own guide anyway, under these rules:
 1. `specs/tasks/SPEC-008/GUIDE.md` and `_index.yaml` (with `plan_review.approved: false`) ship in the
    same PR as this spec, and the owner approves them in the same sign-off.
 2. `validate-guide.mjs` does not exist yet at sign-off, so the author checks the guide against the
-   eight rules above by hand and says so in the spec PR body.
+   nine rules above by hand and says so in the spec PR body.
 3. Step S1 lands `validate-guide.mjs` and `skills/guide-schema.md`, then runs the validator on
    SPEC-008's own guide. The result goes in `DECISIONS.md`.
 4. At run start the executor logs an `EXECUTIVE DECISION` recording that the owner's sign-off
@@ -396,11 +402,14 @@ list, integration branch, end-to-end validation, capped panel, PR left open for 
       then they require `GUIDE.md` to pass `validate-guide.mjs` and the plan gate to pass, and name no
       decomposed tasks; and `spec-authoring`'s entry triggers include `write the guide for`.
 - [ ] AC-003: Given `scripts/sdlc/validate-guide.test.mjs`, when run with `node --test`, then it
-      proves exit 1, naming the offending id, line or version, for each of the eight failure cases, including an AC
+      proves exit 1, naming the offending id, line, version or character count, for each of the nine
+      failure cases (rule 9 with an approved guide and no `KICKOFF.md`, and with a 3,801-character
+      `KICKOFF.md`), including an AC
       covered only by a cancelled step, in Design >
       `validate-guide.mjs`, exit 1 when zero or two spec files match, and exit 0 for a valid guide
       whose spec also contains prose references to other specs' AC ids, both for a spec written
-      `AC-NNN:` and for one written `AC-NNN —`.
+      `AC-NNN:` and for one written `AC-NNN —`, and for an approved guide whose `KICKOFF.md` is
+      exactly 3,800 characters including multi-byte ones.
       `init-payload/scripts/sdlc/validate-guide.mjs` is byte-identical to
       `scripts/sdlc/validate-guide.mjs`.
 - [ ] AC-004: Given both copies of `sdlc-validate.yml`, when read, then each has a step that runs
@@ -474,9 +483,10 @@ list, integration branch, end-to-end validation, capped panel, PR left open for 
 
 - [ ] AC-020: Given `skills/spec-authoring/SKILL.md` and `skills/spec-amendment/SKILL.md`, when read,
       then both write `specs/tasks/SPEC-NNN/KICKOFF.md` from `templates/kickoff.md` at sign-off or
-      re-approval and show it to the owner; `templates/kickoff.md` exists in both copies,
-      byte-identical, and names every item in Design > The kickoff prompt; and
-      `wc -c < specs/tasks/SPEC-008/KICKOFF.md` prints 3800 or less.
+      re-approval, keep it within 3,800 characters, and show it to the owner; `templates/kickoff.md`
+      exists in both copies, byte-identical, states the 3,800-character limit at its top, and names
+      every item in Design > The kickoff prompt; and `validate-guide.mjs` rule 9 passes on
+      `specs/tasks/SPEC-008/`.
 
 ## Risks & constraints
 
