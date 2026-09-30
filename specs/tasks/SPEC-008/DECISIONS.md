@@ -21,6 +21,19 @@ uses `claude/SPEC-008-S<n>` branches, `## S<n>` headings here, guide-change logg
 
 ---
 
+## EXECUTIVE DECISION — guide change: S1 registers guide-schema under exempt:
+
+**Date:** 2026-09-30
+**Question:** S1 creates `skills/guide-schema.md`, and `validate-state-machine.mjs` fails on any
+skills file that no phase or `exempt:` entry names. The guide put the `exempt:` entry in S6.
+**Decided:** S1 adds `guide-schema` under `exempt:` in both state machines. S1's `Changes:` gains the
+two state-machine files (that entry only), and S6's note is updated. No AC, scope item or design
+decision changes.
+**Why:** without it the S1 PR fails CI, and every step until S6 would too.
+**Reversal path:** move the entry back to S6 and land S1 and S6 together.
+
+---
+
 ## Cross-step values
 
 Values a later step must match rather than re-derive.

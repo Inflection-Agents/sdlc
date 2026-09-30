@@ -54,6 +54,12 @@ jobs:
               # structure of your state machine.
               run: node scripts/sdlc/validate-state-machine.mjs
 
+            - name: Delivery guides are complete and current
+              # Every spec AC covered, every step verifiable, guide and index in step, and an
+              # approved guide's KICKOFF.md within 3,800 characters (ADR-007). An unmatched glob
+              # (no guides yet) is nothing to check.
+              run: node scripts/sdlc/validate-guide.mjs specs/tasks/*/GUIDE.md
+
             - name: Phase-memory blocks are valid
               run: node scripts/sdlc/validate-phase-memory.mjs specs/tasks/*/_index.yaml specs/archive/tasks/*/_index.yaml
 
