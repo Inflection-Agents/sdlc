@@ -27,10 +27,10 @@ Creating a domain skill touches these files:
 | `.ai/project.md` → Workspace skills | Map the skill to its workspace |
 | `.ai/project.md` → Workspace interfaces | Add/update if the skill reveals boundary contracts |
 | `.ai/project.md` → Change propagation patterns | Add/update if the skill introduces cross-workspace patterns |
-| `.ai/project.md` → Agent eligibility | Update if the skill changes how this workspace's tasks route (unattended `claude-code` vs. deferred to `human`) |
+| `.ai/project.md` → Agent eligibility | Update if the skill changes whether this workspace's work can run unattended or needs a human `Run by:` step |
 | `.ai/project.md` → Per-workspace conventions | Add/update if conventions differ from the default |
 
-Missing any of these means the skill exists but SDLC process skills won't find it, apply it, or decompose tasks correctly for its workspace.
+Missing any of these means the skill exists but SDLC process skills won't find it, apply it, or write guide steps correctly for its workspace.
 
 ## Process
 
@@ -149,7 +149,7 @@ Add the skill to the workspace skills mapping:
 | dealer-app | nextjs-app-patterns | App Router, server components ← NEW |
 ```
 
-**This is the critical wiring.** Without this row, SDLC skills (code-standards, code-review, task-decomposition) will never find or apply the domain skill.
+**This is the critical wiring.** Without this row, SDLC skills (code-standards, code-review, spec-authoring's guide step) will never find or apply the domain skill.
 
 ### Step 7: Update project.md — Workspace interfaces
 
@@ -180,7 +180,7 @@ Skip this step if existing patterns already cover the relevant flows.
 
 ### Step 9: Update project.md — Agent eligibility
 
-If the new skill changes how this workspace's tasks should route (e.g., the skill reveals that tasks need database access and can't run unattended), update the agent eligibility table:
+If the new skill changes whether this workspace's work can run unattended (e.g., the skill reveals that it needs database access a delivery run does not have), update the agent eligibility table:
 
 ```markdown
 | Workspace | Routing | Notes |

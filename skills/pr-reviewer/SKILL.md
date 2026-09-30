@@ -1,6 +1,6 @@
 ---
 name: pr-reviewer
-description: Use when reviewing a PR against its task file, spec, and ADRs — emits graded JSON findings (blocker/major/nit/suggestion) per SPEC-001 contract. Machine-parseable output for spec-execution orchestrator.
+description: Use when reviewing a PR against its guide step, spec, and ADRs — emits graded JSON findings (blocker/major/nit/suggestion) per SPEC-001 contract. Machine-parseable output for spec-execution orchestrator.
 ---
 
 # pr-reviewer
@@ -12,7 +12,7 @@ description: Use when reviewing a PR against its task file, spec, and ADRs — e
 > A self-review in the reviewer's output format is byte-identical to an independent one in the
 > artifact, which is exactly why this has to fail loudly here rather than quietly produce a verdict.
 
-This skill is the PR-side machine-parseable reviewer defined by SPEC-001. It grades a single PR against its task file, its parent spec, and the applicable ADRs, and emits the shared JSON envelope from `review-primitives.md`. The human-readable rendering of these findings — the actual review comment posted to the PR — lives in `sdlc-code-review` (updated by TASK-005). This skill emits structured findings; `sdlc-code-review` renders them.
+This skill is the PR-side machine-parseable reviewer defined by SPEC-001. It grades a single PR against its guide step, its parent spec, and the applicable ADRs, and emits the shared JSON envelope from `review-primitives.md`. The human-readable rendering of these findings — the actual review comment posted to the PR — lives in `sdlc-code-review` (updated by TASK-005). This skill emits structured findings; `sdlc-code-review` renders them.
 
 ## Prompt
 
@@ -22,13 +22,13 @@ This skill is the PR-side machine-parseable reviewer defined by SPEC-001. It gra
 
 
 ```
-You are reviewing a single PR against its task file, its parent spec, and the
+You are reviewing a single PR against its guide step, its parent spec, and the
 applicable ADRs. Your output is machine-parseable JSON per the shared envelope
 in review-primitives.md. You will not emit freehand prose outside the JSON
 envelope.
 
 INPUTS:
-  - task_file: path to specs/tasks/SPEC-NNN/TASK-NNN-*.md
+  - guide_step: the step's block in specs/tasks/SPEC-NNN/GUIDE.md (Covers:, Changes:, Verify:, Notes:)
   - spec_file: path to specs/SPEC-NNN-*.md
   - pr_diff:   unified diff of the PR
   - previous_output: (optional, may be null on first iteration)
@@ -50,7 +50,7 @@ severity nit or suggestion whose `location` file does NOT appear in pr_diff.
 
 CROSS-SKILL SIGNALS (raise these as blocker findings to trigger orchestration
 hand-offs, per SPEC-002 Phase 2 cross-skill signals):
-  - criterion = "task:scope" — PR scope reveals task decomposed wrong.
+  - criterion = "task:scope" — the diff leaves the step's Changes:.
   - criterion = "spec:ambiguous-ac" / "spec:contradictory-ac" /
     "spec:wrong-design" / "spec:missing-section" — implementation reveals
     spec is wrong.
@@ -108,7 +108,7 @@ Dispatch concurrently, in one message.
 
 ### Step 3 — seed a clean context
 
-Each dispatch carries ONLY: the PR diff and changed files, the task's acceptance criteria, the spec
+Each dispatch carries ONLY: the PR diff and changed files, the spec acceptance criteria in the step's `Covers:`, the spec
 and its linked ADRs, the applicable constraints with their `check` and `cite`, and the envelope
 schema. **The author's execution transcript is never passed in.** Independence comes from a clean
 context, not from a credential.
@@ -132,18 +132,18 @@ This table is the source of truth for Tier 2 dispatch. SPEC-002 consumes verbati
 | Specialist          | Triggers dispatch when …                                                     |
 |---------------------|------------------------------------------------------------------------------|
 | cross_spec          | Diff touches `packages/**` or `shared/**`                                    |
-| cross_spec          | Task file declares any `blocks:` entry (regardless of file globs)            |
+| cross_spec          | Step `Notes:` declares a contract a later step must match                    |
 | adversarial         | Tier 1 returned 0 blockers AND pr_diff size > 150 lines added                |
 | domain:dbt          | Diff touches `dbt/models/**` or `dbt/macros/**`                              |
 | domain:nextjs       | Diff touches `apps/*/components/**` or `apps/*/app/**`                       |
-| domain:playwright   | Task file declares `figma_frame:` OR diff touches `apps/*/app/**` page files |
+| domain:playwright   | Diff touches `apps/*/app/**` page files                                      |
 ```
 
 Domain reviewers consume the domain skill listed in `.ai/project.md` for the workspace. If no domain skill exists, the specialist is not dispatched.
 
 ## Dispatch ownership
 
-The reviewer evaluates the Tier 2 dispatch rules against the task file's `blocks:` field and the PR diff, populating `tier_2_dispatch_recommended` in its output. The orchestrator trusts this list and does NOT re-evaluate file globs.
+The reviewer evaluates the Tier 2 dispatch rules against the step's `Notes:` contracts and the PR diff, populating `tier_2_dispatch_recommended` in its output. The orchestrator trusts this list and does NOT re-evaluate file globs.
 
 ## Shared primitives
 
