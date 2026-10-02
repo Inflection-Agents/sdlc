@@ -30,8 +30,8 @@ cut feat/spec-NNN  →  step → verify → self-review → PR → merge → nex
 ADR-007 — fail closed):
 
 ```
-node scripts/sdlc/validate-guide.mjs specs/tasks/SPEC-NNN/GUIDE.md
-node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-guide specs/tasks/SPEC-NNN/GUIDE.md
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs plan-gate specs/tasks/SPEC-NNN/_index.yaml
 ```
 
 A missing guide is not something to invent here: route to `spec-authoring` with "write the guide for
@@ -95,7 +95,7 @@ Cut `feat/spec-NNN` from `main` before the first step. **Every change for this s
 and nothing reaches `main` except by merging that branch.** No step PR targets `main`, no direct
 commits to `main`, ever.
 
-Alongside it, create `specs/tasks/SPEC-NNN/DECISIONS.md` from `templates/decisions.md`. This is not
+Alongside it, create `specs/tasks/SPEC-NNN/DECISIONS.md` from `.sdlc/templates/decisions.md`. This is not
 optional bookkeeping: §8's narrow escalation bar is only safe because almost every judgment call
 gets decided and logged rather than asked, and this log is what makes that reviewable after the fact
 instead of invisible. One `## S<n>` entry per step appended after it merges; an `EXECUTIVE DECISION`
@@ -168,12 +168,12 @@ SOP §7.
 
 This is the one place `review-constraints.yaml` is evaluated **in full, across the whole diff**
 (not per step, where a narrowly-declared `Changes:` set makes matching unreliable). Lens → reviewer
-routing is registry data (ADR-001): `node scripts/sdlc/reviewer-routing.mjs <lens>`.
+routing is registry data (ADR-001): `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs reviewer-routing <lens>`.
 
 Two rules that are not negotiable:
 
 - **Independence is structural here.** Every verdict comes from a separately dispatched reviewer,
-  and every envelope is validated (`node scripts/sdlc/validate-review-envelope.mjs <file>`).
+  and every envelope is validated (`node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-review-envelope <file>`).
   Step-level self-review (§4, rule 2) is the deliberate exception, bought back in full at this gate.
   A malformed, ungrounded or absent envelope is never a clean review.
 - **Leave the PR open.** The human reviews and merges it. You never merge to `main`, never push to
@@ -234,7 +234,7 @@ phase:
 
 Set `handoff_surfaced: true` **after** you surface the handoff (the hook reads it, never writes it —
 without it, it re-blocks every turn). Take `next_action`/`next_trigger` from
-`specs/sdlc-state-machine.yaml`; never restate the transition table here.
+`.sdlc/state-machine.yaml`; never restate the transition table here.
 
 <!-- sdlc:handoff:start -->
 <!-- GENERATED from specs/sdlc-state-machine.yaml by scripts/sdlc/gen-handoffs.mjs — do not edit between markers; re-run the generator. -->

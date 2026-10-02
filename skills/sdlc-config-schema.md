@@ -1,7 +1,7 @@
 # SDLC config schema
 
 `.sdlc/config.yaml` marks a repo as layout 2 (ADR-008) and holds the adopter's own SDLC data.
-Everything the framework reads from it goes through `scripts/sdlc/lib/sdlc-paths.mjs`, and
+Everything the framework reads from it goes through `.sdlc/scripts/lib/sdlc-paths.mjs`, and
 `validate-sdlc-config.mjs` grades its shape. `/sdlc-sync` writes only `framework_version`; every
 other field is the adopter's and is never overwritten.
 

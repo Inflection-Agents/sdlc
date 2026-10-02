@@ -85,7 +85,7 @@ INPUTS:
   - spec_schema:     path to skills/spec-schema.md
   - authoring:       path to skills/spec-authoring/SKILL.md
   - intent:          (optional) excerpt from specs/intents.md
-  - project:         path to .ai/project.md (for workspace coverage checks)
+  - project:         the AGENTS.md SDLC block and .sdlc/config.yaml (for workspace coverage checks)
   - adrs:            paths to referenced ADRs and to existing ADRs the spec
                      may contradict
   - upstream_specs:  (optional) paths to specs in this spec's depends_on
@@ -152,7 +152,7 @@ The reviewer is supplied the following inputs at dispatch time (see prompt body 
 - `spec_schema` — `skills/spec-schema.md` for required-section / frontmatter checks.
 - `authoring` — `skills/spec-authoring/SKILL.md` for `spec-authoring:<section-anchor>` citations.
 - `intent` (optional) — excerpt from `specs/intents.md` for `intent:<id>` citations.
-- `project` — `.ai/project.md` for workspace-coverage checks.
+- `project` — the `AGENTS.md` SDLC block and `.sdlc/config.yaml` `workspaces`, for workspace-coverage checks.
 - `adrs` — paths to referenced ADRs and to existing ADRs the spec may contradict.
 - `upstream_specs` (optional) — paths to specs listed in this spec's `depends_on` (for `SPEC-NNN:<section>` citations in the upstream direction).
 - `downstream_specs` (optional) — paths to specs that declare this spec in their `depends_on` (for `SPEC-NNN:<section>` citations in the downstream direction).

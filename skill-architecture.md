@@ -55,7 +55,7 @@ The three skill layers describe *knowledge* agents apply. Underneath the SDLC-pr
 │  (Layer-2 skills, gated)         │   (policy: SKILL.md · how: SOP.md) │
 └─────────────────────────────────────────────────────────────────────┘
                           rides on the SPINE:
-  specs/sdlc-state-machine.yaml   ← single source of truth: phases, triggers, transitions
+  .sdlc/state-machine.yaml   ← single source of truth: phases, triggers, transitions
   _index.yaml `phase:` block      ← per-spec phase memory (read on entry, written on exit)
   _index.yaml `plan_review:` block← the fail-closed gate a delivery run checks before it starts
   specs/tasks/SPEC-NNN/GUIDE.md   ← the delivery guide, checked by validate-guide.mjs (ADR-007)
@@ -63,15 +63,15 @@ The three skill layers describe *knowledge* agents apply. Underneath the SDLC-pr
   .claude/hooks/*.mjs             ← classify prompt, handoff at phase exit + goal leash, guard edits/review
   skills/review-primitives.md │ review-envelope.schema.json
                                    ← review contracts: severity spine, output schema
-  .ai/sdlc/review-constraints.yaml← the lens registry; repo-specific, so outside skills/
-  scripts/sdlc/*.mjs              ← validators + gates: state machine, phase memory, gen-handoffs,
+  .sdlc/review-constraints.yaml← the lens registry; repo-specific, so outside skills/
+  .sdlc/scripts/*.mjs              ← validators + gates: state machine, phase memory, gen-handoffs,
                                      plan-gate, validate-guide, reviewer-routing, envelope validation,
                                      registry globs
 ```
 
 - **Delivery is single-executor and agent-agnostic.** The agent running `spec-execution` implements every guide step itself; specialization is *data* on the step (`Changes:`, `Workspace:`, `Risk:`, `Run by:`, `Notes:` contracts), not a separate executor backend. Worktree-isolated subagents are an exception for large specs.
 - **Code review's reviewer of record is the LLM multi-lens panel** (`pr-reviewer` grades → `sdlc-code-review` renders), dispatched at the integration gate and routed by `review-primitives.md`. Per step, the gate is the step's `Verify:` commands plus the executor's self-review. Humans gate the judgment-phase inputs and merge the integration PR; they are not the per-PR reviewers.
-- **The state machine is authoritative.** The `.ai/sdlc.md` phase narrative and each skill's `## Handoff` footer are generated/validated from `specs/sdlc-state-machine.yaml` — don't restate phase info in the skills.
+- **The state machine is authoritative.** The `${CLAUDE_PLUGIN_ROOT}/docs/sdlc.md` phase narrative and each skill's `## Handoff` footer are generated/validated from `.sdlc/state-machine.yaml` — don't restate phase info in the skills.
 
 ## The three review moments
 
@@ -104,7 +104,7 @@ All three layers are active simultaneously. They don't conflict because they ans
 ### The wiring
 
 ```
-Guide step                   .ai/project.md               .claude/skills/
+Guide step                   .sdlc/config.yaml       .claude/skills/
 ┌──────────────┐            ┌──────────────────┐          ┌──────────────────┐
 │ Workspace:   │───────────▶│ Workspace skills │─���───────▶│ dbt-craftsman/   │
 │   dbt        │            │                  │          │   SKILL.md       │
@@ -120,7 +120,7 @@ and apply them alongside                                  └──────�
 the SDLC process.
 ```
 
-**A guide step's `Workspace:` field is the link.** It connects the SDLC process layer to the domain layer via the workspace-skills mapping in `.ai/project.md`.
+**A guide step's `Workspace:` field is the link.** It connects the SDLC process layer to the domain layer via each workspace's `skills` in `.sdlc/config.yaml`.
 
 ## Where skills physically live
 
@@ -142,7 +142,7 @@ skills/               ← single source of truth for all SDLC skills
   review-primitives.md      ← review contract: severity spine, policy (not a skill)
   review-envelope.schema.json ← the one reviewer-output schema (not a skill)
   # the lens/constraint registry keyed on `touches` is repo-specific and lives
-  # outside this tree, at .ai/sdlc/review-constraints.yaml
+  # outside this tree, at .sdlc/review-constraints.yaml
 
   # Domain: dbt (Layer 1) — prefixed with workspace/technology
   dbt-cartographer/SKILL.md
@@ -154,7 +154,7 @@ skills/               ← single source of truth for all SDLC skills
 .claude/skills → ../skills    ← symlink; Claude Code loads from here
 ```
 
-**Why `skills/` is authoritative, not `.claude/skills/`.** Claude Code loads skills from `.claude/skills/` relative to the working directory. We want `.ai/` to own all agent configuration (skills, CLAUDE.md, sdlc.md, project.md) as a coherent unit. The `.claude/skills` symlink is how Claude Code finds them without duplicating the files.
+**Why `skills/` is authoritative, not `.claude/skills/`.** Claude Code loads skills from `.claude/skills/` relative to the working directory. The framework authors its skills at `skills/` and ships them in the plugin. A repo without the plugin keeps its copies in `.sdlc/skills/`. Either way the `.claude/skills` symlink is how Claude Code finds them without duplicating the files.
 
 **Why root, not nested in workspaces?** In a monorepo, you typically work from the root. Skills in `dbt/.claude/skills/` are invisible from the root. All skills at root means:
 - All skills are always visible regardless of cwd
@@ -203,7 +203,7 @@ The SDLC provides the lifecycle wrapper (spec, guide, review). The domain skills
 
 ## Cross-workspace changes
 
-**Hard rule: one workspace per guide step.** When `.ai/project.md` defines workspaces, every step names exactly one `Workspace:` (validator rule 8). A cross-workspace change becomes separate steps, ordered upstream first.
+**Hard rule: one workspace per guide step.** When `.sdlc/config.yaml` `workspaces` defines workspaces, every step names exactly one `Workspace:` (validator rule 8). A cross-workspace change becomes separate steps, ordered upstream first.
 
 This enables:
 - Independent testing per workspace
@@ -234,7 +234,7 @@ Use project.md propagation patterns when:
 - The ordering is straightforward (upstream → shared → consumers)
 - The boundary contract is simple (column name + type, or export signature)
 
-See `templates/cross-cutting-skill.md` for the template.
+See `.sdlc/templates/cross-cutting-skill.md` for the template.
 
 ## Adding a new domain skill
 
@@ -243,11 +243,11 @@ Use the `create-domain-skill` skill. It walks through the full process and ensur
 The short version — creating a domain skill touches:
 
 1. `skills/[workspace]-[name]/SKILL.md` — the skill itself (`.claude/skills` is a symlink to `skills/`)
-2. `.ai/project.md` → Workspace skills table — the wiring that SDLC skills use to find it
-3. `.ai/project.md` → Workspace interfaces — add/update if the skill reveals boundary contracts
-4. `.ai/project.md` → Change propagation patterns — add/update if cross-workspace patterns exist
-5. `.ai/project.md` → Agent eligibility — update if the skill changes what's agent-executable
-6. `.ai/project.md` → Per-workspace conventions — add if conventions differ from default
+2. `.sdlc/config.yaml` → the workspace's `skills` — the wiring that SDLC skills use to find it
+3. `AGENTS.md` SDLC block → Workspace interfaces — add/update if the skill reveals boundary contracts
+4. `AGENTS.md` SDLC block → Change propagation patterns — add/update if cross-workspace patterns exist
+5. `.sdlc/config.yaml` → the workspace's `agent_executable` — update if the skill changes what's agent-executable
+6. `AGENTS.md` SDLC block → Per-workspace conventions — add if conventions differ from default
 
 Missing any of these means the skill exists but is disconnected from the SDLC process.
 
@@ -285,4 +285,4 @@ It does NOT need to:
 | `nextjs-app-patterns` | Domain | Next.js app workspaces |
 | `shared-package-patterns` | Domain | Shared library |
 
-Not skills (but part of the system): `specs/sdlc-state-machine.yaml` (the spine's source of truth), `.claude/hooks/*.mjs` (the phase hooks and the delivery goal leash), `scripts/sdlc/*.mjs` (validators + delivery gates), and the review contracts (`review-primitives.md`, `review-constraints.yaml`, `review-envelope.schema.json`).
+Not skills (but part of the system): `.sdlc/state-machine.yaml` (the spine's source of truth), `.claude/hooks/*.mjs` (the phase hooks and the delivery goal leash), `.sdlc/scripts/*.mjs` (validators + delivery gates), and the review contracts (`review-primitives.md`, `review-constraints.yaml`, `review-envelope.schema.json`).

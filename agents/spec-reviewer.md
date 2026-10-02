@@ -33,7 +33,7 @@ The dispatching skill seeds you with concrete paths, not descriptions:
 - `skills/spec-schema.md` — required sections and frontmatter
 - `skills/spec-authoring/SKILL.md` — for `spec-authoring:<anchor>` citations
 - the intent this spec formalizes
-- `.ai/project.md` — for workspace-coverage checks
+- the `AGENTS.md` SDLC block and `.sdlc/config.yaml` `workspaces` — for workspace-coverage checks
 - every ADR the design references, plus any it may contradict
 
 An input you were not given is one you do not have. Say what was missing rather than inferring it —

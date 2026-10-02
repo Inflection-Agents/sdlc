@@ -6,7 +6,7 @@ version: 1
 supersedes:
 initiative:
 owner:
-workspaces: []                  # which workspace members this spec affects (see .ai/project.md)
+workspaces: []                  # which workspace members this spec affects (see .sdlc/config.yaml workspaces)
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
 tags: []

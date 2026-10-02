@@ -21,7 +21,7 @@ The spec is the root artifact. Everything downstream — the delivery guide, PRs
 - `brainstorming` — behavioral discipline: hard gate on implementation, one question at a time, propose approaches
 - `writing-plans` — plan authoring discipline (no placeholders, bite-sized steps)
 
-**Domain skills:** Check `.ai/project.md` → Workspace skills table. When writing a spec that targets specific workspaces, read the domain skills for those workspaces to understand technology-specific constraints, patterns, and conventions that should inform the design.
+**Domain skills:** Check each workspace's `skills` in `.sdlc/config.yaml`. When writing a spec that targets specific workspaces, read the domain skills for those workspaces to understand technology-specific constraints, patterns, and conventions that should inform the design.
 
 ## Hard gates
 
@@ -73,7 +73,7 @@ This is cheaper to catch here than when the guide is written (Step 10b), and muc
 
 **Live-correction capture:** If the owner corrects a factual assumption you stated (not merely answers a clarifying question), append a dated note to the intent this spec formalizes in `specs/intents.md`, or mint a new captured intent if the correction reveals an unrelated gap. Open (not merge) this as its own small PR before continuing Phase 1, on whatever bookkeeping branch/lane this repo uses for out-of-band doc updates — opening it is what's within your control; the merge can happen on its own timeline. Do not commit this directly to `main`, and do not rely on remembering to write it down later.
 
-**Monorepo scoping:** If `.ai/project.md` defines workspaces:
+**Monorepo scoping:** If `.sdlc/config.yaml` lists workspaces:
 - Which workspaces does this affect?
 - Does it cross workspace boundaries?
 - Are there workspace-specific constraints (e.g., dbt requires database access)?
@@ -164,7 +164,7 @@ version: 1
 supersedes:                    # only if replacing an existing spec
 initiative: INI-NNN            # ask user if not obvious
 owner: franklin                # human accountable for intent
-workspaces: [dealer-app, shared] # workspace members affected (see .ai/project.md)
+workspaces: [dealer-app, shared] # workspace members affected (see .sdlc/config.yaml workspaces)
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
 tags: [relevant, tags]
@@ -305,7 +305,7 @@ Seed each dispatch with these inputs (all paths concrete; do not invent them):
 - `spec_schema`: `skills/spec-schema.md` — for required-section and frontmatter checks.
 - `authoring`: `skills/spec-authoring/SKILL.md` — this skill, for `spec-authoring:<anchor>` citations.
 - `intent`: the relevant excerpt from `specs/intents.md` (the intent this spec formalizes). If invoked outside the intent-triage handoff, the owner provides the intent excerpt or confirms there is none.
-- `project`: `.ai/project.md` — for workspace coverage checks.
+- `project`: the `AGENTS.md` SDLC block and `.sdlc/config.yaml` `workspaces` — for workspace coverage checks.
 - `adrs`: every ADR file referenced in the spec's Design section, plus any existing ADR the design may contradict (use judgment; when uncertain, include the candidate).
 - `upstream_specs`: every spec listed in this spec's `depends_on` (none on a greenfield spec; include all if present).
 - `downstream_specs`: every spec that declares this spec in its `depends_on` (use `specs/spec-index.json` to find them).
@@ -316,7 +316,7 @@ Seed each dispatch with these inputs (all paths concrete; do not invent them):
 **Validate every returned envelope before folding it:**
 
 ```bash
-node scripts/sdlc/validate-review-envelope.mjs <envelope.json>
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-review-envelope <envelope.json>
 ```
 
 Exit `0` folds the findings. `2` is an abstention and escalates — never accept it, even with
@@ -351,7 +351,7 @@ When the routing policy returns `accept` or `batch_followup_and_accept` (after a
 
 Once the spec review has converged (Step 10a returns `accept` or `batch_followup_and_accept`), write
 the plan the delivery run will execute. The guide is short: the executor already holds the spec.
-Schema: [`skills/guide-schema.md`](../guide-schema.md). Template: `templates/guide.md`.
+Schema: [`skills/guide-schema.md`](../guide-schema.md). Template: `.sdlc/templates/guide.md`.
 
 1. **Write `specs/tasks/SPEC-NNN/GUIDE.md` and `_index.yaml`.** Ordered steps, each with the spec AC
    ids it covers, the paths it may change and the commands that verify it; the owner decisions the run
@@ -361,7 +361,7 @@ Schema: [`skills/guide-schema.md`](../guide-schema.md). Template: `templates/gui
 2. **Run the validator** and fix what it reports:
 
    ```bash
-   node scripts/sdlc/validate-guide.mjs specs/tasks/SPEC-NNN/GUIDE.md
+   node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-guide specs/tasks/SPEC-NNN/GUIDE.md
    ```
 
 3. **Check for collisions with other open specs.** Compare this guide's `Changes:` globs with the
@@ -374,7 +374,7 @@ Schema: [`skills/guide-schema.md`](../guide-schema.md). Template: `templates/gui
    `updated: <date>`. Set `handoff_surfaced: true` only after you surface the handoff, because
    `stop-handoff.mjs` reads it and never writes it.
 5. **At sign-off, write the kickoff prompt** `specs/tasks/SPEC-NNN/KICKOFF.md` from
-   `templates/kickoff.md` and show it to the owner in full. **It holds at most 3,800 characters**,
+   `.sdlc/templates/kickoff.md` and show it to the owner in full. **It holds at most 3,800 characters**,
    counted as Unicode characters, not bytes. That is the owner's limit for the prompt that arms a
    delivery goal, and validator rule 9 fails an approved guide whose prompt is missing or longer.
 

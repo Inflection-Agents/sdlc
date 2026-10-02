@@ -10,7 +10,7 @@ intent-triage → spec-authoring (spec + delivery guide) │ spec-execution → 
         ── JUDGMENT PHASES: collaborative, gated ──     │  ── DELIVERY ──
 ```
 
-*Quality when it's cheap to assure it — then autonomous delivery.* You and the team spend judgment on the front phases — the intent, the spec, and its short delivery guide. Each ends at a hard sign-off gate. Once the spec is `active` with its guide approved, you paste the generated kickoff prompt (or say "implement SPEC-NNN") and one agent delivers the whole spec — serially, on one integration branch, behind a visible task list — with no further human attention until the integration PR. Review happens in-run: a self-review per step, then an LLM multi-lens adversarial panel on that PR. A human merges it to `main`. The single source of truth for the phases is [`specs/sdlc-state-machine.yaml`](specs/sdlc-state-machine.yaml).
+*Quality when it's cheap to assure it — then autonomous delivery.* You and the team spend judgment on the front phases — the intent, the spec, and its short delivery guide. Each ends at a hard sign-off gate. Once the spec is `active` with its guide approved, you paste the generated kickoff prompt (or say "implement SPEC-NNN") and one agent delivers the whole spec — serially, on one integration branch, behind a visible task list — with no further human attention until the integration PR. Review happens in-run: a self-review per step, then an LLM multi-lens adversarial panel on that PR. A human merges it to `main`. The single source of truth for the phases is [`.sdlc/state-machine.yaml`](.sdlc/state-machine.yaml).
 
 ## Phase 0: Setup
 
@@ -39,7 +39,7 @@ intent-triage → spec-authoring (spec + delivery guide) │ spec-execution → 
 
 **Who:** owner/PM drafts with the agent; eng lead + domain experts + stakeholders weigh in (`spec-authoring` skill)
 
-1. Brainstorm the intent into `templates/spec.md` → `specs/SPEC-NNN-name.md`
+1. Brainstorm the intent into `.sdlc/templates/spec.md` → `specs/SPEC-NNN-name.md`
 2. Fill the frontmatter (id, title, initiative, owner, tags) and body (Problem, Success criteria, Scope, Design, Acceptance criteria, Risks)
 3. If a refactor, include the Migration section (current state, target state, strategy, rollback)
 4. Open a spec PR — CI validates the schema; `spec-reviewer` grades it; the named reviewers and stakeholders sign off on *intent*
@@ -52,7 +52,7 @@ There is no separate decomposition phase ([ADR-007](specs/adrs/ADR-007-delivery-
 
 **Who:** one agent running `spec-execution`; **no human attention required until the integration PR**
 
-Paste `KICKOFF.md` (or say "implement SPEC-NNN"). The run checks the guide (`node scripts/sdlc/validate-guide.mjs specs/tasks/SPEC-NNN/GUIDE.md`) and the fail-closed plan gate (`node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml`), arms a goal leash so it cannot stop half-done, opens a **visible task list**, and cuts `feat/spec-NNN`. Then, one guide step at a time in order: implement inline → the step's `Verify:` commands green → **self-review the diff** → PR into `feat/spec-NNN` → merge it → delete the branch → next step. Nothing lingers between steps, and no step PR ever targets `main`. Fan-out to worktree-isolated subagents is the exception, for a large spec with genuinely independent steps.
+Paste `KICKOFF.md` (or say "implement SPEC-NNN"). The run checks the guide (`node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-guide specs/tasks/SPEC-NNN/GUIDE.md`) and the fail-closed plan gate (`node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs plan-gate specs/tasks/SPEC-NNN/_index.yaml`), arms a goal leash so it cannot stop half-done, opens a **visible task list**, and cuts `feat/spec-NNN`. Then, one guide step at a time in order: implement inline → the step's `Verify:` commands green → **self-review the diff** → PR into `feat/spec-NNN` → merge it → delete the branch → next step. Nothing lingers between steps, and no step PR ever targets `main`. Fan-out to worktree-isolated subagents is the exception, for a large spec with genuinely independent steps.
 
 A `task:scope` blocker means the guide was wrong: the run re-plans it in place, logs the change and lists it under `## Guide changes` in the integration PR. The only way it asks for help is to **escalate back into a judgment phase**: a `spec:*` blocker → `spec-amendment`.
 
@@ -62,7 +62,7 @@ A `task:scope` blocker means the guide was wrong: the run re-plans it in place, 
 
 1. **End-to-end validation runs once** — full build and test suite, the real pipeline where one exists, the app in a real browser for user-visible change, performance where it matters — captured as EVIDENCE
 2. The run opens the integration PR `feat/spec-NNN → main` with every success criterion mapped to its evidence
-3. A **multi-lens adversarial panel** is dispatched concurrently — `integration-reviewer` against the spec's **success criteria**, an adversarial `task-reviewer`, and every lens the registry fires across the whole diff — with each envelope validated (`scripts/sdlc/validate-review-envelope.mjs`). Blockers and majors are fixed at the root and **the panel is re-dispatched**, until none survive, to a maximum of three rounds (ADR-004)
+3. A **multi-lens adversarial panel** is dispatched concurrently — `integration-reviewer` against the spec's **success criteria**, an adversarial `task-reviewer`, and every lens the registry fires across the whole diff — with each envelope validated (`.sdlc/scripts/validate-review-envelope.mjs`). Blockers and majors are fixed at the root and **the panel is re-dispatched**, until none survive, to a maximum of three rounds (ADR-004)
 4. **A human merges the integration PR.** The agent never merges or pushes to `main`.
 
 ## Phase 5: Complete
