@@ -274,3 +274,21 @@ sign-off.
 **Rejected:** signing off with no further review; a full new four-round cycle.
 **Deliberately deferred:** Nothing.
 **Raised by:** owner
+
+---
+
+## D-017 — An override is recorded only when the spec body already shows it
+
+**Date:** 2026-10-02
+**Question:** The verify round found that D-013 left `owner_severity` in two places with nothing
+pairing them, and that the owner-only rule for `wontfix` had no field anyone could check.
+**Decided:** `review-log.mjs` records an `overridden` or `wontfix` resolution only when the spec body's
+`spec_review_overrides` entry for the same id already carries the same `owner_severity` (or
+`resolution: wontfix`), and only when the entry's `recorded_by` names the spec's `owner`. SC-4 now says
+an override routes at the owner's severity and never above it, since `spec-schema.md` lets a blocker
+be downgraded to major.
+**Rejected:** restricting overrides to `nit` and `suggestion`, which would remove the owner's
+blocker-to-major judgment that `spec-schema.md` allows today.
+**Deliberately deferred:** a check of who actually made the commit. `recorded_by` is self-declared,
+and the control is the spec-body entry the owner sees at sign-off.
+**Raised by:** spec-reviewer verify round, decided by author

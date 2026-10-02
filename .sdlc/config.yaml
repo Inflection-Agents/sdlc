@@ -32,4 +32,6 @@ scan:
     # Records that name layout 1 on purpose.
     - "specs/SPEC-009-*.md"
     - "specs/tasks/SPEC-009/**"
+    # A guide's Changes: name the plugin source by the path git tracks, scripts/sdlc.
+    - "specs/tasks/SPEC-007/**"
     - "specs/adrs/**"

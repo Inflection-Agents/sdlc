@@ -30,7 +30,7 @@ Five defects produce the non-termination. Each was verified at `a73eeb3` when th
 `db3675b` after SPEC-008 and SPEC-009 landed; the citations below are at `db3675b`.
 
 **1. The loop has no bound.** `skills/spec-authoring/SKILL.md:330` reads "Continue looping until
-there are no remaining un-overridden blockers or majors." `skills/spec-amendment/SKILL.md:323`
+there are no remaining un-overridden blockers or majors." `skills/spec-amendment/SKILL.md:273`
 carries the same rule for amendments. The routing policy that backs both,
 `skills/review-primitives.md:252-253`, is `if blockers: action = "fix_loop"` / `elif majors: action
 = "fix_loop"`, with no round counter anywhere in the policy block
@@ -63,10 +63,11 @@ biasing missing-migration findings to `blocker`, into a policy that loops on any
 guarantees a blocker supply for as long as the owner has patience.
 
 **5. Nothing mechanical validates a spec body.** `.sdlc/scripts/` holds 22 non-test scripts
-(`ls .sdlc/scripts/*.mjs | grep -v test | wc -l` at `db3675b`). Two read a spec at all, and neither
-grades its structure: `complete-spec.mjs` counts success-criteria checkboxes and `archive-specs.mjs`
-reads `status`. Of the 15 `run:` steps in `.github/workflows/sdlc-validate.yml`, none checks a spec
-body's sections or frontmatter. Three of the nine gap categories in
+(`ls .sdlc/scripts/*.mjs | grep -v test | wc -l` at `db3675b`). Three read a spec, and each checks
+one narrow thing: `complete-spec.mjs` counts success-criteria checkboxes, `archive-specs.mjs` reads
+`status`, and `validate-guide.mjs` (rule 6, run in CI's "Delivery guides are complete and current"
+step) fails a missing or empty `## Acceptance criteria` section or an acceptance criterion with no id.
+None checks the other required sections, the frontmatter, or the references. Three of the nine gap categories in
 `skills/spec-reviewer/SKILL.md` > Gap catalog (line 133 onward) are decidable by a script: missing required
 section, unscoped scope where In-scope and Out-of-scope are both empty, and a workspace declared in
 frontmatter that no acceptance criterion scopes to. Two further rows of the spec-side consequence
@@ -111,10 +112,10 @@ consumers, on every spec, before any code is written.
       Re-running `validate-spec.mjs` on the round-1 draft cannot serve here: AC-010 gates the
       dispatch on that script exiting `0`, so the draft the reviewer saw has already passed it and
       the re-run is guaranteed to pass, which would make this criterion unfalsifiable.
-- [ ] SC-4: An owner override or `wontfix` recorded in round N is not routed as a blocker or major in
-      any round after N in which the reviewer reproduces that finding's `location`, `criterion` and
-      `finding` text, on any spec, because the routing policy acts on it by stable id before severity
-      routing. A finding a later round rephrases gets a new id and is graded fresh; that limit is
+- [ ] SC-4: In any round after N in which the reviewer reproduces a finding's `location`,
+      `criterion` and `finding` text, an owner override recorded in round N routes that finding at the
+      owner's severity and never above it, and a `wontfix` recorded in round N is never routed, on any
+      spec, because the routing policy acts on both by stable id before severity routing. A finding a later round rephrases gets a new id and is graded fresh; that limit is
       recorded in `## Risks & constraints`.
 - [ ] SC-5: Every file that `spec-authoring` names as a concrete reviewer input either resolves in
       this repo or is explicitly marked optional in the skill, with zero unqualified references to a
@@ -245,7 +246,8 @@ findings in the same envelope shape the reviewer uses, so one routing policy fol
 - every `depends_on` entry resolves via `resolve.mjs`.
 
 `check-stale-citations.mjs` is the shape to follow: a focused corpus check with its own tests, scoped
-by blast radius rather than by document.
+by blast radius rather than by document. It reuses `validate-guide.mjs`'s acceptance-criteria parser
+rather than writing a second one.
 
 **One exit code, two consumers.** The script exits `0` clean and `1` on findings, always, regardless
 of the spec's status. At the authoring gate a non-zero exit blocks the `spec-reviewer` dispatch, so
@@ -255,8 +257,8 @@ on a `status: draft` spec by definition, and the empty-section allowance at
 about what may be sent to a reviewer: a draft complete enough to review is complete enough to pass.
 In CI the script runs over the corpus under `--ci`, which maps exit `1` to a build failure for a
 `status: active` spec and to a warning for every other status. A draft is still being written, and a
-spec at a terminal status is a closed record that `spec-amendment` does not let anyone edit, so
-failing CI on either would demand an edit nobody may make (`specs/decisions/SPEC-007.md` > D-014).
+spec at a terminal status is a closed record that nobody may edit (a change to it goes to a new spec),
+so failing CI on either would demand an edit nobody may make (`specs/decisions/SPEC-007.md` > D-014).
 The status split lives in the CI mode only; nothing about the script's own exit code is
 status-aware.
 
@@ -312,10 +314,15 @@ is a breaking schema change and is recorded as one in `## Risks & constraints` a
 `specs/review-logs/SPEC-NNN.json`, append-only, holds every finding ever raised against that spec
 with its stable id, the round it first appeared in (`first_round`), every round it recurred in, and a
 `resolution` of `fixed`, `overridden`, `wontfix`, or `open`. The `overridden` and `wontfix` entries
-each carry a `reason` and a date, and an `overridden` entry also carries the owner's `owner_severity`.
+each carry a `reason`, a date and `recorded_by`, and an `overridden` entry also carries the owner's
+`owner_severity`.
 The log is the one place the routing policy reads an override from, so it never joins to the spec
 body (`specs/decisions/SPEC-007.md` > D-013). The paired `spec_review_overrides` entry in the spec
-body stays, as the visible record `spec-schema.md` requires, and both are written in the same edit.
+body stays, as the visible record `spec-schema.md` requires. `review-log.mjs` records an `overridden`
+or `wontfix` resolution only when the spec body already carries a `spec_review_overrides` entry for
+the same `finding_id` with the same `owner_severity`, or with `resolution: wontfix`, and only when
+`recorded_by` names the spec's `owner`. So the log never downgrades a finding the spec body does not
+show, and the two copies cannot diverge (`specs/decisions/SPEC-007.md` > D-017).
 
 **`previous_output` stays.** SPEC-001's second success criterion requires both reviewers to consume
 the same `previous_output` carry-forward contract, and SPEC-001 AC-008 pins that contract's two
@@ -331,8 +338,9 @@ decidable checks. The routing policy gains a step before severity routing: drop 
 stable id carries a `wontfix` resolution in the log, and apply the owner's severity to any finding
 whose id carries an `overridden` resolution, using the `owner_severity` stored on that log entry.
 The finding still appears in the envelope and in the
-log, exactly as `spec-schema.md` > `spec_review_overrides` requires; what changes is that it can no
-longer route as a blocker after the owner has ruled on it. This is the mechanism that makes SC-4
+log, exactly as `spec-schema.md` > `spec_review_overrides` requires; what changes is that after the
+owner has ruled on it, it routes at the owner's severity and never above it, and a `wontfix` does not
+route at all. This is the mechanism that makes SC-4
 hold.
 
 **`wontfix` is owner-only and never silent.** It is a stronger authority than anything the corpus
@@ -410,8 +418,8 @@ same milestone, so the generator and the documented contract agree.
 `depends_on` needs one further schema edit. It is not a declared frontmatter field: the Field rules
 table in `skills/spec-schema.md` enumerates thirteen fields and `depends_on` is not among them
 (`grep -c depends_on skills/spec-schema.md` returns `0` at `db3675b`), yet SPEC-002, SPEC-006,
-SPEC-009 and this spec all carry it. M4 adds it to that table alongside the index-shape update, so the validator
-check in Lever 2 and the generator field in this lever both rest on a defined field.
+SPEC-009 and this spec all carry it. M2 adds it to that table, with the validator check in Lever 2 that first
+needs it, so both that check and the generator field in this lever rest on a defined field.
 
 `archive-specs.mjs` and `complete-spec.mjs` already parse spec frontmatter, so the parsing exists and
 the generator reuses it. A `--check` mode fails CI when the committed index does not match what the
@@ -445,9 +453,11 @@ makes the claims lintable later.
 - [ ] AC-004: Given the routing policy invoked with `artifact: "pr"` at any round, then it never
       returns `disclose_and_accept`, and its returned action is one of the four SPEC-002 > Appendix B
       enumerates.
-- [ ] AC-005: Given a `wontfix` resolution recorded in a review log, then it was recorded by the
-      owner and not by the author or a reviewer, and a `spec_review_overrides` entry exists for the
-      same finding id carrying `resolution: wontfix` and a reason, with `owner_severity` omitted.
+- [ ] AC-005: Given `review-log.mjs` asked to record an `overridden` or `wontfix` resolution, when its
+      `recorded_by` is not the spec's `owner` frontmatter value, or the spec body has no
+      `spec_review_overrides` entry for that finding id, or that entry's `owner_severity` differs from
+      the one being recorded, or a `wontfix` entry lacks `resolution: wontfix` and a reason, then it
+      exits non-zero and writes nothing.
 - [ ] AC-006: Given `skills/spec-schema.md`, then it declares `## Disclosed, not reviewed-clean` as
       an optional appended section, with its fields and its position in the section order (after
       `## spec_followups`, before `## Changelog`), and `validate-spec.mjs` enforces that position.
@@ -497,7 +507,8 @@ makes the claims lintable later.
 - [ ] AC-019: Given a completed spec review, then `specs/review-logs/SPEC-NNN.json` exists and
       records, for every finding raised in any round, its stable id, `first_round`, every round it
       recurred in, and a `resolution` of `fixed`, `overridden`, `wontfix`, or `open`, with a `reason`
-      on the `overridden` and `wontfix` entries and an `owner_severity` on each `overridden` entry.
+      and a `recorded_by` on the `overridden` and `wontfix` entries and an `owner_severity` on each
+      `overridden` entry.
 - [ ] AC-020: Given a round after the first, when `spec-reviewer` is dispatched, then its
       `previous_output` is projected from `specs/review-logs/SPEC-NNN.json`, and the carry-forward
       rule applied is the section-text-identical rule SPEC-001 AC-008 pins, unchanged.
@@ -525,7 +536,8 @@ makes the claims lintable later.
 ## Risks & constraints
 
 - **No instrumented baseline exists.** The 10-15 round figure is the owner's estimate, not a
-  measurement. `specs/gaps/` does not exist, no review log exists, and only `SPEC-001` and `SPEC-006`
+  measurement. `specs/gaps/` holds one gap, GAP-001 against SPEC-008, and no review-round history
+(`ls specs/gaps/` at `db3675b`), no review log exists, and only `SPEC-001` and `SPEC-006`
   carry a `## spec_followups` section, so the corpus holds no round history to reconstruct one from.
   SC-2 and SC-3 are therefore measured forward, against the log this spec creates. Nothing here can
   be validated retroactively.
@@ -543,6 +555,14 @@ makes the claims lintable later.
   and an override or `wontfix` on the old id does not follow it. The owner then rules on it again.
   SC-4 is scoped to findings the later round reproduces. Matching on `location` and `criterion` alone
   was rejected because two distinct defects often share both (`specs/decisions/SPEC-007.md` > D-015).
+- **An override exists in two places.** The log entry the policy reads and the spec body's
+  `spec_review_overrides` entry both hold `owner_severity`. `review-log.mjs` refuses to record one
+  that the spec body does not already show with the same value (AC-005), so the log cannot run ahead
+  of the spec. The reverse, a spec-body entry added later with no log entry, routes at the reviewer's
+  severity until it is recorded, which fails loudly rather than silently.
+- **`recorded_by` is self-declared.** An agent writing under the owner's identity can name the owner.
+  The control is the paired `spec_review_overrides` entry, which the owner sees in the spec body at
+  sign-off, as SPEC-001 intends for every override.
 - **Lever 4 is a breaking schema change.** Making `id`, `location`, `criterion` and `finding`
   required rejects any envelope a reviewer emits with only `severity`, which the current schema
   permits. Every shipped reviewer agent already emits all four, and
@@ -554,8 +574,9 @@ makes the claims lintable later.
   (`grep -m1 '^status:' specs/SPEC-*.md`), SPEC-009 is `completed`, and SPEC-003 is `superseded`.
   SPEC-009's layout is the ground this spec builds on: `/sdlc-init` and `/sdlc-sync` install the
   whole `init-payload/.sdlc/` tree (`.sdlc/scripts/install-payload.mjs`), so the new scripts and
-  template reach adopters with no extra copy list. With no `active` spec in the corpus,
-  `validate-spec.mjs --ci` fails CI on nothing on the day it lands.
+  template reach adopters with no extra copy list. Once signed off, SPEC-007 is the only `active`
+  spec, so it is the one spec `validate-spec.mjs --ci` can fail on when its CI step lands, and the
+  step that adds the validator leaves SPEC-007 passing.
 - **Seven levers in one spec.** Proposed as two and decided as one
   (`specs/decisions/SPEC-007.md` > D-001). The milestone ordering in `## Migration` preserves the
   sequencing. The residual risk is that a single integration PR carries all seven, which is the
@@ -592,9 +613,9 @@ makes the claims lintable later.
 ### Current state
 
 An unbounded spec-side fix loop (`skills/spec-authoring/SKILL.md:330`,
-`skills/spec-amendment/SKILL.md:323`) driven by a routing policy with no round counter
-(`skills/review-primitives.md:251-252`), fed by ordinal finding ids
-(`skills/review-primitives.md:118`) in an envelope that requires only `severity`, carrying one round
+`skills/spec-amendment/SKILL.md:273`) driven by a routing policy with no round counter
+(`skills/review-primitives.md:252-253`), fed by ordinal finding ids
+(`skills/review-primitives.md:119`) in an envelope that requires only `severity`, carrying one round
 of history hand-passed via `previous_output`, with no mechanical validation of a spec body, no
 `specs/spec-index.json`, and no durable record of Phase 1 decisions.
 
@@ -619,7 +640,8 @@ it are delayed.
   content-equivalence update. ADR-005. This alone bounds the cost of every
   subsequent round.
 - **M2, mechanical absorption.** Lever 2: `validate-spec.mjs`, its tests, its dispatch-blocking
-  wiring in `spec-authoring`, its `--ci` mode and CI step, and its payload copy.
+  wiring in `spec-authoring`, its `--ci` mode and CI step, its payload copy, and the `depends_on` row
+  in `skills/spec-schema.md` > Field rules.
 - **M3, durable memory.** Levers 4 and 5: content-addressed ids with the required-field schema change
   and the line-independent `location_key`; the review log; the `previous_output` projection; the
   deterministic suppression step in the routing policy. ADR-006, plus a SPEC-001 Changelog
@@ -631,8 +653,9 @@ it are delayed.
 
 Existing specs are not backfilled. `SPEC-001` through `SPEC-009`, apart from this one, have no
 decision ledger and no review log, and every one is at a terminal status at `db3675b`. `validate-spec.mjs
---ci` warns on them rather than failing, so a closed record is fixed only if `spec-amendment` reopens
-it.
+--ci` warns on them rather than failing. A closed spec cannot be amended back to `active`
+(`skills/spec-amendment/SKILL.md` routes a change to a closed spec to a new spec), so its mechanical
+defects stay as warnings.
 
 ### Rollback plan
 
@@ -670,7 +693,7 @@ itself an instance of the problem this spec exists to fix.
   deferred_date: 2026-09-11
   resolved: true
   resolved_date: 2026-10-02
-  resolved_by: author, in the 2026-10-02 revision
+  resolved_by: b514525
 
 - finding_id: F-004
   source_review: "spec-reviewer round 4, default variant, 2026-09-11"
@@ -681,7 +704,7 @@ itself an instance of the problem this spec exists to fix.
   deferred_date: 2026-09-11
   resolved: true
   resolved_date: 2026-10-02
-  resolved_by: author, in the 2026-10-02 revision
+  resolved_by: b514525
 
 - finding_id: F-005
   source_review: "spec-reviewer round 4, default variant, 2026-09-11"
@@ -692,5 +715,5 @@ itself an instance of the problem this spec exists to fix.
   deferred_date: 2026-09-11
   resolved: true
   resolved_date: 2026-10-02
-  resolved_by: author, in the 2026-10-02 revision
+  resolved_by: b514525
 ```

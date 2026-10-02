@@ -8,7 +8,7 @@ spec_version: 1
 ### S1: Cap the spec-side loop at four rounds
 - Covers: AC-001, AC-002, AC-003, AC-004
 - Changes: `skills/review-primitives.md`, `skills/spec-authoring/SKILL.md`, `skills/spec-amendment/SKILL.md`, `skills/spec-schema.md`, `specs/SPEC-001-tiered-code-review.md` (Changelog only), `init-payload/.sdlc/contracts/review-primitives.md`
-- Verify: `rg -n 'disclose_and_accept' skills/review-primitives.md skills/spec-authoring/SKILL.md skills/spec-amendment/SKILL.md`, `env -u CLAUDE_PROJECT_DIR node --test .sdlc/scripts/prefix-parity.test.mjs .sdlc/scripts/validate-plugin-manifest.test.mjs`, `node .sdlc/scripts/gen-handoffs.mjs --check`
+- Verify: `rg -n 'disclose_and_accept' skills/review-primitives.md skills/spec-authoring/SKILL.md skills/spec-amendment/SKILL.md`, `rg -n 'Worked trace' skills/review-primitives.md` (two traces: a round-4 spec blocker returning `disclose_and_accept`, and a round-4 PR blocker returning `fix_loop`), `env -u CLAUDE_PROJECT_DIR node --test .sdlc/scripts/prefix-parity.test.mjs .sdlc/scripts/validate-plugin-manifest.test.mjs`, `node .sdlc/scripts/gen-handoffs.mjs --check`
 - Risk: medium
 - Notes: the cap is one constant in the policy block of `review-primitives.md`. `spec-authoring` and `spec-amendment` cite it and copy no rule text (AC-003). `round` is optional, and without it the policy is unchanged, so the PR-side call in SPEC-002 Appendix B stays valid. Declare `## Disclosed, not reviewed-clean` and `resolution: wontfix` in `spec-schema.md` here; S3 enforces the section position.
 
@@ -24,7 +24,7 @@ spec_version: 1
 - Changes: `scripts/sdlc/validate-spec.mjs`, `scripts/sdlc/validate-spec.test.mjs`, `init-payload/.sdlc/scripts/validate-spec.mjs`, `scripts/sdlc/lib/released-payloads.json`, `.github/workflows/sdlc-validate.yml`, `init-payload/.github/workflows/sdlc-validate.yml`, `skills/spec-authoring/SKILL.md`, `skills/spec-amendment/SKILL.md`, `skills/spec-schema.md`
 - Verify: `env -u CLAUDE_PROJECT_DIR node --test .sdlc/scripts/validate-spec.test.mjs .sdlc/scripts/validate-plugin-manifest.test.mjs`, `node .sdlc/scripts/validate-spec.mjs --ci`, `node .sdlc/scripts/validate-spec.mjs specs/SPEC-007-spec-review-convergence.md`, `node .sdlc/scripts/gen-released-payloads.mjs --check`, `node .sdlc/scripts/scan-legacy-paths.mjs --only hooks,scripts/sdlc --no-allow`
 - After: S1
-- Notes: findings use the review envelope shape, so one routing policy folds both. Take `--root` and resolve paths through `lib/sdlc-paths.mjs`, as every SPEC-009 validator does. Skills call it through `run.mjs`. Follow `check-stale-citations.mjs` for shape.
+- Notes: findings use the review envelope shape, so one routing policy folds both. Add the `depends_on` row to `spec-schema.md` > Field rules here. Reuse `validate-guide.mjs`'s acceptance-criteria parser. Take `--root` and resolve paths through `lib/sdlc-paths.mjs`, as every SPEC-009 validator does. Skills call it through `run.mjs`. Follow `check-stale-citations.mjs` for shape.
 
 ### S4: Content-addressed finding ids
 - Covers: AC-014, AC-015, AC-016, AC-017
@@ -40,7 +40,7 @@ spec_version: 1
 - Verify: `env -u CLAUDE_PROJECT_DIR node --test .sdlc/scripts/review-log.test.mjs`, `node .sdlc/scripts/gen-released-payloads.mjs --check`
 - After: S4
 - Risk: medium
-- Notes: `review-log.mjs` appends a stamped envelope for a round, projects `previous_output`, and records an owner's `overridden` (with `owner_severity`) or `wontfix`. A `wontfix` is refused without a paired `spec_review_overrides` entry carrying `resolution: wontfix` (AC-005). The suppression step in the policy reads the log only (D-013).
+- Notes: `review-log.mjs` appends a stamped envelope for a round, projects `previous_output`, and records an owner's `overridden` (with `owner_severity`) or `wontfix`. It refuses a resolution whose `recorded_by` is not the spec's `owner`, or that the spec body's `spec_review_overrides` does not already show with the same value (AC-005, D-017). The suppression step in the policy reads the log only (D-013).
 
 ### S6: The authoring decision ledger
 - Covers: AC-021, AC-022, AC-023
@@ -54,7 +54,7 @@ spec_version: 1
 - Changes: `scripts/sdlc/gen-spec-index.mjs`, `scripts/sdlc/gen-spec-index.test.mjs`, `init-payload/.sdlc/scripts/gen-spec-index.mjs`, `scripts/sdlc/lib/released-payloads.json`, `specs/spec-index.json`, `skills/spec-schema.md`, `.github/workflows/sdlc-validate.yml`, `init-payload/.github/workflows/sdlc-validate.yml`
 - Verify: `env -u CLAUDE_PROJECT_DIR node --test .sdlc/scripts/gen-spec-index.test.mjs`, `node .sdlc/scripts/gen-spec-index.mjs --check`, `node .sdlc/scripts/gen-released-payloads.mjs --check`
 - After: S3
-- Notes: reuse the frontmatter parsing `archive-specs.mjs` and `complete-spec.mjs` already have. Add `depends_on` to the Field rules table in `spec-schema.md`. Index archived specs too, with their `path` under `specs/archive/`.
+- Notes: reuse the frontmatter parsing `archive-specs.mjs` and `complete-spec.mjs` already have. Index archived specs too, with their `path` under `specs/archive/`.
 
 ### S8: Reviewer inputs that resolve, and the research protocol
 - Covers: AC-026, AC-027

@@ -71,14 +71,14 @@ that sign-off; it does not move who gives it.
 ## Consequences
 
 **Good.** The loop terminates. Four rounds is a bound an author can plan against and an owner can
-budget. The disclosed set is a visible, gradeable artifact that travels with the spec into
-decomposition and delivery, so a criterion nobody could make testable is known to the executor rather
+budget. The disclosed set is a visible, gradeable artifact that travels with the spec into its
+delivery guide and its run, so a criterion nobody could make testable is known to the executor rather
 than discovered by it. The cap also converts the review from an open-ended grind into a dated
 decision, which is what makes the surviving risk assignable.
 
 **Bad.** A spec can now reach `status: active` with a known surviving blocker. That is worse here
 than at the integration gate in one respect and better in another: the error propagates further,
-because every task decomposed from the spec inherits it, but the artifact is far cheaper to change,
+because every delivery-guide step built from the spec inherits it, but the artifact is far cheaper to change,
 because no code has been written against it yet. The disclosure section and `spec-amendment` are the
 controls, and the guardrail in SPEC-007 > Risks & constraints arms a rollback to the unbounded loop
 if the defect escape rate rises.
