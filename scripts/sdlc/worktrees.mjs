@@ -2,7 +2,7 @@
 /**
  * Report, and optionally remove, stray git worktrees (SPEC-011 > Design > Detection, ADR-009).
  *
- * Every worktree belongs under the main checkout's `.claude/worktrees/` (`docs/worktrees.md`).
+ * Every worktree belongs under the main checkout's `.claude/worktrees/` (`docs/worktrees.md` in the SDLC plugin).
  * A linked worktree is a stray for exactly one reason, `agent` first and then in this order:
  *   agent        an Agent-tool worktree (`agent-<id>`) that still exists
  *   outside      not under `.claude/worktrees/`
@@ -24,10 +24,10 @@
  */
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
-import { basename, join, resolve, sep } from 'node:path'
+import { basename, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { WORKTREES_REL, takeRootArg } from './lib/sdlc-paths.mjs'
+import { WORKTREES_REL, sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
 import { findById } from './resolve.mjs'
 import { parseFrontmatter } from './validate-guide.mjs'
 
@@ -44,7 +44,7 @@ function git(cwd, args) {
 
 function real(p) {
     try {
-        return realpathSync(p)
+        return realpathSync.native(p)
     } catch {
         return resolve(p)
     }
@@ -82,18 +82,55 @@ function goneBranches(cwd) {
 }
 
 /**
- * The spec's status, read from each tree in turn: the spec worktree's own checkout first, then
- * the main checkout. The main checkout can be on a branch that predates the spec, so it alone
- * cannot say a spec is closed. Null when no tree has the spec.
+ * The spec's status on the default branch (`origin/HEAD`, else `origin/main`, else `main`), read
+ * from git, not a working tree: that is where spec-completion records a spec closed, whatever
+ * branch the main checkout or the worktree is on. Undefined when no ref has the spec.
  */
-function specStatus(id, trees) {
-    for (const tree of trees) {
+function statusOnDefaultBranch(id, main) {
+    const ref = ['origin/HEAD', 'origin/main', 'main'].find((r) => git(main, ['rev-parse', '-q', '--verify', `${r}^{commit}`]).status === 0)
+    if (!ref) return undefined
+    let specsRel
+    try {
+        specsRel = relative(main, sdlcPaths(main, { quiet: true }).specs) || 'specs'
+    } catch {
+        specsRel = 'specs'
+    }
+    const listed = git(main, ['ls-tree', '-r', '--name-only', ref, '--', specsRel])
+    if (listed.status !== 0) return undefined
+    const named = new RegExp(`^${id}-.*\\.md$`, 'i')
+    for (const path of listed.stdout.split('\n').filter((p) => named.test(basename(p)))) {
+        const shown = git(main, ['show', `${ref}:${path}`])
+        if (shown.status !== 0) continue
+        const fm = parseFrontmatter(shown.stdout)
+        if (fm.id === id) return fm.status ?? null
+    }
+    return undefined
+}
+
+/** The spec's status in a working tree, or undefined. A tree whose config does not parse has none. */
+function statusInTree(id, tree) {
+    try {
         for (const file of findById(id, tree)) {
             const fm = parseFrontmatter(readFileSync(file, 'utf8'))
             if (fm.id === id) return fm.status ?? null
         }
+    } catch {
+        // one unreadable tree must not stop the report, or every other session's exit
     }
-    return null
+    return undefined
+}
+
+/**
+ * The spec's status across three sources: the default branch, the spec worktree's own tree, and
+ * the main checkout's. A status only moves forward (draft, active, then a terminal one), so a
+ * terminal status in any source wins: the default branch knows a spec completed after the
+ * worktree was cut, and the worktree knows one the default branch has not merged yet. Null when no
+ * source has the spec.
+ */
+function specStatus(id, worktree, main) {
+    const seen = [statusOnDefaultBranch(id, main), statusInTree(id, worktree), statusInTree(id, main)].filter((s) => s !== undefined)
+    if (!seen.length) return null
+    return seen.find((s) => !LIVE_SPEC.has(s)) ?? seen[0]
 }
 
 /**
@@ -108,11 +145,13 @@ export function strayReason(wt, { base, gone, root }) {
     if (/^agent-/.test(name)) return { reason: 'agent', removable: false }
     if (!inside) return { reason: 'outside', removable: false }
     const spec = name.match(/^spec-(\d{3})$/)
-    const status = spec ? specStatus(`SPEC-${spec[1]}`, [wt.path, root]) : undefined
+    const status = spec ? specStatus(`SPEC-${spec[1]}`, wt.path, root) : undefined
     if (spec && LIVE_SPEC.has(status)) return null
-    if (wt.branch && gone.has(wt.branch)) return { reason: 'branch-gone', removable: true }
+    // A spec-NNN worktree whose spec resolves nowhere may still be someone's work: never removable.
+    const unknown = spec && status === null
+    if (wt.branch && gone.has(wt.branch)) return { reason: 'branch-gone', removable: !unknown }
     if (wt.detached || !wt.branch) return { reason: 'detached', removable: false }
-    if (spec) return { reason: 'spec-closed', removable: status !== null }
+    if (spec) return { reason: 'spec-closed', removable: !unknown }
     return null
 }
 
@@ -174,7 +213,7 @@ export function prune(cwd, { own = null } = {}) {
         // worktree whose directory is missing (a hand-moved one included).
         const res = git(main, ['worktree', 'remove', c.path])
         if (res.status === 0) removed.push(c)
-        else kept.push({ ...c, why: res.stderr.trim().split('\n').pop() || 'git refused' })
+        else kept.push({ ...c, why: (res.stderr.match(/^fatal: (.*)$/m) ?? [])[1] ?? 'git refused' })
     }
     return { removed, kept }
 }

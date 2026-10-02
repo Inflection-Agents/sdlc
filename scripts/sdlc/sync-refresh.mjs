@@ -30,7 +30,7 @@ import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { loadManifest, releasedVersions, roleOf } from './gen-released-payloads.mjs'
-import { appendLines } from './install-payload.mjs'
+import { appendLines, missingLines } from './install-payload.mjs'
 import { CONFIG_REL, assertWriteInside, detectLayout, sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -119,8 +119,7 @@ export function gitignoreToAdd(root, payload = DEFAULT_PAYLOAD) {
     const source = join(payload, '.gitignore')
     if (!existsSync(source)) return []
     const target = join(root, '.gitignore')
-    const have = new Set(existsSync(target) ? readFileSync(target, 'utf8').split(/\r?\n/) : [])
-    return readFileSync(source, 'utf8').split('\n').filter((l) => l.trim() && !l.startsWith('#') && !have.has(l))
+    return missingLines(existsSync(target) ? readFileSync(target, 'utf8') : '', readFileSync(source, 'utf8'))
 }
 
 /** Merge the payload `.gitignore` lines the repo lacks. @returns {string[]} the lines added */

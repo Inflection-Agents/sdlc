@@ -73,7 +73,7 @@ export const WORKTREES_REL = '.claude/worktrees'
 
 function real(p) {
     try {
-        return realpathSync(p)
+        return realpathSync.native(p)
     } catch {
         return resolve(p)
     }
