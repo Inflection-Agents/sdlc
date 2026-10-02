@@ -191,3 +191,56 @@ export function takeRootArg(argv, start = process.cwd()) {
     }
     return { root: root ?? resolveRoot(start), rest }
 }
+
+const asList = (v) => (Array.isArray(v) ? v : v == null ? [] : [v])
+
+/**
+ * The state machine as every reader should see it (ADR-008 decision 3).
+ *
+ * On layout 2 the machine file is framework-owned and refreshed by every sync, so the
+ * adopter's own data lives in `config.yaml`: `domain_routing`, plus `extensions.phases`
+ * (appended after the framework phases) and `extensions.exempt` (merged into `exempt`).
+ * A layout-2 machine that still carries `domain_routing:` is an error, because two
+ * sources for the same routing is how one of them goes stale unnoticed. On layout 1 the
+ * machine file is returned as it is. A missing or unparseable machine throws.
+ *
+ * `machineFile` overrides the resolved path, for validators run with `--machine`.
+ */
+export function loadMachine(root, { machineFile } = {}) {
+    const paths = sdlcPaths(root, { quiet: true })
+    const file = machineFile ?? paths.machine
+    if (!existsSync(file)) throw new Error(`state machine not found at ${file}`)
+    let raw
+    try {
+        raw = parseYaml(readFileSync(file, 'utf8')) ?? {}
+    } catch (err) {
+        throw new Error(`state machine ${file} does not parse: ${err.message}`)
+    }
+    const phases = asList(raw.phases).map((p) => ({
+        ...p,
+        entry_triggers: asList(p?.entry_triggers),
+        preconditions: asList(p?.preconditions),
+    }))
+    const machine = {
+        ...raw,
+        phases,
+        exempt: asList(raw.exempt),
+        retired_phases: asList(raw.retired_phases),
+        domain_routing: raw.domain_routing ?? {},
+    }
+    if (paths.layout !== 2) return machine
+
+    if (Object.hasOwn(raw, 'domain_routing')) {
+        throw new Error(
+            `${file} carries domain_routing:, which lives in .sdlc/config.yaml on layout 2 (ADR-008); move it there`
+        )
+    }
+    const config = readConfig(root) ?? {}
+    const ext = config.extensions ?? {}
+    for (const p of asList(ext.phases)) {
+        machine.phases.push({ ...p, entry_triggers: asList(p?.entry_triggers), preconditions: asList(p?.preconditions) })
+    }
+    machine.exempt = [...new Set([...machine.exempt, ...asList(ext.exempt)])]
+    machine.domain_routing = config.domain_routing ?? {}
+    return machine
+}

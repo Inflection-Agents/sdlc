@@ -112,7 +112,7 @@ const LIB = (() => {
     }
     throw new Error(`${fileURLToPath(import.meta.url)}: cannot find lib/sdlc-paths.mjs in the plugin or beside the hook`)
 })()
-const { isSdlcRoot, sdlcPaths } = await import(new URL('sdlc-paths.mjs', LIB).href)
+const { isSdlcRoot, loadMachine, sdlcPaths } = await import(new URL('sdlc-paths.mjs', LIB).href)
 
 const ALLOW = 0
 
@@ -460,13 +460,16 @@ export function renderGoalBlock(goal, used, path = null) {
     )
 }
 
-// ─── Minimal, dependency-free YAML reader for the state machine ────────────
-//
-// The framework keeps hooks on Node built-ins only (no npm packages). We parse
-// just enough of specs/sdlc-state-machine.yaml to read each phase's `id`,
-// `next_phase`, and `next_trigger`. This is a deliberately small subset reader:
-// a list of `- id:` blocks under a top-level `phases:` key. It tolerates
-// quoting and inline comments; on anything it can't read it returns [].
+// ─── State machine ─────────────────────────────────────────────────────────
+
+/** The machine's phases through the shared loader (SPEC-009). Returns [] on any failure: this hook fails open. */
+function loadPhases(root) {
+    try {
+        return loadMachine(root).phases.filter((p) => p.id)
+    } catch {
+        return []
+    }
+}
 
 /** Strip a trailing unquoted `# comment` and surrounding quotes/whitespace. */
 function scalar(raw) {
@@ -481,54 +484,6 @@ function scalar(raw) {
         s = s.slice(1, -1)
     }
     return s
-}
-
-/**
- * Parse the `phases:` list out of the state-machine YAML text. Returns an
- * array of `{ id, next_phase, next_trigger }`. Empty array on any failure.
- */
-function parsePhases(text) {
-    const lines = String(text).split('\n')
-    const phases = []
-    let inPhases = false
-    let current = null
-    for (const line of lines) {
-        if (/^\S/.test(line) && !/^phases\s*:/.test(line)) {
-            // a new top-level key ends the phases block
-            if (inPhases) break
-            continue
-        }
-        if (/^phases\s*:/.test(line)) {
-            inPhases = true
-            continue
-        }
-        if (!inPhases) continue
-        const item = line.match(/^\s*-\s*id\s*:\s*(.+)$/)
-        if (item) {
-            if (current) phases.push(current)
-            current = { id: scalar(item[1]), next_phase: null, next_trigger: null }
-            continue
-        }
-        if (!current) continue
-        const kv = line.match(/^\s*([a-z_]+)\s*:\s*(.*)$/i)
-        if (kv) {
-            const key = kv[1]
-            if (key === 'next_phase') current.next_phase = scalar(kv[2])
-            else if (key === 'next_trigger') current.next_trigger = scalar(kv[2])
-        }
-    }
-    if (current) phases.push(current)
-    return phases.filter((p) => p.id)
-}
-
-/** Load + parse the state machine's phases. Returns [] on any failure. */
-function loadPhases(root) {
-    const path = sdlcPaths(root, { quiet: true }).machine
-    try {
-        return parsePhases(readFileSync(path, 'utf8'))
-    } catch {
-        return []
-    }
 }
 
 // ─── Phase-block reader (_index.yaml) ──────────────────────────────────────

@@ -29,12 +29,14 @@
 //   node scripts/sdlc/gen-handoffs.mjs --check    # report drift only (no write)
 //
 // Exits 0 on success. With --check, exits 1 if any region is out of date.
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
-export const REPO_ROOT = resolve(__dirname, '..', '..')
+import { loadMachine as loadResolvedMachine, resolveRoot, sdlcPaths } from './lib/sdlc-paths.mjs'
+
+export const REPO_ROOT = resolveRoot()
+const PATHS = sdlcPaths(REPO_ROOT, { quiet: true })
 
 // Reviewer/standards skills that are NEVER footered, even when a phase owner.
 export const FOOTER_EXCLUDE = new Set(['pr-reviewer', 'spec-reviewer', 'sdlc-code-standards'])
@@ -44,88 +46,23 @@ export const SKILL_MARKER_END = '<!-- sdlc:handoff:end -->'
 export const SDLC_MARKER_START = '<!-- sdlc:phases:start -->'
 export const SDLC_MARKER_END = '<!-- sdlc:phases:end -->'
 
-export const DEFAULT_MACHINE_PATH = join(REPO_ROOT, 'specs', 'sdlc-state-machine.yaml')
-// Skills live under skills/ (the .claude/skills symlink points here).
+export const DEFAULT_MACHINE_PATH = PATHS.machine
+// This generator footers the framework's own skills, which it authors at skills/.
 export const DEFAULT_SKILLS_DIR = join(REPO_ROOT, 'skills')
-export const DEFAULT_SDLC_DOC = join(REPO_ROOT, '.ai', 'sdlc.md')
+export const DEFAULT_SDLC_DOC = PATHS.processDoc
 
-const GENERATED_WARNING =
-    '<!-- GENERATED from specs/sdlc-state-machine.yaml by scripts/sdlc/gen-handoffs.mjs — do not edit between markers; re-run the generator. -->'
+// The machine's path as the generated text names it, so the text follows the layout.
+const MACHINE_LABEL = relative(REPO_ROOT, DEFAULT_MACHINE_PATH)
+const DOC_LABEL = DEFAULT_SDLC_DOC ? relative(REPO_ROOT, DEFAULT_SDLC_DOC) : 'the process doc'
+const GENERATOR_LABEL = 'scripts/sdlc/gen-handoffs.mjs'
 
-// ─── Minimal, dependency-free YAML reader for `phases:` ────────────────────
+const GENERATED_WARNING = `<!-- GENERATED from ${MACHINE_LABEL} by ${GENERATOR_LABEL} — do not edit between markers; re-run the generator. -->`
 
-function scalar(raw) {
-    if (raw == null) return null
-    let s = String(raw).trim()
-    if (!/^['"]/.test(s)) {
-        const hash = s.indexOf(' #')
-        if (hash !== -1) s = s.slice(0, hash).trim()
-    }
-    if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
-        s = s.slice(1, -1)
-    }
-    return s
-}
+// ─── State machine ─────────────────────────────────────────────────────────
 
-/** Parse the `phases:` list with all fields the renderers need. */
-export function parsePhases(text) {
-    const lines = String(text).split('\n')
-    const phases = []
-    let inPhases = false
-    let current = null
-    let listKey = null
-    for (const line of lines) {
-        if (/^\S/.test(line) && !/^phases\s*:/.test(line)) {
-            if (inPhases) break
-            continue
-        }
-        if (/^phases\s*:/.test(line)) {
-            inPhases = true
-            continue
-        }
-        if (!inPhases) continue
-
-        const item = line.match(/^(\s*)-\s*id\s*:\s*(.+)$/)
-        if (item) {
-            if (current) phases.push(current)
-            current = {
-                id: scalar(item[2]),
-                entry_triggers: [],
-                preconditions: [],
-                owner_skill: null,
-                exit_condition: null,
-                next_phase: null,
-                next_trigger: null
-            }
-            listKey = null
-            continue
-        }
-        if (!current) continue
-
-        const li = line.match(/^\s*-\s*(.+)$/)
-        if (li && listKey && Array.isArray(current[listKey])) {
-            current[listKey].push(scalar(li[1]))
-            continue
-        }
-
-        const kv = line.match(/^\s*([a-z_]+)\s*:\s*(.*)$/i)
-        if (kv) {
-            const key = kv[1]
-            const val = kv[2]
-            if (val.trim() === '') {
-                listKey = key
-            } else {
-                listKey = null
-                if (key in current && !Array.isArray(current[key])) current[key] = scalar(val)
-            }
-        }
-    }
-    if (current) phases.push(current)
-    return phases.filter((p) => p.id)
-}
-
+/** The machine through the shared loader (SPEC-009). Only `phases` is rendered. */
 export function loadMachine(machinePath = DEFAULT_MACHINE_PATH) {
-    return { phases: parsePhases(readFileSync(machinePath, 'utf8')) }
+    return { phases: loadResolvedMachine(REPO_ROOT, { machineFile: machinePath }).phases.filter((p) => p.id) }
 }
 
 // ─── Model helpers ─────────────────────────────────────────────────────────
@@ -164,7 +101,7 @@ export function renderFooterBody(phase) {
         '',
         '## Handoff',
         '',
-        `This phase is **${phase.id}** in the SDLC state machine (\`specs/sdlc-state-machine.yaml\`, the single source of truth). The fields below are generated from that file — do not hand-edit them here.`,
+        `This phase is **${phase.id}** in the SDLC state machine (\`${MACHINE_LABEL}\`, the single source of truth). The fields below are generated from that file — do not hand-edit them here.`,
         '',
         '**Entry triggers:**',
         '',
@@ -190,11 +127,11 @@ export function renderSdlcPhaseBody(machine) {
         '',
         '## SDLC phases',
         '',
-        'The phases below are generated from `specs/sdlc-state-machine.yaml` — the single,',
+        `The phases below are generated from \`${MACHINE_LABEL}\` — the single,`,
         'machine-readable source of truth for the SDLC state machine. Each phase is owned by',
         'a skill, has documented entry triggers, and hands off to the next phase on its exit',
         'condition. **Do not hand-edit this section** — change the YAML and re-run',
-        '`node scripts/sdlc/gen-handoffs.mjs`.',
+        `\`node ${GENERATOR_LABEL}\`.`,
         ''
     ]
     for (const phase of machine.phases ?? []) {
@@ -289,18 +226,18 @@ function run({
         }
     }
 
-    // (a) .ai/sdlc.md phase narrative
-    if (!existsSync(sdlcDoc)) {
-        drifts.push(`missing .ai/sdlc.md at ${sdlcDoc}`)
+    // (a) the process doc's phase narrative
+    if (!sdlcDoc || !existsSync(sdlcDoc)) {
+        drifts.push(`missing process doc at ${sdlcDoc}`)
     } else {
         const current = readFileSync(sdlcDoc, 'utf8')
         const expected = expectedSdlcContent(machine, current)
         if (current !== expected) {
             if (check) {
-                drifts.push('.ai/sdlc.md phase section is out of date (re-run gen-handoffs.mjs)')
+                drifts.push(`${DOC_LABEL} phase section is out of date (re-run gen-handoffs.mjs)`)
             } else {
                 writeFileSync(sdlcDoc, expected)
-                written.push('.ai/sdlc.md')
+                written.push(DOC_LABEL)
             }
         }
     }
@@ -310,7 +247,17 @@ function run({
 
 // ─── CLI ───────────────────────────────────────────────────────────────────
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+function isMain(metaUrl) {
+    const entry = process.argv[1]
+    if (!entry) return false
+    try {
+        return realpathSync(entry) === realpathSync(fileURLToPath(metaUrl))
+    } catch {
+        return resolve(entry) === fileURLToPath(metaUrl)
+    }
+}
+
+if (isMain(import.meta.url)) {
     const check = process.argv.includes('--check')
     const { drifts, written } = run({ check })
     if (check) {

@@ -63,7 +63,7 @@ const LIB = (() => {
     }
     throw new Error(`${fileURLToPath(import.meta.url)}: cannot find lib/sdlc-paths.mjs in the plugin or beside the hook`)
 })()
-const { isSdlcRoot, sdlcPaths } = await import(new URL('sdlc-paths.mjs', LIB).href)
+const { isSdlcRoot, loadMachine, sdlcPaths } = await import(new URL('sdlc-paths.mjs', LIB).href)
 
 const ALLOW = 0
 
@@ -124,138 +124,16 @@ function parsePayload() {
     }
 }
 
-// ─── Minimal, dependency-free YAML reader for the state machine ────────────
-//
-// The framework keeps hooks on Node built-ins only. We parse just enough of
-// specs/sdlc-state-machine.yaml to read each phase's id, owner_skill,
-// entry_triggers, next_phase, next_trigger, plus the top-level
-// `domain_routing` map. This is a deliberately small subset reader; on
-// anything it can't read it returns conservative empties.
-
-/** Strip a trailing unquoted `# comment` and surrounding quotes/whitespace. */
-function scalar(raw) {
-    if (raw == null) return null
-    let s = String(raw).trim()
-    if (!/^['"]/.test(s)) {
-        const hash = s.indexOf(' #')
-        if (hash !== -1) s = s.slice(0, hash).trim()
-    }
-    if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
-        s = s.slice(1, -1)
-    }
-    return s
-}
+// ─── State machine ─────────────────────────────────────────────────────────
 
 /**
- * Parse the `phases:` list. Returns an array of
- * `{ id, owner_skill, entry_triggers[], next_phase, next_trigger }`.
+ * The parsed machine through the shared loader (SPEC-009), which takes
+ * `domain_routing` and `extensions` from `.sdlc/config.yaml` on layout 2. Null on
+ * any failure: this hook is advisory and stays silent.
  */
-function parsePhases(text) {
-    const lines = String(text).split('\n')
-    const phases = []
-    let inPhases = false
-    let current = null
-    let listKey = null // the field currently accumulating `-` items
-    for (const line of lines) {
-        if (/^\S/.test(line) && !/^phases\s*:/.test(line)) {
-            if (inPhases) break
-            continue
-        }
-        if (/^phases\s*:/.test(line)) {
-            inPhases = true
-            continue
-        }
-        if (!inPhases) continue
-
-        const item = line.match(/^(\s*)-\s*id\s*:\s*(.+)$/)
-        if (item) {
-            if (current) phases.push(current)
-            current = {
-                id: scalar(item[2]),
-                owner_skill: null,
-                entry_triggers: [],
-                next_phase: null,
-                next_trigger: null
-            }
-            listKey = null
-            continue
-        }
-        if (!current) continue
-
-        // a list item belonging to the most-recent list-valued key
-        const li = line.match(/^\s*-\s*(.+)$/)
-        if (li && listKey) {
-            if (listKey === 'entry_triggers') current.entry_triggers.push(scalar(li[1]))
-            continue
-        }
-
-        const kv = line.match(/^\s*([a-z_]+)\s*:\s*(.*)$/i)
-        if (kv) {
-            const key = kv[1]
-            const val = kv[2]
-            if (val.trim() === '') {
-                listKey = key // a list/block follows on subsequent lines
-            } else {
-                listKey = null
-                if (key === 'owner_skill') current.owner_skill = scalar(val)
-                else if (key === 'next_phase') current.next_phase = scalar(val)
-                else if (key === 'next_trigger') current.next_trigger = scalar(val)
-            }
-        }
-    }
-    if (current) phases.push(current)
-    return phases.filter((p) => p.id)
-}
-
-/**
- * Parse the top-level `domain_routing:` block into { workspace: [skills] }.
- * Tolerant of the illustrative empty/`{}` default; returns {} when absent.
- */
-function parseDomainRouting(text) {
-    const lines = String(text).split('\n')
-    let inBlock = false
-    let baseIndent = null
-    let currentWs = null
-    const routing = {}
-    for (const line of lines) {
-        if (/^domain_routing\s*:/.test(line)) {
-            inBlock = true
-            continue
-        }
-        if (!inBlock) continue
-        if (line.trim() === '' || /^\s*#/.test(line)) continue
-        if (/^\S/.test(line)) break // next top-level key ends the block
-        const indent = line.match(/^(\s*)/)[1].length
-        if (baseIndent === null) baseIndent = indent
-        const li = line.match(/^\s*-\s*(.+)$/)
-        if (li && currentWs) {
-            routing[currentWs].push(scalar(li[1]))
-            continue
-        }
-        const ws = line.match(/^\s*([A-Za-z0-9_./-]+)\s*:\s*(.*)$/)
-        if (ws) {
-            currentWs = scalar(ws[1])
-            if (currentWs === '{}') {
-                currentWs = null
-                continue
-            }
-            routing[currentWs] = []
-        }
-    }
-    return routing
-}
-
-/** Load the parsed state machine, or null on failure. */
 function loadStateMachine(root) {
-    const path = sdlcPaths(root, { quiet: true }).machine
-    let text
     try {
-        text = readFileSync(path, 'utf8')
-    } catch {
-        return null
-    }
-    try {
-        return { phases: parsePhases(text), domain_routing: parseDomainRouting(text) }
+        return loadMachine(root)
     } catch {
         return null
     }
