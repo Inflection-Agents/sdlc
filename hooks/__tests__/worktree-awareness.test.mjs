@@ -170,6 +170,8 @@ test('a plain git repo gets no worktree nudge and no marker', () => {
     try {
         const git = (...a) => assert.equal(spawnSync('git', a, { cwd: tmp, encoding: 'utf8' }).status, 0)
         git('init', '-q', '-b', 'main', '.')
+        git('config', 'user.email', 't@t')
+        git('config', 'user.name', 't')
         git('commit', '-q', '--allow-empty', '-m', 'i')
         git('worktree', 'add', '-q', '--detach', join(tmp, '..', `${tmp.split('/').pop()}-sib`))
         const res = hook('user-prompt-submit.mjs', tmp, { prompt: 'hello', session_id: 's8', cwd: tmp })
