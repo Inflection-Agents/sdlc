@@ -71,6 +71,14 @@ export function isSdlcRoot(dir) {
 /** Where worktrees live inside a repo (SPEC-011, ADR-009). */
 export const WORKTREES_REL = '.claude/worktrees'
 
+function real(p) {
+    try {
+        return realpathSync(p)
+    } catch {
+        return resolve(p)
+    }
+}
+
 /**
  * The linked worktree under `<project>/.claude/worktrees/` that contains `start`, or null.
  * Git answers, not the path: `rev-parse --show-toplevel` from `start` names the checkout the
@@ -78,13 +86,6 @@ export const WORKTREES_REL = '.claude/worktrees'
  * The git call runs only when `start` is already under that directory.
  */
 export function nestedWorktree(project, start = process.cwd()) {
-    const real = (p) => {
-        try {
-            return realpathSync(p)
-        } catch {
-            return resolve(p)
-        }
-    }
     const base = real(join(project, WORKTREES_REL)) + sep
     const from = real(start)
     if (!from.startsWith(base)) return null

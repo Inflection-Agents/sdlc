@@ -542,16 +542,15 @@ function findPhaseExit(root) {
     } catch {
         return null
     }
-    const candidates = []
-    for (const { specId, indexPath } of indexes) {
+    const candidates = indexes.map(({ specId, indexPath }) => {
         let mtime = 0
         try {
             mtime = statSync(indexPath).mtimeMs
         } catch {
-            mtime = 0
+            // an index that vanished mid-scan sorts last
         }
-        candidates.push({ specId, indexPath, mtime })
-    }
+        return { specId, indexPath, mtime }
+    })
     candidates.sort((a, b) => b.mtime - a.mtime)
 
     for (const c of candidates) {

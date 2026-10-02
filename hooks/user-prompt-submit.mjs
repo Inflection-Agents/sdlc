@@ -171,9 +171,8 @@ function readSpecPhase(root, prompt) {
     const specId = detectSpecId(prompt)
     if (!specId) return { active: false, specId: null }
     // A spec delivered in `.claude/worktrees/spec-nnn` is read from there (SPEC-011).
-    const hit = specIndexPaths(root).find((s) => s.specId === specId.toUpperCase())
-    const path = hit?.indexPath ?? join(sdlcPaths(root, { quiet: true }).specs, 'tasks', specId, '_index.yaml')
-    if (!existsSync(path)) return { active: false, specId }
+    const path = specIndexPaths(root).find((s) => s.specId === specId)?.indexPath
+    if (!path) return { active: false, specId }
     try {
         return { active: indexLooksActive(readFileSync(path, 'utf8')), specId }
     } catch {
@@ -283,7 +282,10 @@ function worktreeNudge(root, sessionId) {
     } catch {
         return null
     }
-    const script = [fileURLToPath(new URL('../scripts/sdlc/worktrees.mjs', import.meta.url)), join(sdlcPaths(root, { quiet: true }).scripts, 'worktrees.mjs')].find((p) => existsSync(p))
+    const script = [
+        fileURLToPath(new URL('../scripts/sdlc/worktrees.mjs', import.meta.url)),
+        join(sdlcPaths(root, { quiet: true }).scripts, 'worktrees.mjs'),
+    ].find((p) => existsSync(p))
     if (!script) return null
     const res = spawnSync(process.execPath, [script, '--root', root, '--json'], { encoding: 'utf8', timeout: 5000 })
     if (res.status !== 0) return null

@@ -40,7 +40,7 @@ function git(cwd, args) {
     return res
 }
 
-const real = (p) => {
+function real(p) {
     try {
         return realpathSync(p)
     } catch {
@@ -80,16 +80,18 @@ function goneBranches(cwd) {
 }
 
 function specIsLive(id, root) {
-    const file = findById(id, root).find((p) => parseFrontmatter(readFileSync(p, 'utf8')).id === id)
-    return Boolean(file) && LIVE_SPEC.has(parseFrontmatter(readFileSync(file, 'utf8')).status)
+    for (const file of findById(id, root)) {
+        const fm = parseFrontmatter(readFileSync(file, 'utf8'))
+        if (fm.id === id) return LIVE_SPEC.has(fm.status)
+    }
+    return false
 }
 
 /** Why a linked worktree is a stray, or null when it is not. */
 export function strayReason(wt, { base, gone, root }) {
-    const inside = real(wt.path).startsWith(base)
+    if (!real(wt.path).startsWith(base)) return 'outside'
     const name = basename(wt.path)
-    if (inside && /^agent-/.test(name)) return 'agent'
-    if (!inside) return 'outside'
+    if (/^agent-/.test(name)) return 'agent'
     if (wt.branch && gone.has(wt.branch)) return 'branch-gone'
     if (wt.detached || !wt.branch) return 'detached'
     const spec = name.match(/^spec-(\d{3})$/)
@@ -102,7 +104,10 @@ export function strayReason(wt, { base, gone, root }) {
  * checkout, the first entry, is never a stray, and spec status is read from it.
  */
 export function findStrays(cwd) {
-    const all = listWorktrees(cwd)
+    return straysOf(listWorktrees(cwd))
+}
+
+function straysOf(all) {
     const main = all[0].path
     const base = real(join(main, WORKTREES_REL)) + sep
     const ctx = { base, gone: goneBranches(main), root: main }
@@ -113,7 +118,7 @@ export function findStrays(cwd) {
         .filter((s) => s.reason)
 }
 
-const isClean = (path) => {
+function isClean(path) {
     const res = git(path, ['status', '--porcelain'])
     return res.status === 0 && res.stdout.trim() === ''
 }
@@ -126,7 +131,7 @@ const isClean = (path) => {
 export function prune(cwd, { own = null } = {}) {
     const all = listWorktrees(cwd)
     const main = all[0].path
-    const strays = findStrays(cwd)
+    const strays = straysOf(all)
     const ownPath = own ? real(join(main, WORKTREES_REL, own)) : null
     const candidates = own
         ? all.slice(1).filter((wt) => real(wt.path) === ownPath).map((wt) => ({ path: wt.path, branch: wt.branch, reason: 'own' }))
@@ -146,7 +151,9 @@ export function prune(cwd, { own = null } = {}) {
     return { removed, kept }
 }
 
-const line = (s) => `${s.reason.padEnd(12)} ${s.path}  ${s.branch ?? '(detached)'}${s.dirty ? '  [dirty, kept]' : ''}`
+function formatStray(s) {
+    return `${s.reason.padEnd(12)} ${s.path}  ${s.branch ?? '(detached)'}${s.dirty ? '  [dirty, kept]' : ''}`
+}
 
 function main(argv) {
     const { root, rest } = takeRootArg(argv)
@@ -176,7 +183,7 @@ function main(argv) {
             if (json) process.stdout.write(`${JSON.stringify({ removed, kept }, null, 2)}\n`)
             else {
                 for (const r of removed) process.stdout.write(`removed      ${r.path}\n`)
-                for (const k of kept) process.stdout.write(`kept         ${line(k)}\n`)
+                for (const k of kept) process.stdout.write(`kept         ${formatStray(k)}\n`)
                 process.stdout.write(`worktrees: ${removed.length} removed, ${kept.length} stray(s) left\n`)
             }
             return
@@ -184,7 +191,7 @@ function main(argv) {
         const strays = findStrays(root)
         if (json) process.stdout.write(`${JSON.stringify(strays, null, 2)}\n`)
         else {
-            for (const s of strays) process.stdout.write(`${line(s)}\n`)
+            for (const s of strays) process.stdout.write(`${formatStray(s)}\n`)
             process.stdout.write(`worktrees: ${strays.length} stray(s)\n`)
         }
     } catch (err) {

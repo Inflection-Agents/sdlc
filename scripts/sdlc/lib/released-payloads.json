@@ -87,7 +87,8 @@
       "e287914a6358962b780e38ae174d0ecc1f6d389746e15711e27bc0ce1a4a5ab0": "0.4.0",
       "8bccbab707a95ea7e99645cdc1c8b893ee4567ba180972a0cc41effe31d895cc": "0.4.0",
       "22d80e6fe3ca18c18cb2c82655897c92d50a9837e9cfddcbdb67b23a48297a4a": "0.4.0",
-      "9bb7a8d45bcf8fa6762aaffe7fd74bf8dcbe75ad4ab83dfb2c4ef65bc309f0f3": "0.4.0"
+      "9bb7a8d45bcf8fa6762aaffe7fd74bf8dcbe75ad4ab83dfb2c4ef65bc309f0f3": "0.4.0",
+      "3db291bfad065936094c1c1a75f9d5186a3db50825836ae4b91f6b9c3b46747f": "0.4.0"
     },
     "scripts/plan-gate.mjs": {
       "80709a2b12c9eeee9c65ff35d3312543b816343f6d1af4ba32a40aa990f42bff": "0.1.0",
@@ -173,7 +174,8 @@
       "818c9cce33a4ffeb922019ad3ee7abd1fc5b8c8ea2011237349979d84b0717db": "0.4.0"
     },
     "scripts/worktrees.mjs": {
-      "f5ad29bd62e26b6f8a173393ed9e89e0f07dd01857450e2d0639e897498bfeb4": "0.4.0"
+      "f5ad29bd62e26b6f8a173393ed9e89e0f07dd01857450e2d0639e897498bfeb4": "0.4.0",
+      "37ee23b600336b8bc9262f8ae7d2467001a0b546999c2273568ce98055363b83": "0.4.0"
     },
     "state-machine": {
       "80f5aed8005b180e356f310a65b126c401933615bb0d5505d82c0abe53a0cba8": "0.1.0",
