@@ -4,7 +4,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -123,7 +123,7 @@ test('AC-006: --prune removes only clean branch-gone and spec-closed strays, nev
             assert.equal(existsSync(fx.path(kept)), true, `${kept} kept`)
         }
         assert.equal(existsSync(join(fx.tmp, 'sibling')), true, 'outside kept')
-        assert.match(res.stdout, /kept +branch-gone .*feature-dirty.*\[dirty, kept\]/)
+        assert.match(res.stdout, /kept +branch-gone .*feature-dirty.*\[kept: dirty\]/)
         const branches = fx.sh(fx.root, 'branch', '--format=%(refname:short)')
         for (const b of ['feature-merged', 'feat/spec-901', 'feature-dirty']) assert.match(branches, new RegExp(`^${b}$`, 'm'), `${b} not deleted`)
         assert.equal(existsSync(fx.root), true)
@@ -155,7 +155,7 @@ test('a dirty own spec worktree is kept and reported, never forced', () => {
         writeFileSync(join(fx.path('spec-900'), 'wip.txt'), 'unsaved\n')
         const { removed, kept } = prune(fx.root, { own: 'spec-900' })
         assert.deepEqual(removed, [])
-        assert.ok(kept.some((k) => k.path.endsWith('spec-900') && k.dirty))
+        assert.ok(kept.some((k) => k.path.endsWith('spec-900') && k.why === 'dirty'))
         assert.equal(existsSync(fx.path('spec-900')), true)
     } finally {
         fx.cleanup()
@@ -180,5 +180,120 @@ test('outside a git repo it exits 2 and says so; a bad --own exits 2', () => {
         assert.equal(run(dir, '--own', 'nope').status, 2)
     } finally {
         rmSync(dir, { recursive: true, force: true })
+    }
+})
+
+// ── Gate round 1 (PR #99) ────────────────────────────────────────────────────
+
+test('a live spec worktree is never a stray, even when the main checkout lacks the spec', () => {
+    const fx = fixture()
+    try {
+        // The main checkout moves to a branch cut before SPEC-900 existed (D-008's judgment branches).
+        fx.sh(fx.root, 'checkout', '-q', '-b', 'spec/SPEC-950-x', 'HEAD')
+        fx.sh(fx.root, 'rm', '-q', 'specs/SPEC-900-live.md')
+        fx.sh(fx.root, 'commit', '-qm', 'branch without SPEC-900')
+        writeFileSync(join(fx.path('spec-900'), '.env.local'), 'SECRET=1\n')
+        assert.equal(findStrays(fx.root).some((s) => s.path.endsWith('spec-900')), false, 'its own tree says active')
+        run(fx.root, '--prune')
+        assert.equal(existsSync(join(fx.path('spec-900'), '.env.local')), true)
+    } finally {
+        fx.cleanup()
+    }
+})
+
+test('a live spec worktree on a branch whose upstream is gone is still not a stray', () => {
+    const fx = fixture()
+    try {
+        const wt = fx.path('spec-900')
+        fx.sh(wt, 'checkout', '-q', '-b', 'claude/SPEC-900-S1')
+        fx.sh(wt, 'push', '-q', '-u', 'origin', 'claude/SPEC-900-S1')
+        fx.sh(fx.root, 'push', '-q', 'origin', '--delete', 'claude/SPEC-900-S1')
+        fx.sh(fx.root, 'fetch', '-q', '--prune')
+        assert.equal(findStrays(fx.root).some((s) => s.path.endsWith('spec-900')), false)
+    } finally {
+        fx.cleanup()
+    }
+})
+
+test('a spec-NNN worktree whose spec resolves nowhere is reported but never removed', () => {
+    const fx = fixture()
+    try {
+        fx.sh(fx.root, 'worktree', 'add', '-q', '-b', 'feat/spec-999', fx.path('spec-999'))
+        assert.equal(findStrays(fx.root).find((s) => s.path.endsWith('spec-999')).reason, 'spec-closed')
+        run(fx.root, '--prune')
+        assert.equal(existsSync(fx.path('spec-999')), true)
+    } finally {
+        fx.cleanup()
+    }
+})
+
+test('agent wins over outside too', () => {
+    const fx = fixture()
+    try {
+        fx.sh(fx.root, 'worktree', 'add', '-q', '-b', 'worktree-agent-zz', join(fx.tmp, 'agent-zz'))
+        assert.equal(findStrays(fx.root).find((s) => s.path.endsWith('agent-zz')).reason, 'agent')
+    } finally {
+        fx.cleanup()
+    }
+})
+
+test('a candidate that holds another worktree is kept, and the nested work survives', () => {
+    const fx = fixture()
+    try {
+        const nested = join(fx.path('spec-900'), '.claude/worktrees/agent-in')
+        fx.sh(fx.root, 'worktree', 'add', '-q', '-b', 'worktree-agent-in', nested)
+        writeFileSync(join(nested, 'wip.txt'), 'unsaved\n')
+        const { removed, kept } = prune(fx.root, { own: 'spec-900' })
+        assert.deepEqual(removed, [])
+        assert.ok(kept.some((k) => k.path.endsWith('spec-900') && k.why === 'holds another worktree'))
+        assert.equal(existsSync(join(nested, 'wip.txt')), true)
+    } finally {
+        fx.cleanup()
+    }
+})
+
+test('--prune never deregisters a worktree whose directory was moved by hand', () => {
+    const fx = fixture()
+    try {
+        renameSync(join(fx.tmp, 'sibling'), join(fx.tmp, 'moved'))
+        run(fx.root, '--prune')
+        run(fx.root, '--prune', '--own', 'SPEC-900')
+        assert.match(fx.sh(fx.root, 'worktree', 'list', '--porcelain'), /\/sibling\n/, 'still registered, so `git worktree repair` can recover it')
+    } finally {
+        fx.cleanup()
+    }
+})
+
+test('a locked stray is kept with git\'s reason, not mislabelled dirty', () => {
+    const fx = fixture()
+    try {
+        fx.sh(fx.root, 'worktree', 'lock', fx.path('feature-merged'))
+        const { kept } = prune(fx.root)
+        const k = kept.find((x) => x.path.endsWith('feature-merged'))
+        assert.ok(k && k.why !== 'dirty', JSON.stringify(k))
+        assert.equal(existsSync(fx.path('feature-merged')), true)
+    } finally {
+        fx.cleanup()
+    }
+})
+
+test('list mode runs no git status, and --prune never passes --force', () => {
+    const fx = fixture()
+    const shim = mkdtempSync(join(tmpdir(), 'sdlc-gitshim-'))
+    try {
+        const log = join(shim, 'calls.log')
+        const realGit = spawnSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim()
+        writeFileSync(join(shim, 'git'), `#!/bin/sh\necho "$*" >> ${log}\nexec ${realGit} "$@"\n`, { mode: 0o755 })
+        const env = { ...process.env, CLAUDE_PROJECT_DIR: '', PATH: `${shim}:${process.env.PATH}` }
+        spawnSync(process.execPath, [SCRIPT, '--root', fx.root], { encoding: 'utf8', env })
+        assert.doesNotMatch(readFileSync(log, 'utf8'), /(^| )status( |$)/m, 'list mode is local refs only')
+        // a tracked, modified file: the case where --force would matter
+        writeFileSync(join(fx.path('feature-merged'), '.gitignore'), 'changed\n')
+        spawnSync(process.execPath, [SCRIPT, '--root', fx.root, '--prune'], { encoding: 'utf8', env })
+        assert.doesNotMatch(readFileSync(log, 'utf8'), /--force/)
+        assert.equal(existsSync(fx.path('feature-merged')), true, 'the modified tree is kept')
+    } finally {
+        fx.cleanup()
+        rmSync(shim, { recursive: true, force: true })
     }
 })

@@ -37,13 +37,21 @@ git worktree remove .claude/worktrees/<branch-slug>              # when the bran
 
 ## A delivery run
 
-SOP §1 creates or re-enters the spec worktree from the main checkout:
+SOP §1 creates or re-enters the spec worktree from the main checkout. `$CLAUDE_PROJECT_DIR` is the
+main checkout. Hooks receive it, but an executor's shell may not have it, so set it first when it is
+unset:
+
+```bash
+export CLAUDE_PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && pwd)}"
+```
 
 ```bash
 git fetch origin
-if git worktree list --porcelain | grep -q "/.claude/worktrees/spec-NNN$"; then :        # resume: reuse it
-elif git rev-parse -q --verify "refs/remotes/origin/feat/spec-NNN" >/dev/null; then
+if git worktree list --porcelain | grep -q "/.claude/worktrees/spec-NNN$" && [ -d .claude/worktrees/spec-NNN ]; then :   # resume: reuse it
+elif git rev-parse -q --verify "refs/heads/feat/spec-NNN" >/dev/null || git rev-parse -q --verify "refs/remotes/origin/feat/spec-NNN" >/dev/null; then
+  git worktree prune                                                                  # drop a registration whose directory is gone
   git worktree add .claude/worktrees/spec-NNN feat/spec-NNN                          # resume: the branch exists
+  git -C .claude/worktrees/spec-NNN push -u origin feat/spec-NNN                     # no-op when already pushed
 else
   git worktree add -b feat/spec-NNN .claude/worktrees/spec-NNN origin/main           # first run
   git -C .claude/worktrees/spec-NNN push -u origin feat/spec-NNN
@@ -52,8 +60,10 @@ fi
 
 A new worktree holds tracked files only. When `.sdlc/config.yaml` sets `worktrees.setup` (one shell
 command, run inside the new worktree before the first step), §1 runs it to restore what builds and
-tests need, such as `node_modules/` or `.env.local`. A repo whose builds need gitignored files sets
-it before its first delivery run after `/sdlc-sync`, because the sync does not write it.
+tests need, such as `node_modules/` or `.env.local`. Empty means unset. A repo whose builds need
+gitignored files sets it before its first delivery run after `/sdlc-sync`, because the sync does not
+write it. The value runs as a shell command with the developer's credentials, so review a change to
+it the way you would review a build script.
 
 Every later command of the run runs inside the worktree, through §7.3: each step branch, the step
 loop, the self-review, the step PRs, end-to-end validation, the simplify pass, the integration PR and
@@ -71,21 +81,24 @@ worktree, where the Stop hook never looks.
 2. From `$CLAUDE_PROJECT_DIR`:
 
    ```bash
-   git worktree remove .claude/worktrees/spec-NNN          # refuses a dirty tree; never --force
    node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs worktrees --fetch --prune --own spec-NNN
    ```
 
-A dirty worktree that `git worktree remove` refuses is kept, and the exit report names it. A change
+It removes the spec worktree without `--force`. It keeps the worktree when it is dirty or holds
+another worktree, because a plain `git worktree remove` would delete a nested worktree with it, and
+the exit report names a kept one and the reason. A change
 requested later on the open integration PR re-enters the worktree with §1's resume form.
 
 **On escalation (SOP §8).** Inside the worktree, commit the work in progress on the current step
 branch as `SPEC-NNN S<n>: WIP (escalated)` and push it. Then remove the worktree as at exit. A state
 that cannot be committed, such as a merge in progress, is left dirty and reported, never forced.
 
-**A subagent during a run.** First push `feat/spec-NNN`. The subagent works in its Agent-tool
-worktree on a branch cut from `origin/feat/spec-NNN`: git refuses to check out `feat/spec-NNN`
-itself while the spec worktree holds it. Merge its result from inside the spec worktree, then remove
-the agent worktree.
+**A subagent during a run.** First push `feat/spec-NNN`. Before its first edit, the subagent runs
+`git checkout -b claude/SPEC-NNN-S<n> origin/feat/spec-NNN` in its Agent-tool worktree. The
+simplify pass uses `claude/SPEC-NNN-simplify` instead. Git refuses to check out `feat/spec-NNN`
+itself while the spec worktree holds it. The edit gate grades a worktree by its branch, and the
+tool's default `worktree-agent-<id>` names no task. Merge the result from inside the spec worktree,
+then remove the agent worktree.
 
 **A run that started before these rules.** That run holds `feat/spec-NNN`, or a step branch, in the
 main checkout. Free the branch before its next resume, then run §1:
@@ -107,11 +120,17 @@ git checkout main
 | `outside` | not under `.claude/worktrees/` | never removes it: move a live one with `git worktree move <path> .claude/worktrees/<branch-slug>` |
 | `branch-gone` | its branch had an upstream, and the upstream no longer exists | removes it when clean |
 | `detached` | it has no branch | never removes it: inspect it first |
-| `spec-closed` | it is `spec-NNN`, and that spec is neither `draft` nor `active` | removes it when clean |
+| `spec-closed` | it is `spec-NNN`, and that spec is neither `draft` nor `active`, or does not resolve | removes it when clean and the spec resolved |
+
+A `spec-NNN` worktree of a live spec is never a stray, whatever its branch. Its status is read from
+its own tree first, because the main checkout may be on a branch that predates the spec. Only the
+run's `--own` exit removes it.
 
 List mode reads only `git worktree list` and local refs. `--fetch` runs `git fetch --prune` first, so
 `branch-gone` sees branches deleted on the remote since the last fetch. `--json` prints
-`{ path, branch, reason }` records. `--prune` never passes `--force` and never deletes a branch.
+`{ path, branch, reason }` records. `--prune` never passes `--force` and never deletes a branch. It keeps a candidate that holds
+another worktree, and it never runs `git worktree prune`, which would deregister a worktree that was
+moved by hand.
 Removing a worktree deletes its gitignored files too, which `git status` does not list, and that is
 why only the two kinds whose work is over are ever removed. `--own spec-NNN` removes that spec
 worktree when it is clean, and only lists the rest.

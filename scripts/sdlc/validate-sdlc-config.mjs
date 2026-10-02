@@ -13,7 +13,7 @@
  *   3. Workspace names are unique, each workspace `path` exists, and each
  *      `agent_executable` is yes, caution or human.
  *   4. No `extensions.phases` id repeats a framework phase id.
- *   5. `worktrees.setup`, when set, is one command string (SPEC-011 > D-014).
+ *   5. `worktrees.setup`, when set, is one command string, empty meaning unset (SPEC-011 > D-014).
  *
  * A repo with no config is on layout 1 (or not on the SDLC), so there is nothing to grade
  * and it exits 0 with a line saying so.
@@ -89,8 +89,9 @@ export function gradeConfig(config, { root, phaseIds = [] }) {
     const worktrees = config.worktrees
     if (worktrees != null) {
         if (typeof worktrees !== 'object' || Array.isArray(worktrees)) problems.push('`worktrees` must be a mapping')
-        else if (worktrees.setup != null && (typeof worktrees.setup !== 'string' || !worktrees.setup.trim())) {
-            problems.push('`worktrees.setup` must be one non-empty command string')
+        // An empty string means unset, as the schema's example config shows it.
+        else if (worktrees.setup != null && typeof worktrees.setup !== 'string') {
+            problems.push('`worktrees.setup` must be one command string')
         }
     }
     return problems

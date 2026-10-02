@@ -89,3 +89,32 @@ in chronological order.
 
 **Merged:** 9043e8a (fast-forwarded onto `feat/spec-011`, per SOP §6.1), then a fix PR.
 **What changed:** The simplify pass removed duplication in `worktrees.mjs` (one worktree listing per prune, one read per spec), `lib/sdlc-paths.mjs`, and both hooks, with no behaviour change: 467 of 467 tests passed before and after. It also reported that `user-prompt-submit.mjs` > `readSpecPhase` called `specIndexPaths()` unguarded. The hook's top-level catch kept that silent, but a throw there also suppressed every other block the hook prints, the worktree nudge included. The fix moves the call inside the existing guard. A regression test makes `.claude/worktrees` a file, which makes listing it throw: on the previous tip the hook printed nothing, and after the fix it routes.
+
+---
+
+## Gate round 1 — 4 reviewers, 7 distinct majors fixed at the root
+
+**Panel:** `integration-reviewer`, `task-reviewer` (conventions, SDLC-GATE-TESTED), `security-reviewer`, `pr-reviewer` (adversarial). All four envelopes validated with `stamp-envelope`.
+
+**Fixed:**
+- **`spec-closed` read status from the main checkout only** (security, integration). When the main checkout was on a branch without the spec, a live spec worktree was pruned with its `.env.local`. Status is now read from the worktree's own tree first, and a spec that resolves nowhere is reported but never removed.
+- **A live `spec-NNN` worktree is never a stray, whatever its branch** (adversarial nit, data-loss direction), so a step branch whose upstream is gone cannot get it pruned. This narrows `--prune` further, in the direction F-3e582b60 and D-015 set, and changes no AC.
+- **Removing a candidate deleted worktrees nested inside it** (security). A candidate that holds another worktree is now kept. SOP §7.4 and §8 remove through `worktrees --own`, never a plain `git worktree remove`.
+- **An unconditional `git worktree prune` orphaned hand-moved worktrees** (security, adversarial). It is gone, and `--own` skips prunable entries.
+- **Subagents on `worktree-agent-<id>` were gated** (adversarial, integration). SOP §5 and §6.1, the executor brief and the doc now name the branches: `claude/SPEC-NNN-S<n>` for a fan-out step and `claude/SPEC-NNN-simplify` for the simplify pass, checked out before the first edit.
+- **`CLAUDE_PROJECT_DIR` is unset in an executor's shell** (conventions suggestion, reproduced here: the Bash tool's environment does not carry it). `$CLAUDE_PROJECT_DIR/.claude/...` would have expanded to `/.claude/...`. SOP §1 and the doc now set it from `git rev-parse --git-common-dir` when it is unset, which keeps AC-004's text true.
+- **An empty `worktrees.setup` was rejected though the schema example shows it** (conventions, adversarial). Empty now means unset, and only a non-string is rejected.
+- **The nudge fired in a plain git repo** (conventions). It now requires an SDLC repo, so no marker and no message elsewhere.
+
+**Nits fixed:**
+- `agent` precedence is checked before `outside`.
+- The nudge names the `run.mjs` form.
+- Goal paths are absolute in `CLAUDE.md`, `agent-orchestration.md` and `docs/setup.md`.
+- `sync-refresh --plan` lists the `.gitignore` lines it will add.
+- A locked or refused removal is reported with git's reason, not as "dirty".
+- The SOP §1 block handles a deleted worktree directory and a local-only branch. Both were run verbatim against a bare remote.
+- `nestedWorktree` requires the project's git common dir, so an unrelated repo under `.claude/worktrees/` is never a root.
+- The schema and the doc say `worktrees.setup` runs with the developer's credentials.
+- New tests pin: list mode runs no `git status` (a PATH shim); `--force` never reaches git; an override recorded in the main checkout covers a worktree edit; a hand-moved worktree stays registered.
+
+**Accepted:** recording SC-2's trigger as a `[deferred-verify]` intent, which belongs to spec-completion.

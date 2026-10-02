@@ -275,7 +275,8 @@ function layoutNudge(root, sessionId) {
  * nothing, and the marker is written either way so a broken check is not retried every prompt.
  */
 function worktreeNudge(root, sessionId) {
-    if (!sessionId) return null
+    // Only an SDLC repo hears about its worktrees, so a plain repo gets no marker and no nudge.
+    if (!sessionId || !isSdlcRoot(root)) return null
     const marker = join(root, '.claude', `.sdlc-worktree-nudge-${sessionId}`)
     if (existsSync(marker)) return null
     try {
@@ -299,7 +300,7 @@ function worktreeNudge(root, sessionId) {
     }
     if (!Array.isArray(strays) || strays.length === 0) return null
     const kinds = [...new Set(strays.map((s) => s.reason))].join(', ')
-    return `SDLC: ${strays.length} stray worktree(s) (${kinds}). List them with \`node .sdlc/scripts/worktrees.mjs\`; \`--prune\` removes the finished ones (docs/worktrees.md).`
+    return `SDLC: ${strays.length} stray worktree(s) (${kinds}). List them with \`node \${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs worktrees\`; \`--prune\` removes the finished ones (docs/worktrees.md).`
 }
 
 /** Write the override reason to the per-session state file. Best-effort. */

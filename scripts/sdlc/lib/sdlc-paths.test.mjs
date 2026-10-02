@@ -211,6 +211,11 @@ test('a plain directory under .claude/worktrees/ that is not a linked worktree i
         assert.equal(nestedWorktree(fx.root, stray), null)
         assert.equal(nestedWorktree(fx.root, join(fx.root, 'specs')), null)
         assert.equal(nestedWorktree(fx.root, fx.wt), fx.wt)
+        // An unrelated repository under .claude/worktrees/ is not this project's worktree.
+        const evil = join(fx.root, '.claude/worktrees/evil')
+        mkdirSync(join(evil, 'sub'), { recursive: true })
+        assert.equal(spawnSync('git', ['init', '-q', evil]).status, 0)
+        assert.equal(nestedWorktree(fx.root, join(evil, 'sub')), null)
     } finally {
         fx.cleanup()
     }

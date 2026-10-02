@@ -17,13 +17,21 @@ once → open one integration PR and review it hard → leave it open for the hu
 
 Every spec gets exactly one, cut from `main` before the first step, in its own spec worktree (where
 worktrees go, and who removes them: [`docs/worktrees.md`](../../docs/worktrees.md)). From the main
-checkout, create it or re-enter it:
+checkout, create it or re-enter it.
+
+`$CLAUDE_PROJECT_DIR` below is the main checkout. Hooks receive it, but an executor's shell may not have it, so set it first when it is unset:
+
+```bash
+export CLAUDE_PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && pwd)}"
+```
 
 ```bash
 git fetch origin
-if git worktree list --porcelain | grep -q "/.claude/worktrees/spec-NNN$"; then :        # resume: reuse it
-elif git rev-parse -q --verify "refs/remotes/origin/feat/spec-NNN" >/dev/null; then
+if git worktree list --porcelain | grep -q "/.claude/worktrees/spec-NNN$" && [ -d .claude/worktrees/spec-NNN ]; then :   # resume: reuse it
+elif git rev-parse -q --verify "refs/heads/feat/spec-NNN" >/dev/null || git rev-parse -q --verify "refs/remotes/origin/feat/spec-NNN" >/dev/null; then
+  git worktree prune                                                                  # drop a registration whose directory is gone
   git worktree add .claude/worktrees/spec-NNN feat/spec-NNN                          # resume: the branch exists
+  git -C .claude/worktrees/spec-NNN push -u origin feat/spec-NNN                     # no-op when already pushed
 else
   git worktree add -b feat/spec-NNN .claude/worktrees/spec-NNN origin/main           # first run
   git -C .claude/worktrees/spec-NNN push -u origin feat/spec-NNN
@@ -159,9 +167,11 @@ If you do fan out:
 - Every agent gets `isolation: "worktree"` — **mandatory, no exceptions.** Without it a subagent
   shares your working tree and its `git checkout` / `stash` / `reset` silently discards your
   in-flight edits.
-- Push `feat/spec-NNN` first, then name the base explicitly in the prompt: _"fetch, then work on a
-  branch cut from `origin/feat/spec-NNN`; open your PR against `feat/spec-NNN`."_ Git refuses to
-  check out `feat/spec-NNN` itself while the spec worktree holds it.
+- Push `feat/spec-NNN` first, then name the base and the branch in the prompt: _"fetch, then
+  `git checkout -b claude/SPEC-NNN-S<n> origin/feat/spec-NNN` before your first edit; open your PR
+  against `feat/spec-NNN`."_ Git refuses to check out `feat/spec-NNN` itself while the spec
+  worktree holds it, and the edit gate grades an Agent-tool worktree by its branch, so the
+  agent's default `worktree-agent-<id>` branch would be gated.
 - The merge discipline is unchanged: **each step merges into `feat/spec-NNN` as it is accepted**, and
   any step that depends on it waits for that merge. Parallel does not mean batch-merge at the end.
 - The task list still shows every dispatched step as `in_progress` and each one is closed as it
@@ -205,8 +215,8 @@ If a validation is genuinely not runnable, name it and say why in the PR body. D
 After the last step merges and §6's end-to-end validation passes, and before the panel's first
 dispatch (§7.2) — not on every §7.3 fix-loop iteration — push `feat/spec-NNN` and dispatch a
 code-simplification agent (`isolation: "worktree"`, mandatory — a shared working tree risks the
-agent's `git checkout` / `stash` / `reset` discarding in-flight edits) on a branch cut from
-`origin/feat/spec-NNN`.
+agent's `git checkout` / `stash` / `reset` discarding in-flight edits) that runs
+`git checkout -b claude/SPEC-NNN-simplify origin/feat/spec-NNN` before its first edit.
 
 If the pass makes any change, fast-forward (or cherry-pick) that single commit onto the integration
 branch from inside the spec worktree, then remove the agent's worktree. No step branch, no step PR, no
@@ -294,11 +304,12 @@ Then remove the spec worktree. Inside it, commit and push the exit `phase:` bloc
 `$CLAUDE_PROJECT_DIR`:
 
 ```bash
-git worktree remove .claude/worktrees/spec-NNN          # refuses a dirty tree; never --force
 node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs worktrees --fetch --prune --own spec-NNN
 ```
 
-If `git worktree remove` refuses, keep the worktree and name it in the exit report.
+It removes `.claude/worktrees/spec-NNN` without `--force`, and keeps it when it is dirty or holds
+another worktree. A plain `git worktree remove` would delete a nested worktree with it. If it keeps
+the worktree, name it and its reason in the exit report.
 
 ---
 

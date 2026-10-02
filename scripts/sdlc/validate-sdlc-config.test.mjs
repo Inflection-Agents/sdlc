@@ -104,8 +104,9 @@ test('gradeConfig rejects a non-mapping config', () => {
 test('AC-015: worktrees.setup accepts one command string and rejects anything else', () => {
     assert.deepEqual(gradeConfig({ layout: 2, worktrees: { setup: 'pnpm install --frozen-lockfile' } }, { root: '/' }), [])
     assert.deepEqual(gradeConfig({ layout: 2, worktrees: {} }, { root: '/' }), [])
-    for (const bad of [{ setup: ['pnpm', 'install'] }, { setup: 42 }, { setup: '  ' }]) {
-        assert.deepEqual(gradeConfig({ layout: 2, worktrees: bad }, { root: '/' }), ['`worktrees.setup` must be one non-empty command string'], JSON.stringify(bad))
+    assert.deepEqual(gradeConfig({ layout: 2, worktrees: { setup: '' } }, { root: '/' }), [], 'empty means unset, as the schema example shows')
+    for (const bad of [{ setup: ['pnpm', 'install'] }, { setup: 42 }]) {
+        assert.deepEqual(gradeConfig({ layout: 2, worktrees: bad }, { root: '/' }), ['`worktrees.setup` must be one command string'], JSON.stringify(bad))
     }
     assert.deepEqual(gradeConfig({ layout: 2, worktrees: ['x'] }, { root: '/' }), ['`worktrees` must be a mapping'])
 })
