@@ -99,9 +99,9 @@ export function mapEntries({ forked = false, projectTarget = 'AGENTS.md', contra
 export function mapPath(rel, entries) {
     for (const e of entries) {
         if (e.kind === 'file' && rel === e.from) return e.to
-        if (e.kind === 'prefix' && (rel === e.from.slice(0, -1) || rel.startsWith(e.from))) {
-            return rel === e.from.slice(0, -1) ? e.to.slice(0, -1) : e.to + rel.slice(e.from.length)
-        }
+        if (e.kind !== 'prefix') continue
+        if (rel === e.from.slice(0, -1)) return e.to.slice(0, -1)
+        if (rel.startsWith(e.from)) return e.to + rel.slice(e.from.length)
     }
     return null
 }
@@ -255,6 +255,12 @@ function joinStillResolves(line, rel, existsNow) {
 export function scanText(text, { rel, entries, moved = false, old = null, depthChanged = false, existsNow = () => true, inSkills = false }) {
     const hits = []
     const push = (index, form, snippet) => hits.push({ line: lineOf(text, index), form, snippet: snippet.slice(0, 120) })
+    const lines = text.split('\n')
+    const pushLines = (test, form) => {
+        lines.forEach((line, n) => {
+            if (test(line)) hits.push({ line: n + 1, form, snippet: line.trim().slice(0, 120) })
+        })
+    }
     const code = CODE_FILE.test(rel)
 
     for (let i = 0; i < text.length; i += 1) {
@@ -282,38 +288,20 @@ export function scanText(text, { rel, entries, moved = false, old = null, depthC
             }
         }
         for (const m of text.matchAll(QUOTED_AI)) push(m.index, 'quoted-.ai', m[0])
-        if (depthChanged) {
-            text.split('\n').forEach((line, n) => {
-                if (DOTDOT_JOIN.test(line) && !joinStillResolves(line, rel, existsNow)) {
-                    hits.push({ line: n + 1, form: "'..'-join", snippet: line.trim().slice(0, 120) })
-                }
-            })
-        }
+        if (depthChanged) pushLines((line) => DOTDOT_JOIN.test(line) && !joinStillResolves(line, rel, existsNow), "'..'-join")
         // Layout 2 moves the workspace table out of project.md into config.yaml, so code that
         // reads a `Workspaces` section from project.md finds nothing and its rule goes quiet.
-        if (/project\.md/.test(text)) {
-            text.split('\n').forEach((line, n) => {
-                if (/(['"`])Workspaces\1/.test(line)) hits.push({ line: n + 1, form: 'workspace-table-read', snippet: line.trim().slice(0, 120) })
-            })
-        }
+        if (/project\.md/.test(text)) pushLines((line) => /(['"`])Workspaces\1/.test(line), 'workspace-table-read')
         // Reading routing off loadMachine()'s merged result is the supported path.
         if (!/(^|\/)sdlc-paths\.mjs$/.test(rel) && !/\bloadMachine\b/.test(text)) {
-            text.split('\n').forEach((line, n) => {
-                if (ROUTING_READ.test(line)) hits.push({ line: n + 1, form: 'domain_routing-read', snippet: line.trim().slice(0, 120) })
-            })
+            pushLines((line) => ROUTING_READ.test(line), 'domain_routing-read')
         }
     }
-    text.split('\n').forEach((line, n) => {
-        if (ESCAPED_PREFIX.test(line)) hits.push({ line: n + 1, form: 'escaped-regex', snippet: line.trim().slice(0, 120) })
-    })
+    pushLines((line) => ESCAPED_PREFIX.test(line), 'escaped-regex')
     if (rel.endsWith('.json') && SCHEMA_REQUIRES.test(text)) {
         push(text.search(SCHEMA_REQUIRES), 'schema-requires-domain_routing', '"required": [... "domain_routing" ...]')
     }
-    if (inSkills && rel.endsWith('.md')) {
-        text.split('\n').forEach((line, n) => {
-            if (TABLE_EDIT.test(line)) hits.push({ line: n + 1, form: 'workspace-table', snippet: line.trim().slice(0, 120) })
-        })
-    }
+    if (inSkills && rel.endsWith('.md')) pushLines((line) => TABLE_EDIT.test(line), 'workspace-table')
     return hits
 }
 
@@ -341,9 +329,10 @@ export function isHistory(rel, { specsRel = 'specs', specStatus = () => null, re
     const s = `${specsRel}/`
     if (rel.startsWith(`${s}archive/`) || rel.startsWith(`${s}review-logs/`) || rel.startsWith(`${s}decisions/`)) return true
     if (/(^|\/)DECISIONS\.md$/.test(rel) || rel.endsWith('.jsonl')) return true
-    const spec = rel.match(new RegExp(`^${s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(SPEC-\\d+)[^/]*\\.md$`))
+    const escaped = s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const spec = rel.match(new RegExp(`^${escaped}(SPEC-\\d+)[^/]*\\.md$`))
     if (spec) return !LIVE_SPEC.has(frontmatterStatus(read(rel)) ?? 'active')
-    const task = rel.match(new RegExp(`^${s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}tasks/(SPEC-\\d+)/`))
+    const task = rel.match(new RegExp(`^${escaped}tasks/(SPEC-\\d+)/`))
     if (task) return !LIVE_SPEC.has(specStatus(task[1]) ?? 'active')
     if (rel.startsWith(`${s}adrs/`) && rel.endsWith('.md')) return !LIVE_ADR.has(frontmatterStatus(read(rel)) ?? 'accepted')
     return false

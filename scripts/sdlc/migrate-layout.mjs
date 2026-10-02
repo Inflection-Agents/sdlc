@@ -29,11 +29,11 @@ import {
     unlinkSync,
     writeFileSync,
 } from 'node:fs'
-import { basename, dirname, join, matchesGlob, posix, relative, resolve } from 'node:path'
+import { basename, dirname, join, matchesGlob, posix, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { loadManifest, releasedVersions, roleOf } from './gen-released-payloads.mjs'
-import { appendLines, ensureClaudeImport, insertAgentsBlock, BLOCK_BEGIN, BLOCK_END } from './install-payload.mjs'
+import { appendLines, ensureClaudeImport, insertAgentsBlock, BLOCK_BEGIN } from './install-payload.mjs'
 import {
     AGENT_FILES,
     CONTRACT_FILES,
@@ -48,7 +48,8 @@ import {
 } from './lib/legacy-map.mjs'
 import { emitYaml, parseYaml } from './lib/mini-yaml.mjs'
 import { isLayout1Root, readConfig, takeRootArg } from './lib/sdlc-paths.mjs'
-import { scanRepo } from './scan-legacy-paths.mjs'
+import { BINARY, readText, scanRepo } from './scan-legacy-paths.mjs'
+import { filesUnder, pluginVersion } from './sync-refresh.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const PLUGIN = resolve(HERE, '..', '..')
@@ -60,28 +61,12 @@ export const AGENTS_BUDGET = 16 * 1024
 
 export class Refusal extends Error {}
 
-const BINARY = /\.(?:png|jpe?g|gif|webp|ico|pdf|zip|gz|tgz|woff2?|ttf|eot|mp4|mov|parquet|db|sqlite)$/i
-
 function git(root, args, opts = {}) {
     return execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 1 << 28, ...opts })
 }
 
-function pluginVersion() {
-    try {
-        return JSON.parse(readFileSync(join(PLUGIN, '.claude-plugin', 'plugin.json'), 'utf8')).version
-    } catch {
-        return null
-    }
-}
-
-function readText(abs) {
-    try {
-        if (lstatSync(abs).isSymbolicLink()) return null
-        const buf = readFileSync(abs)
-        return buf.includes(0) ? null : buf.toString('utf8')
-    } catch {
-        return null
-    }
+function localBranches(root) {
+    return git(root, ['for-each-ref', '--format=%(refname:short)', 'refs/heads']).split('\n').filter(Boolean)
 }
 
 // ─── Workspace tables (SPEC-009 Design > Migration > Workspace tables) ──────
@@ -361,10 +346,9 @@ export function planMigration(root, { exclude = [] } = {}) {
         const own = read(LAYOUT1.machine)
         const mine = parseYaml(own) ?? {}
         const theirs = parseYaml(payloadMachineText) ?? {}
-        const frameworkIds = new Set((theirs.phases ?? []).map((p) => p.id))
         const frameworkById = new Map((theirs.phases ?? []).map((p) => [p.id, p]))
         for (const p of mine.phases ?? []) {
-            if (!frameworkIds.has(p.id)) plan.extensions.phases.push(p)
+            if (!frameworkById.has(p.id)) plan.extensions.phases.push(p)
             else if (JSON.stringify(p) !== JSON.stringify(frameworkById.get(p.id))) {
                 plan.replacedPhases.push(p.id)
                 plan.phaseDiffs[p.id] = phaseDiff(p, frameworkById.get(p.id))
@@ -397,39 +381,27 @@ export function planMigration(root, { exclude = [] } = {}) {
 
     // Framework files: unmodified ones are replaced with the plugin's copy, modified ones kept.
     const manifest = loadManifest()
-    const payloadFiles = (dir) => {
-        const abs = join(PAYLOAD, dir)
-        const out = []
-        const walk = (d) => {
-            for (const e of readdirSync(d, { withFileTypes: true })) {
-                const p = join(d, e.name)
-                if (e.isDirectory()) walk(p)
-                else out.push(relative(PAYLOAD, p).split('\\').join('/'))
-            }
-        }
-        if (existsSync(abs)) walk(abs)
-        return out
-    }
     const landed = new Map([...moves].map(([o, n]) => [n, o]))
-    const shipped = [...payloadFiles('.sdlc/scripts'), ...payloadFiles('.sdlc/templates'), ...payloadFiles('.sdlc/contracts')]
+    const shipped = [...filesUnder(PAYLOAD, '.sdlc/scripts'), ...filesUnder(PAYLOAD, '.sdlc/templates'), ...filesUnder(PAYLOAD, '.sdlc/contracts')]
     for (const rel of shipped) {
         let dest = rel
         if (rel.startsWith('.sdlc/contracts/')) {
             const key = Object.entries(CONTRACT_FILES).find(([, f]) => f === basename(rel))?.[0]
             dest = (forked && contracts[key]) || rel
         }
+        const fresh = readFileSync(join(PAYLOAD, rel), 'utf8')
         const old = landed.get(dest)
         if (old === undefined) {
-            plan.writes.set(dest, readFileSync(join(PAYLOAD, rel), 'utf8'))
+            plan.writes.set(dest, fresh)
             plan.added.push(dest)
             continue
         }
         const bytes = readFileSync(join(root, old))
         const role = roleOf(`init-payload/${rel}`)
         if (role && releasedVersions(manifest, role, bytes).length) {
-            plan.writes.set(dest, readFileSync(join(PAYLOAD, rel), 'utf8'))
+            plan.writes.set(dest, fresh)
             plan.replaced.push(dest)
-        } else if (bytes.toString('utf8') !== readFileSync(join(PAYLOAD, rel), 'utf8')) {
+        } else if (bytes.toString('utf8') !== fresh) {
             plan.modified.push(dest)
         }
     }
@@ -559,9 +531,8 @@ function openBranchesTouching(root, paths) {
     } catch {
         return out
     }
-    const branches = git(root, ['for-each-ref', '--format=%(refname:short)', 'refs/heads']).split('\n').filter(Boolean)
     const set = new Set(paths)
-    for (const b of branches) {
+    for (const b of localBranches(root)) {
         if (b === current) continue
         try {
             const changed = git(root, ['diff', '--name-only', `${current}...${b}`]).split('\n').filter(Boolean)
@@ -595,8 +566,7 @@ const FRAMEWORK_OWNED = ['.sdlc/state-machine.yaml', '.sdlc/scripts/', '.sdlc/te
 
 /** Carry out `plan` as one commit on BRANCH. */
 export function applyMigration(root, plan) {
-    const branches = git(root, ['for-each-ref', '--format=%(refname:short)', 'refs/heads']).split('\n')
-    if (branches.includes(BRANCH)) throw new Refusal(`branch ${BRANCH} already exists; delete it or finish that migration first`)
+    if (localBranches(root).includes(BRANCH)) throw new Refusal(`branch ${BRANCH} already exists; delete it or finish that migration first`)
     git(root, ['switch', '-q', '-c', BRANCH])
     const staged = new Set()
 
@@ -647,11 +617,12 @@ export function applyMigration(root, plan) {
     }
     removeEmptyDirs(root, LAYOUT1_DIRS.ai)
 
-    git(root, ['add', '-A', '--', ...[...staged].filter((p) => existsSync(join(root, p)) || lstatExists(join(root, p)))])
+    git(root, ['add', '-A', '--', ...[...staged].filter((p) => lstatExists(join(root, p)))])
     git(root, ['commit', '-q', '-m', COMMIT_MESSAGE])
     return plan
 }
 
+/** Whether anything is at `abs`, a dangling symlink included (existsSync follows links and says no). */
 function lstatExists(abs) {
     try {
         lstatSync(abs)
@@ -736,6 +707,13 @@ function printPlan(plan, out = process.stdout) {
     }
 }
 
+/** Exit 1 with the refusal's message; anything else is a bug and propagates. */
+function exitOnRefusal(err) {
+    if (!(err instanceof Refusal)) throw err
+    process.stderr.write(`migrate-layout: refused: ${err.message}\n`)
+    process.exit(1)
+}
+
 function main(argv) {
     const { root, rest } = takeRootArg(argv)
     const apply = rest.includes('--apply')
@@ -752,11 +730,7 @@ function main(argv) {
     try {
         plan = planMigration(root, { exclude })
     } catch (err) {
-        if (err instanceof Refusal) {
-            process.stderr.write(`migrate-layout: refused: ${err.message}\n`)
-            process.exit(1)
-        }
-        throw err
+        exitOnRefusal(err)
     }
     if (plan.nothing) {
         process.stdout.write('nothing to migrate: this repo is on layout 2\n')
@@ -770,11 +744,7 @@ function main(argv) {
     try {
         applyMigration(root, plan)
     } catch (err) {
-        if (err instanceof Refusal) {
-            process.stderr.write(`migrate-layout: refused: ${err.message}\n`)
-            process.exit(1)
-        }
-        throw err
+        exitOnRefusal(err)
     }
     process.stdout.write(`\nCommitted "${COMMIT_MESSAGE}" on ${BRANCH}.\n`)
     for (const [f, lines] of Object.entries(plan.appended)) process.stdout.write(`appended ${f}: ${lines.join(', ')}\n`)

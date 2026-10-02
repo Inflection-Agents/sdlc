@@ -38,7 +38,8 @@
       "9a3d579f9c4c26780ff2afd62ad48a6f54ec02fe08ab88dc9e349d8caf4516ac": "0.3.0",
       "80beca934cb78783c05790e740744adcd543f2abdfc86773920a11b7efa8c219": "0.3.0",
       "36fca9c2ef54f6bd56d05b2878213308747d902b522af76c1f4dd0dc939beb88": "0.4.0",
-      "299e3c09c73e1b79e05643a26303826fe6bd5c3c01aa90389dc58bf727df6ef6": "0.4.0"
+      "299e3c09c73e1b79e05643a26303826fe6bd5c3c01aa90389dc58bf727df6ef6": "0.4.0",
+      "c94e8b94c79fdba9e7f63792bf7e2c97f3adac2d1cfc2802f326d93509b9a327": "0.4.0"
     },
     "scripts/lib/mini-yaml.mjs": {
       "99f0570b27dcabb65b6c379429542a0d77c6dc15094d9edb8142b98027cd8bd0": "0.3.0",
@@ -49,7 +50,8 @@
     },
     "scripts/lib/sdlc-paths.mjs": {
       "55e0709373c14e7011817a6211909ab847462513c0da2fa08d05e220538c6f49": "0.3.0",
-      "825140048445430b50dd2f0c7f2d3f54ae82c5a906c8eac6670f6a00a57f97dc": "0.3.0"
+      "825140048445430b50dd2f0c7f2d3f54ae82c5a906c8eac6670f6a00a57f97dc": "0.3.0",
+      "8a93a471904c6a966166597f5036ea7647c00da5aefbfb48fc59cf37afadc246": "0.4.0"
     },
     "scripts/plan-gate.mjs": {
       "80709a2b12c9eeee9c65ff35d3312543b816343f6d1af4ba32a40aa990f42bff": "0.1.0",
@@ -71,7 +73,8 @@
     "scripts/scan-legacy-paths.mjs": {
       "c9ee44fc8fa9f5fbe2a329c7dbb3220fefc5bb80f49849c53890ff93f66a3a44": "0.3.0",
       "295d198e68e886da54bf079a3c37b05d30130cfc36ca5f1ebf41cbfc1fbf3228": "0.4.0",
-      "df1e70afa93ff459eeb7b94b3c638d7713b477ed4214da70276bb519e441179f": "0.4.0"
+      "df1e70afa93ff459eeb7b94b3c638d7713b477ed4214da70276bb519e441179f": "0.4.0",
+      "506d98320410dcadb715f4b43f478337108abbef7ba2ccf1d931a7ff47e41ab1": "0.4.0"
     },
     "scripts/validate-constraints-registry.mjs": {
       "31c4d59094058ff041c7b0a6854c9cd2a170c844974623396c1dc6c37d0624d7": "0.1.0",

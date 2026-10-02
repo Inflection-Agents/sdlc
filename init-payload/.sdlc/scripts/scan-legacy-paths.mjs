@@ -31,14 +31,15 @@ import { fileURLToPath } from 'node:url'
 import { isBuiltInExempt, isHistory, mapEntries, scanText } from './lib/legacy-map.mjs'
 import { readConfig, sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
 
-const BINARY = /\.(?:png|jpe?g|gif|webp|ico|pdf|zip|gz|tgz|woff2?|ttf|eot|mp4|mov|parquet|db|sqlite)$/i
+export const BINARY = /\.(?:png|jpe?g|gif|webp|ico|pdf|zip|gz|tgz|woff2?|ttf|eot|mp4|mov|parquet|db|sqlite)$/i
 
 function trackedFiles(root) {
     const out = execFileSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8', maxBuffer: 1 << 28 })
     return out.split('\0').filter(Boolean)
 }
 
-function readText(abs) {
+/** A file's text, or null for a symlink, a binary file (one holding a NUL byte) or an unreadable path. */
+export function readText(abs) {
     try {
         if (lstatSync(abs).isSymbolicLink()) return null
         const buf = readFileSync(abs)
@@ -126,7 +127,9 @@ function main(argv) {
     const { root, rest } = takeRootArg(argv)
     sdlcPaths(root) // prints the one-line notice on a layout-1 repo, as every gate does
     const onlyArg = rest.find((a) => a.startsWith('--only'))
-    const onlyValue = onlyArg?.includes('=') ? onlyArg.split('=')[1] : onlyArg ? rest[rest.indexOf(onlyArg) + 1] : null
+    let onlyValue = null
+    if (onlyArg?.includes('=')) onlyValue = onlyArg.split('=')[1]
+    else if (onlyArg) onlyValue = rest[rest.indexOf(onlyArg) + 1]
     let hits
     try {
         hits = scanRepo(root, { only: onlyValue ? onlyValue.split(',') : null, useAllow: !rest.includes('--no-allow') })

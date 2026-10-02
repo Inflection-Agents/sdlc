@@ -117,6 +117,10 @@ function pluginTemplates(plugin) {
     return existsSync(payload) ? payload : join(plugin, 'templates')
 }
 
+function pluginProcessDoc(plugin) {
+    return plugin ? join(plugin, 'docs', 'sdlc.md') : null
+}
+
 function layout1Paths(root, plugin) {
     const at = (rel) => join(root, rel)
     const contract = (file) => {
@@ -125,11 +129,7 @@ function layout1Paths(root, plugin) {
     }
     const skills = LAYOUT1.skillsCandidates.map(at).find(holdsSkill) ?? null
     const templates = LAYOUT1.templatesCandidates.map(at).find(holdsTemplate) ?? pluginTemplates(plugin)
-    const processDoc = existsSync(at(LAYOUT1.processDoc))
-        ? at(LAYOUT1.processDoc)
-        : plugin
-          ? join(plugin, 'docs', 'sdlc.md')
-          : null
+    const processDoc = existsSync(at(LAYOUT1.processDoc)) ? at(LAYOUT1.processDoc) : pluginProcessDoc(plugin)
     return {
         layout: 1,
         root,
@@ -172,7 +172,7 @@ export function sdlcPaths(root, { quiet = false } = {}) {
         paths[key] = resolve(root, override || rel)
     }
     const doc = overrides.process_doc
-    paths.processDoc = doc ? resolve(root, doc) : plugin ? join(plugin, 'docs', 'sdlc.md') : null
+    paths.processDoc = doc ? resolve(root, doc) : pluginProcessDoc(plugin)
     return paths
 }
 
@@ -192,7 +192,15 @@ export function takeRootArg(argv, start = process.cwd()) {
     return { root: root ?? resolveRoot(start), rest }
 }
 
-const asList = (v) => (Array.isArray(v) ? v : v == null ? [] : [v])
+function asList(v) {
+    if (Array.isArray(v)) return v
+    if (v == null) return []
+    return [v]
+}
+
+function normalizePhase(p) {
+    return { ...p, entry_triggers: asList(p?.entry_triggers), preconditions: asList(p?.preconditions) }
+}
 
 /**
  * The state machine as every reader should see it (ADR-008 decision 3).
@@ -216,14 +224,9 @@ export function loadMachine(root, { machineFile } = {}) {
     } catch (err) {
         throw new Error(`state machine ${file} does not parse: ${err.message}`)
     }
-    const phases = asList(raw.phases).map((p) => ({
-        ...p,
-        entry_triggers: asList(p?.entry_triggers),
-        preconditions: asList(p?.preconditions),
-    }))
     const machine = {
         ...raw,
-        phases,
+        phases: asList(raw.phases).map(normalizePhase),
         exempt: asList(raw.exempt),
         retired_phases: asList(raw.retired_phases),
         domain_routing: raw.domain_routing ?? {},
@@ -237,9 +240,7 @@ export function loadMachine(root, { machineFile } = {}) {
     }
     const config = readConfig(root) ?? {}
     const ext = config.extensions ?? {}
-    for (const p of asList(ext.phases)) {
-        machine.phases.push({ ...p, entry_triggers: asList(p?.entry_triggers), preconditions: asList(p?.preconditions) })
-    }
+    machine.phases.push(...asList(ext.phases).map(normalizePhase))
     machine.exempt = [...new Set([...machine.exempt, ...asList(ext.exempt)])]
     machine.domain_routing = config.domain_routing ?? {}
     return machine

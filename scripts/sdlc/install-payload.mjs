@@ -62,6 +62,12 @@ export function appendLines(targetFile, payloadText) {
     return add
 }
 
+/** What to write before appended content so it starts after one blank line. */
+function blankLineAfter(current) {
+    if (current === '') return ''
+    return current.endsWith('\n') ? '\n' : '\n\n'
+}
+
 /**
  * Put `body` between the SDLC markers at the end of AGENTS.md, keeping every existing byte.
  * A file that already has the markers is left alone.
@@ -71,9 +77,8 @@ export function insertAgentsBlock(root, body) {
     const file = join(root, 'AGENTS.md')
     const current = existsSync(file) ? readFileSync(file, 'utf8') : ''
     if (current.includes(BLOCK_BEGIN)) return false
-    const lead = current === '' ? '' : current.endsWith('\n') ? '\n' : '\n\n'
     const text = body.endsWith('\n') ? body : `${body}\n`
-    writeFileSync(file, `${current}${lead}${BLOCK_BEGIN}\n${text}${BLOCK_END}\n`, 'utf8')
+    writeFileSync(file, `${current}${blankLineAfter(current)}${BLOCK_BEGIN}\n${text}${BLOCK_END}\n`, 'utf8')
     return true
 }
 
@@ -82,8 +87,7 @@ export function ensureClaudeImport(root) {
     const file = join(root, 'CLAUDE.md')
     const current = existsSync(file) ? readFileSync(file, 'utf8') : ''
     if (current.split(/\r?\n/).includes(CLAUDE_IMPORT)) return false
-    const lead = current === '' ? '' : current.endsWith('\n') ? '\n' : '\n\n'
-    writeFileSync(file, `${current}${lead}${CLAUDE_IMPORT}\n`, 'utf8')
+    writeFileSync(file, `${current}${blankLineAfter(current)}${CLAUDE_IMPORT}\n`, 'utf8')
     return true
 }
 

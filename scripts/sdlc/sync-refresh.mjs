@@ -34,19 +34,21 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 const PLUGIN = resolve(HERE, '..', '..')
 export const DEFAULT_PAYLOAD = join(PLUGIN, 'init-payload')
 
-function walk(base, dir) {
+/** Every file under `base/dir`, as `dir/...` paths with forward slashes, or [] when `dir` is missing. */
+export function filesUnder(base, dir) {
     const abs = join(base, dir)
     if (!existsSync(abs)) return []
     const out = []
     for (const e of readdirSync(abs, { withFileTypes: true })) {
         const rel = `${dir}/${e.name}`
-        if (e.isDirectory()) out.push(...walk(base, rel))
+        if (e.isDirectory()) out.push(...filesUnder(base, rel))
         else out.push(rel)
     }
     return out
 }
 
-function pluginVersion() {
+/** The plugin's version from `.claude-plugin/plugin.json`, or null when it cannot be read. */
+export function pluginVersion() {
     try {
         return JSON.parse(readFileSync(join(PLUGIN, '.claude-plugin', 'plugin.json'), 'utf8')).version
     } catch {
@@ -68,10 +70,10 @@ function destinationOf(root, payloadRel) {
 export function planRefresh(root, { payload = DEFAULT_PAYLOAD, manifest = loadManifest() } = {}) {
     if (detectLayout(root) !== 2) throw new Error(`${root} is not on layout 2; run migrate-layout.mjs first`)
     const shipped = [
-        ...walk(payload, '.sdlc/scripts'),
-        ...walk(payload, '.sdlc/templates'),
-        ...walk(payload, '.sdlc/contracts'),
-        ...walk(payload, '.github/workflows'),
+        ...filesUnder(payload, '.sdlc/scripts'),
+        ...filesUnder(payload, '.sdlc/templates'),
+        ...filesUnder(payload, '.sdlc/contracts'),
+        ...filesUnder(payload, '.github/workflows'),
         '.sdlc/state-machine.yaml',
     ]
     const plan = []

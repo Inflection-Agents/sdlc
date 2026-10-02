@@ -110,6 +110,16 @@ function rg(root, args) {
 
 const token = () => `sdlcprobe${process.pid}${Math.random().toString(36).slice(2, 8)}`
 
+/** `abs` relative to `root`, for a path known to sit inside it. */
+function relTo(root, abs) {
+    return abs.slice(root.length + 1)
+}
+
+/** One `source:caught` or `source:missed` word per hook result. */
+function hookVerdicts(results) {
+    return results.map((r) => `${r.source}:${r.caught ? 'caught' : 'missed'}`).join(' ')
+}
+
 // ─── Probes ─────────────────────────────────────────────────────────────────
 
 function p1(root) {
@@ -117,7 +127,7 @@ function p1(root) {
     const validator = workflowCopy(root, 'validate-guide.mjs')
     if (!validator) return { ran: false, detail: 'no validate-guide.mjs copy' }
     const specs = sdlcPaths(root, { quiet: true }).specs
-    const rel = (p) => p.slice(root.length + 1)
+    const rel = (p) => relTo(root, p)
     write(root, `${rel(specs)}/${PROBE_SPEC}-probe.md`, `---\nid: ${PROBE_SPEC}\nstatus: active\nversion: 1\n---\n\n## Acceptance criteria\n\n- [ ] AC-001: probe\n`)
     write(root, `${rel(specs)}/tasks/${PROBE_SPEC}/GUIDE.md`, `---\nspec: ${PROBE_SPEC}\nspec_version: 1\n---\n\n## Steps\n\n### S1: probe\n- Covers: AC-001\n- Changes: \`x\`\n- Verify: \`true\`\n\n## Owner decisions\n\nNone at sign-off.\n`)
     write(root, `${rel(specs)}/tasks/${PROBE_SPEC}/_index.yaml`, `spec: ${PROBE_SPEC}\nplan_review:\n  status: approve-ready\n  approved: false\n  reviewed: 2026-10-02\nsteps:\n  - id: S1\n    status: pending\ndecisions: []\n`)
@@ -140,7 +150,7 @@ function p2(root) {
         ...h,
         caught: runHook(root, h.command, { prompt: `please change ${ws}/src/probe.ts`, session_id: 'sdlc-probe', cwd: root }).includes(chain[0]),
     }))
-    return { ran: true, caught: results.every((r) => r.caught), detail: results.map((r) => `${r.source}:${r.caught ? 'caught' : 'missed'}`).join(' ') }
+    return { ran: true, caught: results.every((r) => r.caught), detail: hookVerdicts(results) }
 }
 
 function p3(root) {
@@ -171,14 +181,14 @@ function p3(root) {
     if (!hooks.length) return { ran: false, detail: 'no edit hook wired' }
     const payload = { tool_name: 'Edit', tool_input: { file_path: join(root, pick.file) }, session_id: 'sdlc-probe', cwd: root }
     const results = hooks.map((h) => ({ ...h, caught: runHook(root, h.command, payload).includes(pick.row.id) }))
-    return { ran: true, caught: results.every((r) => r.caught), detail: `${pick.row.id} on ${pick.file}: ${results.map((r) => `${r.source}:${r.caught ? 'caught' : 'missed'}`).join(' ')}` }
+    return { ran: true, caught: results.every((r) => r.caught), detail: `${pick.row.id} on ${pick.file}: ${hookVerdicts(results)}` }
 }
 
 function p4(root) {
     const specs = sdlcPaths(root, { quiet: true }).specs
     if (!existsSync(join(specs, 'archive'))) return { ran: false, detail: 'no specs/archive/' }
     const word = token()
-    const rel = `${specs.slice(root.length + 1)}/archive/specs/${word}.md`
+    const rel = `${relTo(root, specs)}/archive/specs/${word}.md`
     write(root, rel, `${word}\n`)
     const out = rg(root, ['-l', '-g', '*.md', word])
     if (out === null) return { ran: false, detail: 'rg is not installed' }
@@ -191,9 +201,9 @@ function p5(root) {
     const paths = sdlcPaths(root, { quiet: true })
     const skills = paths.skills ?? join(root, 'skills')
     const name = 'sdlc-probe-unregistered'
-    write(root, `${skills.slice(root.length + 1)}/${name}/SKILL.md`, `---\nname: ${name}\n---\n`)
+    write(root, `${relTo(root, skills)}/${name}/SKILL.md`, `---\nname: ${name}\n---\n`)
     const r = runNode(root, validator, [])
-    return { ran: true, caught: r.status === 1 && r.out.includes(name), detail: validator.slice(root.length + 1) }
+    return { ran: true, caught: r.status === 1 && r.out.includes(name), detail: relTo(root, validator) }
 }
 
 function p6(root) {
@@ -208,7 +218,7 @@ function p6(root) {
 /** The `paths` and `paths-ignore` filters per event in a workflow's `on:` block. */
 export function workflowFilters(text) {
     const lines = text.split('\n')
-    const on = lines.findIndex((l) => /^on\s*:/.test(l) || /^'on'\s*:/.test(l) || /^"on"\s*:/.test(l))
+    const on = lines.findIndex((l) => /^(?:on|'on'|"on")\s*:/.test(l))
     const events = {}
     if (on === -1) return events
     let event = null
@@ -282,7 +292,7 @@ function p8(root) {
     if (!checker) return { ran: false, detail: 'no check-stale-citations.mjs copy' }
     write(root, '.sdlc/agents/sdlc-probe.md', `Per ${superseded}, do the thing.\n`)
     const r = runNode(root, checker, [])
-    return { ran: true, caught: r.status === 1, detail: checker.slice(root.length + 1) }
+    return { ran: true, caught: r.status === 1, detail: relTo(root, checker) }
 }
 
 export const PROBES = { P1: p1, P2: p2, P3: p3, P4: p4, P5: p5, P6: p6, P7: p7, P8: p8 }
