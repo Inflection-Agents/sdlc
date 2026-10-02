@@ -167,3 +167,14 @@ Phase 1 Step 3's research protocol writes the `## Research` section below.
 **Rejected:** Checking out `feat/spec-NNN` in the agent's worktree, which git refuses.
 **Deliberately deferred:** Nothing.
 **Raised by:** reviewer (round 1)
+
+---
+
+## D-013 — A leftover Agent-tool worktree is a stray that is reported, never pruned
+
+**Date:** 2026-10-02
+**Question:** Round 2 found that an Agent-tool worktree that kept changes is on an unpushed `worktree-agent-<id>` branch, so D-009's `branch-gone` rule can never catch it, and that is where 19 of the 23 recorded worktrees sat. Accept the blind spot, or detect it?
+**Decided:** Detect it, as a fifth stray kind, `agent`: any `agent-<id>` worktree that still exists. `--prune` never removes one, because it may belong to a subagent that is still running and so can look clean. The spawner is told on each session's first prompt until it removes it.
+**Rejected:** Accepting the blind spot, which leaves the largest source of the recorded sprawl unreported. Pruning clean agent worktrees, which can delete a running agent's tree.
+**Deliberately deferred:** Nothing.
+**Raised by:** reviewer (round 2)
