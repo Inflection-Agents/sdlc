@@ -38,8 +38,10 @@ A missing guide is not something to invent here: route to `spec-authoring` with 
 SPEC-NNN". A failing guide goes back to its author. A missing or unapproved `plan_review:` block HALTs
 and asks the owner to approve the plan.
 
-Then write `.claude/.sdlc-goal-current` (the first `Stop` renames it to
-`.sdlc-goal-<session_id>`; if you know your `session_id`, write that name directly):
+Then write `$CLAUDE_PROJECT_DIR/.claude/.sdlc-goal-current`, by that absolute path (the first `Stop`
+renames it to `$CLAUDE_PROJECT_DIR/.claude/.sdlc-goal-<session_id>`; if you know your `session_id`,
+write that name directly). A relative `.claude/` path would land inside the spec worktree, where the
+Stop hook never looks:
 
 ```json
 {
@@ -91,7 +93,10 @@ flight and what is left. This list is the run's status surface — it does not r
 
 ## 3. Integration branch — always
 
-Cut `feat/spec-NNN` from `main` before the first step. **Every change for this spec lands there,
+Cut `feat/spec-NNN` from `main` before the first step, in its spec worktree,
+`.claude/worktrees/spec-NNN` (SOP §1; where worktrees go and who removes them:
+[`docs/worktrees.md`](../../docs/worktrees.md)). The run works there until it exits, and the main
+checkout stays on `main`. **Every change for this spec lands there,
 and nothing reaches `main` except by merging that branch.** No step PR targets `main`, no direct
 commits to `main`, ever.
 
@@ -118,7 +123,8 @@ Four rules, and they are the ones that matter:
    code, generated-artifact diffs, the obvious failure mode. SOP §4.
 3. **Step N merges before step N+1 starts.** Every later step branches off that tip; an unmerged
    step means the next one is built on a base missing it.
-4. **Nothing lingers.** After a step: no open PR, no remote branch, no local branch, no worktree.
+4. **Nothing lingers.** After a step: no open PR, no remote branch, no local branch, no step
+   worktree. The spec worktree lives until run exit (SOP §7.4, §8).
 
 A step with **`Run by: <role>`** is work only a human can perform. Do not run it: surface it, leave it
 `pending`, and keep burning down the steps that do not depend on it.
@@ -184,8 +190,9 @@ Two rules that are not negotiable:
 When every exit criterion holds — verified, not assumed:
 
 1. Set the goal file `status: met`.
-2. Delete **your own** goal file and counter by exact path (`.claude/.sdlc-goal-<session_id>`, named
-   in the block reason, plus `.sdlc-goalblocks-<session_id>`). Never `rm .claude/.sdlc-goal-*` —
+2. Delete **your own** goal file and counter by exact path
+   (`$CLAUDE_PROJECT_DIR/.claude/.sdlc-goal-<session_id>`, named in the block reason, plus
+   `$CLAUDE_PROJECT_DIR/.claude/.sdlc-goalblocks-<session_id>`). Never `rm .claude/.sdlc-goal-*` —
    that disarms every concurrent run.
 3. Close out the task list: every entry `completed` or explicitly deferred with a reason.
 4. Write the `phase:` block to `_index.yaml` (below).
@@ -258,7 +265,7 @@ This phase is **spec-execution** in the SDLC state machine (`.sdlc/state-machine
 - spec has status active and specs/tasks/SPEC-NNN/GUIDE.md passes .sdlc/scripts/validate-guide.mjs (ADR-007)
 - the plan-review gate passes (ADR-002, fail-closed): the _index.yaml plan_review block is present, approved, and not needs-rework — verify with .sdlc/scripts/plan-gate.mjs
 
-**Exit condition:** single-executor delivery (ADR-003): the owner skill armed a session goal leash (.claude/.sdlc-goal-<session_id>, enforced by the Stop hook), kept a visible task list covering every guide step plus end-to-end validation and the integration gate, cut the integration branch feat/spec-NNN off main, and burned the guide's steps down ITSELF one at a time — each step gated by its own Verify: commands plus an executor self-review, landed via a short-lived PR into feat/spec-NNN that is merged and deleted before the next step starts, with no PR, branch or worktree left lingering; guide changes mid-run are logged in DECISIONS.md and listed under "## Guide changes" in the integration PR; sub-agent fan-out is the exception, for large specs with steps whose After: closures and Changes: do not overlap, and carries the same merge discipline. End-to-end validation ran ONCE before the gate with attached evidence. Exit (success) = the goal file is status:met and ONE integration PR (feat/spec-NNN -> main) is open, carrying every spec success criterion mapped to its evidence, having survived a full multi-lens adversarial review panel — independently dispatched, every envelope validated with .sdlc/scripts/validate-review-envelope.mjs, the constraints registry evaluated in full across the whole diff — looped until no blocker or major survives OR the three-round cap (ADR-004) is reached with every survivor named in a "## Disclosed, not fixed" section of the PR body, and LEFT OPEN for the human to review and merge. Nothing for a spec reaches main except by merging that branch; the agent never merges or pushes to main. A HALT is goal file status:escalated with a surfaced reason — security/data-loss/payment risk, an owner decision, the amendment cap (spec.version reaching 4), or a step that cannot land and cannot be fixed at the root
+**Exit condition:** single-executor delivery (ADR-003): the owner skill armed a session goal leash ($CLAUDE_PROJECT_DIR/.claude/.sdlc-goal-<session_id>, enforced by the Stop hook), kept a visible task list covering every guide step plus end-to-end validation and the integration gate, cut the integration branch feat/spec-NNN off main, and burned the guide's steps down ITSELF one at a time — each step gated by its own Verify: commands plus an executor self-review, landed via a short-lived PR into feat/spec-NNN that is merged and deleted before the next step starts, with no PR, step branch or step worktree left lingering and the spec worktree removed at run exit (docs/worktrees.md); guide changes mid-run are logged in DECISIONS.md and listed under "## Guide changes" in the integration PR; sub-agent fan-out is the exception, for large specs with steps whose After: closures and Changes: do not overlap, and carries the same merge discipline. End-to-end validation ran ONCE before the gate with attached evidence. Exit (success) = the goal file is status:met and ONE integration PR (feat/spec-NNN -> main) is open, carrying every spec success criterion mapped to its evidence, having survived a full multi-lens adversarial review panel — independently dispatched, every envelope validated with .sdlc/scripts/validate-review-envelope.mjs, the constraints registry evaluated in full across the whole diff — looped until no blocker or major survives OR the three-round cap (ADR-004) is reached with every survivor named in a "## Disclosed, not fixed" section of the PR body, and LEFT OPEN for the human to review and merge. Nothing for a spec reaches main except by merging that branch; the agent never merges or pushes to main. A HALT is goal file status:escalated with a surfaced reason — security/data-loss/payment risk, an owner decision, the amendment cap (spec.version reaching 4), or a step that cannot land and cannot be fixed at the root
 
 **Next step:** `spec-completion` — trigger: "close out SPEC-NNN"
 <!-- sdlc:handoff:end -->

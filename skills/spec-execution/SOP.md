@@ -15,12 +15,25 @@ once → open one integration PR and review it hard → leave it open for the hu
 
 ## 1. The integration branch
 
-Every spec gets exactly one, cut from `main` before the first step:
+Every spec gets exactly one, cut from `main` before the first step, in its own spec worktree (where
+worktrees go, and who removes them: [`docs/worktrees.md`](../../docs/worktrees.md)). From the main
+checkout, create it or re-enter it:
 
 ```bash
-git fetch origin && git checkout main && git pull --ff-only
-git checkout -b feat/spec-NNN && git push -u origin feat/spec-NNN
+git fetch origin
+if git worktree list --porcelain | grep -q "/.claude/worktrees/spec-NNN$"; then :        # resume: reuse it
+elif git rev-parse -q --verify "refs/remotes/origin/feat/spec-NNN" >/dev/null; then
+  git worktree add .claude/worktrees/spec-NNN feat/spec-NNN                          # resume: the branch exists
+else
+  git worktree add -b feat/spec-NNN .claude/worktrees/spec-NNN origin/main           # first run
+  git -C .claude/worktrees/spec-NNN push -u origin feat/spec-NNN
+fi
 ```
+
+When the worktree was just added and `.sdlc/config.yaml` sets `worktrees.setup`, run that command
+inside it before the first step. A failing setup command stops the run's start. Every later command of
+the run runs inside `.claude/worktrees/spec-NNN` through §7.3, and the main checkout stays on `main`.
+Write the goal file by absolute path, `$CLAUDE_PROJECT_DIR/.claude/.sdlc-goal-current`.
 
 **Nothing from a spec reaches `main` except by merging this branch.** No direct commits to `main`,
 no step PR targeting `main`, no cherry-picks. If a spec needs an urgent fix on `main` that cannot
@@ -69,11 +82,11 @@ integration diff stops matching the sum of what was built.
 ### Nothing lingers
 
 After a step is done there is **no** open PR for it, **no** remote branch, **no** local branch, and
-**no** worktree. `--delete-branch` handles the remote; clean the rest:
+**no step worktree**. The spec worktree lives until run exit (§7.4, §8). `--delete-branch` handles the
+remote; clean the rest, inside the spec worktree:
 
 ```bash
 git checkout feat/spec-NNN && git branch -D claude/SPEC-NNN-S<n>
-git worktree list && git worktree prune          # if a worktree was used at all
 ```
 
 A stale branch or worktree is how a later step gets cut from the wrong base.
@@ -146,13 +159,14 @@ If you do fan out:
 - Every agent gets `isolation: "worktree"` — **mandatory, no exceptions.** Without it a subagent
   shares your working tree and its `git checkout` / `stash` / `reset` silently discards your
   in-flight edits.
-- Name the base explicitly in the prompt: _"branch from the current tip of `feat/spec-NNN` (fetch
-  first); open your PR against `feat/spec-NNN`."_
+- Push `feat/spec-NNN` first, then name the base explicitly in the prompt: _"fetch, then work on a
+  branch cut from `origin/feat/spec-NNN`; open your PR against `feat/spec-NNN`."_ Git refuses to
+  check out `feat/spec-NNN` itself while the spec worktree holds it.
 - The merge discipline is unchanged: **each step merges into `feat/spec-NNN` as it is accepted**, and
   any step that depends on it waits for that merge. Parallel does not mean batch-merge at the end.
 - The task list still shows every dispatched step as `in_progress` and each one is closed as it
   merges — fan-out never makes the run less visible.
-- Clean up every worktree when the group finishes.
+- Merge each agent's result from inside the spec worktree, then remove that agent's worktree.
 
 Two steps qualify for concurrent worktree-isolated execution iff all four hold: (a) neither step
 appears in the other's `After:` transitive closure (a step with no `After:` needs every earlier step,
@@ -189,13 +203,13 @@ If a validation is genuinely not runnable, name it and say why in the PR body. D
 ### 6.1 Simplify pass — once, before the gate
 
 After the last step merges and §6's end-to-end validation passes, and before the panel's first
-dispatch (§7.2) — not on every §7.3 fix-loop iteration — dispatch a code-simplification agent
-(`isolation: "worktree"`, mandatory — a shared working tree risks the agent's `git checkout` /
-`stash` / `reset` discarding in-flight edits) against a fresh worktree checked out from the
-integration branch's current tip.
+dispatch (§7.2) — not on every §7.3 fix-loop iteration — push `feat/spec-NNN` and dispatch a
+code-simplification agent (`isolation: "worktree"`, mandatory — a shared working tree risks the
+agent's `git checkout` / `stash` / `reset` discarding in-flight edits) on a branch cut from
+`origin/feat/spec-NNN`.
 
-If the pass makes any change, fast-forward (or cherry-pick) that single commit from the worktree
-onto the integration branch directly, then remove the worktree. No step branch, no step PR, no
+If the pass makes any change, fast-forward (or cherry-pick) that single commit onto the integration
+branch from inside the spec worktree, then remove the agent's worktree. No step branch, no step PR, no
 self-review-then-PR cycle.
 
 When it does, re-run whichever §6 checks that change could have affected — at minimum the
@@ -276,6 +290,16 @@ Nits and suggestions can be recorded in the PR body and accepted.
 **Leave the integration PR open.** The human reviews and merges it. Do not merge to `main`, do not
 push to `main`, do not self-approve. Close out the task list and hand off to `spec-completion`.
 
+Then remove the spec worktree. Inside it, commit and push the exit `phase:` block. From
+`$CLAUDE_PROJECT_DIR`:
+
+```bash
+git worktree remove .claude/worktrees/spec-NNN          # refuses a dirty tree; never --force
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs worktrees --fetch --prune --own spec-NNN
+```
+
+If `git worktree remove` refuses, keep the worktree and name it in the exit report.
+
 ---
 
 ## 8. Escalate instead of spinning
@@ -289,6 +313,11 @@ Set the goal file to `status: escalated`, put the reason in `reason`, surface it
 - A step that cannot land and cannot be fixed at the root.
 
 A crisp question early beats a step burned on a guess.
+
+Before stopping, inside the spec worktree, commit the work in progress on the current step branch as
+`SPEC-NNN S<n>: WIP (escalated)` and push it. Then remove the worktree as at §7.4, from
+`$CLAUDE_PROJECT_DIR`. A state that cannot be committed (a merge in progress) is left dirty and named
+in the exit report, never forced.
 
 ---
 

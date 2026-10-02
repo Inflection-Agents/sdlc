@@ -40,8 +40,8 @@ LEAVE IT OPEN — a human merges
 
 - **Nothing reaches `main` except by merging `feat/spec-NNN`.** No step PR targets `main`; no direct commits. The agent never merges or pushes to `main` and never self-approves.
 - **Serial by default; step N merges before step N+1 starts.** Every later step branches off that tip, so an unmerged step means the next is built on a base missing it.
-- **Nothing lingers.** After a step: no open PR, no remote branch, no local branch, no worktree.
-- **Worktree isolation for any subagent that writes files.** Fan-out is the exception (a large spec whose steps have disjoint `Changes:` and `After:` closures); when used, `isolation: "worktree"` is mandatory and the merge discipline is unchanged.
+- **Nothing lingers.** After a step: no open PR, no remote branch, no local branch, no step worktree. The spec worktree lives until run exit ([`docs/worktrees.md`](docs/worktrees.md)).
+- **Worktree isolation for any subagent that writes files.** Fan-out is the exception (a large spec whose steps have disjoint `Changes:` and `After:` closures); when used, `isolation: "worktree"` is mandatory and the merge discipline is unchanged. Where worktrees go and who removes them: [`docs/worktrees.md`](docs/worktrees.md).
 - **Bounded `Changes:`.** Every step declares the paths it may change; `validate-guide.mjs` rejects a step without them. A diff that leaves them is a `task:scope` finding → re-plan the guide in place, never hand-resolve a conflict.
 - **Independence is structural at the gate.** Every verdict comes from a separately dispatched reviewer with no `Edit`/`Write`, and every envelope is validated (`.sdlc/scripts/validate-review-envelope.mjs`). Step-level self-review is the deliberate exception, bought back in full here.
 - **Review of record is the LLM panel.** Humans gate the inputs (spec and guide) and merge the integration PR. See [roles.md](roles.md).
