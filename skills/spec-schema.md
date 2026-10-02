@@ -41,6 +41,7 @@ linear_project: PRJ-XYZ         # Linear project id, for bidirectional linking
 | `created` | yes | no | ISO date. |
 | `updated` | yes | yes | ISO date. Updated on every material change. |
 | `workspaces` | no | yes | Array of workspace names from `.sdlc/config.yaml` `workspaces`. Omit for single-app repos. Informs each guide step's `Workspace:`. |
+| `depends_on` | no | yes | Array of spec ids this spec builds on, such as `[SPEC-001]`. Each must resolve to a spec file. The reviewer reads them as `upstream_specs`, and the spec index records them so a downstream spec can be found. |
 | `integration_strategy` | — | — | **Retired by ADR-003.** The integration branch `feat/spec-NNN` is now unconditional: every spec cuts one, and nothing reaches `main` except by merging it. The field is ignored where it still appears on an older spec; `direct` mode no longer exists. |
 | `tags` | no | yes | Array of strings. |
 | `linear_project` | no | yes | Set when the Linear project is created. |

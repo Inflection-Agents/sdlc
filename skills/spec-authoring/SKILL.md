@@ -290,6 +290,17 @@ After Step 10 produces a draft the owner is broadly comfortable with, and BEFORE
 
 **Why this step exists (and why it does not replace Step 10):** The owner's walkthrough confirms intent and framing. The `spec-reviewer` checks the spec against the schema, the authoring conventions, the originating intent, ADRs, and upstream/downstream specs for the 9 gap categories enumerated in `spec-reviewer/SKILL.md`. The two are complementary: the owner catches "this is not what I meant"; the reviewer catches "this AC is untestable" or "this contradicts SPEC-042". Skipping either loses coverage.
 
+**Run the mechanical checks first.** Before every dispatch, round 1 and each later round, run:
+
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-spec specs/SPEC-NNN-<short-description>.md
+```
+
+Do not dispatch `spec-reviewer` until it exits `0`. It decides the defects a script can decide (a
+missing or empty required section, bad frontmatter, an unresolved ADR or `depends_on`, thin scope, a
+placeholder, sections out of order), so no reviewer round is spent on them. Fix what it reports and run
+it again; its findings use the review envelope and are never sent to the reviewer.
+
 **Dispatch, do not invoke.** Call the `Agent` tool with `subagent_type: spec-reviewer`.
 
 **Reviewers per round.** Round 1 dispatches two reviewers, `variant: "default"` and
