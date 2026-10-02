@@ -138,3 +138,14 @@ in chronological order.
 **Decided:** when the caller passes no move map, `scanRepo` reads the renames of the commit titled `sdlc: migrate to layout 2` in the branch's history. Tests and fixtures stay exempt from every form except that `'..'`-join check on a test that moved to a new depth.
 **Why:** the check then gives the same answer during `--apply` and on every later scan of the branch.
 **Reversal path:** pass moves explicitly and drop `movesFromHistory`.
+
+---
+
+## S6 — Migration, scan and released-payload manifest
+
+**Merged:** PR #65
+**What changed:** added `migrate-layout.mjs` (plugin-only), `scan-legacy-paths.mjs` (payload with a CI step), `gen-released-payloads.mjs` and `lib/released-payloads.json` (through `89cba06`, covering 0.1.0 to 0.3.0), and the map, rewrite and scan rules in `lib/legacy-map.mjs`. Added the `pluginInit030Repo` and `forkedHighGearRepo` fixtures.
+**Anything a later step must match:**
+- S9 and S10 must make every file the payload ships scan clean: script and hook comments, the contracts, the state machine's exit-condition text, and the templates. After that, SC-5's fresh-init scan reports 0 hits, and the AC-013 test drops its `shippedByPayload` filter.
+- S10's release commit regenerates `released-payloads.json`, which must then cover 0.4.0.
+- `migrate-layout.mjs` exports `planMigration`, `applyMigration`, `parseWorkspaceTables` and `cutDomainRouting`. `scan-legacy-paths.mjs` exports `scanRepo` and `movesFromHistory`. S7's probes use them.
