@@ -234,9 +234,9 @@ After self-review (Step 6b) and BEFORE presenting to the user in Step 7, DISPATC
 
 This is the mirror of the `spec-authoring` Phase 2 invocation (Step 10a there). The reviewer's output is informational; the owner remains the sign-off authority.
 
-**Dispatch, do not invoke.** Call the `Agent` tool with `subagent_type: spec-reviewer`. Both
-variants — `default` and `adversarial` — go in ONE message so they run concurrently against the
-amended spec.
+**Dispatch, do not invoke.** Call the `Agent` tool with `subagent_type: spec-reviewer`, with the
+number of reviewers and their variants per round exactly as `spec-authoring` Step 10a >
+**Reviewers per round** sets them, against the amended spec.
 
 **The authoring context must never grade its own amendment.** You made this amendment; findings you produce in
 this turn are a self-review wearing a reviewer's output format, and the two are byte-identical in
@@ -254,7 +254,7 @@ Seed each dispatch with these inputs (all paths concrete; do not invent them):
 - `upstream_specs`: every spec listed in this spec's `depends_on` (re-read post-amendment; amendments can change `depends_on`).
 - `downstream_specs`: every spec that declares this spec in its `depends_on` (use `specs/spec-index.json`). Downstream contradiction probing matters MORE on amendments than on first-draft specs — a contract that was honored at v1 can break at v2.
 - `previous_output`: if a prior `spec-reviewer` iteration on this spec is available (e.g., from the original `spec-authoring` Phase 2 invocation or a previous amendment), pass it so nit/suggestion findings on unchanged sections carry forward per the contract in `review-primitives.md`. On the first amendment this is `null`.
-- `variant`: omit (defaults to `"default"`).
+- `variant`: as `spec-authoring` Step 10a > **Reviewers per round** sets it for this round.
 
 **Present findings to the owner** alongside the amendment summary in Step 7. Render the JSON output as a graded list: blocker → major → nit → suggestion, with `criterion`, `location`, `finding`, and `suggested_fix`.
 

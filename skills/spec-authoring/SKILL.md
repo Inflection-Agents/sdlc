@@ -290,9 +290,13 @@ After Step 10 produces a draft the owner is broadly comfortable with, and BEFORE
 
 **Why this step exists (and why it does not replace Step 10):** The owner's walkthrough confirms intent and framing. The `spec-reviewer` checks the spec against the schema, the authoring conventions, the originating intent, ADRs, and upstream/downstream specs for the 9 gap categories enumerated in `spec-reviewer/SKILL.md`. The two are complementary: the owner catches "this is not what I meant"; the reviewer catches "this AC is untestable" or "this contradicts SPEC-042". Skipping either loses coverage.
 
-**Dispatch, do not invoke.** Call the `Agent` tool with `subagent_type: spec-reviewer`. Both
-variants — `default` and `adversarial` — go in ONE message so they run concurrently against the
-same draft.
+**Dispatch, do not invoke.** Call the `Agent` tool with `subagent_type: spec-reviewer`.
+
+**Reviewers per round.** Round 1 dispatches two reviewers, `variant: "default"` and
+`variant: "adversarial"`, in ONE message so they run concurrently against the same draft. Every later
+round dispatches one, `variant: "default"`. The one exception is the SPEC-001 AC-010 measurement
+protocol (`review-primitives.md` > Measurement protocol), which dispatches both variants in whichever
+round it runs against. This paragraph is the only statement of the rule; `spec-amendment` cites it.
 
 **The authoring context must never grade its own spec.** You wrote this; findings you produce in
 this turn are a self-review wearing a reviewer's output format, and the two are byte-identical in
@@ -309,7 +313,7 @@ Seed each dispatch with these inputs (all paths concrete; do not invent them):
 - `adrs`: every ADR file referenced in the spec's Design section, plus any existing ADR the design may contradict (use judgment; when uncertain, include the candidate).
 - `upstream_specs`: every spec listed in this spec's `depends_on` (none on a greenfield spec; include all if present).
 - `downstream_specs`: every spec that declares this spec in its `depends_on` (use `specs/spec-index.json` to find them).
-- `variant`: omit (defaults to `"default"`). The `"adversarial"` variant is reserved for the AC-010 measurement protocol.
+- `variant`: as **Reviewers per round** above sets it for this round.
 
 **Present findings to the owner.** The reviewer emits JSON per the shared envelope in [`review-primitives.md`](../review-primitives.md) > Output schema. Render the findings to the owner as a graded list: blocker → major → nit → suggestion, each with its `criterion` (the grounded citation), `location` (the spec section), `finding` (one sentence), and `suggested_fix` if present.
 
