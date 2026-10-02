@@ -1,6 +1,6 @@
 ---
 spec: SPEC-009
-spec_version: 1
+spec_version: 2
 ---
 
 ## Steps

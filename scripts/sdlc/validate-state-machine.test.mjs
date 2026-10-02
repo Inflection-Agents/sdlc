@@ -120,6 +120,13 @@ test("with no plugin installed, as in an adopter's CI, a name the repo lacks is 
         assert.equal(res.status, 0, res.stderr)
         assert.match(res.stdout, /no plugin installed, so these are not checked: spec-authoring/)
 
+        // A domain skill is the repo's own, so a misspelled one fails even with no plugin.
+        write(fx.root, '.sdlc/config.yaml', 'layout: 2\ndomain_routing:\n  web: [web-patterns, web-reviewr]\n')
+        const typo = spawnSync(process.execPath, [shipped, '--root', fx.root], { encoding: 'utf8', env })
+        assert.equal(typo.status, 1)
+        assert.match(typo.stderr, /domain skill 'web-reviewr' does not resolve/)
+        write(fx.root, '.sdlc/config.yaml', 'layout: 2\ndomain_routing:\n  web: [web-patterns]\n')
+
         // With a plugin that lacks the skill, the same name is an error.
         const plugin = join(fx.root, 'fake-plugin')
         write(plugin, 'skills/other/SKILL.md', '# other\n')

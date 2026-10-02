@@ -145,7 +145,7 @@ function matchAt(text, i, entries) {
         // `working-directory: .ai/sdlc`). Only a multi-segment directory, so the prose word
         // `templates` is never taken for the templates/ directory.
         const bare = e.kind === 'prefix' ? e.from.slice(0, -1) : null
-        if (bare?.includes('/') && text.startsWith(bare, i) && !PATH_CHAR.test(text[i + bare.length] ?? '')) {
+        if (bare?.includes('/') && text.startsWith(bare, i) && endsAtBoundary(text, i + bare.length) && text[i + bare.length] !== '/') {
             return { ...e, from: bare, to: e.to.slice(0, -1) }
         }
     }

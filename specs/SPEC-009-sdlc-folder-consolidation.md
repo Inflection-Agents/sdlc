@@ -2,12 +2,12 @@
 id: SPEC-009
 title: "One .sdlc/ folder: consolidate the adopter footprint and migrate existing repos on /sdlc-sync"
 status: active
-version: 1
+version: 2
 supersedes:
 initiative: INI-002
 owner: franklin
 created: 2026-10-01
-updated: 2026-10-01
+updated: 2026-10-02
 tags: [onboarding, install, layout, migration, sdlc-sync, sdlc-init]
 depends_on: []
 linear_project:
@@ -280,8 +280,10 @@ This replaces the `specs/` and `scripts/` check in the three hooks.
 
 Every validator takes `--root <dir>`, and the root defaults to `resolveRoot(process.cwd())`. The hooks
 import the resolver from the plugin's own `../scripts/sdlc/lib/`. `pre-tool-use-edit-write.mjs`
-imports `reviewer-routing.mjs` from `sdlcPaths(root).scripts`, where today it imports from
-`scripts/sdlc/` (`hooks/pre-tool-use-edit-write.mjs:127`). It also counts `.sdlc/` as a
+imports the plugin's own `reviewer-routing.mjs`, where today it imports from the repo's
+`scripts/sdlc/` (`hooks/pre-tool-use-edit-write.mjs:127`), so a plugin hook never runs code from the
+repo. A hook copy that `bootstrap.sh` installed into `.claude/hooks/` has no plugin beside it and
+imports the repo's copy from `sdlcPaths(root).scripts`. It also counts `.sdlc/` as a
 process-artifact path, except `.sdlc/scripts/`, which stays gated as code the way `scripts/sdlc/` is
 today (the list is at lines 214 to 222). When `user-prompt-submit.mjs` sees
 layout 1, it adds one line telling the user to run `/sdlc-sync`, once per session.
@@ -542,6 +544,13 @@ works. `probe-gates.mjs --root <dir> --rev <commit>` checks out the commit in a 
 runs the copy that the repo's own workflow `run:` line invokes. Each hook probe runs every wired hook:
 the plugin's (from its `hooks/hooks.json`) and every hook command in `.claude/settings.json`.
 
+The repo's own code (its `.claude/settings.json` hook commands and the validators its workflows
+name) runs only with `--repo-code`, because it runs with the developer's environment. For each
+probed revision, `probe-gates.mjs` prints the repo code it would run, read from that revision, and
+it lists every probe it held back under `not probed without --repo-code`. `/sdlc-sync` shows that
+list to the owner and runs the probes with `--repo-code` only after a yes. The report names any
+probe that stayed unprobed.
+
 | Probe | Planted violation | Caught when | Runs when |
 | --- | --- | --- | --- |
 | P1 | a guide step with no `Workspace:` | `validate-guide.mjs` exits 1 | workspaces are defined |
@@ -685,8 +694,8 @@ SC-5's `--no-allow` run keeps this list from hiding a layout-1 path in shipped c
   hooks runs without `CLAUDE_PROJECT_DIR`, then it binds to the repo root. Given a layout-1 repo, it
   binds as it does today. Verified by `node --test hooks/__tests__/project-root-resolution.test.mjs`.
 - [ ] AC-005: Given a layout-2 repo, when the edit-write hook sees an edit under `.sdlc/`, then it
-  classifies the edit as a process artifact, except under `.sdlc/scripts/`, which it gates as code. When it loads constraints, it imports
-  `reviewer-routing.mjs` from `sdlcPaths(root).scripts`.
+  classifies the edit as a process artifact, except under `.sdlc/scripts/`, which it gates as code. When it loads constraints from the plugin,
+  it imports the plugin's own `reviewer-routing.mjs` and never the repo's.
 - [ ] AC-006: Given a layout-1 repo, when the first prompt of a session is submitted, then
   `user-prompt-submit.mjs` adds one line telling the user to run `/sdlc-sync`, and it does not add
   the line again that session.
@@ -926,3 +935,12 @@ through the fallback until a later release removes it.
   (`hooks/stop-handoff.mjs:514`, `hooks/pre-tool-use-edit-write.mjs:127`) and would go silent on
   layout 2. Pinning back to `0.3.x` therefore also requires each migrated adopter to revert its
   migration merge first.
+
+## Changelog
+
+### v2 (2026-10-02)
+- **Breaking:** AC-005 and Design > The resolver. The plugin's edit hook imports the plugin's own `reviewer-routing.mjs`, not `sdlcPaths(root).scripts/reviewer-routing.mjs`. The integration panel's security review showed that the old import let any repo with a `.sdlc/config.yaml` run its own JavaScript inside a plugin hook (PR #71, round 1). A hook that `bootstrap.sh` installed into `.claude/hooks/` keeps using the repo's copy.
+- **Breaking:** Design > Gate probes. The repo's own hooks and validators run only with `--repo-code` after the owner agrees. Each revision prints what it would run, and the probes that were held back are listed (PR #71, rounds 1 and 2).
+
+### v1 (2026-10-01)
+- Initial spec.

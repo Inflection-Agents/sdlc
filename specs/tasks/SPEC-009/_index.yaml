@@ -6,9 +6,10 @@ updated: 2026-10-01
 # Plan-review verdict (ADR-002). The owner sets approved: true in the same sign-off that makes
 # SPEC-009 active.
 plan_review:
+  # Spec v2 (a breaking amendment at the integration gate) waits for the owner's approval.
   status: approve-ready
-  approved: true
-  reviewed: 2026-10-01
+  approved: false
+  reviewed: 2026-10-02
 
 steps:
   - id: S1

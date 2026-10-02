@@ -19,11 +19,12 @@
  * | P8 | a superseded-ADR citation in an always-loaded `.sdlc/` file | check-stale-citations exits 1 |
  *
  * Usage (plugin-only):
- *   node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/probe-gates.mjs --root . --rev <commit> [--json] [--local-hooks]
- *   node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/probe-gates.mjs --root . --before <commit> --after <commit> [--local-hooks]
+ *   node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/probe-gates.mjs --root . --rev <commit> [--json] [--repo-code]
+ *   node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/probe-gates.mjs --root . --before <commit> --after <commit> [--repo-code]
  *
- * The plugin's hooks are always probed. The repo's own hooks, commands from its
- * .claude/settings.json, run only with --local-hooks; each one is printed first.
+ * The plugin's hooks are always probed. The repo's own code (the hook commands in its
+ * .claude/settings.json and the validators its workflows run) runs only with --repo-code;
+ * each item is printed for every probed revision, and probes held back are listed.
  *
  * With --before/--after it exits 1 when a probe that caught before no longer catches after
  * (P1 to P5), or when P6 to P8 fail on the after commit; otherwise 0.
@@ -61,7 +62,7 @@ export function workflowCopy(root, script) {
         for (const f of readdirSync(dir)) {
             const text = readFileSync(join(dir, f), 'utf8')
             const m = text.match(new RegExp(`node\\s+(?:--test\\s+)?([\\w./-]*/${script.replace('.', '\\.')})`))
-            if (m && existsSync(join(root, m[1]))) return join(root, m[1])
+            if (m && isInside(root, m[1]) && existsSync(join(root, m[1]))) return join(root, m[1])
         }
     }
     const fallback = join(sdlcPaths(root, { quiet: true }).scripts, script)
@@ -96,13 +97,34 @@ export function wiredHooks(root, event, matcher = null) {
     return out
 }
 
-// The repo's own hooks are commands from its .claude/settings.json, run through a shell with
-// the developer's environment. They run only when the caller passes --local-hooks.
-let runLocalHooks = false
+// The repo's own code, its .claude/settings.json hook commands and the validators its
+// workflows run, executes with the developer's environment. It runs only when the caller
+// passes --repo-code, and each item is printed for the probed revision first, so what the
+// owner approves is what runs.
+let runRepoCode = false
+let revLabel = ''
+const noted = new Set()
 
-/** The hooks a probe may run: the plugin's always, the repo's only on request. */
+function note(kind, what) {
+    const line = `${revLabel}: ${runRepoCode ? 'running' : 'skipping (pass --repo-code to run)'} the repo's ${kind}: ${what}`
+    if (!noted.has(line)) process.stderr.write(`${line}\n`)
+    noted.add(line)
+}
+
+/** The hooks a probe may run, and whether any of the repo's were held back. */
 function probedHooks(root, event, matcher) {
-    return wiredHooks(root, event, matcher).filter((h) => h.source === 'plugin' || runLocalHooks)
+    const all = wiredHooks(root, event, matcher)
+    for (const h of all) if (h.source === 'local') note('hook', h.command)
+    const hooks = all.filter((h) => h.source === 'plugin' || runRepoCode)
+    return { hooks, skipped: all.length - hooks.length }
+}
+
+/** The repo's validator a probe runs, or why it is not run. */
+function repoValidator(root, script) {
+    const file = workflowCopy(root, script)
+    if (!file) return { skip: `no ${script} copy` }
+    note('validator', relTo(root, file))
+    return runRepoCode ? { file } : { skip: `${relTo(root, file)} not run (pass --repo-code)` }
 }
 
 function runHook(root, command, payload, env = {}) {
@@ -141,8 +163,8 @@ function hookVerdicts(results) {
 
 function p1(root) {
     if (!definesWorkspaces(root)) return { ran: false, detail: 'no workspaces defined' }
-    const validator = workflowCopy(root, 'validate-guide.mjs')
-    if (!validator) return { ran: false, detail: 'no validate-guide.mjs copy' }
+    const { file: validator, skip } = repoValidator(root, 'validate-guide.mjs')
+    if (!validator) return { ran: false, detail: skip }
     const specs = sdlcPaths(root, { quiet: true }).specs
     const rel = (p) => relTo(root, p)
     write(root, `${rel(specs)}/${PROBE_SPEC}-probe.md`, `---\nid: ${PROBE_SPEC}\nstatus: active\nversion: 1\n---\n\n## Acceptance criteria\n\n- [ ] AC-001: probe\n`)
@@ -161,13 +183,13 @@ function p2(root) {
     }
     const [ws, chain] = Object.entries(routing).find(([, c]) => Array.isArray(c) && c.length) ?? []
     if (!ws) return { ran: false, detail: 'domain_routing is empty' }
-    const hooks = probedHooks(root, 'UserPromptSubmit')
-    if (!hooks.length) return { ran: false, detail: 'no UserPromptSubmit hook wired' }
+    const { hooks, skipped } = probedHooks(root, 'UserPromptSubmit')
+    if (!hooks.length) return { ran: false, detail: skipped ? "the repo's hooks not run (pass --repo-code)" : 'no UserPromptSubmit hook wired' }
     const results = hooks.map((h) => ({
         ...h,
         caught: runHook(root, h.command, { prompt: `please change ${ws}/src/probe.ts`, session_id: 'sdlc-probe', cwd: root }).includes(chain[0]),
     }))
-    return { ran: true, caught: results.every((r) => r.caught), detail: hookVerdicts(results) }
+    return { ran: true, caught: results.every((r) => r.caught), detail: `${hookVerdicts(results)}${skipped ? ' local:skipped' : ''}` }
 }
 
 function p3(root) {
@@ -197,11 +219,11 @@ function p3(root) {
         pick = planted
         write(root, pick.file, '// probe\n')
     }
-    const hooks = probedHooks(root, 'PreToolUse', 'Edit')
-    if (!hooks.length) return { ran: false, detail: 'no edit hook wired' }
+    const { hooks, skipped } = probedHooks(root, 'PreToolUse', 'Edit')
+    if (!hooks.length) return { ran: false, detail: skipped ? "the repo's hooks not run (pass --repo-code)" : 'no edit hook wired' }
     const payload = { tool_name: 'Edit', tool_input: { file_path: join(root, pick.file) }, session_id: 'sdlc-probe', cwd: root }
     const results = hooks.map((h) => ({ ...h, caught: runHook(root, h.command, payload).includes(pick.row.id) }))
-    return { ran: true, caught: results.every((r) => r.caught), detail: `${pick.row.id} on ${pick.file}: ${hookVerdicts(results)}` }
+    return { ran: true, caught: results.every((r) => r.caught), detail: `${pick.row.id} on ${pick.file}: ${hookVerdicts(results)}${skipped ? ' local:skipped' : ''}` }
 }
 
 function p4(root) {
@@ -216,8 +238,8 @@ function p4(root) {
 }
 
 function p5(root) {
-    const validator = workflowCopy(root, 'validate-state-machine.mjs')
-    if (!validator) return { ran: false, detail: 'no validate-state-machine.mjs copy' }
+    const { file: validator, skip } = repoValidator(root, 'validate-state-machine.mjs')
+    if (!validator) return { ran: false, detail: skip }
     const paths = sdlcPaths(root, { quiet: true })
     const skills = paths.skills ?? join(root, 'skills')
     const name = 'sdlc-probe-unregistered'
@@ -308,8 +330,8 @@ function p8(root) {
               .find(([id, s]) => id && s)?.[0]
         : null
     if (!superseded) return { ran: false, detail: 'no superseded ADR' }
-    const checker = workflowCopy(root, 'check-stale-citations.mjs')
-    if (!checker) return { ran: false, detail: 'no check-stale-citations.mjs copy' }
+    const { file: checker, skip } = repoValidator(root, 'check-stale-citations.mjs')
+    if (!checker) return { ran: false, detail: skip }
     write(root, '.sdlc/agents/sdlc-probe.md', `Per ${superseded}, do the thing.\n`)
     const r = runNode(root, checker, [])
     return { ran: true, caught: r.status === 1, detail: relTo(root, checker) }
@@ -318,8 +340,9 @@ function p8(root) {
 export const PROBES = { P1: p1, P2: p2, P3: p3, P4: p4, P5: p5, P6: p6, P7: p7, P8: p8 }
 
 /** Run every probe against `rev` in a throwaway worktree of `root`; the worktree and its branch are always removed. */
-export function probeRev(root, rev, { localHooks = false } = {}) {
-    runLocalHooks = localHooks
+export function probeRev(root, rev, { repoCode = false } = {}) {
+    runRepoCode = repoCode
+    revLabel = `${rev} (${git(root, ['rev-parse', '--short', rev]).trim()})`
     const dir = realpathSync(mkdtempSync(join(tmpdir(), 'sdlc-probe-')))
     const branch = `claude/${PROBE_SPEC}-probe-${process.pid}-${Date.now()}`
     rmSync(dir, { recursive: true, force: true })
@@ -368,25 +391,30 @@ export function compare(before, after) {
 function main(argv) {
     const { root, rest } = takeRootArg(argv)
     const arg = (name) => rest[rest.indexOf(name) + 1]
-    const localHooks = rest.includes('--local-hooks')
-    const local = [...wiredHooks(root, 'UserPromptSubmit'), ...wiredHooks(root, 'PreToolUse', 'Edit')].filter((h) => h.source === 'local')
-    for (const h of local) {
-        process.stderr.write(`${localHooks ? 'running' : 'skipping (pass --local-hooks to run)'} the repo's hook: ${h.command}\n`)
+    const repoCode = rest.includes('--repo-code')
+    // What the run could not show, so a green comparison is not read as full coverage.
+    const unprobed = (results) =>
+        results.filter((r) => (!r.ran && /--repo-code/.test(r.detail ?? '')) || /local:skipped/.test(r.detail ?? '')).map((r) => r.id)
+    const sayUnprobed = (ids) => {
+        if (ids.length) process.stderr.write(`not probed without --repo-code: ${[...new Set(ids)].join(', ')}\n`)
     }
     if (rest.includes('--before')) {
-        const before = probeRev(root, arg('--before'), { localHooks })
-        const after = probeRev(root, arg('--after') ?? 'HEAD', { localHooks })
+        const before = probeRev(root, arg('--before'), { repoCode })
+        const after = probeRev(root, arg('--after') ?? 'HEAD', { repoCode })
         const problems = compare(before, after)
-        process.stdout.write(`${JSON.stringify({ before, after, problems }, null, 2)}\n`)
+        const skipped = [...unprobed(before), ...unprobed(after)]
+        process.stdout.write(`${JSON.stringify({ before, after, problems, repo_code: repoCode, unprobed: [...new Set(skipped)] }, null, 2)}\n`)
+        sayUnprobed(skipped)
         if (problems.length) {
             process.stderr.write(`gate probes regressed:\n  ${problems.join('\n  ')}\n`)
             process.exit(1)
         }
         return
     }
-    const results = probeRev(root, arg('--rev') ?? 'HEAD', { localHooks })
+    const results = probeRev(root, arg('--rev') ?? 'HEAD', { repoCode })
     if (rest.includes('--json')) process.stdout.write(`${JSON.stringify(results, null, 2)}\n`)
     else for (const r of results) process.stdout.write(`${r.id}  ${r.ran ? (r.caught ? 'caught' : 'MISSED') : 'not run'}  ${r.detail ?? ''}\n`)
+    sayUnprobed(unprobed(results))
 }
 
 function isMain(metaUrl) {

@@ -15,7 +15,7 @@
  */
 import { spawnSync } from 'node:child_process'
 import { existsSync, realpathSync } from 'node:fs'
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
@@ -59,9 +59,14 @@ function main(argv) {
     const finalArgs = hit.fallback ? ['--root', root, ...rest] : rest
     // Relative arguments mean what they meant to the caller, so the caller's directory is
     // kept when it is inside the repo.
-    const here = process.cwd()
-    const cwd = relative(root, here).startsWith('..') || isAbsolute(relative(root, here)) ? root : here
-    const result = spawnSync(process.execPath, [hit.file, ...finalArgs], { cwd, stdio: 'inherit' })
+    const here = realpathSync(process.cwd())
+    const top = realpathSync(root)
+    const r = relative(top, here)
+    const cwd = r === '..' || r.startsWith(`..${sep}`) || isAbsolute(r) ? root : here
+    // CLAUDE_PROJECT_DIR wins in every resolver, so the child gets the root chosen here, or a
+    // repo copy run with --root stripped would grade the session's repo instead.
+    const env = { ...process.env, CLAUDE_PROJECT_DIR: root }
+    const result = spawnSync(process.execPath, [hit.file, ...finalArgs], { cwd, env, stdio: 'inherit' })
     if (result.error) throw result.error
     process.exit(result.status ?? 1)
 }

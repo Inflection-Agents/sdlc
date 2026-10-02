@@ -114,12 +114,15 @@ test('probes plant nothing outside the worktree, through a glob or a tracked sym
         assert.deepEqual(readdirSync(v.victim), ['keep.txt'])
         const p3 = results.find((r) => r.id === 'P3')
         assert.equal(p3.ran, false, p3.detail)
+        const p4 = results.find((r) => r.id === 'P4')
+        assert.equal(p4.ran, false, p4.detail)
+        assert.match(p4.detail, /refusing to write/)
     } finally {
         v.cleanup()
     }
 })
 
-test("probes run the repo's own settings.json hooks only with localHooks", () => {
+test("probes run the repo's own settings.json hooks only with repoCode", () => {
     const v = besideVictim()
     try {
         write(v.repo, '.sdlc/config.yaml', 'layout: 2\ndomain_routing:\n  apps/web: [react-skill]\n')
@@ -129,7 +132,7 @@ test("probes run the repo's own settings.json hooks only with localHooks", () =>
         commitAll(v.repo)
         probeRev(v.repo, 'HEAD')
         assert.equal(existsSync(join(v.victim, 'ran')), false)
-        probeRev(v.repo, 'HEAD', { localHooks: true })
+        probeRev(v.repo, 'HEAD', { repoCode: true })
         assert.equal(existsSync(join(v.victim, 'ran')), true)
     } finally {
         v.cleanup()
@@ -151,6 +154,65 @@ test("the plugin's edit hook never imports the repo's reviewer-routing.mjs", () 
         const payload = { tool_name: 'Edit', tool_input: { file_path: join(v.repo, 'src', 'a.ts') }, session_id: 's1', cwd: v.repo }
         spawnSync(process.execPath, [hook], { input: JSON.stringify(payload), encoding: 'utf8', env: { ...process.env, CLAUDE_PROJECT_DIR: v.repo } })
         assert.equal(existsSync(join(v.victim, 'ran')), false)
+    } finally {
+        v.cleanup()
+    }
+})
+
+test("without repoCode a probe never runs the repo's own validator", () => {
+    const v = besideVictim()
+    try {
+        write(v.repo, '.sdlc/config.yaml', 'layout: 2\nworkspaces:\n  - name: web\n    path: apps/web\n')
+        write(v.repo, '.sdlc/scripts/validate-guide.mjs', `import { writeFileSync } from 'node:fs'\nwriteFileSync(${JSON.stringify(join(v.victim, 'ran'))}, 'x')\n`)
+        write(v.repo, 'apps/web/.gitkeep', '')
+        write(v.repo, 'specs/.gitkeep', '')
+        commitAll(v.repo)
+        const p1 = probeRev(v.repo, 'HEAD').find((r) => r.id === 'P1')
+        assert.equal(existsSync(join(v.victim, 'ran')), false)
+        assert.equal(p1.ran, false)
+        assert.match(p1.detail, /--repo-code/)
+    } finally {
+        v.cleanup()
+    }
+})
+
+test('each probed revision prints the repo commands it would run, and the probes held back', () => {
+    const v = besideVictim()
+    try {
+        const settings = (cmd) => JSON.stringify({ hooks: { UserPromptSubmit: [{ hooks: [{ type: 'command', command: cmd }] }] } })
+        write(v.repo, '.sdlc/config.yaml', 'layout: 2\ndomain_routing:\n  apps/web: [react-skill]\n')
+        write(v.repo, '.sdlc/state-machine.yaml', 'version: 1\nphases: []\n')
+        write(v.repo, '.claude/settings.json', settings('echo from-the-old-commit'))
+        write(v.repo, 'specs/.gitkeep', '')
+        commitAll(v.repo)
+        write(v.repo, '.claude/settings.json', settings('echo from-the-new-commit'))
+        git(v.repo, 'commit', '-qam', 'new hook')
+        const env = { ...process.env }
+        delete env.CLAUDE_PROJECT_DIR
+        delete env.CLAUDE_PLUGIN_ROOT
+        const res = spawnSync(process.execPath, [join(HERE, 'probe-gates.mjs'), '--root', v.repo, '--before', 'HEAD~1', '--after', 'HEAD'], { encoding: 'utf8', env })
+        assert.match(res.stderr, /HEAD~1 \(\w+\): skipping \(pass --repo-code to run\) the repo's hook: echo from-the-old-commit/)
+        assert.match(res.stderr, /HEAD \(\w+\): skipping \(pass --repo-code to run\) the repo's hook: echo from-the-new-commit/)
+        assert.match(res.stderr, /not probed without --repo-code: P2/)
+        assert.deepEqual(JSON.parse(res.stdout).unprobed, ['P2'])
+    } finally {
+        v.cleanup()
+    }
+})
+
+test('the sync refresh refuses, and exits 1, when a tracked .sdlc/scripts links out of the repo', () => {
+    const v = besideVictim()
+    try {
+        write(v.repo, '.sdlc/config.yaml', 'layout: 2\nframework_version: 0.3.0\n')
+        write(v.repo, 'specs/.gitkeep', '')
+        symlinkSync(v.victim, join(v.repo, '.sdlc', 'scripts'))
+        commitAll(v.repo)
+        assert.throws(() => applyRefresh(v.repo, planRefresh(v.repo), { version: '0.4.0' }), /resolves outside/)
+        const env = { ...process.env }
+        delete env.CLAUDE_PROJECT_DIR
+        const res = spawnSync(process.execPath, [join(HERE, 'sync-refresh.mjs'), '--root', v.repo, '--apply'], { encoding: 'utf8', env })
+        assert.equal(res.status, 1)
+        assert.deepEqual(readdirSync(v.victim), [])
     } finally {
         v.cleanup()
     }

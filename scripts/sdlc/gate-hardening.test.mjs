@@ -45,9 +45,9 @@ test('a CLAUDE_PROJECT_DIR naming the main checkout does not change what the pro
         spawnSync(process.execPath, [MIGRATE, '--root', fx.root, '--apply'], { env, encoding: 'utf8' })
         delete process.env.CLAUDE_PROJECT_DIR
         const brief = (rs) => rs.map((r) => `${r.id}:${r.ran}:${r.caught}`)
-        const clean = brief(probeRev(fx.root, 'HEAD', { localHooks: true }))
+        const clean = brief(probeRev(fx.root, 'HEAD', { repoCode: true }))
         process.env.CLAUDE_PROJECT_DIR = fx.root
-        assert.deepEqual(brief(probeRev(fx.root, 'HEAD', { localHooks: true })), clean)
+        assert.deepEqual(brief(probeRev(fx.root, 'HEAD', { repoCode: true })), clean)
         assert.ok(clean.includes('P5:true:true'), clean.join(' '))
     } finally {
         if (prior === undefined) delete process.env.CLAUDE_PROJECT_DIR

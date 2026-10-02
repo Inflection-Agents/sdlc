@@ -106,26 +106,31 @@ BEFORE=$(git rev-parse HEAD)
     ```
 
     Each probe plants a violation and checks the gate still catches it. Exit 1 names the
-    probe that regressed, so fix the reader behind it and go back to step 4. The run probes
-    the plugin's hooks and prints each of the repo's own hook commands from
-    `.claude/settings.json` without running it. Those commands run in a shell with the
-    developer's environment, so show them to the owner, and add `--local-hooks` only after a
-    yes.
+    probe that regressed, so fix the reader behind it and go back to step 4. The first run
+    probes only the plugin's hooks and validators. For each probed revision it prints the
+    repo's own code it would run: the hook commands in `.claude/settings.json` and the
+    validators its workflows name. These run with the developer's environment, so show the
+    list to the owner and, on a yes, run again with `--repo-code`. Without that yes, the
+    probes it lists under `not probed without --repo-code` are unverified, and the report
+    says so.
 
-6. **The gates.** For each workflow step that calls an SDLC script, run only its
-   `node <SDLC script>` lines, never the step's other commands, on `$BEFORE` and on the
-   branch tip, and compare the exit codes. List the exact commands for the owner before
-   running any; a step that mixes a validator with a deploy or publish command runs the
-   validator line alone. A step that only computes scope runs for real, with its
-   changed-file input set to `git ls-files` and `$GITHUB_OUTPUT` pointed at a temp file. Its
-   boolean outputs are then forced to `true`, so every scoped gate runs. Use the same
-   substitution on both commits.
+6. **The gates.** List, for the owner, the exact commands this step will run, and run
+   them only after a yes. For each workflow step that calls an SDLC script, that is its
+   `node <SDLC script>` invocation alone, up to the end of the node command, with no
+   chained `&&`, `;` or `|` command after it. A step that only computes scope is listed in
+   full, because it runs as written: its changed-file input is `git ls-files`,
+   `$GITHUB_OUTPUT` points at a temp file, and its boolean outputs are then forced to
+   `true`, so every scoped gate runs. Run all of it on `$BEFORE` and on the branch tip with
+   the same substitution, and compare the exit codes.
 
 7. **Report.** List what moved, what was appended to the root files, the framework files
    replaced and the modified ones kept, the shadowed skills, the double-wired hooks, and the
    unrecognized files left in place. The branch is ready to merge when the scan exits 0,
    the probes report no regression, and the gates give the same result as on `$BEFORE`.
    Hand the branch to the owner. You do not merge it.
+
+   Also list every probe that step 5 printed under `not probed without --repo-code`,
+   because the owner's merge decision has to see which readers went unprobed.
 
 **Rollback.** Before the merge, delete `chore/sdlc-layout-v2`. After the merge, revert the
 merge, which undoes the migration and every fix commit together. A repo reverted to layout 1

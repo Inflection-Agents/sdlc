@@ -4,7 +4,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { readdirSync, readFileSync } from 'node:fs'
+import { cpSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -12,6 +12,14 @@ import { fileURLToPath } from 'node:url'
 import { layout1Repo, layout2Repo, write } from './__fixtures__/layouts/build.mjs'
 
 const RUN = fileURLToPath(new URL('./run.mjs', import.meta.url))
+
+const HERE = fileURLToPath(new URL('.', import.meta.url))
+
+function runIn(cwd, extraEnv, ...args) {
+    const env = { ...process.env, ...extraEnv }
+    delete env.CLAUDE_PLUGIN_ROOT
+    return spawnSync(process.execPath, [RUN, ...args], { cwd, encoding: 'utf8', env })
+}
 
 function run(cwd, ...args) {
     const env = { ...process.env }
@@ -54,13 +62,22 @@ test('a --root given from another directory picks that repo, for the fallback an
     const l2 = layout2Repo()
     const l1 = layout1Repo()
     try {
-        // Dropping the forwarded --root makes the plugin's copy grade the cwd, which has no config.
-        const fallback = run(tmpdir(), 'validate-sdlc-config', '--root', l2.root)
-        assert.equal(fallback.status, 0, fallback.stderr)
-        assert.match(fallback.stdout, /config\.yaml OK/)
-        write(l1.root, 'scripts/sdlc/probe-exit.mjs', 'process.exit(7)\n')
-        const own = run(tmpdir(), 'probe-exit', '--root', l1.root)
-        assert.equal(own.status, 7, own.stderr)
+        // A session's CLAUDE_PROJECT_DIR names another repo, and the cwd is inside that repo too,
+        // so only the forwarded --root, or the child's env, can pick l2.
+        const elsewhere = layout1Repo()
+        try {
+            const fallback = runIn(elsewhere.root, { CLAUDE_PROJECT_DIR: elsewhere.root }, 'validate-sdlc-config', '--root', l2.root)
+            assert.equal(fallback.status, 0, fallback.stderr)
+            assert.match(fallback.stdout, /config\.yaml OK/)
+            write(l1.root, 'scripts/sdlc/whoami.mjs', "import { resolveRoot } from './lib/sdlc-paths.mjs'\nconsole.log(resolveRoot())\n")
+            write(l1.root, 'scripts/sdlc/lib/sdlc-paths.mjs', readFileSync(join(HERE, 'lib', 'sdlc-paths.mjs'), 'utf8'))
+            for (const f of ['legacy-map.mjs', 'mini-yaml.mjs']) write(l1.root, `scripts/sdlc/lib/${f}`, readFileSync(join(HERE, 'lib', f), 'utf8'))
+            const own = runIn(elsewhere.root, { CLAUDE_PROJECT_DIR: elsewhere.root }, 'whoami', '--root', l1.root)
+            assert.equal(own.status, 0, own.stderr)
+            assert.equal(realpathSync(own.stdout.trim()), realpathSync(l1.root), 'the repo copy resolves the --root repo')
+        } finally {
+            elsewhere.cleanup()
+        }
     } finally {
         l2.cleanup()
         l1.cleanup()
@@ -115,4 +132,40 @@ test('every script command a skill or agent gives uses run.mjs, or names a plugi
         }
     }
     assert.deepEqual(wrong, [])
+})
+
+test("the plugin's copy is given --root <repo> on fallback (AC-020)", () => {
+    // A runner in a scratch plugin whose only extra script prints its argv.
+    const plugin = mkdtempSync(join(tmpdir(), 'sdlc-plugin-'))
+    const fx = layout2Repo()
+    try {
+        cpSync(join(HERE, 'run.mjs'), join(plugin, 'scripts', 'sdlc', 'run.mjs'), { recursive: true })
+        cpSync(join(HERE, 'lib'), join(plugin, 'scripts', 'sdlc', 'lib'), { recursive: true })
+        write(plugin, 'scripts/sdlc/argv.mjs', 'console.log(JSON.stringify(process.argv.slice(2)))\n')
+        const env = { ...process.env }
+        delete env.CLAUDE_PROJECT_DIR
+        delete env.CLAUDE_PLUGIN_ROOT
+        const res = spawnSync(process.execPath, [join(plugin, 'scripts', 'sdlc', 'run.mjs'), 'argv', 'x'], { cwd: fx.root, encoding: 'utf8', env })
+        assert.equal(res.status, 0, res.stderr)
+        const [flag, dir, ...rest] = JSON.parse(res.stdout)
+        assert.equal(flag, '--root')
+        assert.equal(realpathSync(dir), realpathSync(fx.root))
+        assert.deepEqual(rest, ['x'])
+    } finally {
+        rmSync(plugin, { recursive: true, force: true })
+        fx.cleanup()
+    }
+})
+
+test("run.mjs keeps the caller's directory when it is inside the repo", () => {
+    const fx = layout2Repo()
+    try {
+        write(fx.root, '.sdlc/scripts/pwd.mjs', 'console.log(process.cwd())\n')
+        write(fx.root, 'specs/tasks/.keep', '')
+        const res = run(join(fx.root, 'specs', 'tasks'), 'pwd')
+        assert.equal(res.status, 0, res.stderr)
+        assert.equal(realpathSync(res.stdout.trim()), realpathSync(join(fx.root, 'specs', 'tasks')))
+    } finally {
+        fx.cleanup()
+    }
 })
