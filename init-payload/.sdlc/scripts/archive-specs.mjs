@@ -25,7 +25,7 @@
  */
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
-import { basename, dirname, join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { LAYOUT1 } from './lib/legacy-map.mjs'
@@ -255,12 +255,20 @@ function sidecars(id) {
 /**
  * Sidecars on the wrong side of the boundary, given which ids end up archived. A spec's
  * ledger and log follow it, so the live corpus never keeps either for an archived spec.
- * Returns [from, to] moves.
+ * Returns `{ id, from, to }` moves.
  */
 function misplacedSidecars(archivedIds, liveIds) {
     const moves = []
-    for (const id of archivedIds) for (const [live, arch] of sidecars(id)) if (existsSync(live)) moves.push([live, arch])
-    for (const id of liveIds) for (const [live, arch] of sidecars(id)) if (existsSync(arch)) moves.push([arch, live])
+    for (const id of archivedIds) {
+        for (const [live, arch] of sidecars(id)) {
+            if (existsSync(live)) moves.push({ id, from: live, to: arch })
+        }
+    }
+    for (const id of liveIds) {
+        for (const [live, arch] of sidecars(id)) {
+            if (existsSync(arch)) moves.push({ id, from: arch, to: live })
+        }
+    }
     return moves
 }
 
@@ -288,8 +296,8 @@ function main(argv) {
             ...toArchive.map((s) => `misplaced (should be archived): specs/${s.file} [${s.status}]`),
             ...toRestore.map((s) => `misplaced (should be live): specs/archive/specs/${s.file} [${s.status}]`),
             ...sidecarMoves
-                .filter(([from]) => !moving.has(basename(from).replace(/\.(md|json)$/, '')))
-                .map(([from, to]) => `misplaced (should be at ${rel(to)}): ${rel(from)}`)
+                .filter(({ id }) => !moving.has(id))
+                .map(({ from, to }) => `misplaced (should be at ${rel(to)}): ${rel(from)}`)
         ]
         if (problems.length) {
             process.stderr.write(
@@ -320,7 +328,7 @@ function main(argv) {
         if (existsSync(tasks)) move(tasks, tasksTarget)
     }
 
-    for (const [from, to] of sidecarMoves) {
+    for (const { from, to } of sidecarMoves) {
         if (dryRun) process.stdout.write(`move     ${rel(from)} -> ${rel(to)}\n`)
         else move(from, to)
     }

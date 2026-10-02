@@ -86,6 +86,12 @@ function sectionName(heading) {
     return heading.replace(/^##\s+/, '').replace(/\s+\(.*\)\s*$/, '').trim()
 }
 
+/** The exact heading text a section opens with, qualifier included, for sectionLines. */
+function headingFor(lines, name) {
+    const h = lines.find((l) => /^## /.test(l.text) && sectionName(l.text) === name)
+    return h ? h.text.replace(/^##\s+/, '').trimEnd() : name
+}
+
 const nonEmpty = (lines) => (lines ?? []).some((l) => l.trim() !== '' && !/^#{3,}\s/.test(l))
 
 /** List items (`- `, `* `, `+ `, `1. `) at any indent within a subsection. */
@@ -125,10 +131,11 @@ export function checkSpec(text, { root, resolveId = (id) => findById(id, root).l
 
     // Section presence and order.
     const lines = bodyLines(text)
+    const section = (name) => sectionLines(text, headingFor(lines, name))
     const headings = lines.filter((l) => /^## /.test(l.text)).map((l) => sectionName(l.text))
     for (const name of REQUIRED_SECTIONS) {
         if (!headings.includes(name)) add('blocker', `spec-schema:${name}`, name, `Required section \`## ${name}\` is missing.`)
-        else if (!nonEmpty(sectionLines(text, headingFor(text, name)))) add('blocker', `spec-schema:${name}`, name, `Required section \`## ${name}\` is empty.`)
+        else if (!nonEmpty(section(name))) add('blocker', `spec-schema:${name}`, name, `Required section \`## ${name}\` is empty.`)
     }
     const required = headings.filter((h) => REQUIRED_SECTIONS.includes(h))
     if (required.join('\n') !== REQUIRED_SECTIONS.filter((n) => required.includes(n)).join('\n')) {
@@ -142,7 +149,7 @@ export function checkSpec(text, { root, resolveId = (id) => findById(id, root).l
     }
 
     // Scope.
-    const scope = sectionLines(text, headingFor(text, 'Scope'))
+    const scope = section('Scope')
     if (scope) {
         const inScope = subsectionItems(scope, 'In scope')
         const outScope = subsectionItems(scope, 'Out of scope')
@@ -152,7 +159,7 @@ export function checkSpec(text, { root, resolveId = (id) => findById(id, root).l
 
     // Workspaces named by an acceptance criterion.
     const workspaces = parseList(fm.workspaces) ?? []
-    const acText = (sectionLines(text, headingFor(text, 'Acceptance criteria')) ?? []).join('\n')
+    const acText = (section('Acceptance criteria') ?? []).join('\n')
     for (const ws of workspaces) {
         if (!new RegExp(`(^|[^\\w-])${ws.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^\\w-]|$)`).test(acText)) {
             add('major', 'monorepo:workspaces', 'Acceptance criteria', `Workspace \`${ws}\` is declared in frontmatter but no acceptance criterion names it.`)
@@ -174,12 +181,6 @@ export function checkSpec(text, { root, resolveId = (id) => findById(id, root).l
         if (!resolveId(id)) add('blocker', 'spec-schema:depends_on', 'frontmatter > depends_on', `\`depends_on\` names ${id}, which no file resolves.`)
     }
     return findings
-}
-
-/** The exact heading text a section opens with, qualifier included, for sectionLines. */
-function headingFor(text, name) {
-    const h = bodyLines(text).find((l) => /^## /.test(l.text) && sectionName(l.text) === name)
-    return h ? h.text.replace(/^##\s+/, '').trimEnd() : name
 }
 
 export function envelope(specId, findings) {

@@ -260,6 +260,7 @@ function main() {
     const rest = takeRootArg(process.argv.slice(2)).rest
     const stamp = rest.includes('--stamp')
     const [arg] = rest.filter((a) => a !== '--stamp')
+    const fromStdin = !arg || arg === '-'
     let env
     try {
         env = JSON.parse(readInput(arg))
@@ -275,7 +276,7 @@ function main() {
     if (stamp) {
         env = stampEnvelope(env)
         const text = `${JSON.stringify(env, null, 2)}\n`
-        if (!arg || arg === '-') process.stdout.write(text)
+        if (fromStdin) process.stdout.write(text)
         else writeFileSync(arg, text, 'utf8')
     }
 
@@ -306,7 +307,7 @@ function main() {
     }
     const n = env.findings.length
     // With --stamp on stdin, stdout carries the stamped envelope, so the verdict goes to stderr.
-    const say = stamp && (!arg || arg === '-') ? console.error : console.log
+    const say = stamp && fromStdin ? console.error : console.log
     say(`✓ envelope valid (assessed, ${n} finding${n === 1 ? '' : 's'}) — fold via the severity→action policy.`)
     process.exit(EXIT_VALID)
 }

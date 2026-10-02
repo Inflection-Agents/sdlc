@@ -35,7 +35,11 @@ function records(dirs, prefix) {
         .flatMap((d) => readdirSync(d).filter((f) => re.test(f)).map((f) => join(d, f)))
 }
 
-const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+function byId(a, b) {
+    if (a.id < b.id) return -1
+    if (a.id > b.id) return 1
+    return 0
+}
 const orNull = (v) => (v === undefined || v === '' ? null : v)
 const list = (v) => parseList(v) ?? []
 
@@ -44,11 +48,13 @@ export function buildIndex(root) {
     const specsDir = sdlcPaths(root, { quiet: true }).specs
     const archive = join(specsDir, 'archive')
     const rel = (p) => relative(root, p).split('\\').join('/')
+    // Sorted by id, so every list in the index comes out in id order.
     const load = (dirs, prefix) =>
         records(dirs, prefix)
             .map((path) => ({ path, text: readFileSync(path, 'utf8') }))
             .map((r) => ({ ...r, fm: parseFrontmatter(r.text) }))
             .filter((r) => r.fm.id)
+            .sort((a, b) => byId(a.fm, b.fm))
 
     const gaps = load([join(specsDir, 'gaps'), join(archive, 'gaps')], 'GAP')
         .map(({ path, fm }) => ({
@@ -60,7 +66,6 @@ export function buildIndex(root) {
             spec: orNull(fm.spec),
             path: rel(path),
         }))
-        .sort(byId)
 
     const specs = load([specsDir, join(archive, 'specs')], 'SPEC')
         .map(({ path, text, fm }) => {
@@ -81,11 +86,9 @@ export function buildIndex(root) {
                 gaps: gaps.filter((g) => g.spec === fm.id).map(({ id, status, resolution, created }) => ({ id, status, resolution, created })),
             }
         })
-        .sort(byId)
 
     const adrs = load([join(specsDir, 'adrs'), join(archive, 'adrs')], 'ADR')
         .map(({ path, fm }) => ({ id: fm.id, title: orNull(fm.title), status: orNull(fm.status), spec: orNull(fm.spec), path: rel(path) }))
-        .sort(byId)
 
     const bugs = load([join(specsDir, 'bugs'), join(archive, 'bugs')], 'BUG')
         .map(({ path, fm }) => ({
@@ -96,7 +99,6 @@ export function buildIndex(root) {
             violates: orNull(fm.violates),
             path: rel(path),
         }))
-        .sort(byId)
 
     return { specs, adrs, bugs, gaps }
 }

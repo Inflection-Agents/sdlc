@@ -19,7 +19,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, writeFi
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { stampEnvelope } from './lib/finding-id.mjs'
+import { criterionOf, stampEnvelope } from './lib/finding-id.mjs'
 import { parseYaml } from './lib/mini-yaml.mjs'
 import { sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
 import { findById } from './resolve.mjs'
@@ -28,6 +28,7 @@ import { validateEnvelope } from './validate-review-envelope.mjs'
 
 export const RANK = { suggestion: 0, nit: 1, major: 2, blocker: 3 }
 const RULINGS = new Set(['overridden', 'wontfix'])
+const FENCE = /^\s*(```|~~~)/
 const today = () => new Date().toISOString().slice(0, 10)
 
 class Refusal extends Error {}
@@ -35,7 +36,8 @@ const refuse = (msg) => {
     throw new Refusal(msg)
 }
 
-export const logPath = (root, specId) => join(sdlcPaths(root, { quiet: true }).specs, 'review-logs', `${specId}.json`)
+const logDir = (root) => join(sdlcPaths(root, { quiet: true }).specs, 'review-logs')
+export const logPath = (root, specId) => join(logDir(root), `${specId}.json`)
 
 export function emptyLog(specId) {
     return { spec: specId, rounds: [], findings: [] }
@@ -51,7 +53,7 @@ function rawSection(text, name) {
     let inFence = false
     let inSection = false
     for (const line of lines) {
-        if (/^\s*(```|~~~)/.test(line)) inFence = !inFence
+        if (FENCE.test(line)) inFence = !inFence
         else if (!inFence && /^## /.test(line)) {
             inSection = line.trimEnd() === `## ${name}`
             continue
@@ -63,7 +65,7 @@ function rawSection(text, name) {
 
 /** The spec body's `spec_review_overrides` entries, fenced or not. */
 export function specOverrides(text) {
-    const lines = rawSection(text, 'spec_review_overrides').filter((l) => !/^\s*(```|~~~)/.test(l))
+    const lines = rawSection(text, 'spec_review_overrides').filter((l) => !FENCE.test(l))
     const body = lines.join('\n').trim()
     if (!body) return []
     const parsed = parseYaml(body)
@@ -93,7 +95,7 @@ export function appendRound(log, env, round, date = today()) {
         seen.add(f.id)
         const fields = {
             severity: f.severity,
-            criterion: f.criterion ?? f.citation,
+            criterion: criterionOf(f),
             location: f.location,
             finding: f.finding,
             suggested_fix: f.suggested_fix ?? null,
@@ -308,7 +310,7 @@ function main(argv) {
             const { id } = loadSpec(specArg)
             process.stdout.write(`${JSON.stringify(applyRulings(readJson(envArg), loadLog(root, id)), null, 2)}\n`)
         } else if (cmd === 'check') {
-            const dir = dirname(logPath(root, 'SPEC-000'))
+            const dir = logDir(root)
             const logs = existsSync(dir) ? readdirSync(dir).filter((f) => /^SPEC-\d{3}\.json$/.test(f)) : []
             let bad = 0
             for (const f of logs.sort()) {
