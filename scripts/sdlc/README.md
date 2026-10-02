@@ -152,6 +152,10 @@ absent or ungrounded (contract violation: re-dispatch or escalate). Never let a
 malformed envelope fold to "no findings" — that is the silent-accept path.
 Exports `validateEnvelope` / `PR_SIDE_PREFIXES`. Run:
 `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-review-envelope <envelope.json>` (or `-` for stdin).
+Every finding's `id` is content-addressed (ADR-006) and the validator rejects one that does not match,
+so a returned reviewer envelope is stamped first:
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs stamp-envelope <envelope.json>`, which sets every id
+and then validates, with the same exit codes.
 
 **`check-review-constraint-globs.mjs`** — resolvability gate for the review
 registry. Every `when.touches` glob should match at least one real file: a dead

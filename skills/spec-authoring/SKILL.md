@@ -354,7 +354,7 @@ leaving it out silently or naming a path that does not resolve. Every other inpu
 **Validate every returned envelope before folding it:**
 
 ```bash
-node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-review-envelope --stamp <envelope.json>
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs stamp-envelope <envelope.json>
 ```
 
 Exit `0` folds the findings. `2` is an abstention and escalates — never accept it, even with
@@ -374,6 +374,9 @@ node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs review-log project specs/SPEC-NN
 ```
 
 Append each returned envelope, both of round 1's and the single reviewer's in every later round.
+`--round` is the policy's round, counted from 1 within this review. An amendment is a new review of
+the same spec: it passes `--review v<N>-amendment` and restarts `--round` at 1, and the log keeps
+one numbered history across all of them.
 `apply` drops a finding the owner marked `wontfix` and routes an `overridden` one at the owner's
 severity, never above the reviewer's, so run the policy on its output. Seed each round after the
 first with `previous_output` from `project`, never from a hand-carried envelope; the carry-forward

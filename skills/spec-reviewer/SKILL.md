@@ -85,10 +85,11 @@ INPUTS:
   - spec_schema:     path to skills/spec-schema.md
   - authoring:       path to skills/spec-authoring/SKILL.md
   - decisions:       (optional) specs/decisions/SPEC-NNN.md, the authoring
-                     decision ledger: a decided question is not a gap unless
-                     the spec contradicts it; a deferred item is not a finding
+                     decision ledger (the author's record, not an owner
+                     ruling): do not reopen a decided question at nit level;
+                     still raise a blocker or major, citing the entry
   - intent:          (optional) excerpt from specs/intents.md
-  - project:         the AGENTS.md SDLC block and .sdlc/config.yaml (for workspace coverage checks)
+  - project:         .sdlc/config.yaml, plus the AGENTS.md SDLC block when the repo has one (for workspace coverage checks)
   - adrs:            paths to referenced ADRs and to existing ADRs the spec
                      may contradict
   - upstream_specs:  (optional) paths to specs in this spec's depends_on
@@ -154,9 +155,9 @@ The reviewer is supplied the following inputs at dispatch time (see prompt body 
 - `spec_file` — the spec under review.
 - `spec_schema` — `skills/spec-schema.md` for required-section / frontmatter checks.
 - `authoring` — `skills/spec-authoring/SKILL.md` for `spec-authoring:<section-anchor>` citations.
-- `decisions` (optional; absent for a spec authored before SPEC-007) — `specs/decisions/SPEC-NNN.md`, the authoring decision ledger. A question the ledger records as decided is not a gap unless the spec body contradicts the decision, and an item it records as deliberately deferred is not a finding. Cite a contradiction as `spec-authoring:step-5-converge-on-a-design`, the step that writes the ledger.
+- `decisions` (optional; absent for a spec authored before SPEC-007) — `specs/decisions/SPEC-NNN.md`, the authoring decision ledger. The ledger is the author's record, not an owner ruling. Do not reopen a question it records as decided at nit or suggestion severity unless the spec body contradicts the decision. A blocker or major is still raised when the ledger touches it, citing the ledger entry, so the owner rules on it through `spec_review_overrides`. Cite a contradiction as `spec-authoring:step-5-converge-on-a-design`, the step that writes the ledger.
 - `intent` (optional) — excerpt from `specs/intents.md` for `intent:<id>` citations.
-- `project` — the `AGENTS.md` SDLC block and `.sdlc/config.yaml` `workspaces`, for workspace-coverage checks.
+- `project` — `.sdlc/config.yaml` `workspaces`, plus the `AGENTS.md` SDLC block when the repo has one, for workspace-coverage checks.
 - `adrs` — paths to referenced ADRs and to existing ADRs the spec may contradict.
 - `upstream_specs` (optional) — paths to specs listed in this spec's `depends_on` (for `SPEC-NNN:<section>` citations in the upstream direction).
 - `downstream_specs` (optional) — paths to specs that declare this spec in their `depends_on` (for `SPEC-NNN:<section>` citations in the downstream direction).

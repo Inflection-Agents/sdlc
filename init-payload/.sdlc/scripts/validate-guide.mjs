@@ -64,7 +64,8 @@ export function parseFrontmatter(text) {
     const out = {}
     for (let i = 1; i < lines.length; i += 1) {
         if (lines[i].trim() === '---') break
-        const kv = lines[i].match(/^([A-Za-z_]+)\s*:\s*(.*)$/)
+        // A CRLF checkout leaves \r on every line, which `(.*)$` would not match.
+        const kv = lines[i].replace(/\r$/, '').match(/^([A-Za-z_]+)\s*:\s*(.*)$/)
         if (kv) out[kv[1]] = scalar(kv[2])
     }
     return out

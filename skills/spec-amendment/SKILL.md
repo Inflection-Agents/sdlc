@@ -256,7 +256,7 @@ Seed each dispatch with these inputs (all paths concrete; do not invent them). A
 - `adrs`: every ADR referenced in the amended Design section, plus any ADR newly superseded or affected by this amendment (Step 3b).
 - `upstream_specs` (**optional**: none without `depends_on`): every spec listed in this spec's `depends_on` (re-read post-amendment; amendments can change `depends_on`).
 - `downstream_specs` (**optional**: none when no spec depends on this one): every spec that declares this spec in its `depends_on` (use `specs/spec-index.json`). Downstream contradiction probing matters MORE on amendments than on first-draft specs — a contract that was honored at v1 can break at v2.
-- `previous_output` (**optional**): projected from the review log with `review-log project` when `specs/review-logs/SPEC-NNN.json` exists (from the original `spec-authoring` Phase 2 review or a previous amendment), so nit/suggestion findings on unchanged sections carry forward per the contract in `review-primitives.md`. On the first amendment this is `null`.
+- `previous_output` (**optional**): projected from the review log with `review-log project` when `specs/review-logs/SPEC-NNN.json` exists (from the original `spec-authoring` Phase 2 review or a previous amendment), so nit/suggestion findings on unchanged sections carry forward per the contract in `review-primitives.md`. It is `null` only when the spec has no review log yet.
 - `variant`: as `spec-authoring` Step 10a > **Reviewers per round** sets it for this round.
 
 **Present findings to the owner** alongside the amendment summary in Step 7. Render the JSON output as a graded list: blocker → major → nit → suggestion, with `criterion`, `location`, `finding`, and `suggested_fix`.
@@ -264,7 +264,7 @@ Seed each dispatch with these inputs (all paths concrete; do not invent them). A
 **Validate every returned envelope before folding it:**
 
 ```bash
-node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-review-envelope --stamp <envelope.json>
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs stamp-envelope <envelope.json>
 ```
 
 Exit `0` folds the findings. `2` is an abstention and escalates — never accept it, even with
@@ -273,7 +273,7 @@ clean review. This is also where a self-review is caught: an envelope with `revi
 carrying blockers, or carrying none at all, is rejected — an empty envelope is a verdict of
 "nothing wrong", so an inline one is a self-accept.
 
-**Record every round in the review log** and route on `review-log apply`, exactly as `spec-authoring` Step 10a > **Record every round in the review log** describes. Amendment rounds continue the spec's existing log.
+**Record every round in the review log** and route on `review-log apply`, exactly as `spec-authoring` Step 10a > **Record every round in the review log** describes. An amendment continues the spec's existing log as a new review: append with `--review v<N>-amendment`, where `<N>` is the amended `version`, and `--round` counting from 1, the same count the policy's `round` uses.
 
 **Apply the routing policy.** Severity → action is defined in [`review-primitives.md`](../review-primitives.md) > Orchestrator severity→action policy — do not duplicate it here. In summary: blockers/majors → `fix_loop`; nits/suggestions → `batch_followup_and_accept` (appended to `spec_followups:` per SPEC-001 Design > Spec followups format); empty → `accept`; at the spec-side round cap (`SPEC_REVIEW_ROUND_CAP` in that policy, ADR-005) a remaining blocker or major → `disclose_and_accept`, handled exactly as `spec-authoring` Step 10a describes. Count rounds from 1 at the first dispatch and pass the count as `round`. Loop with the author to fix or with the owner to override until no un-overridden blockers/majors remain or the policy returns `disclose_and_accept`; re-DISPATCH the reviewer agent after edits — a fix round is graded by a fresh agent, never inline — with `previous_output` from `review-log project`.
 

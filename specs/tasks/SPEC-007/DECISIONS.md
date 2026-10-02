@@ -114,3 +114,22 @@ heading goes in the moment it happens, not batched at the end.
 
 **Merged:** ec59439 (fast-forwarded onto `feat/spec-007`, per SOP §6.1), then a fix PR.
 **What changed:** The simplify pass removed duplication in the six new or changed scripts, with no behaviour change: 417 of 417 tests passed before and after. It also reported a defect in S6's archiver code. `main()` called `scanArchived()` three times, and each call builds new objects, so `toRestore.includes(s)` was always false. A spec being restored therefore counted as both archived and live, and a ledger or review log it already had in the live corpus was moved into the archive while the spec moved out. The fix scans the archive once. A regression test reproduces the defect before the fix and passes after it.
+
+---
+
+## Gate round 1 — 4 reviewers, 8 distinct majors fixed at the root
+
+**Panel:** `integration-reviewer`, `task-reviewer` (conventions, SDLC-GATE-TESTED), `security-reviewer`, `pr-reviewer` (adversarial). All four envelopes validated with `--stamp`; the integration reviewer re-emitted once to fix an out-of-enum severity.
+**Fixed:**
+- A ruling now records `ruled_severity` and covers only that severity. A finding raised higher routes as raised, and its log entry reopens with the old ruling kept under `superseded_ruling`. This was raised by three reviewers.
+- `check` now applies every rule `resolve` enforces, through one shared `rulingProblems`, so a hand-written log is held to the same rules.
+- Amendment rounds: `append --review v<N>-amendment` restarts the policy round at 1, while the log numbers rounds globally. Raised by two reviewers.
+- `findById` no longer returns a spec's ledger or review log, so `check` and the `depends_on` check read the spec itself. Raised by two reviewers.
+- Companions no longer put one id on both sides of the archive boundary, which had made the sidecars move back and forth.
+- The ledger is the author's record, so `spec-reviewer` still raises a blocker or major it touches, citing the entry.
+- `stamp-envelope.mjs` is a new name, so `run.mjs` runs the plugin's copy in a repo synced before ids existed, where the old validator reads `--stamp` as a path.
+- The nits are fixed too, each with a test: CRLF frontmatter, block-style lists, double-backtick spans, fenced-only sections, placeholder locations, `file:line:col`, NUL in hashed fields, `artifact_id` checks, a symlinked log, usage exit codes, the untracked-sidecar precheck, archive summary counts, the payload workflow's `review-log check`, the `cli-invocation` rows, AGENTS.md marked optional in `spec-reviewer`, and the README, `complete-spec` and RELEASING notes.
+
+**Accepted, not fixed:**
+- No idempotency guard on `append`. Two clean round-1 variants have identical (empty) id sets and the same `reviewed_by`, so a guard would refuse a legitimate second envelope.
+- `fixed` is recorded for a finding a later round did not re-raise. AC-019 fixes the resolution set at `fixed | overridden | wontfix | open`, so renaming the state is a spec change, not a gate fix.

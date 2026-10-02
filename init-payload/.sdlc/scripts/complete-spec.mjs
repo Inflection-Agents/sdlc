@@ -6,8 +6,8 @@
  * the evidence actually substantiates each criterion is judgment, and that stays
  * with the human at the integration PR, where it is already being read.
  *
- * The narrower scope is also a fact about this repo: there is no index generator to
- * re-run, and `CLAUDE.md` states the framework does not ship the auto-merge lane
+ * The narrower scope is also a fact about this repo: the index generator
+ * (`gen-spec-index.mjs`) is a separate step the completing skill runs, and `CLAUDE.md` states the framework does not ship the auto-merge lane
  * a writing workflow would need. A writer here would open bookkeeping PRs nobody
  * merges, which is the manual chore it exists to remove, relocated.
  *

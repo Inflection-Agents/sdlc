@@ -120,3 +120,26 @@ test('the CLI exits 1 with findings and emits a valid envelope with --json', () 
         fx.cleanup()
     }
 })
+
+// ── Gate round 1 (PR #86) ────────────────────────────────────────────────────
+
+test('a CRLF checkout of a valid spec is still valid', () => {
+    assert.deepEqual(run(spec().replace(/\n/g, '\r\n')), [])
+})
+
+test('a block-style list under depends_on is reported, never silently skipped', () => {
+    const text = spec().replace('updated: 2026-10-02', 'updated: 2026-10-02\ndepends_on:\n  - SPEC-404')
+    assert.deepEqual(criteria(run(text)), ['spec-schema:depends_on'])
+})
+
+test('a double-backtick span hides a marker, and a section that is only a fenced block has content', () => {
+    assert.deepEqual(run(spec({ body: { Problem: 'See ``TODO`` here.' } })), [])
+    assert.deepEqual(run(spec({ body: { Design: '```mermaid\ngraph TD; A-->B\n```' } })), [])
+})
+
+test('a placeholder finding is located at its section, so its id survives lines moving above it', () => {
+    const one = run(spec({ body: { Problem: 'TBD later.' } }))
+    const moved = run(spec({ body: { Problem: 'TBD later.' } }).replace('## Problem', 'Intro line.\n\n## Problem'))
+    assert.equal(one[0].location, 'Problem')
+    assert.equal(moved[0].location, 'Problem')
+})

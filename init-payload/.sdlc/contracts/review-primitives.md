@@ -116,7 +116,7 @@ Both reviewers emit the same JSON envelope. Illustrative pseudo-JSON (unions are
   "tier": "1 | 2",
   "findings": [
     {
-      "id": "F-<8 hex: content-addressed, set by --stamp>",
+      "id": "F-<8 hex: content-addressed, set by stamp-envelope>",
       "severity": "blocker | major | nit | suggestion",
       "criterion": "<grounded citation per grounding rules>",
       "location": "<file:line | spec section name>",
@@ -138,7 +138,7 @@ Per-artifact field constraints:
 
 - **`artifact: "pr"`** — `pr_number` is non-null; `verification` is a populated object (not null); `tier_2_dispatch_recommended` MAY contain specialist names per Appendix B of SPEC-001.
 - **`artifact: "spec"`** — `pr_number` is `null`; `verification` is `null`; `tier_2_dispatch_recommended` is `[]`.
-- **`id`** — content-addressed (ADR-006, SPEC-007 Lever 4): `F-` and the first 8 hex digits of `sha256(location_key ‖ NUL ‖ criterion ‖ NUL ‖ finding)`. `location_key` is a PR finding's `file:line` with the line dropped, because lines move between rounds, or a spec finding's `location` as written. `criterion` falls back to the `citation` alias. The same defect raised in two rounds therefore carries the same id, and rewording a finding gives it a new one. A reviewer cannot hash by hand, so it may omit `id` or write anything there: the orchestrator runs `validate-review-envelope --stamp`, which sets every id from the finding's own fields, and the validator rejects an id that does not match its content. `id`, `location`, `criterion` (or `citation`) and `finding` are all required.
+- **`id`** — content-addressed (ADR-006, SPEC-007 Lever 4): `F-` and the first 8 hex digits of `sha256(location_key ‖ NUL ‖ criterion ‖ NUL ‖ finding)`. `location_key` is a PR finding's `file:line` with the line dropped, because lines move between rounds, or a spec finding's `location` as written. `criterion` falls back to the `citation` alias. The same defect raised in two rounds therefore carries the same id, and rewording a finding gives it a new one. A reviewer cannot hash by hand, so it may omit `id` or write anything there: the orchestrator runs `stamp-envelope` (the validator's `--stamp` mode), which sets every id from the finding's own fields, and the validator rejects an id that does not match its content. `id`, `location`, `criterion` (or `citation`) and `finding` are all required.
 - **`tier: 2`** — only valid when `artifact: "pr"`. Tier 2 outputs MUST NOT re-raise findings already present in the Tier 1 output they were given.
 - **`location`** — for PR findings, format is `file:line` (or `file` if the finding is whole-file). For spec findings, format is the spec section heading text (e.g., `"Success criteria > third bullet"`).
 
@@ -248,8 +248,12 @@ RANK = {"suggestion": 0, "nit": 1, "major": 2, "blocker": 3}
 min_severity = lambda a, b: a if RANK[a] <= RANK[b] else b
 
 if review_log is not None:
+    # A ruling covers the severity the owner ruled at (`ruled_severity`). The same finding raised
+    # higher is one the owner never saw, so it routes as raised.
     ruled = {e["id"]: e for e in review_log["findings"]
              if e["resolution"] in ("overridden", "wontfix")}
+    ruled = {i: e for i, e in ruled.items()
+             if any(f["id"] == i and RANK[f["severity"]] <= RANK[e["ruled_severity"]] for f in findings)}
     findings = [f for f in findings if ruled.get(f["id"], {}).get("resolution") != "wontfix"]
     findings = [{**f, "severity": min_severity(f["severity"], ruled[f["id"]]["owner_severity"])}
                 if f["id"] in ruled else f
@@ -285,7 +289,8 @@ dispatched.
 (`major`) and `F-5e6f7a8b` (`blocker`). The log records `F-1a2b3c4d` as `overridden` with
 `owner_severity: nit`, and `F-5e6f7a8b` as `wontfix`. The ruling step drops `F-5e6f7a8b` and routes
 `F-1a2b3c4d` as a `nit`, so the action is `batch_followup_and_accept`. Had the reviewer raised
-`F-1a2b3c4d` as a `suggestion` that round, it would route as a `suggestion`: a ruling only lowers.
+`F-1a2b3c4d` as a `suggestion` that round, it would route as a `suggestion`: a ruling only lowers. Had the reviewer raised `F-5e6f7a8b` above the
+severity the owner ruled it at, the `wontfix` would not cover it, and it would route as raised.
 
 **Worked trace: a round-4 PR blocker.** `artifact: "pr"`, `round: 4` (or no `round`), one finding
 with `severity: "blocker"`. `capped` is false for any `artifact` other than `"spec"`, so the action

@@ -92,7 +92,36 @@ function headingFor(lines, name) {
     return h ? h.text.replace(/^##\s+/, '').trimEnd() : name
 }
 
-const nonEmpty = (lines) => (lines ?? []).some((l) => l.trim() !== '' && !/^#{3,}\s/.test(l))
+/**
+ * Whether a `## ` section has any content. Read from the raw text, because a section whose only
+ * content is a fenced block (a diagram) has content even though `sectionLines` drops fences.
+ */
+function hasContent(text, heading) {
+    let inFence = false
+    let inSection = false
+    for (const line of String(text).split('\n')) {
+        if (!inFence && /^## /.test(line)) {
+            if (inSection) return false
+            inSection = line.replace(/^##\s+/, '').trimEnd() === heading
+            continue
+        }
+        if (FENCE.test(line)) inFence = !inFence
+        if (inSection && line.trim() !== '' && !/^#{3,}\s/.test(line)) return true
+    }
+    return false
+}
+
+/** Frontmatter keys written as a YAML block list (`key:` then `  - a`), which parseList cannot read. */
+function blockListKeys(text) {
+    const lines = String(text).split('\n')
+    if (lines[0]?.trim() !== '---') return []
+    const keys = []
+    for (let i = 1; i < lines.length && lines[i].trim() !== '---'; i += 1) {
+        const m = lines[i].replace(/\r$/, '').match(/^([A-Za-z_]+)\s*:\s*$/)
+        if (m && /^\s+-\s/.test(lines[i + 1] ?? '')) keys.push(m[1])
+    }
+    return keys
+}
 
 /** List items (`- `, `* `, `+ `, `1. `) at any indent within a subsection. */
 function subsectionItems(lines, name) {
@@ -125,8 +154,11 @@ export function checkSpec(text, { root, resolveId = (id) => findById(id, root).l
         else if (field === 'status' && !STATUSES.includes(value)) add('blocker', 'spec-schema:status', 'frontmatter > status', `\`status: ${value}\` is not one of ${STATUSES.join(', ')}.`)
         else if (shape && !shape.test(value)) add('blocker', `spec-schema:${field}`, `frontmatter > ${field}`, `\`${field}: ${value}\` does not have the form the schema requires.`)
     }
+    const blockLists = blockListKeys(text)
     for (const field of LIST_FIELDS) {
-        if (field in fm && parseList(fm[field]) === null) add('blocker', `spec-schema:${field}`, `frontmatter > ${field}`, `\`${field}\` must be a list such as \`[a, b]\`.`)
+        if ((field in fm && parseList(fm[field]) === null) || blockLists.includes(field)) {
+            add('blocker', `spec-schema:${field}`, `frontmatter > ${field}`, `\`${field}\` must be a flow list such as \`[a, b]\`.`)
+        }
     }
 
     // Section presence and order.
@@ -135,7 +167,7 @@ export function checkSpec(text, { root, resolveId = (id) => findById(id, root).l
     const headings = lines.filter((l) => /^## /.test(l.text)).map((l) => sectionName(l.text))
     for (const name of REQUIRED_SECTIONS) {
         if (!headings.includes(name)) add('blocker', `spec-schema:${name}`, name, `Required section \`## ${name}\` is missing.`)
-        else if (!nonEmpty(section(name))) add('blocker', `spec-schema:${name}`, name, `Required section \`## ${name}\` is empty.`)
+        else if (!hasContent(text, headingFor(lines, name))) add('blocker', `spec-schema:${name}`, name, `Required section \`## ${name}\` is empty.`)
     }
     const required = headings.filter((h) => REQUIRED_SECTIONS.includes(h))
     if (required.join('\n') !== REQUIRED_SECTIONS.filter((n) => required.includes(n)).join('\n')) {
@@ -166,10 +198,13 @@ export function checkSpec(text, { root, resolveId = (id) => findById(id, root).l
         }
     }
 
-    // Placeholders, outside code spans.
+    // Placeholders, outside code spans of any backtick run length. The location is the section, so
+    // the finding's id does not change when lines above it move.
+    let where = 'Preamble'
     for (const { n, text: line } of lines) {
-        const prose = line.replace(/`[^`]*`/g, '')
-        if (PLACEHOLDERS.some((re) => re.test(prose))) add('major', 'spec-authoring:step-9-self-review-mandatory', `line ${n}`, `A placeholder marker is left in the prose: "${line.trim().slice(0, 80)}".`)
+        if (/^## /.test(line)) where = sectionName(line)
+        const prose = line.replace(/(`+).*?\1/g, '')
+        if (PLACEHOLDERS.some((re) => re.test(prose))) add('major', 'spec-authoring:step-9-self-review-mandatory', where, `A placeholder marker is left in the prose at line ${n}: "${line.trim().slice(0, 80)}".`)
     }
 
     // References that must resolve.

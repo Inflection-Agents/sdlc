@@ -187,6 +187,11 @@ export function validateEnvelope(env, schema = loadSchema()) {
                     const err = checkProperty(`${at}.${name}`, f[name], sub)
                     if (err) errors.push(err)
                 }
+                // The id hashes these fields NUL-separated, so a NUL inside one could move a field
+                // boundary and make two different findings hash alike.
+                for (const k of ['location', 'criterion', 'citation', 'finding']) {
+                    if (typeof f[k] === 'string' && f[k].includes('\0')) errors.push(`${at}.${k} contains a NUL character`)
+                }
                 if (hashable(f) && typeof f.id === 'string') {
                     const want = findingId(f, env.artifact)
                     if (f.id !== want) {

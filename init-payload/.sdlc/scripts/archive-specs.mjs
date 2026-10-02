@@ -288,8 +288,11 @@ function main(argv) {
     // A spec whose status went back to draft/active is restored by the same run.
     const toRestore = archived.filter((s) => s.status && LIVE_STATUSES.has(s.status))
     const moving = new Set([...toArchive, ...toRestore].map((s) => s.id))
-    const endsArchived = [...archived.filter((s) => !toRestore.includes(s)), ...toArchive].map((s) => s.id)
-    const endsLive = [...live.filter((s) => !toArchive.includes(s)), ...toRestore].map((s) => s.id)
+    // A companion shares its spec's id but never moves on its own, so it says nothing about
+    // where that spec's sidecars belong; counting it would put one id on both sides.
+    const ids = (list) => list.filter((s) => !s.companion).map((s) => s.id)
+    const endsArchived = ids([...archived.filter((s) => !toRestore.includes(s)), ...toArchive])
+    const endsLive = ids([...live.filter((s) => !toArchive.includes(s)), ...toRestore])
     const sidecarMoves = misplacedSidecars(endsArchived, endsLive)
     const rel = (p) => p.slice(ROOT.length + 1)
 
@@ -315,6 +318,26 @@ function main(argv) {
     if (!toArchive.length && !toRestore.length && !sidecarMoves.length) {
         process.stdout.write('nothing to archive or restore.\n')
         return
+    }
+
+    // `git mv` refuses an untracked source, and failing midway leaves a partial move staged.
+    if (!dryRun) {
+        const sources = [
+            ...[...toArchive, ...toRestore].map((s) => s.path),
+            ...sidecarMoves.map(({ from }) => from),
+        ]
+        const untracked = sources.filter((p) => {
+            try {
+                git(['ls-files', '--error-unmatch', '--', p])
+                return false
+            } catch {
+                return true
+            }
+        })
+        if (untracked.length) {
+            process.stderr.write(`archive-specs: commit these first; git mv cannot move an untracked file:\n  ${untracked.map(rel).join('\n  ')}\n`)
+            process.exit(1)
+        }
     }
 
     for (const s of toArchive) {
@@ -348,10 +371,10 @@ function main(argv) {
     }
 
     if (dryRun) {
-        process.stdout.write(`\n${toArchive.length} to archive, ${toRestore.length} to restore.\n`)
+        process.stdout.write(`\n${toArchive.length} to archive, ${toRestore.length} to restore, ${sidecarMoves.length} sidecar(s) to move.\n`)
         return
     }
-    process.stdout.write(`archived ${toArchive.length} spec(s), restored ${toRestore.length}.\n`)
+    process.stdout.write(`archived ${toArchive.length} spec(s), restored ${toRestore.length}, moved ${sidecarMoves.length} sidecar(s).\n`)
 }
 
 /**
