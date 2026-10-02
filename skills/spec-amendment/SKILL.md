@@ -263,7 +263,7 @@ Seed each dispatch with these inputs (all paths concrete; do not invent them):
 **Validate every returned envelope before folding it:**
 
 ```bash
-node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-review-envelope <envelope.json>
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-review-envelope --stamp <envelope.json>
 ```
 
 Exit `0` folds the findings. `2` is an abstention and escalates — never accept it, even with
@@ -279,7 +279,7 @@ carrying blockers, or carrying none at all, is rejected — an empty envelope is
 ```yaml
 ## spec_review_overrides
 
-- finding_id: F-009
+- finding_id: F-9e2b7a40
   reviewer_severity: major
   owner_severity: nit
   reason: "Workspace coverage for shared/types is intentionally deferred to SPEC-NNN+1; this amendment scopes only the dealer-app surface."

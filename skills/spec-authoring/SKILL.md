@@ -331,7 +331,7 @@ Seed each dispatch with these inputs (all paths concrete; do not invent them):
 **Validate every returned envelope before folding it:**
 
 ```bash
-node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-review-envelope <envelope.json>
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-review-envelope --stamp <envelope.json>
 ```
 
 Exit `0` folds the findings. `2` is an abstention and escalates — never accept it, even with
@@ -352,7 +352,7 @@ carrying blockers, or carrying none at all, is rejected — an empty envelope is
 ```yaml
 ## spec_review_overrides
 
-- finding_id: F-003
+- finding_id: F-3f9a1c2e
   reviewer_severity: major
   owner_severity: nit
   reason: "Spec is intentionally ambiguous in this domain; will sharpen after the first step."

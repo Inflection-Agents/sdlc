@@ -363,6 +363,11 @@ Entries are append-only at first. The `resolved` boolean and its companion field
 - `skills/spec-schema.md` declares the matching optional section, `## Disclosed, not reviewed-clean`, and an optional `resolution: wontfix` on `spec_review_overrides`.
 - See SPEC-007 for the full design and rationale.
 
+### v1.5 (2026-10-02) — content-addressed finding ids, via SPEC-007
+- Live `review-envelope.schema.json` now requires `id`, `location` and `finding` on every finding, beside `severity` and a grounded `criterion` or `citation`. `id` is `F-` and 8 hex digits of `sha256(location_key ‖ NUL ‖ criterion ‖ NUL ‖ finding)` (ADR-006). `validate-review-envelope.mjs` recomputes it and rejects a mismatch, and its `--stamp` mode sets ids from the findings' own fields before validating. The ordinal `F-001` form this spec's examples used is retired.
+- This is a breaking change to the envelope both reviewers emit, made under SPEC-007's own scope and not by the extension pattern, on the precedent of v1.3. Severity grading and the routing policy are unchanged.
+- See SPEC-007 for the full design and rationale.
+
 ## Appendix A — `pr-reviewer` prompt (draft)
 
 Lives in `.ai/skills/pr-reviewer/SKILL.md` on implementation.

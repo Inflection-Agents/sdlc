@@ -4,7 +4,8 @@
     "contracts/review-envelope.schema.json": {
       "7f06368b4de9c30b6f51d93ba558d1204679bd186976fc3c047782d6c9cb91ae": "0.1.0",
       "b94aff9a5a97a356d8cceaec6dbc5fdb6521e6c8409021afc171f1da33943640": "0.2.0",
-      "e80b744f8dbd1ad58521c0c71af114d1582cccbe4c7bee9a5a2469aa6c60375f": "0.4.0"
+      "e80b744f8dbd1ad58521c0c71af114d1582cccbe4c7bee9a5a2469aa6c60375f": "0.4.0",
+      "a82838465026e49a77a88ca92c22275d96bac914b68a789837e98a1abeb6f521": "0.4.0"
     },
     "contracts/review-primitives.md": {
       "8a6d7f0da4bbfde8af0bcbe8a6c68116447f346598baf40cc0b41973e5cbba30": "0.1.0",
@@ -12,7 +13,8 @@
       "230babc86a5b74ea625a1a12a81812d13e6faade2a99487963830fb06cff1fb9": "0.3.0",
       "9cfd2ff40d093cd72b0bba958818913bdee32c5558473d425e170c295ccaff59": "0.4.0",
       "10a91261efe7d65736425d786f98dd9f13cf9a189cf59052c2d0f651168ec948": "0.4.0",
-      "c6edbdcd1e0ebc330d9bc6e44d31290d891c09185c7359d8fefbebd0c79775ef": "0.4.0"
+      "c6edbdcd1e0ebc330d9bc6e44d31290d891c09185c7359d8fefbebd0c79775ef": "0.4.0",
+      "6925c135ea681644f96d037f05b2d0ddaf1767c6b9573e4a60e9d4f65b040339": "0.4.0"
     },
     "scripts/archive-specs.mjs": {
       "60884236dd13cab415f828fd7fdf66d62066d294b1cddf304486eccc1bf0b7d1": "0.1.0",
@@ -36,6 +38,9 @@
       "5d76109be5b6e35fc29c3e6a365bced1d7c3a9c35d1830743cd6edc1fa9ca649": "0.1.0",
       "d4d5078de57fa6efaced1330ef4d06e4142e379e0e91912c3699a0b75520a22e": "0.3.0",
       "82a4e9ccf5885a41595b30574c10b0164e755c9d0ceede33ebcc0b4b7e6a4e60": "0.4.0"
+    },
+    "scripts/lib/finding-id.mjs": {
+      "cf35638bb9c2b05c7bff29f1e455e5f71cde76cedffcfa9b9f0d2a2f1ce758b2": "0.4.0"
     },
     "scripts/lib/legacy-map.mjs": {
       "9a3d579f9c4c26780ff2afd62ad48a6f54ec02fe08ab88dc9e349d8caf4516ac": "0.3.0",
@@ -108,7 +113,8 @@
       "856f264909e1c6062f578b0a750f053bfc9010ca0486e7c78efcbf6cbb448d43": "0.1.0",
       "18042c7bf8602c4f680c983d2725ef781ccd1a7bf4e43090445898a84f904718": "0.2.0",
       "25f112cbd9f39666925653ac456117b2a21dbf71eeaa6d4e1be5311ca0a3af2e": "0.3.0",
-      "814a6929e9e9c4f194e70fc9e8a4fdeb4b1e35f189e11162832ba9af2a7a33df": "0.4.0"
+      "814a6929e9e9c4f194e70fc9e8a4fdeb4b1e35f189e11162832ba9af2a7a33df": "0.4.0",
+      "a76856d5152d17730a9ae243558d54b432dec0bf0aa6e8a2be21872913b03743": "0.4.0"
     },
     "scripts/validate-sdlc-config.mjs": {
       "425ff40950df02d5615a2fff13cb1dbef940134b25fe791d83cf581bc605ff00": "0.3.0",
@@ -116,7 +122,8 @@
       "ae7f6bec97c4d0765a35d9f1015ba8760cd7cbd4971bf8ca05d40073be0ed0aa": "0.4.0"
     },
     "scripts/validate-spec.mjs": {
-      "189020876d0474d96328d4c20c3d3ba6517353a74cf8de99194593e2279446bf": "0.4.0"
+      "189020876d0474d96328d4c20c3d3ba6517353a74cf8de99194593e2279446bf": "0.4.0",
+      "54282aafd8d60f668c870a2ed9bb72f82bedc677d9f0a843bdfc33170e2bf041": "0.4.0"
     },
     "scripts/validate-state-machine.mjs": {
       "cf9e74392f05f46ba48d5f83af3c15889edf30651e9ac2b8f218f5acc0147e56": "0.1.0",

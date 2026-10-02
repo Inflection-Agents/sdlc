@@ -27,6 +27,7 @@ import { join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { findById } from './resolve.mjs'
+import { findingId } from './lib/finding-id.mjs'
 import { parseFrontmatter, sectionLines } from './validate-guide.mjs'
 import { sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
 
@@ -107,7 +108,7 @@ function subsectionItems(lines, name) {
 export function checkSpec(text, { root, resolveId = (id) => findById(id, root).length > 0 }) {
     const findings = []
     const add = (severity, criterion, location, finding) =>
-        findings.push({ id: `F-${String(findings.length + 1).padStart(3, '0')}`, severity, criterion, location, finding, altitude: 'implementation' })
+        findings.push({ id: findingId({ location, criterion, finding }, 'spec'), severity, criterion, location, finding, altitude: 'implementation' })
 
     // Frontmatter.
     const fm = parseFrontmatter(text)

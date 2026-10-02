@@ -37,7 +37,7 @@ Emit the graded findings envelope from `review-primitives.md` and nothing else. 
 
 Every finding carries `severity`, a grounded `criterion`, a `location`, and an `altitude`
 (`design` when no code edit can satisfy it, otherwise `implementation`). The dispatching agent
-validates the shape with `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-review-envelope` and re-dispatches you on a
+stamps each finding's content-addressed `id` and validates the shape with `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-review-envelope --stamp` and re-dispatches you on a
 contract violation.
 
 Set `reviewed_by: "agent:task-reviewer"` — the provenance field that tells a reader an independent reviewer produced this, not the context that wrote the code.

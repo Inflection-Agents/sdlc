@@ -147,7 +147,7 @@ Records owner downgrades of `spec-reviewer` findings. Overrides downgrade severi
 
 | Field | Required | Type | Notes |
 |-------|----------|------|-------|
-| `finding_id` | yes | string | Matches `id` from the `spec-reviewer` JSON output (e.g., `F-003`). |
+| `finding_id` | yes | string | Matches `id` from the `spec-reviewer` JSON output (e.g., `F-3f9a1c2e`; content-addressed, so it stays the same across rounds). |
 | `reviewer_severity` | yes | enum | One of `blocker | major | nit | suggestion`. The severity originally assigned by `spec-reviewer`. |
 | `owner_severity` | yes, unless `resolution` is `wontfix` | enum | One of `blocker | major | nit | suggestion`. Must be a lower severity than `reviewer_severity` (this section only downgrades). Omitted when `resolution` is `wontfix`. |
 | `resolution` | no | enum | `wontfix` only. The owner drops the finding outright rather than downgrading it (SPEC-007 > Design > Lever 5). A `wontfix` on a `blocker` or `major` is also listed in `## Disclosed, not reviewed-clean`. |
@@ -162,7 +162,7 @@ Records nit and suggestion findings deferred by the orchestrator's `batch_follow
 
 | Field | Required | Type | Notes |
 |-------|----------|------|-------|
-| `finding_id` | yes | string | Matches `id` from the `spec-reviewer` JSON output (e.g., `F-007`). |
+| `finding_id` | yes | string | Matches `id` from the `spec-reviewer` JSON output (e.g., `F-7c01d4b9`). |
 | `source_review` | yes | string | Identifier for the review run that produced the finding (e.g., `"spec-reviewer iter-2, 2026-05-18T14:22:00Z"`). |
 | `severity` | yes | enum | One of `nit | suggestion`. `blocker` and `major` are never deferred via this section. |
 | `criterion` | yes | string | The grounded citation from the original finding (e.g., `"spec-authoring:wording"`). |
