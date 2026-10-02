@@ -4,7 +4,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -191,8 +191,8 @@ test('each probed revision prints the repo commands it would run, and the probes
         delete env.CLAUDE_PROJECT_DIR
         delete env.CLAUDE_PLUGIN_ROOT
         const res = spawnSync(process.execPath, [join(HERE, 'probe-gates.mjs'), '--root', v.repo, '--before', 'HEAD~1', '--after', 'HEAD'], { encoding: 'utf8', env })
-        assert.match(res.stderr, /HEAD~1 \(\w+\): skipping \(pass --repo-code to run\) the repo's hook: echo from-the-old-commit/)
-        assert.match(res.stderr, /HEAD \(\w+\): skipping \(pass --repo-code to run\) the repo's hook: echo from-the-new-commit/)
+        assert.match(res.stderr, /HEAD~1 \(\w+\): skipping \(pass --repo-code to run\) the repo's hook: "echo from-the-old-commit"/)
+        assert.match(res.stderr, /HEAD \(\w+\): skipping \(pass --repo-code to run\) the repo's hook: "echo from-the-new-commit"/)
         assert.match(res.stderr, /not probed without --repo-code: P2/)
         assert.deepEqual(JSON.parse(res.stdout).unprobed, ['P2'])
     } finally {
@@ -216,4 +216,41 @@ test('the sync refresh refuses, and exits 1, when a tracked .sdlc/scripts links 
     } finally {
         v.cleanup()
     }
+})
+
+test("probes never fire the probed revision's git hooks (a husky post-checkout)", () => {
+    const v = besideVictim()
+    try {
+        write(v.repo, '.sdlc/config.yaml', 'layout: 2\n')
+        write(v.repo, 'specs/.gitkeep', '')
+        write(v.repo, '.husky/post-checkout', `#!/bin/sh\necho ran >> ${join(v.victim, 'post-checkout-ran')}\n`)
+        commitAll(v.repo)
+        chmodSync(join(v.repo, '.husky', 'post-checkout'), 0o755)
+        git(v.repo, 'config', 'core.hooksPath', '.husky')
+        probeRev(v.repo, 'HEAD')
+        assert.equal(existsSync(join(v.victim, 'post-checkout-ran')), false)
+    } finally {
+        v.cleanup()
+    }
+})
+
+test('a validator a workflow names outside the repo is never run', () => {
+    const v = besideVictim()
+    try {
+        write(v.victim, 'validate-guide.mjs', `require('fs').writeFileSync(${JSON.stringify(join(v.victim, 'ran'))}, 'x')\n`)
+        write(v.repo, '.sdlc/config.yaml', 'layout: 2\nworkspaces:\n  - name: web\n    path: apps/web\n')
+        write(v.repo, '.github/workflows/ci.yml', 'jobs:\n  a:\n    steps:\n      - run: node ../victim/validate-guide.mjs\n')
+        write(v.repo, 'apps/web/.gitkeep', '')
+        write(v.repo, 'specs/.gitkeep', '')
+        commitAll(v.repo)
+        probeRev(v.repo, 'HEAD', { repoCode: true })
+        assert.equal(existsSync(join(v.victim, 'ran')), false)
+    } finally {
+        v.cleanup()
+    }
+})
+
+test('isInside treats a name that starts with two dots as a name', () => {
+    assert.equal(isInside('/r', '..foo/x'), true)
+    assert.equal(isInside('/r', '..'), false)
 })

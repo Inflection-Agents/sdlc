@@ -44,7 +44,9 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 const PLUGIN = resolve(HERE, '..', '..')
 const PROBE_SPEC = 'SPEC-990'
 
-const git = (cwd, args) => execFileSync('git', args, { cwd, encoding: 'utf8', maxBuffer: 1 << 26 })
+// Hooks off for every git call: a checkout in the probe worktree would otherwise run the
+// probed revision's post-checkout hook (husky, lefthook) without --repo-code.
+const git = (cwd, args) => execFileSync('git', ['-c', 'core.hooksPath=/dev/null', ...args], { cwd, encoding: 'utf8', maxBuffer: 1 << 26 })
 
 // A probe plants files in a worktree of a repo it does not trust: every write must stay inside
 // it, through any symlink the repo tracks, or the worktree's removal would leave the file behind.
@@ -106,7 +108,8 @@ let revLabel = ''
 const noted = new Set()
 
 function note(kind, what) {
-    const line = `${revLabel}: ${runRepoCode ? 'running' : 'skipping (pass --repo-code to run)'} the repo's ${kind}: ${what}`
+    // JSON-quoted, so a control character in a command cannot disguise what runs.
+    const line = `${revLabel}: ${runRepoCode ? 'running' : 'skipping (pass --repo-code to run)'} the repo's ${kind}: ${JSON.stringify(what)}`
     if (!noted.has(line)) process.stderr.write(`${line}\n`)
     noted.add(line)
 }
@@ -342,7 +345,7 @@ export const PROBES = { P1: p1, P2: p2, P3: p3, P4: p4, P5: p5, P6: p6, P7: p7, 
 /** Run every probe against `rev` in a throwaway worktree of `root`; the worktree and its branch are always removed. */
 export function probeRev(root, rev, { repoCode = false } = {}) {
     runRepoCode = repoCode
-    revLabel = `${rev} (${git(root, ['rev-parse', '--short', rev]).trim()})`
+    revLabel = `${rev} (${git(root, ['rev-parse', rev]).trim()})`
     const dir = realpathSync(mkdtempSync(join(tmpdir(), 'sdlc-probe-')))
     const branch = `claude/${PROBE_SPEC}-probe-${process.pid}-${Date.now()}`
     rmSync(dir, { recursive: true, force: true })

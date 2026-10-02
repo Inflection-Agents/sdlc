@@ -343,9 +343,45 @@ in chronological order.
   - The bare-directory match accepts a sentence-final `.`.
   - The YAML emitter quotes numbers, hex, octal, `.inf`, `.nan` and dates.
   - `isInside` treats `..foo` as a name, and the write check compares canonical real paths.
-- **Tests.** Every round-2 finding has a test that fails on the round-1 code. Mutation tests now cover the guards the lens review listed, plus the stop hook's layout-2 handoff.
+- **Tests.** The round-2 fixes for the rollback, the refusals, `run.mjs`, the state-machine domain-skill rule, the probe listing, the refresh and the stop hook each have a test that fails on the round-1 code. Round 3 showed that several other round-2 fixes had none (see the round-3 entry, which adds them).
 - **Records.** The scan gaps deferred to a later amendment are recorded in `specs/intents.md` as a backlog item. These are forked `phases`/`exempt` readers, quoted joins in unmoved tests, root-anchored `/scripts/sdlc/` forms, and renamed workflows.
 - **Amendment v2.** SPEC-009 v2 (breaking) amends AC-005, Design > The resolver and Design > Gate probes to match what ships. It replaces the two round-1 SPEC DEVIATION entries above. Per spec-amendment, `plan_review.approved` goes back to `false` until the owner approves v2. The integration PR says so.
 
 **Why:** each finding was reproduced. The owner has to sign an AC change.
 **Reversal path:** revert the round-2 fix PR, and restore v1 with `git show <commit>^:specs/SPEC-009-sdlc-folder-consolidation.md`.
+
+---
+
+## EXECUTIVE DECISION — gate round 3: fixes after the last round, not re-reviewed
+
+**Date:** 2026-10-02
+**Question:** Round 3, the last under ADR-004, found no blockers. It found 9 majors across four valid envelopes, three of them duplicates, plus 2 majors in the spec-reviewer's grading of v2. A fourth round is not run. The cap stops the grind, but these majors are small, reproduced defects, and leaving them in would ship them.
+**Decided:** fix them at the root with tests, and say in the PR that no panel reviewed these fixes. The fixes:
+- **The probe worktree.** Git runs with `core.hooksPath=/dev/null` there, so a husky or lefthook `post-checkout` never runs the probed revision's code. The listing quotes each command and shows full commit hashes.
+- **Moved relative links.** A relative link whose own path moves is repointed from its new place. A link that would still point outside the repo is refused. An untracked `.claude/skills` or `.agents/skills` link is repointed in place, not committed, and restored by a rollback. Round 2's tracked-only filter had left that link dangling.
+- **`git add -f`.** The framework's own files are committed even when an ignore rule such as `lib/` matches them.
+- **Subdirectory roots.** The `HEAD` config check is relative to the root, so a migrated subdirectory of a larger repo reruns as `nothing to migrate`.
+- **Blockers.** Untracked or ignored files the rollback could not restore now block only `--apply`. The dry run prints the plan and lists them. `AGENTS.md` and `.prettierignore` are checked only when the run would write them.
+- **The rollback** records a created path only after its write succeeds. A test with an injected failure found that the cleanup tripped on a path that was never made.
+- **YAML.** The emitter also quotes `1.` (a number with an empty fraction).
+- **Spec v2** now covers what the spec-reviewer found missing:
+  - `--repo-code` in SC-2, AC-015 and Measuring SC-2, where a held-back probe means not met;
+  - the narrowed step 6;
+  - every migration refusal and the atomic apply;
+  - the no-plugin rule;
+  - the probe table's run conditions;
+  - the risks.
+- **Tests** that fail on `32e57e0`, the round-2 code:
+  - 7 in `migrate-hardening.test.mjs`;
+  - 2 in `containment.test.mjs`;
+  - 1 in `mini-yaml.test.mjs`.
+
+  Tests also now cover round-2 fixes that had none: the extension-phase rule, `workflowCopy` containment, and `..foo` in `isInside`.
+
+**Not fixed, and disclosed in the PR:**
+- The move-destination refusal cannot be reached, because every destination is under `.sdlc/`, which is refused first. It stays as a second layer, untested.
+- The `realpathSync.native` comparison has no test, because no case-insensitive volume is available in CI.
+- The scan gaps listed in `specs/intents.md`.
+
+**Why:** shipping known, reproduced defects to an adopter's migration is worse than an unreviewed fix with a test. The owner sees both lists in the PR.
+**Reversal path:** revert the round-3 fix PR.

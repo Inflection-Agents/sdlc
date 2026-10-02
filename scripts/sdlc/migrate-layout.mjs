@@ -281,7 +281,7 @@ export function planMigration(root, { exclude = [] } = {}) {
         // Only a committed config means the migration happened. An untracked one is a leftover,
         // for example from an apply that failed before its commit.
         try {
-            git(root, ['cat-file', '-e', `HEAD:${CONFIG_REL}`])
+            git(root, ['cat-file', '-e', `HEAD:./${CONFIG_REL}`])
             return { nothing: true }
         } catch {
             throw new Refusal(`${CONFIG_REL} exists but is not committed; remove the untracked .sdlc/ and run again`)
@@ -307,24 +307,10 @@ export function planMigration(root, { exclude = [] } = {}) {
     // The rollback restores what git tracks and removes what the migration created. Anything
     // else in its way is refused up front, so a failed apply cannot lose a file git never had.
     const list = (args) => git(root, ['ls-files', ...args]).split('\n').filter(Boolean)
-    const loose = dirMoves.flatMap(([from]) => [...list(['--others', '--', from]), ...list(['--others', '--ignored', '--exclude-standard', '--', from])])
-    if (loose.length) {
-        const shown = [...new Set(loose)].slice(0, 10)
-        throw new Refusal(`untracked or ignored files sit in a directory the migration moves; commit, move or delete them first:\n  ${shown.join('\n  ')}`)
-    }
-    for (const name of ROOT_WRITES) {
-        if (lstatExists(join(root, name)) && !trackedSet.has(name)) {
-            throw new Refusal(`${name} exists but is not committed, and the migration would change it; commit it or move it aside first`)
-        }
-        if (!lstatExists(join(root, name)) && ignored(root, name)) {
-            throw new Refusal(`${name} is gitignored, so the migration could not commit the one it writes; un-ignore it first`)
-        }
-        try {
-            assertWriteInside(root, join(root, name))
-        } catch (err) {
-            throw new Refusal(`${name} is a symlink to a file outside the repo, which the migration would change: ${err.message}`)
-        }
-    }
+    // These block --apply but not the dry run, so the owner sees the plan and the list together.
+    const blockers = []
+    const loose = [...new Set(dirMoves.flatMap(([from]) => [...list(['--others', '--', from]), ...list(['--others', '--ignored', '--exclude-standard', '--', from])]))]
+    for (const f of loose) blockers.push(`${f}: untracked or ignored, in a directory the migration moves; commit, move or delete it`)
     for (const f of files) {
         if (![...dirMoves.map(([d]) => d), ...moves.keys()].some((src) => f === src || f.startsWith(`${src}/`))) continue
         if (!lstatSync(join(root, f), { throwIfNoEntry: false })?.isSymbolicLink()) continue
@@ -399,6 +385,22 @@ export function planMigration(root, { exclude = [] } = {}) {
         }
     }
     plan.agentsBody = agentsBody
+    plan.blockers = blockers
+    // Only the root files this run will write: AGENTS.md when there is project prose, and
+    // .prettierignore when the repo has one.
+    const rootWrites = ROOT_WRITES.filter((n) => (n !== 'AGENTS.md' || agentsBody !== null) && (n !== '.prettierignore' || lstatExists(join(root, n))))
+    for (const name of rootWrites) {
+        if (lstatExists(join(root, name)) && !trackedSet.has(name)) {
+            blockers.push(`${name}: exists but is not committed, and the migration would change it; commit it or move it aside`)
+        } else if (!lstatExists(join(root, name)) && ignored(root, name)) {
+            blockers.push(`${name}: gitignored, so the migration could not commit the one it writes; un-ignore it`)
+        }
+        try {
+            assertWriteInside(root, join(root, name))
+        } catch (err) {
+            throw new Refusal(`${name} is a symlink to a file outside the repo, which the migration would change: ${err.message}`)
+        }
+    }
     if (agentsBody !== null && (readText(join(root, 'AGENTS.md')) ?? '').includes(BLOCK_BEGIN)) {
         throw new Refusal(`AGENTS.md already has an SDLC block (${BLOCK_BEGIN}); remove it so the migration can write the project context there`)
     }
@@ -514,8 +516,12 @@ export function planMigration(root, { exclude = [] } = {}) {
         }
     }
 
-    // Symlinks whose target moved.
+    // Symlinks whose target moved, or that move themselves. A relative link that changes
+    // depth would otherwise point somewhere else, outside the repo even, from its new place.
+    const seen = new Set()
     for (const link of ['.claude/skills', '.agents/skills', ...files]) {
+        if (seen.has(link)) continue
+        seen.add(link)
         const abs = join(root, link)
         let isLink = false
         try {
@@ -523,18 +529,22 @@ export function planMigration(root, { exclude = [] } = {}) {
         } catch {
             continue
         }
-        if (!isLink || plan.repoints.some((r) => r.link === link)) continue
+        if (!isLink) continue
         const target = readlinkSync(abs)
+        if (posix.isAbsolute(target)) continue
         const resolvedOld = posix.normalize(posix.join(posix.dirname(link), target))
         const dm = dirMoves.find(([d]) => resolvedOld === d || resolvedOld.startsWith(`${d}/`))
         const mapped = dm ? dm[1] + resolvedOld.slice(dm[0].length) : mapPath(resolvedOld, entries)
-        if (!trackedSet.has(link)) continue
-        // A link inside a moved directory is repointed where it lands.
+        const finalTarget = mapped && mapped !== resolvedOld ? mapped : resolvedOld
         const ldm = dirMoves.find(([d]) => link.startsWith(`${d}/`))
         const newLink = moves.get(link) ?? (ldm ? ldm[1] + link.slice(ldm[0].length) : link)
-        if (mapped && mapped !== resolvedOld) {
-            plan.repoints.push({ link: newLink, from: target, to: posix.relative(posix.dirname(newLink), mapped) })
+        if (newLink === link && finalTarget === resolvedOld) continue
+        if (newLink !== link && (finalTarget === '..' || finalTarget.startsWith('../'))) {
+            throw new Refusal(`${link} points outside the repo and would still after it moves to ${newLink}; replace it with a real file or directory first`)
         }
+        // A link the repo does not track (bootstrap.sh makes .claude/skills per checkout) is
+        // repointed in place but not committed, and a rollback puts it back.
+        plan.repoints.push({ link: newLink, from: target, to: posix.relative(posix.dirname(newLink), finalTarget), tracked: trackedSet.has(link) })
     }
 
     // Report.
@@ -661,13 +671,17 @@ function removeEmptyDirs(root, rel) {
  * left behind, and then rethrows.
  */
 export function applyMigration(root, plan) {
+    if (plan.blockers?.length) {
+        throw new Refusal(`the migration cannot apply until these are resolved:\n  ${plan.blockers.join('\n  ')}`)
+    }
     if (localBranches(root).includes(BRANCH)) throw new Refusal(`branch ${BRANCH} already exists; delete it or finish that migration first`)
     const startBranch = git(root, ['rev-parse', '--abbrev-ref', 'HEAD']).trim()
     const startHead = git(root, ['rev-parse', 'HEAD']).trim()
     const created = []
+    const restore = []
     git(root, ['switch', '-q', '-c', BRANCH])
     try {
-        applyOnBranch(root, plan, created)
+        applyOnBranch(root, plan, created, restore)
     } catch (err) {
         // planMigration refused every untracked or ignored file in the migration's way, so the
         // reset restores everything git had and only the files this run created remain.
@@ -680,7 +694,17 @@ export function applyMigration(root, plan) {
             }
         }
         step('reset', () => git(root, ['reset', '-q', '--hard', startHead]))
-        for (const rel of created) step(`remove ${rel}`, () => rmSync(join(root, rel), { force: true }))
+        for (const rel of created) {
+            step(`remove ${rel}`, () => {
+                if (lstatExists(join(root, rel))) rmSync(join(root, rel), { force: true })
+            })
+        }
+        for (const r of restore) {
+            step(`restore ${r.link}`, () => {
+                rmSync(join(root, r.link), { force: true })
+                symlinkSync(r.from, join(root, r.link))
+            })
+        }
         step('remove .sdlc', () => removeEmptyDirs(root, '.sdlc'))
         step('switch back', () => git(root, startBranch === 'HEAD' ? ['switch', '-q', '--detach', startHead] : ['switch', '-q', startBranch]))
         step(`delete ${BRANCH}`, () => git(root, ['branch', '-q', '-D', BRANCH]))
@@ -707,7 +731,7 @@ function ignored(root, rel) {
     }
 }
 
-function applyOnBranch(root, plan, created) {
+function applyOnBranch(root, plan, created, restore) {
     const staged = new Set()
     // Every move lands inside the repo, even after an earlier move put a symlink on its path.
     const move = (from, to) => {
@@ -726,16 +750,19 @@ function applyOnBranch(root, plan, created) {
         if (existsSync(join(root, rel))) git(root, ['rm', '-q', rel])
     }
     for (const [rel, content] of plan.writes) {
-        if (!lstatExists(join(root, rel))) created.push(rel)
+        const isNew = !lstatExists(join(root, rel))
         writeFile(root, rel, content)
+        // Recorded once written, so the rollback never chases a path that was never made.
+        if (isNew) created.push(rel)
         staged.add(rel)
     }
     for (const r of plan.repoints) {
         const abs = join(root, r.link)
         assertWriteInside(root, dirname(abs))
+        if (!r.tracked) restore.push(r)
         unlinkSync(abs)
         symlinkSync(r.to, abs)
-        staged.add(r.link)
+        if (r.tracked) staged.add(r.link)
     }
     for (const name of ROOT_WRITES) if (!lstatExists(join(root, name))) created.push(name)
     for (const name of ['.ignore', '.gitignore']) {
@@ -761,7 +788,8 @@ function applyOnBranch(root, plan, created) {
     }
     removeEmptyDirs(root, LAYOUT1_DIRS.ai)
 
-    git(root, ['add', '-A', '--', ...[...staged].filter((p) => lstatExists(join(root, p)))])
+    // -f: a framework file the repo's ignore rules happen to match (a `lib/` rule) is still committed.
+    git(root, ['add', '-A', '-f', '--', ...[...staged].filter((p) => lstatExists(join(root, p)))])
     git(root, ['commit', '-q', '-m', COMMIT_MESSAGE])
 }
 
@@ -816,7 +844,7 @@ function printPlan(plan, out = process.stdout) {
         [...plan.moves].filter(([a]) => !plan.dirMoves.some(([d]) => a.startsWith(`${d}/`))).map(([a, b]) => `${a} -> ${b}`)
     )
     list('Deleted after merging', plan.deletes)
-    list('Symlinks repointed', plan.repoints.map((r) => `${r.link}: ${r.from} -> ${r.to}`))
+    list('Symlinks repointed', plan.repoints.map((r) => `${r.link}: ${r.from} -> ${r.to}${r.tracked ? '' : ' (local link, not committed)'}`))
     if (plan.projectProse !== undefined) {
         w(`\nProject context: ${plan.projectInline ? 'inline in the AGENTS.md SDLC block' : '.sdlc/project.md (over the 16 KiB AGENTS.md budget)'}`)
     }
@@ -880,6 +908,9 @@ function main(argv) {
         return
     }
     printPlan(plan)
+    if (plan.blockers.length) {
+        process.stdout.write(`\nBlocks --apply (${plan.blockers.length}):\n${plan.blockers.map((b) => `  ${b}`).join('\n')}\n`)
+    }
     if (!apply) {
         process.stdout.write('\nDry run: nothing was written. Run with --apply to migrate on a new branch.\n')
         return
