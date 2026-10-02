@@ -36,7 +36,7 @@ spec_version: 1
 
 ### S5: The durable review log, projection and suppression
 - Covers: AC-005, AC-018, AC-019, AC-020
-- Changes: `scripts/sdlc/review-log.mjs`, `scripts/sdlc/review-log.test.mjs`, `init-payload/.sdlc/scripts/review-log.mjs`, `scripts/sdlc/lib/released-payloads.json`, `skills/review-primitives.md`, `init-payload/.sdlc/contracts/review-primitives.md`, `skills/spec-authoring/SKILL.md`, `skills/spec-amendment/SKILL.md`, `skills/spec-schema.md`, `.github/workflows/sdlc-validate.yml`
+- Changes: `scripts/sdlc/review-log.mjs`, `scripts/sdlc/review-log.test.mjs`, `init-payload/.sdlc/scripts/review-log.mjs`, `scripts/sdlc/lib/released-payloads.json`, `skills/review-primitives.md`, `init-payload/.sdlc/contracts/review-primitives.md`, `skills/spec-authoring/SKILL.md`, `skills/spec-amendment/SKILL.md`, `skills/spec-schema.md`, `.github/workflows/sdlc-validate.yml`, `specs/SPEC-001-tiered-code-review.md` (Changelog only)
 - Verify: `env -u CLAUDE_PROJECT_DIR node --test .sdlc/scripts/review-log.test.mjs`, `node .sdlc/scripts/gen-released-payloads.mjs --check`
 - After: S4
 - Risk: medium

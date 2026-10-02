@@ -340,9 +340,25 @@ clean review. This is also where a self-review is caught: an envelope with `revi
 carrying blockers, or carrying none at all, is rejected — an empty envelope is a verdict of
 "nothing wrong", so an inline one is a self-accept.
 
+**Record every round in the review log.** `specs/review-logs/SPEC-NNN.json` is the one record of
+every finding raised against this spec, keyed by its content-addressed `id` (SPEC-007 > Lever 5). It
+is the only file the routing policy reads an owner's ruling from.
+
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs review-log append specs/SPEC-NNN-<x>.md <envelope.json> --round <n>   # after the validator exits 0
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs review-log apply  specs/SPEC-NNN-<x>.md <envelope.json> > routed.json  # route on this, not on the raw envelope
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs review-log project specs/SPEC-NNN-<x>.md > previous_output.json         # the next round's previous_output
+```
+
+Append each returned envelope, both of round 1's and the single reviewer's in every later round.
+`apply` drops a finding the owner marked `wontfix` and routes an `overridden` one at the owner's
+severity, never above the reviewer's, so run the policy on its output. Seed each round after the
+first with `previous_output` from `project`, never from a hand-carried envelope; the carry-forward
+rule in `review-primitives.md` is unchanged.
+
 **Apply the routing policy.** Severity → action is defined in [`review-primitives.md`](../review-primitives.md) > Orchestrator severity→action policy — do not duplicate it here. In summary: blockers/majors route to `fix_loop`; nits/suggestions route to `batch_followup_and_accept` (appended to `spec_followups:` per SPEC-001 Design > Spec followups format); empty findings list routes to `accept`; and at the spec-side round cap (`SPEC_REVIEW_ROUND_CAP` in that policy, ADR-005), a remaining blocker or major routes to `disclose_and_accept`. Count rounds from 1 at the first dispatch and pass the count as the policy's `round`. Run the policy on the reviewer's output and proceed accordingly:
 
-- **`fix_loop`** (any blocker or major exists): loop with the author to fix each finding, OR loop with the owner to override severity via `spec_review_overrides:` (see below). Re-DISPATCH `spec-reviewer` after edits — a fix round is graded by a fresh agent, never inline — passing the previous output as `previous_output` so nit/suggestion findings on unchanged sections carry forward per the contract in `review-primitives.md`. Continue looping until there are no remaining un-overridden blockers or majors, or until the policy returns `disclose_and_accept`.
+- **`fix_loop`** (any blocker or major exists): loop with the author to fix each finding, OR loop with the owner to override severity via `spec_review_overrides:` (see below). Re-DISPATCH `spec-reviewer` after edits — a fix round is graded by a fresh agent, never inline — passing `previous_output` from `review-log project` so nit/suggestion findings on unchanged sections carry forward per the contract in `review-primitives.md`. Continue looping until there are no remaining un-overridden blockers or majors, or until the policy returns `disclose_and_accept`.
 - **`batch_followup_and_accept`** (only nits/suggestions remain): append the findings to a `spec_followups:` section in the spec body (after `Migration` and `spec_review_overrides`, per SPEC-001 Design > Spec followups format), then proceed to the sign-off gate.
 - **`accept`** (empty findings list): proceed directly to the sign-off gate.
 - **`disclose_and_accept`** (the round cap is reached with a blocker or major left): dispatch no further round. Write each surviving blocker and major into a `## Disclosed, not reviewed-clean` section of the spec body, as the policy's action semantics in `review-primitives.md` specify, handle the nits and suggestions as under `batch_followup_and_accept`, and proceed to the sign-off gate, where the owner signs off with the survivors in front of them.
@@ -359,7 +375,16 @@ carrying blockers, or carrying none at all, is rejected — an empty envelope is
   override_date: 2026-05-18
 ```
 
-**Overrides downgrade severity only — they never silence the finding.** The original reviewer output stays in the spec's review log (per SPEC-002 telemetry). The routing policy reads the *override* severity but the review log shows both the reviewer's call and the owner's. An override that attempts to remove a finding from the output, or to mark a finding as resolved without addressing it, is a SPEC-001 contract violation.
+**Overrides downgrade severity only — they never silence the finding.** The original reviewer output stays in the spec's review log, `specs/review-logs/SPEC-NNN.json`. The routing policy reads the *override* severity from that log, which shows both the reviewer's call and the owner's. An override that attempts to remove a finding from the output, or to mark a finding as resolved without addressing it, is a SPEC-001 contract violation.
+
+**Record the owner's ruling in the log, after the spec body.** Once the `spec_review_overrides` entry is in the spec, record it:
+
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs review-log resolve specs/SPEC-NNN-<x>.md <finding_id> --resolution overridden --owner-severity <sev> \
+    --recorded-by <owner> --reason "<the entry's reason>"
+```
+
+Only the owner may drop a finding outright. That is `--resolution wontfix`, paired with a spec-body entry carrying `resolution: wontfix` and a reason, and for a blocker or major also an entry in `## Disclosed, not reviewed-clean`. The command refuses, and writes nothing, when `--recorded-by` is not the spec's `owner` or the spec body does not already show the same ruling, so the log never runs ahead of the spec. Neither the author nor a reviewer records a ruling.
 
 When the routing policy returns `accept` or `batch_followup_and_accept` (after any overrides), proceed to the sign-off gate. The owner's sign-off remains the authority — the reviewer's output is informational and grounded; the owner approves.
 

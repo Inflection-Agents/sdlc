@@ -43,6 +43,11 @@ jobs:
               # closed spec is reported as a warning, because nobody may edit a closed one.
               run: node .sdlc/scripts/validate-spec.mjs --ci
 
+            - name: Spec review logs agree with their specs
+              # SPEC-007 Lever 5: every overridden or wontfix ruling in specs/review-logs/ is paired
+              # with the same ruling in the spec body's spec_review_overrides. No logs is a pass.
+              run: node .sdlc/scripts/review-log.mjs check
+
             - name: Delivery guides are complete and current
               # Every spec AC covered, every step verifiable, guide and index in step, and an
               # approved guide's KICKOFF.md within 3,800 characters (ADR-007). An unmatched glob
