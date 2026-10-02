@@ -217,3 +217,10 @@ in chronological order.
 **Decided:** the payload takes the repo's text. This repo's `.sdlc/state-machine.yaml` is now byte-identical to the payload's.
 **Why:** the repo's text is the newer contract. A fixed copy that every sync refreshes has to start from the current one.
 **Reversal path:** restore the shorter exit condition in both.
+
+---
+
+## S10 — This repo moves to layout 2, and release 0.4.0
+
+**Merged:** PR #69
+**What changed:** this repo runs on layout 2, with `.sdlc/scripts` as a symlink to the plugin source, at version 0.4.0. The manifest now runs through 0.4.0, and RELEASING has the 0.4.0 row and a regenerate step. Every shipped file scans clean. CI found one more hit after the first push: the scan read this repo's own `.sdlc/config.yaml`, whose `paths` and `scan.allow` name paths on purpose. The scan now exempts that file by built-in rule.

@@ -30,7 +30,7 @@ steps:
   - id: S9
     status: done
   - id: S10
-    status: pending
+    status: done
 
 decisions:
   - id: D1
