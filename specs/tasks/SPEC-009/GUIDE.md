@@ -61,7 +61,7 @@ spec_version: 1
 
 ### S8: sdlc-sync runs the migration
 - Covers: AC-016
-- Changes: `skills/sdlc-sync/SKILL.md`
+- Changes: `skills/sdlc-sync/SKILL.md`, `scripts/sdlc/sync-refresh.mjs`, `scripts/sdlc/sync-refresh.test.mjs`, `scripts/sdlc/gen-released-payloads.mjs`, `scripts/sdlc/gen-released-payloads.test.mjs`, `scripts/sdlc/lib/released-payloads.json` (the workflow role)
 - Verify: `rg -n "migrate-layout|scan-legacy-paths|probe-gates|framework_version|layout 1|layout 2|extensions" skills/sdlc-sync/SKILL.md`
 - Notes: Replace the "Never touches" row with the narrower rule from SPEC-009 Design > Migration > Rewrites. Spell out the seven layout-1 steps in order, and say that no refresh runs in the migrating run. Scan hits get fixed with the owner as commits on the branch. Never pass `--exclude` to make the scan go quiet.
 

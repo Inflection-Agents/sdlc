@@ -5,7 +5,7 @@
  * The migration and `/sdlc-sync` replace a framework file in an adopter repo only when
  * its bytes match a file the framework actually shipped, and keep it as a local edit
  * otherwise. This manifest is that record: for each file role (`scripts/<name>`,
- * `templates/<name>`, `contracts/<name>`, `state-machine`), the SHA-256 of every version
+ * `templates/<name>`, `contracts/<name>`, `workflows/<name>`, `state-machine`), the SHA-256 of every version
  * of it the payload has held, each with the plugin version it shipped in.
  *
  * It covers every commit that touched `init-payload/` up to and including the latest
@@ -42,6 +42,7 @@ export function roleOf(payloadRel) {
         return `contracts/${m[1]}`
     }
     if (p === 'sdlc-state-machine.yaml' || p === '.sdlc/state-machine.yaml') return 'state-machine'
+    if ((m = p.match(/^\.github\/workflows\/([^/]+\.ya?ml)$/))) return `workflows/${m[1]}`
     return null
 }
 

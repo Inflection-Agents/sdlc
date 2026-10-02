@@ -157,3 +157,13 @@ in chronological order.
 **Merged:** PR #66
 **What changed:** added `probe-gates.mjs` (P1 to P8, `probeRev`, `compare`, `--before/--after`) and its test. The forked fixture gained a working, wired local hook and a flat archive. P4 and P6 report `ran: false` where ripgrep is absent, which includes the CI image, so the test asserts on them only when `rg` is installed.
 **Anything a later step must match:** S8's sync skill runs `probe-gates.mjs --root . --before <pre-migration commit> --after HEAD` as step 5, and exit 1 there means a gate regressed. `compare()` reads "the same result" for P1 to P5 as no regression: a probe that caught before must still catch after.
+
+---
+
+## EXECUTIVE DECISION — guide change: S8 adds a refresh tool and a workflow role in the manifest
+
+**Date:** 2026-10-02
+**Question:** AC-016 and SC-3 need the layout-2 refresh to replace unmodified framework files, ask before replacing modified ones, always refresh the machine, and change only `framework_version` in `config.yaml`. Written as skill prose alone, an agent would carry that out by hand on each run, and SC-3 could not be measured.
+**Decided:** add `scripts/sdlc/sync-refresh.mjs` (plugin-only, `--plan` and `--apply [--accept <file>]`) and its test, and have the skill call it. The manifest gains a `workflows/<name>` role, so an unedited older workflow counts as unmodified, and it is regenerated.
+**Why:** the classification is mechanical and must match the migration's manifest rule exactly. Owner judgment stays where it belongs, on the diff of each modified file.
+**Reversal path:** inline the steps in the skill and drop the role.
