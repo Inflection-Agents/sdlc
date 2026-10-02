@@ -1,8 +1,9 @@
 spec: SPEC-011
 title: "Worktree lifecycle: when to create one, where it goes, and when it is removed"
 plan_review:
+  # The owner approved spec and guide together on 2026-10-02 ("approved").
   status: approve-ready
-  approved: false
+  approved: true
   reviewed: 2026-10-02
 
 steps:
@@ -25,6 +26,6 @@ phase:
   current: spec-authoring
   next_action: spec-execution
   next_trigger: 'execute SPEC-011'
-  exit_condition_met: false
-  handoff_surfaced: false
+  exit_condition_met: true
+  handoff_surfaced: true
   updated: 2026-10-02

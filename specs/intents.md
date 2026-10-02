@@ -134,10 +134,10 @@ The reference implementations run multiple local agents (Claude Code, Gemini CLI
 ### `[backlog]` Three role-specific entry points with consistent shape
 The reference implementation has `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` with prescriptive role framing ("You are the orchestrator", "You are a task executor"). Upstream has the first two but no consistent template. Decide: do we ship `GEMINI.md` upstream, or do we ship a single agent-entry-point template that the consumer instantiates per agent?
 
-### `[backlog]` Worktree isolation rule as a standalone doc
+### `[active]` Worktree isolation rule as a standalone doc → absorbed by [SPEC-011](SPEC-011-worktree-lifecycle.md) (`docs/worktrees.md`)
 Referenced in SPEC-002 with the 2026-04-24 stash-incident justification. Belongs as a top-level rule (e.g., in `agent-orchestration.md` or a sibling doc) so consumers find it without reading SPEC-002. Small; can ship with the SPEC-002 work.
 
-### `[backlog]` Prescribe when to create worktrees, where they go, and when they are removed
+### `[active]` Prescribe when to create worktrees, where they go, and when they are removed → [SPEC-011](SPEC-011-worktree-lifecycle.md)
 Raised by the owner, 2026-10-01: "we're not prescriptive on when to create worktrees and where the worktrees are created. So, we end up with a sprawl." The evidence comes from high-gear-apps:
 - `git -C ~/_code/high-gear-apps worktree list` shows 23 worktrees in 3 kinds of location: 19 under `.claude/worktrees/`, 3 sibling directories in `~/_code/` (`hga-v0.1.109-plan`, `hga-sec-intent`, `high-gear-apps-spec167`), and the main checkout.
 - `.gitignore` lists both `.worktrees/` and `.claude/worktrees/` (lines 59 and 60).

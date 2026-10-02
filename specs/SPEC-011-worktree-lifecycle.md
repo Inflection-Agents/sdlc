@@ -1,7 +1,7 @@
 ---
 id: SPEC-011
 title: "Worktree lifecycle: when to create one, where it goes, and when it is removed"
-status: draft
+status: active
 version: 1
 supersedes:
 initiative: INI-004
