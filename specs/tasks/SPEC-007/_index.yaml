@@ -26,9 +26,9 @@ steps:
 decisions: []
 
 phase:
-  current: spec-execution
+  current: spec-completion
   next_action: spec-completion
   next_trigger: 'close out SPEC-007'
-  exit_condition_met: true
+  exit_condition_met: false
   handoff_surfaced: true
   updated: 2026-10-02
