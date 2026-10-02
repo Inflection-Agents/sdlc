@@ -97,3 +97,140 @@ export function forkedRepo() {
     symlinkSync('../.ai/skills', join(r, '.claude', 'skills'), 'dir')
     return fx
 }
+
+const FRAMEWORK = new URL('../../../../', import.meta.url).pathname
+
+/** The bytes of one file in the framework repo at `rev`. */
+export function frameworkFileAt(rev, rel) {
+    const res = spawnSync('git', ['show', `${rev}:${rel}`], { cwd: FRAMEWORK, encoding: 'utf8', maxBuffer: 1 << 26 })
+    if (res.status !== 0) throw new Error(`git show ${rev}:${rel} failed: ${res.stderr}`)
+    return res.stdout
+}
+
+function listAt(rev, dir) {
+    const res = spawnSync('git', ['ls-tree', '-r', '--name-only', rev, '--', dir], { cwd: FRAMEWORK, encoding: 'utf8' })
+    return res.stdout.split('\n').filter(Boolean)
+}
+
+/**
+ * A plugin-init repo exactly as /sdlc-init 0.3.0 left it (the payload at 89cba06), plus a
+ * root skills/ with one domain skill, as the 0.3.0 project stub tells adopters to keep.
+ */
+export function pluginInit030Repo() {
+    const fx = tempRoot('sdlc-p030-')
+    const r = fx.root
+    const REV = '89cba06'
+    for (const path of listAt(REV, 'init-payload')) {
+        const rel = path.slice('init-payload/'.length)
+        let dest = rel
+        if (rel === 'README.md') continue
+        if (rel === 'sdlc-state-machine.yaml') dest = 'specs/sdlc-state-machine.yaml'
+        else if (rel === '.ai/project.stub.md') dest = '.ai/project.md'
+        else if (rel === '.ai/sdlc/review-constraints.stub.yaml') dest = '.ai/sdlc/review-constraints.yaml'
+        write(r, dest, frameworkFileAt(REV, path))
+    }
+    write(r, 'skills/web-patterns/SKILL.md', '---\nname: web-patterns\n---\n# web\n')
+    mkdirSync(join(r, 'specs', 'adrs'), { recursive: true })
+    write(r, 'specs/adrs/.gitkeep', '')
+    commitAll(r, '0.3.0 init')
+    return fx
+}
+
+/** A project.md over the 16 KiB budget, holding the three workspace tables the way high-gear-apps writes them. */
+function bigProjectDoc() {
+    const filler = Array.from({ length: 320 }, (_, i) => `Line ${i} of project prose that pads the document past the AGENTS.md budget.`).join('\n')
+    return `# Fixture — Project Context
+
+See [the runbook](../docs/runbooks/spec-execution.md).
+
+## Workspaces
+
+| Workspace | Path | Package | Stack | Test command | Build command |
+|-----------|------|---------|-------|-------------|---------------|
+| web | \`apps/web\` | \`@fx/web\` | Next.js | \`pnpm --filter web test\` | \`pnpm --filter web build\` |
+| dbt | \`dbt\` | n/a | dbt | \`pnpm dev:dbt test\` (Postgres) / \`pnpm dev:dbt:local test\` (Trino) | N/A |
+
+### Agent eligibility by workspace
+
+| Workspace | Agent-executable? | Notes |
+|-----------|-------------------|-------|
+| web | Yes (with caution) | Changes require verifying consumers |
+| dbt | No (\`human\`) | Needs database credentials |
+
+### Workspace skills
+
+| Workspace | Domain skills | Purpose |
+|-----------|--------------|---------|
+| web | \`web-patterns\`, \`web-testing\` | App Router conventions |
+
+## Prose
+
+${filler}
+`
+}
+
+/** A forked layout-1 repo modeled on high-gear-apps, carrying every form SPEC-009 AC-010 lists. */
+export function forkedHighGearRepo() {
+    const fx = tempRoot('sdlc-fork-')
+    const r = fx.root
+    write(r, 'specs/sdlc-state-machine.yaml', `version: 1
+
+phases:
+    - id: spec-authoring
+      entry_triggers:
+          - 'spec out'
+      preconditions:
+          - 'an intent exists'
+      owner_skill: spec-authoring
+      exit_condition: 'local wording'
+      next_phase: none
+      next_trigger: none
+    - id: roadmap-sync
+      entry_triggers:
+          - 'sync the roadmap'
+      preconditions:
+          - 'a roadmap exists'
+      owner_skill: roadmap-sync
+      exit_condition: 'the roadmap is current'
+      next_phase: none
+      next_trigger: none
+
+domain_routing:
+    web:
+        - web-patterns
+
+exempt:
+    - review-primitives
+    - capture-spec-gap
+`)
+    write(r, '.ai/project.md', bigProjectDoc())
+    write(r, '.ai/sdlc.md', '# Process\n\nSee [runbook](../docs/runbooks/spec-execution.md).\n')
+    write(r, '.ai/DESIGN.md', '# design notes the framework never shipped\n')
+    write(r, '.ai/sdlc/review-constraints.yaml', 'constraints:\n  - id: FX-1\n    lens: correctness\n    check: "fixture"\n    when: { touches: ["apps/**"] }\n')
+    write(r, '.ai/sdlc/review-constraints-loader.mjs', "import { readFileSync } from 'node:fs'\nimport { join, dirname } from 'node:path'\nimport { fileURLToPath } from 'node:url'\nconst HERE = dirname(fileURLToPath(import.meta.url))\nexport const load = () => readFileSync(join(HERE, 'review-constraints.yaml'), 'utf8')\n")
+    write(r, '.ai/sdlc/review-envelope.schema.json', '{"title": "local schema"}\n')
+    write(r, '.ai/sdlc/__tests__/schema.test.mjs', "import { join } from 'node:path'\nconst skills = join(import.meta.dirname, '..', '..', 'skills')\nexport default skills\n")
+    write(r, '.ai/skills/review-primitives.md', '# primitives, edited locally\n')
+    write(r, '.ai/skills/pr-reviewer/SKILL.md', '---\nname: pr-reviewer\n---\nLoad the registry via `../../sdlc/review-constraints-loader.mjs`.\n')
+    write(r, '.ai/skills/web-patterns/SKILL.md', '---\nname: web-patterns\n---\n# web\n')
+    write(r, '.ai/skills/create-domain-skill/SKILL.md', '---\nname: create-domain-skill\n---\n### Step 6: Update project.md — Workspace skills table\n')
+    write(r, '.ai/skills/plugin-cites/SKILL.md', '---\nname: plugin-cites\n---\nRun `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/x.mjs`.\n')
+    write(r, 'scripts/sdlc/validate-guide.mjs', frameworkFileAt('89cba06', 'init-payload/scripts/sdlc/validate-guide.mjs') + '// local edit\n')
+    write(r, 'scripts/sdlc/check-local-citations.mjs', 'export const ALWAYS_LOADED = [/^\\.ai\\//]\n')
+    write(r, 'scripts/sdlc/check-subagent-types.mjs', "import { join } from 'node:path'\nexport const dir = (root) => join(root, '.ai', 'skills')\n")
+    write(r, 'specs/templates/intent-refinement.md', '# a template the framework never shipped\n')
+    write(r, 'specs/templates/spec.md', '# spec\n')
+    write(r, 'specs/schema/sdlc-state-machine.schema.json', '{"required": ["phases", "domain_routing"]}\n')
+    write(r, 'AGENTS.md', '# Jules entry point\n\nRead `.ai/project.md`, then `.ai/AGENTS.md`.\n<!-- BEGIN BEADS INTEGRATION -->\nbeads\n<!-- END BEADS INTEGRATION -->\n')
+    write(r, '.ai/AGENTS.md', '# You are a step executor.\n')
+    write(r, 'CLAUDE.md', '# Claude\n\n1. `.ai/project.md`\n')
+    write(r, '.claude/hooks/user-prompt-submit.mjs', "import { join } from 'node:path'\nconst sm = join(root, 'specs', 'sdlc-state-machine.yaml')\nconst isProc = (rel) => rel.startsWith('.ai/')\nrenderDbtContext(machine.domain_routing)\n")
+    write(r, '.github/workflows/sdlc-gates.yml', "on:\n  pull_request:\n    paths:\n      - '.ai/**'\n      - 'scripts/sdlc/**'\njobs:\n  gates:\n    runs-on: ubuntu-latest\n    steps:\n      - run: node scripts/sdlc/validate-guide.mjs specs/tasks/*/GUIDE.md\n")
+    write(r, '.github/workflows/ci.yml', "on:\n  pull_request:\n    paths-ignore:\n      - '**.md'\njobs: {}\n")
+    write(r, 'apps/web/layout.tsx', "import X from '@/components/templates/spec.md'\n")
+    write(r, 'docs/runbooks/spec-execution.md', '# runbook\n')
+    mkdirSync(join(r, '.claude'), { recursive: true })
+    symlinkSync('../.ai/skills', join(r, '.claude', 'skills'), 'dir')
+    commitAll(r, 'forked layout 1')
+    return fx
+}

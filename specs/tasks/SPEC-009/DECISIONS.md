@@ -109,3 +109,32 @@ in chronological order.
 **Merged:** PR #64
 **What changed:** `init-payload/` mirrors the layout-2 tree. `install-payload.mjs` installs it for `/sdlc-init` and `bootstrap.sh`. `bootstrap.sh` refuses to run on a layout-1 repo.
 **Anything a later step must match:** the payload's validators live at `init-payload/.sdlc/scripts/`, and the parity test compares them with `scripts/sdlc/`. S6 adds `scan-legacy-paths.mjs` and a CI step for it in `init-payload/.github/workflows/sdlc-validate.yml`. The workflow-script test requires each script the workflow names to be in the payload. The block stub is `init-payload/AGENTS.sdlc-block.md`.
+
+---
+
+## EXECUTIVE DECISION — guide change: S6 touches the YAML emitter, the parity test and two workflows
+
+**Date:** 2026-10-02
+**Question:** the migration surfaced four needs outside S6's `Changes:`:
+- `emitYaml` wrote `package: @fx/web` unquoted, and a plain YAML scalar cannot start with `@`.
+- The parity test required every `lib/` file in the payload, including the plugin-only manifest.
+- The payload's CI had no step running the new scan.
+- This repo's CI checkout is shallow, so the manifest's `--check` cannot read history there.
+**Decided:**
+- quote a scalar that starts with an indicator character;
+- limit the `lib/` parity check to `.mjs` modules;
+- add a `scan-legacy-paths.mjs` step to the payload's `sdlc-validate.yml`;
+- set `fetch-depth: 0` in this repo's checkout;
+- add `lib/legacy-map.test.mjs` to pin the matching rules.
+**Why:** without each fix, either the migration writes a config that does not parse, or a gate the spec relies on never runs.
+**Reversal path:** revert those hunks.
+
+---
+
+## EXECUTIVE DECISION — the scan recovers the migration's moves from git
+
+**Date:** 2026-10-02
+**Question:** the `'..'`-join check applies to a file whose directory depth changed in the move, but the owner reruns `scan-legacy-paths.mjs` standalone while fixing hits, after the migration commit, and at that point no move map is passed in.
+**Decided:** when the caller passes no move map, `scanRepo` reads the renames of the commit titled `sdlc: migrate to layout 2` in the branch's history. Tests and fixtures stay exempt from every form except that `'..'`-join check on a test that moved to a new depth.
+**Why:** the check then gives the same answer during `--apply` and on every later scan of the branch.
+**Reversal path:** pass moves explicitly and drop `movesFromHistory`.

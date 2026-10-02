@@ -172,7 +172,8 @@ export function parseYaml(text) {
     return value
 }
 
-const PLAIN = /^[A-Za-z0-9_./@][A-Za-z0-9_./@ -]*$/
+// A plain scalar may not start with a YAML indicator such as @ or `, so those are quoted.
+const PLAIN = /^[A-Za-z0-9_./][A-Za-z0-9_./@ -]*$/
 
 function emitScalar(v) {
     if (v === null || v === undefined) return '""'

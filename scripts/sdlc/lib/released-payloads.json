@@ -1,0 +1,102 @@
+{
+  "through": "89cba06f302381f924311ee97c928d0de5d8a782",
+  "roles": {
+    "contracts/review-envelope.schema.json": {
+      "7f06368b4de9c30b6f51d93ba558d1204679bd186976fc3c047782d6c9cb91ae": "0.1.0",
+      "b94aff9a5a97a356d8cceaec6dbc5fdb6521e6c8409021afc171f1da33943640": "0.2.0"
+    },
+    "contracts/review-primitives.md": {
+      "8a6d7f0da4bbfde8af0bcbe8a6c68116447f346598baf40cc0b41973e5cbba30": "0.1.0",
+      "e1b6658bcf0c5ffd62f7b43cd75b3b5af452540ac304c42e6a2fe3e3cc582e9a": "0.2.0",
+      "230babc86a5b74ea625a1a12a81812d13e6faade2a99487963830fb06cff1fb9": "0.3.0"
+    },
+    "scripts/archive-specs.mjs": {
+      "60884236dd13cab415f828fd7fdf66d62066d294b1cddf304486eccc1bf0b7d1": "0.1.0",
+      "b6f428e2b12172472659ce5be1cd48f5339347c3b60d5a2803f48eb1c85e0b30": "0.2.0"
+    },
+    "scripts/check-review-constraint-globs.mjs": {
+      "8457a5f6d4abd6fc93bbe438087efde1bbf08c6ecd9f02f41f5369713199c4df": "0.1.0",
+      "8bbf202f0e593b525501cd199c0abf3a4deaee93376a2e6377ccf29d4e2daa57": "0.3.0"
+    },
+    "scripts/check-stale-citations.mjs": {
+      "ba28a037160fbb6a20725a033ac155f0b3f05f80b681c6c4e7ece3e541af583c": "0.1.0"
+    },
+    "scripts/complete-spec.mjs": {
+      "5d76109be5b6e35fc29c3e6a365bced1d7c3a9c35d1830743cd6edc1fa9ca649": "0.1.0"
+    },
+    "scripts/plan-gate.mjs": {
+      "80709a2b12c9eeee9c65ff35d3312543b816343f6d1af4ba32a40aa990f42bff": "0.1.0",
+      "15840bb69aa41879cb8f6fc7958bbca205cd1945588a51e52e3fc4aa2286c180": "0.3.0"
+    },
+    "scripts/resolve.mjs": {
+      "223e2e62642a10240de1b4cf7c8c62671c665dfbd3e380ae5b4180a4ac00a6e0": "0.1.0"
+    },
+    "scripts/reviewer-routing.mjs": {
+      "31aae4fe9bf42086d29b49596b7fdc90d709998cfd5a6b35d88ce2c7bf3cd8ba": "0.1.0",
+      "bdff3eb7f1c5a50d35bb8c2125a25ddf64b8e1ba9bb47892a4eaf98a54a64cae": "0.2.0"
+    },
+    "scripts/validate-constraints-registry.mjs": {
+      "31c4d59094058ff041c7b0a6854c9cd2a170c844974623396c1dc6c37d0624d7": "0.1.0"
+    },
+    "scripts/validate-guide.mjs": {
+      "9185be600e9a481372c587c3005f04ce331d2af41b511c30cb490c610385e752": "0.3.0"
+    },
+    "scripts/validate-phase-memory.mjs": {
+      "bde6c10bf2ab567c81836a88e8f5f9a949a3645ad242116fb0aba47ae24d37ce": "0.1.0",
+      "8621c9970f8892872c33b59f0b7df36fc110eb1d0c31b758711707d0bd3f13d1": "0.3.0"
+    },
+    "scripts/validate-review-envelope.mjs": {
+      "856f264909e1c6062f578b0a750f053bfc9010ca0486e7c78efcbf6cbb448d43": "0.1.0",
+      "18042c7bf8602c4f680c983d2725ef781ccd1a7bf4e43090445898a84f904718": "0.2.0"
+    },
+    "scripts/validate-state-machine.mjs": {
+      "cf9e74392f05f46ba48d5f83af3c15889edf30651e9ac2b8f218f5acc0147e56": "0.1.0"
+    },
+    "state-machine": {
+      "80f5aed8005b180e356f310a65b126c401933615bb0d5505d82c0abe53a0cba8": "0.1.0",
+      "eddb0842210a6f8ef61a8972cafc384c82c42abacb96845f3926bf1149d92aeb": "0.2.0",
+      "98b03e06137cc7a6c9d836628ef85257c7e6b838379bccd7ddf826249489fa51": "0.3.0"
+    },
+    "templates/adr.md": {
+      "0d76a91b7e81baef9c7b6d5d82d0a016b370f6321cce414a5c166416ba05e00c": "0.1.0"
+    },
+    "templates/bug.md": {
+      "861920a1569b89ebfedbd997e7449f70de1b339edf283e0c0962cfee4aec817e": "0.1.0"
+    },
+    "templates/completion-report.md": {
+      "6e7f9c9f64e8df10b085d1436b13a1ce2822546612cad8960362dec979177aa0": "0.1.0"
+    },
+    "templates/cross-cutting-skill.md": {
+      "3fc6e59d2d591f0119120234fd833b5df97e3da07aba5c82f4a80a02943cef31": "0.1.0",
+      "e6617e8519b5eae8515f6f696aeff13b101038f8f1d9ae7d6854e0a9d631782c": "0.3.0"
+    },
+    "templates/decisions.md": {
+      "c329ff0098fa5b8adf4de4bfdb658cbb778f6965fd13798a2e80d8e7de98ec5b": "0.1.0",
+      "d294495b7e18cee7d7c2f5314dc5acbcc61c916de5c0a06c5f26ac3befe44d7f": "0.3.0"
+    },
+    "templates/gap.md": {
+      "0e02361bd274a90236211e09e2e46fe1b08fc9b9135d9382c44a4ca37e3329fb": "0.1.0",
+      "a6922b46b9a1e15e5c05a83ed1d01224c7fe8892291f12c9917c517fb81684dc": "0.3.0"
+    },
+    "templates/guide.md": {
+      "03057f99d6d7a8b4084c08702a87cbab61f39afda43b2f21cb5bf458938ab8fb": "0.3.0"
+    },
+    "templates/initiatives.md": {
+      "2818dbe3f3f55c0ea22104871e1ae8746ac5369f43d61d20157beb5fef88eb89": "0.1.0"
+    },
+    "templates/kickoff.md": {
+      "77c024888e4c6b671c8ecc28c5c71b4aba8578943f2f87178274136bda154587": "0.3.0"
+    },
+    "templates/project.md": {
+      "afb7236bb1019ad026d6ab476367c74d275679e1283fe585f0ad61e8589b2fd6": "0.1.0",
+      "f007f67dac035700db198066ad1b76b5322e8d52c947166725adfc721166658c": "0.3.0"
+    },
+    "templates/spec.md": {
+      "ac9cd5edb17b7ea7a2a49946400cf18e306f4aa9ec6f9bfb46755210d8cf45e5": "0.1.0",
+      "e364a8eb029868d384f287aa871b4180393c13e1fc82c6128876204eff59cec1": "0.3.0"
+    },
+    "templates/task.md": {
+      "284c4c33b334b1b38e3b8d308f205af2381e0aa14f23b19c4e2af47e44e48218": "0.1.0"
+    }
+  }
+}
