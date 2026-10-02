@@ -167,3 +167,11 @@ in chronological order.
 **Decided:** add `scripts/sdlc/sync-refresh.mjs` (plugin-only, `--plan` and `--apply [--accept <file>]`) and its test, and have the skill call it. The manifest gains a `workflows/<name>` role, so an unedited older workflow counts as unmodified, and it is regenerated.
 **Why:** the classification is mechanical and must match the migration's manifest rule exactly. Owner judgment stays where it belongs, on the diff of each modified file.
 **Reversal path:** inline the steps in the skill and drop the role.
+
+---
+
+## S8 — sdlc-sync migrates layout 1 and refreshes layout 2
+
+**Merged:** PR #67
+**What changed:** `skills/sdlc-sync/SKILL.md` now has a layout check, the seven migration steps and the refresh procedure. Added `sync-refresh.mjs` and its test. The manifest gained a workflow role.
+**Anything a later step must match:** S10's release commit regenerates the manifest. For the SC-3 end-to-end run, use `sync-refresh.mjs` with a payload copy that changes a phase.
