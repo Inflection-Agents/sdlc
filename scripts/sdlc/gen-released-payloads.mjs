@@ -8,13 +8,12 @@
  * `templates/<name>`, `contracts/<name>`, `workflows/<name>`, `state-machine`), the SHA-256 of every version
  * of it the payload has held, each with the plugin version it shipped in.
  *
- * It covers every commit that touched `init-payload/` up to and including the latest
- * commit that changed the plugin version, so the manifest only changes at a release.
- * The repo has no release tags; the version comes from `.claude-plugin/plugin.json` at
- * each commit. Regenerate it in every release commit (docs/RELEASING.md). While that
- * commit is being made, the working tree's `plugin.json` is ahead of the last bump, so the
- * manifest then covers every commit to HEAD plus the working tree's payload under the new
- * version. After the commit the same rule gives the same file, so `--check` stays green.
+ * It covers every commit that touched `init-payload/` up to HEAD, plus the working tree,
+ * each labeled with the `.claude-plugin/plugin.json` version at that point (the repo has
+ * no release tags). Stopping at the last version bump would leave out every payload fix
+ * merged after it, and those ship in the same release. So any commit that changes the
+ * payload regenerates this file, and `--check` in CI fails until it does. A copy taken
+ * from a commit between releases counts as released, which is harmless: nobody edited it.
  *
  * Usage (plugin source only):
  *   node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/gen-released-payloads.mjs           # write lib/released-payloads.json
@@ -52,12 +51,8 @@ export function buildManifest() {
     if (git(['rev-parse', '--is-shallow-repository'], { encoding: 'utf8' }).trim() === 'true') {
         throw new Error('shallow clone: the manifest is built from history; fetch with fetch-depth: 0')
     }
-    const bump = git(['log', '-1', '--format=%H', '-G', '"version"', '--', '.claude-plugin/plugin.json'], { encoding: 'utf8' }).trim()
-    if (!bump) throw new Error('no commit sets a version in .claude-plugin/plugin.json')
     const working = JSON.parse(readFileSync(join(REPO, '.claude-plugin', 'plugin.json'), 'utf8')).version
-    const releasing = working !== versionAt(bump)
-    const upTo = releasing ? 'HEAD' : bump
-    const commits = git(['rev-list', '--reverse', upTo, '--', 'init-payload/'], { encoding: 'utf8' }).split('\n').filter(Boolean)
+    const commits = git(['rev-list', '--reverse', 'HEAD', '--', 'init-payload/'], { encoding: 'utf8' }).split('\n').filter(Boolean)
     const roles = {}
     const add = (role, bytes, version) => {
         roles[role] ??= {}
@@ -73,15 +68,13 @@ export function buildManifest() {
             if (role) add(role, git(['cat-file', 'blob', meta.split(' ')[2]]), version)
         }
     }
-    if (releasing) {
-        const tracked = git(['ls-files', '--', 'init-payload/'], { encoding: 'utf8' }).split('\n').filter(Boolean)
-        for (const path of tracked) {
-            const role = roleOf(path)
-            if (role && existsSync(join(REPO, path))) add(role, readFileSync(join(REPO, path)), working)
-        }
+    const tracked = git(['ls-files', '--others', '--cached', '--exclude-standard', '--', 'init-payload/'], { encoding: 'utf8' }).split('\n').filter(Boolean)
+    for (const path of tracked) {
+        const role = roleOf(path)
+        if (role && existsSync(join(REPO, path))) add(role, readFileSync(join(REPO, path)), working)
     }
     const sorted = Object.fromEntries(Object.keys(roles).sort().map((r) => [r, roles[r]]))
-    return { through_version: releasing ? working : versionAt(bump), roles: sorted }
+    return { through_version: working, roles: sorted }
 }
 
 export const serialize = (manifest) => `${JSON.stringify(manifest, null, 2)}\n`

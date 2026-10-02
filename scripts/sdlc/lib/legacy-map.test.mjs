@@ -72,7 +72,7 @@ test('the scan flags each form a text rewrite cannot fix', () => {
         'renderDbtContext(sm.domain_routing)',
         'const ALWAYS = [/^\\.ai\\//]',
     ].join('\n')
-    const forms = scanText(code, { rel: '.sdlc/scripts/x.mjs', entries: forked, moved: true, depthChanged: true }).map((h) => h.form)
+    const forms = scanText(code, { rel: '.sdlc/scripts/x.mjs', entries: forked, moved: true, depthChanged: true, existsNow: () => false }).map((h) => h.form)
     for (const f of ['quoted-segments', 'quoted-.ai', "'..'-join", 'domain_routing-read', 'escaped-regex']) assert.ok(forms.includes(f), f)
     const schema = scanText('{"required": ["phases", "domain_routing"]}', { rel: 'specs/schema/sm.schema.json', entries: forked })
     assert.deepEqual(schema.map((h) => h.form), ['schema-requires-domain_routing'])
@@ -107,4 +107,40 @@ test('isHistory leaves closed records and logs as written', () => {
     for (const r of ['specs/archive/specs/S.md', 'specs/review-logs/SPEC-002.json', 'specs/decisions/SPEC-002.md', 'specs/tasks/SPEC-002/DECISIONS.md', 'x/run.jsonl']) {
         assert.equal(isHistory(r, ctx), true, r)
     }
+})
+
+test('a relative path in a moved file is a hit only when the move broke it', () => {
+    const forked = mapEntries({ forked: true })
+    // After the move: .ai/skills/x/ -> .sdlc/skills/x/, and docs/guide.md is unmoved.
+    const now = new Set(['.sdlc/skills/x/SKILL.md', 'docs/guide.md'])
+    const existsNow = (p) => now.has(p)
+    const scan = (text) =>
+        scanText(text, { rel: '.sdlc/agents/setup.md', old: '.ai/setup.md', moved: true, entries: forked, existsNow }).map((h) => h.snippet)
+    // From .ai/, ../docs/guide.md worked. From .sdlc/agents/ it does not.
+    assert.deepEqual(scan('see ../docs/guide.md'), ['../docs/guide.md'])
+    // A link into a moved directory is followed to its new place, which exists.
+    assert.deepEqual(scan('see ./skills/x/SKILL.md'), ['./skills/x/SKILL.md'])
+    // A cwd-relative command never resolved from .ai/, so the move did not break it.
+    assert.deepEqual(scan('run ./tools/dev/setup-sdlc.sh'), [])
+})
+
+test("a moved file's '..' join is a hit only when its target is gone", () => {
+    const forked = mapEntries({ forked: true })
+    const now = new Set(['.sdlc/review-constraints.mjs'])
+    const scan = (code) =>
+        scanText(code, { rel: '.sdlc/__tests__/x.test.mjs', old: '.ai/sdlc/__tests__/x.test.mjs', moved: true, depthChanged: true, entries: forked, existsNow: (p) => now.has(p) })
+            .filter((h) => h.form === "'..'-join")
+            .map((h) => h.snippet)
+    // The directory moved as a whole, so its sibling is still one level up.
+    assert.deepEqual(scan("const pure = join(HERE, '..', 'review-constraints.mjs')"), [])
+    // Two levels up from the old place was .ai/; from the new place it is the repo root.
+    assert.deepEqual(scan("const P = join(here, '..', '..', 'skills', 'review-primitives.md')"), ["const P = join(here, '..', '..', 'skills', 'review-primitives.md')"])
+})
+
+test('code that reads the Workspaces section of project.md is a hit', () => {
+    const forked = mapEntries({ forked: true })
+    const code = "const path = join(root, '.sdlc', 'project.md')\nconst rows = sectionLines(text, 'Workspaces')\n"
+    const hits = scanText(code, { rel: '.sdlc/scripts/validate-guide.mjs', entries: forked }).filter((h) => h.form === 'workspace-table-read')
+    assert.deepEqual(hits.map((h) => h.line), [2])
+    assert.deepEqual(scanText("const rows = config.workspaces // 'Workspaces'\n", { rel: 'a.mjs', entries: forked }), [])
 })

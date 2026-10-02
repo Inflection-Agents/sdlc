@@ -112,10 +112,10 @@ Every row needs a `cite` whose prefix is grounded — `inv:` for a registry inva
 Before the file is final, run the framework's own gates against the adopter's tree:
 
 ```bash
-node .sdlc/scripts/validate-sdlc-config.mjs
-node .sdlc/scripts/validate-constraints-registry.mjs
-node .sdlc/scripts/check-review-constraint-globs.mjs --enforce
-node .sdlc/scripts/validate-state-machine.mjs
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-sdlc-config
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-constraints-registry
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs check-review-constraint-globs --enforce
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-state-machine
 ```
 
 The first grades the config's shape: workspace paths that exist, eligibility values on

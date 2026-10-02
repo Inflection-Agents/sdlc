@@ -224,3 +224,42 @@ in chronological order.
 
 **Merged:** PR #69
 **What changed:** this repo runs on layout 2, with `.sdlc/scripts` as a symlink to the plugin source, at version 0.4.0. The manifest now runs through 0.4.0, and RELEASING has the 0.4.0 row and a regenerate step. Every shipped file scans clean. CI found one more hit after the first push: the scan read this repo's own `.sdlc/config.yaml`, whose `paths` and `scan.allow` name paths on purpose. The scan now exempts that file by built-in rule.
+
+---
+
+## EXECUTIVE DECISION — guide change: end-to-end validation fixes land as one fix-up PR
+
+**Date:** 2026-10-02
+**Question:** End-to-end validation on a clone of high-gear-apps and on the 0.3.0 fixture found defects that no step's `Verify:` could have seen. The guide has no step for them and is at its 10-step limit.
+**Decided:** fix them in one PR into `feat/spec-009`, with a test for each one. No AC, scope item or design decision changes. Each fix makes an existing AC or Design rule hold. What found each one, and the fix:
+
+- **Probe P3 never ran on high-gear.**
+  - Cause: `parseConstraints` read only a registry under a `constraints:` key, and high-gear's registry is a bare top-level list.
+  - Effect: the probe passed on both commits without running. The plugin's write hook gave that repo no constraint guidance.
+  - Fix: the parser accepts a top-level list.
+- **The plugin's write hook failed open on high-gear.**
+  - Cause: it imported `reviewer-routing.mjs` from the repo's scripts directory, and high-gear has none.
+  - Fix: it falls back to the plugin's copy, as `run.mjs` does.
+- **Probes recorded false misses.** The probe worktree had no `node_modules`, so a repo's own hooks failed on their imports. The probe now links the repo's `node_modules`. P3 also reads only task-scope rows.
+- **The migration added a file that crashed.**
+  - Cause: the added `reviewer-routing.mjs` imported `parseRegistryTouches` from the repo's kept, forked `check-review-constraint-globs.mjs`, which lacks it.
+  - Effect: P3 regressed on the tip, which is how this was found.
+  - Fix: the parser moved to `lib/registry-touches.mjs`, and the old module re-exports it.
+- **The released-payload manifest stopped at the last version bump.** Every payload fix merged after S10's bump ships as 0.4.0 but was missing from the manifest. It now covers every payload commit to HEAD plus the working tree. RELEASING says any payload PR regenerates it, and CI's `--check` enforces that.
+- **The dry run printed only the ids of replaced framework phases.** The spec (Design > Migration) says it prints the diff. It now prints a `-`/`+` line for each changed field value. On high-gear that shows 4 dropped `spec-execution` preconditions and the `open initiative` trigger that `roadmap-sync` hands off with.
+- **Scan false positives.**
+  - A relative link in a moved file is now a hit only when it resolved from the file's old location. All 9 such hits on high-gear never resolved.
+  - A moved file's `'..'` join is now a hit only when its target is missing.
+- **A reader the scan could not see.**
+  - The forked `validate-guide.mjs` read the `Workspaces` table from `project.md`, which the migration empties.
+  - Effect: P1 regressed. The new `workspace-table-read` form now flags that code.
+- **P1 regressed on the 0.3.0 fixture.** The layout-1 `definesWorkspaces` counted the template's `[placeholder]` rows, and the headers of later tables, as workspaces. It now reads only the first table and skips placeholder rows, as the migration does.
+- **SC-4 on the fixture.** `plan-gate.mjs` rejected the `--root` that `run.mjs` passes on fallback. It and `reviewer-routing.mjs`, `scan-legacy-paths.mjs` and `validate-sdlc-config.mjs` printed no deprecation line on layout 1. Each now takes `--root` and prints the line once. `root-arg.test.mjs` asserts the count.
+- **AC-018.** `sdlc-init` and `sdlc-sync` gave 10 direct `node .sdlc/scripts/…` commands. They now use `run.mjs`, and `run.test.mjs` fails on any skill or agent command that does not.
+- **`sdlc-sync` step 4** now also says to:
+  - update the repo's own SDLC tests;
+  - regenerate its own footers;
+  - move any dropped phase line it still needs into `extensions.phases`.
+
+**Why:** each defect would have reached an adopter. The high-gear defects reached the real repo's shape: a gate that went quiet, or a hook that stopped helping, with nothing to say so.
+**Reversal path:** revert the fix-up PR. The steps' own changes do not depend on it.

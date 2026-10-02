@@ -230,14 +230,29 @@ function lineOf(text, index) {
 }
 
 /**
+ * Whether a `join(<this file's directory>, '..', ...)` on `line` still names an existing
+ * path from the file's new location. A directory that moved as a whole keeps its inner
+ * '..' joins valid. A join from any other base cannot be resolved here, so it stays a hit.
+ */
+function joinStillResolves(line, rel, existsNow) {
+    const m = line.match(/join\(\s*(HERE|here|__dirname|dir)\s*,\s*((?:['"][^'"]+['"]\s*,?\s*)+)\)/)
+    if (!m) return false
+    const segs = [...m[2].matchAll(/['"]([^'"]+)['"]/g)].map((s) => s[1])
+    const target = posixJoin(posixDir(rel), segs.join('/'))
+    return !target.startsWith('..') && existsNow(target)
+}
+
+/**
  * Every layout-1 reference left in one file, as `{ line, form, snippet }`.
  *
  * `moved` and `depthChanged` say whether the file itself moved and whether its directory
- * depth changed. `existsNow` answers whether a root-relative path exists after the moves,
- * so a relative path is a hit only when its target is missing. `inSkills` marks a file in
- * the resolved skills directory, where a table edit is checked.
+ * depth changed, and `old` is its path before the move. `existsNow` answers whether a
+ * root-relative path exists after the moves. A relative path is a hit only when its
+ * target is missing now and the move broke it: in a moved file, the link resolved from
+ * `old` to a file that still exists; elsewhere, it points into a moved location.
+ * `inSkills` marks a file in the resolved skills directory, where a table edit is checked.
  */
-export function scanText(text, { rel, entries, moved = false, depthChanged = false, existsNow = () => true, inSkills = false }) {
+export function scanText(text, { rel, entries, moved = false, old = null, depthChanged = false, existsNow = () => true, inSkills = false }) {
     const hits = []
     const push = (index, form, snippet) => hits.push({ line: lineOf(text, index), form, snippet: snippet.slice(0, 120) })
     const code = CODE_FILE.test(rel)
@@ -252,9 +267,11 @@ export function scanText(text, { rel, entries, moved = false, depthChanged = fal
     }
     for (const m of text.matchAll(RELATIVE)) {
         const target = posixJoin(posixDir(rel), m[1] + m[2])
-        if (!target.startsWith('..') && !existsNow(target) && (mapPath(target, entries) || moved)) {
-            push(m.index, 'relative', m[0])
-        }
+        if (target.startsWith('..') || existsNow(target)) continue
+        if (moved && old) {
+            const before = posixJoin(posixDir(old), m[1] + m[2])
+            if (!before.startsWith('..') && existsNow(mapPath(before, entries) ?? before)) push(m.index, 'relative', m[0])
+        } else if (mapPath(target, entries) || moved) push(m.index, 'relative', m[0])
     }
     if (code) {
         for (const m of text.matchAll(QUOTED_RUN)) {
@@ -267,7 +284,16 @@ export function scanText(text, { rel, entries, moved = false, depthChanged = fal
         for (const m of text.matchAll(QUOTED_AI)) push(m.index, 'quoted-.ai', m[0])
         if (depthChanged) {
             text.split('\n').forEach((line, n) => {
-                if (DOTDOT_JOIN.test(line)) hits.push({ line: n + 1, form: "'..'-join", snippet: line.trim().slice(0, 120) })
+                if (DOTDOT_JOIN.test(line) && !joinStillResolves(line, rel, existsNow)) {
+                    hits.push({ line: n + 1, form: "'..'-join", snippet: line.trim().slice(0, 120) })
+                }
+            })
+        }
+        // Layout 2 moves the workspace table out of project.md into config.yaml, so code that
+        // reads a `Workspaces` section from project.md finds nothing and its rule goes quiet.
+        if (/project\.md/.test(text)) {
+            text.split('\n').forEach((line, n) => {
+                if (/(['"`])Workspaces\1/.test(line)) hits.push({ line: n + 1, form: 'workspace-table-read', snippet: line.trim().slice(0, 120) })
             })
         }
         // Reading routing off loadMachine()'s merged result is the supported path.

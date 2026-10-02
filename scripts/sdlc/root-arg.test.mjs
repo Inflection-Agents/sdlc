@@ -18,11 +18,15 @@ const PAYLOAD = [join(REPO, 'init-payload', '.sdlc', 'scripts'), join(REPO, 'ini
     existsSync
 )
 
+const runs = []
+
 function run(script, args) {
     const env = { ...process.env }
     delete env.CLAUDE_PROJECT_DIR
     delete env.CLAUDE_PLUGIN_ROOT
-    return spawnSync(process.execPath, [join(PAYLOAD, script), ...args], { cwd: tmpdir(), encoding: 'utf8', env })
+    const res = spawnSync(process.execPath, [join(PAYLOAD, script), ...args], { cwd: tmpdir(), encoding: 'utf8', env })
+    runs.push({ script, stderr: res.stderr ?? '' })
+    return res
 }
 
 /** Plant one spec, one superseded ADR cited from AGENTS.md, and a guide, wherever the layout keeps them. */
@@ -45,6 +49,7 @@ for (const [label, build] of [
     ['layout 2', layout2Repo],
 ]) {
     test(`${label}: each validator grades the --root repo from another working directory`, () => {
+        runs.length = 0
         const fx = build()
         try {
             const p = plant(fx.root)
@@ -81,6 +86,16 @@ for (const [label, build] of [
 
             const globs = run('check-review-constraint-globs.mjs', root)
             assert.equal(globs.status, 0, globs.stderr)
+
+            const gate = run('plan-gate.mjs', [...root, '--presence-only', join(p.specs, 'tasks', 'SPEC-777', '_index.yaml')])
+            assert.equal(gate.status, 1, 'the fixture index has no plan_review block')
+            assert.match(gate.stderr, /MISSING plan_review/)
+
+            // SPEC-009 SC-4: a layout-1 repo sees the notice once per script, a layout-2 repo never.
+            for (const r of runs) {
+                const notices = (r.stderr.match(/layout 1 detected/g) ?? []).length
+                assert.equal(notices, label === 'layout 1' ? 1 : 0, `${r.script}: ${notices} deprecation line(s)`)
+            }
         } finally {
             fx.cleanup()
         }

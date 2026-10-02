@@ -137,9 +137,11 @@ function allow(guidance) {
 async function constraintGuidance(rel, root) {
     try {
         const paths = sdlcPaths(root, { quiet: true })
-        const { loadConstraints, applicableConstraints } = await import(
-            pathToFileURL(join(paths.scripts, 'reviewer-routing.mjs')).href
-        )
+        // The repo's copy first, then the plugin's: a repo whose scripts directory has no
+        // reviewer-routing.mjs would otherwise get no guidance at all.
+        const local = join(paths.scripts, 'reviewer-routing.mjs')
+        const routing = existsSync(local) ? pathToFileURL(local) : new URL('../reviewer-routing.mjs', LIB)
+        const { loadConstraints, applicableConstraints } = await import(routing.href)
         const hits = applicableConstraints(loadConstraints(paths.constraints), rel)
         if (!hits.length) return null
         const lines = hits.map(

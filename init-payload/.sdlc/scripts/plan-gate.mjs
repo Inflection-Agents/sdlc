@@ -39,6 +39,8 @@ import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
+
 /**
  * The gate predicate. A plan is approved ONLY when the block is present, approved,
  * and not flagged for rework. Absent block ⇒ undefined ⇒ false (fail-closed).
@@ -121,7 +123,11 @@ export function checkPlanGate(path) {
 /** Does this argument look like an unexpanded shell glob (contains * ? [ )? */
 const looksLikeGlob = (s) => /[*?[\]]/.test(s)
 
-function main(argv) {
+function main(rawArgv) {
+    // run.mjs passes --root when it falls back to the plugin's copy. The gate reads only the
+    // files it is given, but it resolves the layout so a layout-1 repo sees the one-line notice.
+    const { root, rest: argv } = takeRootArg(rawArgv)
+    sdlcPaths(root)
     const presenceOnly = argv.includes('--presence-only')
     const rawPaths = argv.filter((a) => a !== '--presence-only')
     if (rawPaths.length === 0) {

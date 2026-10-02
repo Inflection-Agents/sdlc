@@ -7,7 +7,7 @@ import { existsSync, lstatSync, readFileSync, readlinkSync, writeFileSync } from
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { cutDomainRouting, parseWorkspaceTables } from './migrate-layout.mjs'
+import { cutDomainRouting, parseWorkspaceTables, phaseDiff } from './migrate-layout.mjs'
 import { scanRepo } from './scan-legacy-paths.mjs'
 import { parseYaml } from './lib/mini-yaml.mjs'
 import { commitAll, forkedHighGearRepo, git, layout1Repo, pluginInit030Repo, write } from './__fixtures__/layouts/build.mjs'
@@ -242,4 +242,14 @@ test('the migration refuses a dirty tree, a non-repo and an unknown layout, and 
     } finally {
         fx2.cleanup()
     }
+})
+
+test('the report shows what replacing a modified framework phase drops', () => {
+    const mine = { id: 'spec-execution', preconditions: ['spec is active', 'rule 10 passes (INV-I14)'], exit_condition: 'old' }
+    const theirs = { id: 'spec-execution', preconditions: ['spec is active'], exit_condition: 'new' }
+    assert.deepEqual(phaseDiff(mine, theirs), [
+        '- preconditions: rule 10 passes (INV-I14)',
+        '- exit_condition: old',
+        '+ exit_condition: new',
+    ])
 })

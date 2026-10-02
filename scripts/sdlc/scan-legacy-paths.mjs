@@ -115,7 +115,7 @@ export function scanRepo(root, { only = null, useAllow = true, moves = null } = 
         const text = readText(join(root, rel))
         if (text === null) continue
         const inSkills = skillsRel !== null && rel.startsWith(`${skillsRel}/`)
-        for (const h of scanText(text, { rel, entries, moved: old !== undefined, depthChanged, existsNow, inSkills })) {
+        for (const h of scanText(text, { rel, entries, moved: old !== undefined, old: old ?? null, depthChanged, existsNow, inSkills })) {
             if (!exempt || h.form === "'..'-join") hits.push({ file: rel, ...h })
         }
     }
@@ -124,6 +124,7 @@ export function scanRepo(root, { only = null, useAllow = true, moves = null } = 
 
 function main(argv) {
     const { root, rest } = takeRootArg(argv)
+    sdlcPaths(root) // prints the one-line notice on a layout-1 repo, as every gate does
     const onlyArg = rest.find((a) => a.startsWith('--only'))
     const onlyValue = onlyArg?.includes('=') ? onlyArg.split('=')[1] : onlyArg ? rest[rest.indexOf(onlyArg) + 1] : null
     let hits
