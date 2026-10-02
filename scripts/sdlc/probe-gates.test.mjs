@@ -15,6 +15,8 @@ delete process.env.CLAUDE_PLUGIN_ROOT
 const MIGRATE = fileURLToPath(new URL('./migrate-layout.mjs', import.meta.url))
 const PAYLOAD = fileURLToPath(new URL('../../init-payload/', import.meta.url))
 const result = (list, id) => list.find((r) => r.id === id)
+// P4 and P6 search with ripgrep, which a CI image may not have. They report `ran: false` there.
+const hasRg = spawnSync('rg', ['--version'], { stdio: 'ignore' }).status === 0
 
 test('AC-015: P1 to P5 hold across a fixed migration, the unfixed tip regresses, and P6 and P7 pass', () => {
     const fx = forkedHighGearRepo()
@@ -23,7 +25,7 @@ test('AC-015: P1 to P5 hold across a fixed migration, the unfixed tip regresses,
         const before = probeRev(r, 'HEAD')
         assert.equal(result(before, 'P1').caught, true, 'rule 8 fires on layout 1')
         assert.equal(result(before, 'P2').caught, true, 'the local hook routes on layout 1')
-        assert.equal(result(before, 'P4').caught, true, 'the flat archive is hidden')
+        if (hasRg) assert.equal(result(before, 'P4').caught, true, 'the flat archive is hidden')
 
         const m = spawnSync(process.execPath, [MIGRATE, '--root', r, '--apply'], { encoding: 'utf8' })
         assert.equal(m.status, 3, m.stderr)
@@ -37,7 +39,7 @@ test('AC-015: P1 to P5 hold across a fixed migration, the unfixed tip regresses,
         git(r, 'commit', '-q', '-m', 'fix the readers the scan flagged')
         const fixed = probeRev(r, 'HEAD')
         assert.deepEqual(compare(before, fixed), [])
-        for (const id of ['P6', 'P7']) {
+        for (const id of hasRg ? ['P6', 'P7'] : ['P7']) {
             assert.equal(result(fixed, id).ran, true, id)
             assert.equal(result(fixed, id).caught, true, `${id}: ${result(fixed, id).detail}`)
         }
