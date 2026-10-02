@@ -85,3 +85,11 @@ heading goes in the moment it happens, not batched at the end.
 
 **Merged:** PR #83
 **What changed:** authoring-decisions.md template; Phase 1 writes specs/decisions/SPEC-NNN.md and Step 10a seeds it; the archiver moves the ledger and review log with their spec and no longer fences live directories on restore.
+
+---
+
+## EXECUTIVE DECISION — guide change: S7 corrects spec-completion's index instruction
+
+**Date:** 2026-10-02
+**Question:** `spec-completion` Step 9 said to update `spec-index.json` "or let CI regenerate it". S7 makes CI check the index instead of regenerating it, so a completion that followed that line would turn CI red. And because archiving changes a spec's `path`, the index must be regenerated after the archive move.
+**Decided:** add `skills/spec-completion/SKILL.md` to S7's `Changes:` and make Step 9 regenerate the index after the archive move, in the same commit. No AC, scope or design changes.

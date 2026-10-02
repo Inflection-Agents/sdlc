@@ -51,7 +51,7 @@ spec_version: 1
 
 ### S7: The spec index
 - Covers: AC-024, AC-025
-- Changes: `scripts/sdlc/gen-spec-index.mjs`, `scripts/sdlc/gen-spec-index.test.mjs`, `init-payload/.sdlc/scripts/gen-spec-index.mjs`, `scripts/sdlc/lib/released-payloads.json`, `specs/spec-index.json`, `skills/spec-schema.md`, `.github/workflows/sdlc-validate.yml`, `init-payload/.github/workflows/sdlc-validate.yml`
+- Changes: `scripts/sdlc/gen-spec-index.mjs`, `scripts/sdlc/gen-spec-index.test.mjs`, `init-payload/.sdlc/scripts/gen-spec-index.mjs`, `scripts/sdlc/lib/released-payloads.json`, `specs/spec-index.json`, `skills/spec-schema.md`, `.github/workflows/sdlc-validate.yml`, `init-payload/.github/workflows/sdlc-validate.yml`, `skills/spec-completion/SKILL.md`
 - Verify: `env -u CLAUDE_PROJECT_DIR node --test .sdlc/scripts/gen-spec-index.test.mjs`, `node .sdlc/scripts/gen-spec-index.mjs --check`, `node .sdlc/scripts/gen-released-payloads.mjs --check`
 - After: S3
 - Notes: reuse the frontmatter parsing `archive-specs.mjs` and `complete-spec.mjs` already have. Index archived specs too, with their `path` under `specs/archive/`.
