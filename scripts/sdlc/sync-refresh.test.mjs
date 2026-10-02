@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 import { applyRefresh, planRefresh } from './sync-refresh.mjs'
 import { installPayload } from './install-payload.mjs'
 import { loadManifest, roleOf, sha256 } from './gen-released-payloads.mjs'
-import { commitAll, frameworkFileAt, git } from './__fixtures__/layouts/build.mjs'
+import { commitAll, frameworkFileAt, git, layout2Repo } from './__fixtures__/layouts/build.mjs'
 
 delete process.env.CLAUDE_PROJECT_DIR
 
@@ -94,5 +94,17 @@ test('a layout-1 repo is refused, with the migration named', () => {
         assert.throws(() => planRefresh(repo), /not on layout 2; run migrate-layout\.mjs/)
     } finally {
         rmSync(repo, { recursive: true, force: true })
+    }
+})
+
+test('a workflow the repo deleted is not added back', () => {
+    const fx = layout2Repo({ config: 'layout: 2\nframework_version: 0.4.0\n' })
+    try {
+        commitAll(fx.root)
+        const plan = planRefresh(fx.root)
+        assert.equal(plan.some((p) => p.file.startsWith('.github/workflows/')), false)
+        assert.ok(plan.some((p) => p.file === '.sdlc/state-machine.yaml'))
+    } finally {
+        fx.cleanup()
     }
 })

@@ -28,7 +28,9 @@ import { existsSync, readdirSync, realpathSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { loadMachine, pluginRoot, sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
+import { loadMachine, pluginRoot, readConfig, sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
+
+const asArray = (v) => (Array.isArray(v) ? v : [])
 
 let REPO_ROOT
 
@@ -172,12 +174,16 @@ function main() {
     }
 
     const skillSet = new Set([...skills, ...pluginSkills])
-    // With no plugin installed, as in an adopter's CI, a name the repo does not hold may be a
-    // plugin skill or a typo, and nothing here can tell which. Those names are not graded.
+    // With no plugin installed, as in an adopter's CI, the owner skill of a framework phase
+    // (one in the machine file, which the plugin ships) lives in the plugin and cannot be seen
+    // here, so it is not graded. Domain skills and extension phases are the repo's own and
+    // must resolve to a skill it holds.
+    const extensionIds = new Set(asArray(readConfig(args.root)?.extensions?.phases).map((p) => p?.id))
+    const framework = new Set(phases.filter((p) => !extensionIds.has(p.id)).map((p) => p.owner_skill).filter(Boolean))
     const unchecked = []
-    const resolves = (name) => {
+    const resolves = (name, { domain = false } = {}) => {
         if (skillSet.has(name)) return true
-        if (plugin) return false
+        if (plugin || domain || !framework.has(name)) return false
         unchecked.push(name)
         return true
     }
@@ -188,7 +194,7 @@ function main() {
             }
         }
         for (const ds of domainSkills) {
-            if (!resolves(ds)) {
+            if (!resolves(ds, { domain: true })) {
                 errors.push(`domain skill '${ds}' does not resolve to a skill under ${relName(args.skills)} or the plugin`)
             }
         }

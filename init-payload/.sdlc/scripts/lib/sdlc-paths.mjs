@@ -9,7 +9,7 @@
  * silent about it.
  */
 import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { parseYaml } from './mini-yaml.mjs'
@@ -182,8 +182,12 @@ export function sdlcPaths(root, { quiet = false } = {}) {
 /** Whether `rel` is a relative path that stays inside `root` once resolved. */
 export function isInside(root, rel) {
     if (isAbsolute(rel)) return false
-    const r = relative(resolve(root), resolve(root, rel))
-    return r === '' || (!r.startsWith('..') && !isAbsolute(r))
+    return under(relative(resolve(root), resolve(root, rel)))
+}
+
+/** Whether a path relative to some root stays under it: `..foo` is a name, `../foo` is not. */
+function under(r) {
+    return r === '' || (r !== '..' && !r.startsWith(`..${sep}`) && !isAbsolute(r))
 }
 
 /**
@@ -193,11 +197,9 @@ export function isInside(root, rel) {
  * that file outside the commit the owner reviews.
  */
 export function assertWriteInside(root, abs) {
-    const top = realpathSync(root)
-    const under = (p) => {
-        const r = relative(top, p)
-        return r === '' || (!r.startsWith('..') && !isAbsolute(r))
-    }
+    // .native canonicalizes letter case, so a case-insensitive volume compares as one path.
+    const top = realpathSync.native(root)
+    const inside = (p) => under(relative(top, realpathSync.native(p)))
     let probe = resolve(abs)
     let target = true
     for (;;) {
@@ -208,7 +210,7 @@ export function assertWriteInside(root, abs) {
             // not there yet: check its parent
         }
         if (st) {
-            if (!under(realpathSync(probe))) {
+            if (!inside(probe)) {
                 throw new Error(`refusing to write ${abs}: ${target ? 'it' : probe} resolves outside ${root}`)
             }
             return

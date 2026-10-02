@@ -314,3 +314,38 @@ in chronological order.
 **Date:** 2026-10-02
 **Spec says:** Design > Gate probes: P2 and P3 run every hook wired for the event, the plugin's and the repo's.
 **Built instead:** the repo's hooks are commands from its `.claude/settings.json`, run through `sh -c` with the developer's environment. `probe-gates.mjs` now prints each one, and runs them only with `--local-hooks`. `/sdlc-sync` step 5 shows them to the owner first. Step 6 runs only the `node <SDLC script>` line of each workflow step, never the step's other commands. Comparisons still hold, because both commits are probed with the same flag.
+
+---
+
+## EXECUTIVE DECISION — gate round 2: fixes, and spec amendment v2
+
+**Date:** 2026-10-02
+**Question:** Round 2 found 4 blocker entries, 11 majors and 16 nits across four valid envelopes. Three of the blocker entries are the same defect: the round-1 rollback lost untracked files that `git mv` carried, or that the apply staged. The fourth says that AC-005 changed in the run without an amendment.
+**Decided:**
+- **The migration**, which now refuses up front whatever its rollback could not restore. It refuses:
+  - an untracked or ignored file in a directory it moves;
+  - an untracked root file it would change, or an ignored one it would create;
+  - a tracked symlink out of the repo in a moved path.
+
+  The rest of the migration fixes:
+  - The rollback deletes only files this run created, handles a detached HEAD, reports any rollback step that failed, and prints the recovery commands.
+  - Every `git mv` destination and symlink parent is checked by `assertWriteInside`.
+  - A symlink inside a moved directory is repointed where it lands.
+  - `nothing to migrate` requires `HEAD:.sdlc/config.yaml`.
+  - The `AGENTS.md` block refusal applies only when project prose would be written, and `.gitattributes` is dropped from the root writes.
+  - A short table row is padded, and only a long one is refused.
+- **Gates.**
+  - The no-plugin state-machine rule skips only the framework phases' owner skills, so domain skills and extension phases are graded.
+  - `run.mjs` gives the child `CLAUDE_PROJECT_DIR` = the chosen root and compares real paths.
+  - `probe-gates.mjs` has one consent flag, `--repo-code`, that covers both the repo's hooks and its validators. It prints them for each probed revision, refuses a workflow-named path outside the worktree, and lists the probes it held back in its output and its JSON.
+  - `sync-refresh.mjs` does not re-add a workflow the repo deleted.
+- **Text.**
+  - The bare-directory match accepts a sentence-final `.`.
+  - The YAML emitter quotes numbers, hex, octal, `.inf`, `.nan` and dates.
+  - `isInside` treats `..foo` as a name, and the write check compares canonical real paths.
+- **Tests.** Every round-2 finding has a test that fails on the round-1 code. Mutation tests now cover the guards the lens review listed, plus the stop hook's layout-2 handoff.
+- **Records.** The scan gaps deferred to a later amendment are recorded in `specs/intents.md` as a backlog item. These are forked `phases`/`exempt` readers, quoted joins in unmoved tests, root-anchored `/scripts/sdlc/` forms, and renamed workflows.
+- **Amendment v2.** SPEC-009 v2 (breaking) amends AC-005, Design > The resolver and Design > Gate probes to match what ships. It replaces the two round-1 SPEC DEVIATION entries above. Per spec-amendment, `plan_review.approved` goes back to `false` until the owner approves v2. The integration PR says so.
+
+**Why:** each finding was reproduced. The owner has to sign an AC change.
+**Reversal path:** revert the round-2 fix PR, and restore v1 with `git show <commit>^:specs/SPEC-009-sdlc-folder-consolidation.md`.

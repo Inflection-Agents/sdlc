@@ -179,8 +179,9 @@ function emitScalar(v) {
     if (v === null || v === undefined) return '""'
     if (typeof v === 'boolean' || typeof v === 'number') return String(v)
     const s = String(v)
-    // yes, no, on, off, y and n are booleans to a YAML 1.1 reader such as PyYAML.
-    const reserved = /^(true|false|null|~|-?\d+|y|n|yes|no|on|off)$/i
+    // A full YAML reader such as PyYAML types these, so they are quoted: booleans in YAML 1.1
+    // (yes, no, on, off, y, n), numbers in any base or form, infinities, NaN and dates.
+    const reserved = /^(true|false|null|~|y|n|yes|no|on|off|[-+]?(\d[\d_]*)?\.?\d[\d_]*(e[-+]?\d+)?|0x[\da-f_]+|0o[0-7_]+|0b[01_]+|[-+]?\.(inf|nan)|\d{4}-\d\d?-\d\d?([Tt ].*)?)$/i
     if (s !== '' && PLAIN.test(s) && !reserved.test(s) && !s.endsWith(' ')) return s
     if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(s)) throw new Error(`cannot write a control character in ${JSON.stringify(s)}`)
     const escaped = s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t')

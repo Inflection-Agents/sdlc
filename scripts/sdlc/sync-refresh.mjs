@@ -82,6 +82,8 @@ export function planRefresh(root, { payload = DEFAULT_PAYLOAD, manifest = loadMa
         const target = join(root, file)
         const next = readFileSync(join(payload, src))
         let status
+        // A workflow the repo deleted stays deleted: CI is the repo's to shape.
+        if (!existsSync(target) && src.startsWith('.github/workflows/')) continue
         if (!existsSync(target)) status = 'add'
         else {
             const have = readFileSync(target)
