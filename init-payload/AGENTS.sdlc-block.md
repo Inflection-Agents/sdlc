@@ -1,6 +1,6 @@
 # [Project Name] — Project Context
 
-Shared project context for all agents. Referenced by both `CLAUDE.md` and `AGENTS.md`.
+Project context for every agent, kept in this block of `AGENTS.md`. `CLAUDE.md` imports it with `@AGENTS.md`. The structured workspace data (paths, test and build commands, agent eligibility, domain skills) lives in `.sdlc/config.yaml` `workspaces`, which the validators and hooks read.
 
 ## What is [Project Name]?
 
@@ -24,12 +24,7 @@ Shared project context for all agents. Referenced by both `CLAUDE.md` and `AGENT
 
 <!-- Remove this section for single-app repos. -->
 
-Agents use this table to scope tasks, route work, and determine verification commands.
-
-| Workspace | Path | Package | Stack | Test command | Build command |
-|-----------|------|---------|-------|-------------|---------------|
-| [app-name] | apps/[app] | @[org]/[app] | [framework] | [test cmd] | [build cmd] |
-| [shared] | packages/[shared] | @[org]/[shared] | [lang] | [test cmd] | [build cmd] |
+Workspaces, with their paths, packages, stacks, test and build commands, are listed in `.sdlc/config.yaml` `workspaces`. Agents use that list to scope tasks, route work and pick verification commands, and rule 8 of `validate-guide.mjs` reads it.
 
 ### Workspace dependency graph
 
@@ -40,27 +35,9 @@ Agents use this table to scope tasks, route work, and determine verification com
 
 Changes to a workspace require testing all its downstream consumers.
 
-### Agent eligibility by workspace
+### Agent eligibility and domain skills
 
-Whether a delivery run can execute a task in this workspace unattended, or it must be deferred to a human (`agent: human`). Workspaces needing credentials, a live DB, or interactive judgment stay human-run.
-
-| Workspace | Agent-executable? | Notes |
-|-----------|-------------------|-------|
-| [app-name] | Yes | Self-contained, testable |
-| [shared] | Yes (with caution) | Changes require verifying all consumers |
-| [dbt/data] | No (`human`) | Requires database credentials, env vars |
-
-### Workspace skills
-
-Domain skills encode technology-specific conventions, patterns, and workflows for each workspace. SDLC process skills (code-standards, code-review, spec-authoring's guide step) reference this table to apply the right domain conventions.
-
-| Workspace | Domain skills | Purpose |
-|-----------|--------------|---------|
-| [app-name] | [skill-name] | [what it covers — e.g., App Router patterns, module structure] |
-| [data] | [skill-name], [skill-name] | [e.g., model navigation, implementation patterns] |
-| [shared] | | [may not need domain skills if conventions are simple] |
-
-Domain skills live in `skills/` at the repo root alongside SDLC skills. Name them with a workspace prefix for clarity (e.g., `dbt-cartographer`, `nextjs-app-patterns`).
+Each workspace's `agent_executable` (`yes`, `caution` or `human`) and its domain `skills` are in `.sdlc/config.yaml` `workspaces`. A `human` workspace needs credentials, a live database or interactive judgment, so its steps carry `Run by:`. Name domain skills with a workspace prefix (for example `dbt-cartographer`, `nextjs-app-patterns`).
 
 ### Import boundaries
 
@@ -187,6 +164,6 @@ Package manager: **[pnpm / npm / yarn]**
 ## Specs and ADRs
 
 - Spec index: `specs/spec-index.json`
-- Templates: `specs/templates/`
+- Templates: `.sdlc/templates/`
 - ADRs: `specs/adrs/`
 - Bug specs: `specs/bugs/`

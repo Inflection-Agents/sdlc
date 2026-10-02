@@ -183,7 +183,8 @@ test('every payload validator is byte-identical to the one this repo runs', asyn
     const { join, dirname } = await import('node:path')
     const { fileURLToPath } = await import('node:url')
     const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
-    const payload = join(root, 'init-payload', 'scripts', 'sdlc')
+    // Layout 2 (ADR-008): the payload mirrors an adopter's tree, so validators ship under .sdlc/scripts/.
+    const payload = join(root, 'init-payload', '.sdlc', 'scripts')
     if (!existsSync(payload)) return
 
     // lib/ too: every payload validator imports the path resolver from it (SPEC-009).
@@ -197,7 +198,7 @@ test('every payload validator is byte-identical to the one this repo runs', asyn
         assert.equal(
             readFileSync(join(payload, f), 'utf8'),
             readFileSync(live, 'utf8'),
-            `init-payload/scripts/sdlc/${f} has drifted from scripts/sdlc/${f}`
+            `init-payload/.sdlc/scripts/${f} has drifted from scripts/sdlc/${f}`
         )
     }
     for (const f of readdirSync(join(root, 'scripts', 'sdlc', 'lib')).filter((f) => !f.endsWith('.test.mjs'))) {
@@ -209,7 +210,7 @@ test('the payload does not ship a validator that only makes sense upstream', () 
     // A consuming repo CONSUMES the plugin; it does not ship one, so it has no
     // .claude-plugin/plugin.json for this gate to grade.
     assert.equal(
-        existsSync(join(REPO_ROOT_FOR_PAYLOAD, 'init-payload', 'scripts', 'sdlc', 'validate-plugin-manifest.mjs')),
+        existsSync(join(REPO_ROOT_FOR_PAYLOAD, 'init-payload', '.sdlc', 'scripts', 'validate-plugin-manifest.mjs')),
         false,
         'validate-plugin-manifest.mjs must not ship to adopters'
     )
@@ -227,7 +228,7 @@ test('every script the payload workflow invokes is IN the payload', async () => 
 
     for (const wf of readdirSync(wfDir).filter((f) => f.endsWith('.yml'))) {
         const text = readFileSync(join(wfDir, wf), 'utf8')
-        for (const m of text.matchAll(/node\s+(?:--test\s+)?(scripts\/sdlc\/[\w.-]+\.mjs)/g)) {
+        for (const m of text.matchAll(/node\s+(?:--test\s+)?(\.sdlc\/scripts\/[\w.-]+\.mjs)/g)) {
             const rel = m[1]
             if (rel.includes('*')) continue
             assert.ok(
