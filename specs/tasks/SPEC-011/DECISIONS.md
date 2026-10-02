@@ -161,3 +161,16 @@ in chronological order.
 - Status comes from the default branch, the worktree and the main checkout, with a terminal status winning.
 
 **Why this is not an amendment now:** every change removes fewer worktrees than the Design text allows, in the direction F-3e582b60 and D-015 set. No AC changes: AC-003's "remove without `--force` … and run `worktrees.mjs --fetch --prune --own`" holds for the single command. The spec's Design text should be brought in line by a cosmetic amendment at spec-completion.
+
+---
+
+## Gate round 3 — at the ADR-004 cap; three majors disclosed, not fixed
+
+**Panel:** the same four reviewers, seeded with their round-2 envelopes. All four envelopes are valid. Every round-2 finding is closed. Integration and conventions found no blocker or major.
+
+**Disclosed in the PR body under `## Disclosed, not fixed`.** All three are data-loss paths, each reproduced and each with a named fix:
+1. "A terminal status wins" lets a stale main checkout override a reopened live spec (`worktrees.mjs` > `specStatus`).
+2. A pushed tag named `origin/HEAD` shadows the remote ref in `statusOnDefaultBranch`.
+3. A symlinked `.claude/worktrees` makes SOP §1's resume `git worktree remove` delete a live worktree.
+
+**Accepted as follow-ups:** the round-3 nits listed in the PR body.
