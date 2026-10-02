@@ -2,7 +2,7 @@
 
 Shared primitives consumed by `pr-reviewer` and `spec-reviewer`. Single source of truth for severity, grounding rules, output schema, and carry-forward semantics. Both reviewer skills (and any Tier 2 PR specialists) MUST reference this file rather than redefining these contracts; drift between the two reviewers is a SPEC-001 contract violation.
 
-This file is content-equivalent to SPEC-001 > Design > Shared primitives + Orchestrator severity→action policy, plus the spec-side extensions SPEC-007 adds to that policy (the round cap and `disclose_and_accept`; see SPEC-001 > Changelog v1.4). SPEC-001 remains the spec of record; this file is the operational contract the skills load.
+This file is content-equivalent to SPEC-001 > Design > Shared primitives + Orchestrator severity→action policy, plus the spec-side extensions SPEC-007 adds to that policy (the round cap and `disclose_and_accept`, and the owner rulings read from the review log; see SPEC-001 > Changelog v1.4 and v1.6). SPEC-001 remains the spec of record; this file is the operational contract the skills load.
 
 ---
 
@@ -238,9 +238,22 @@ Same routing applies to both reviewers (PR side and spec side). The policy is in
 ```
 SPEC_REVIEW_ROUND_CAP = 4   # ADR-005. The one copy: spec-authoring and spec-amendment cite it.
 
-# `round` is optional. Absent, as on every PR-side call, the policy is exactly the
-# one-argument policy SPEC-002 Appendix B calls as apply_spec_001_policy(all_findings).
+# `round` and `review_log` are optional. Absent, as on every PR-side call, the policy is exactly
+# the one-argument policy SPEC-002 Appendix B calls as apply_spec_001_policy(all_findings).
 findings = reviewer_output["findings"]
+
+# Owner rulings (spec side, SPEC-007 Lever 5). Read from specs/review-logs/SPEC-NNN.json and from
+# no other file; `review-log.mjs apply` is the deterministic implementation of this step.
+RANK = {"suggestion": 0, "nit": 1, "major": 2, "blocker": 3}
+min_severity = lambda a, b: a if RANK[a] <= RANK[b] else b
+
+if review_log is not None:
+    ruled = {e["id"]: e for e in review_log["findings"]
+             if e["resolution"] in ("overridden", "wontfix")}
+    findings = [f for f in findings if ruled.get(f["id"], {}).get("resolution") != "wontfix"]
+    findings = [{**f, "severity": min_severity(f["severity"], ruled[f["id"]]["owner_severity"])}
+                if f["id"] in ruled else f
+                for f in findings]
 
 # Guard: any finding whose criterion prefix is not allowed by the grounding
 # rules for this reviewer role short-circuits the policy.
@@ -267,6 +280,12 @@ else:
 **Worked trace: a round-4 spec blocker.** `artifact: "spec"`, `round: 4`, one finding with
 `severity: "blocker"`. `capped` is true, so the action is `disclose_and_accept` and no round 5 is
 dispatched.
+
+**Worked trace: an owner ruling.** `artifact: "spec"`, `round: 2`, findings `F-1a2b3c4d`
+(`major`) and `F-5e6f7a8b` (`blocker`). The log records `F-1a2b3c4d` as `overridden` with
+`owner_severity: nit`, and `F-5e6f7a8b` as `wontfix`. The ruling step drops `F-5e6f7a8b` and routes
+`F-1a2b3c4d` as a `nit`, so the action is `batch_followup_and_accept`. Had the reviewer raised
+`F-1a2b3c4d` as a `suggestion` that round, it would route as a `suggestion`: a ruling only lowers.
 
 **Worked trace: a round-4 PR blocker.** `artifact: "pr"`, `round: 4` (or no `round`), one finding
 with `severity: "blocker"`. `capped` is false for any `artifact` other than `"spec"`, so the action

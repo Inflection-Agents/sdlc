@@ -264,6 +264,8 @@ specs/
 ├── gaps/
 │   ├── GAP-001-auth-edge-case.md
 │   └── GAP-002-pipeline-schema-ambiguity.md
+├── review-logs/
+│   └── SPEC-001.json            # every spec-review finding, its rounds and resolution
 ├── tasks/
 │   └── SPEC-001/
 │       ├── GUIDE.md             # the delivery guide (guide-schema.md)
@@ -287,6 +289,7 @@ Subdirectories:
 - `baselines/` — per-spec baseline metric files for success-criteria comparison (e.g., `SPEC-042.md` captures pre-change metrics that the spec's success criteria are measured against). Introduced by SPEC-001.
 - `bugs/` — bug specs (`BUG-NNN-*.md`).
 - `gaps/` — gap artifacts (`GAP-NNN-*.md`). Each file records a specification gap discovered during implementation, its resolution, and downstream impact. Introduced by SPEC-004.
+- `review-logs/` — one JSON file per reviewed spec (`SPEC-NNN.json`), written by `review-log.mjs` and never by hand. It holds every finding raised in any spec-review round: its content-addressed `id`, `first_round`, every round it recurred in (`rounds`), and a `resolution` of `open`, `fixed`, `overridden` or `wontfix`. An `overridden` or `wontfix` entry also carries `reason`, `recorded_by` and a date, and an `overridden` entry carries `owner_severity`. The routing policy reads owner rulings from this file only. Introduced by SPEC-007.
 - `tasks/SPEC-NNN/` — each spec's delivery guide and its companions. See `guide-schema.md`.
 - `templates/` — copy-and-fill templates for new specs, ADRs, bugs, gaps, guides, kickoff prompts, and per-run decision logs.
 

@@ -55,3 +55,11 @@ heading goes in the moment it happens, not batched at the end.
 
 **Merged:** PR #81
 **What changed:** Finding ids are sha256 of location_key, criterion and finding; the validator recomputes them and --stamp sets them, so every validate instruction now stamps first. Example envelopes re-stamped and grounded. Guide change: shared lib/finding-id.mjs plus the skill files carrying the validate instruction.
+
+---
+
+## EXECUTIVE DECISION — guide change: S5 records the policy's new ruling step in SPEC-001's Changelog
+
+**Date:** 2026-10-02
+**Question:** S5 adds a `review_log` input and a ruling step to the routing policy in `review-primitives.md`. That file states it is content-equivalent to SPEC-001 plus the extensions SPEC-001's Changelog records, so a policy change with no Changelog entry would make the statement false. S5's `Changes:` did not list SPEC-001.
+**Decided:** add `specs/SPEC-001-tiered-code-review.md` (Changelog only) to S5's `Changes:` and record the step as SPEC-001 v1.6, as S1 did for v1.4 and S4 for v1.5. No AC, scope or design changes.

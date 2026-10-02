@@ -14,7 +14,8 @@
       "9cfd2ff40d093cd72b0bba958818913bdee32c5558473d425e170c295ccaff59": "0.4.0",
       "10a91261efe7d65736425d786f98dd9f13cf9a189cf59052c2d0f651168ec948": "0.4.0",
       "c6edbdcd1e0ebc330d9bc6e44d31290d891c09185c7359d8fefbebd0c79775ef": "0.4.0",
-      "6925c135ea681644f96d037f05b2d0ddaf1767c6b9573e4a60e9d4f65b040339": "0.4.0"
+      "6925c135ea681644f96d037f05b2d0ddaf1767c6b9573e4a60e9d4f65b040339": "0.4.0",
+      "4e0031c5cd6490d62528c77c94d3995228ad5405d78466b413c84bf779ab02ed": "0.4.0"
     },
     "scripts/archive-specs.mjs": {
       "60884236dd13cab415f828fd7fdf66d62066d294b1cddf304486eccc1bf0b7d1": "0.1.0",
@@ -77,6 +78,9 @@
     "scripts/resolve.mjs": {
       "223e2e62642a10240de1b4cf7c8c62671c665dfbd3e380ae5b4180a4ac00a6e0": "0.1.0",
       "ba8afd8b2c3f8629e334b3d36aba47ea1444cdd31d19c3bf7edecc7b9a46cef2": "0.4.0"
+    },
+    "scripts/review-log.mjs": {
+      "f1f2d0d40e6b6764cf5e84a74a2c53858b66934ff8faa0f6b74f7a81b6108623": "0.4.0"
     },
     "scripts/reviewer-routing.mjs": {
       "31aae4fe9bf42086d29b49596b7fdc90d709998cfd5a6b35d88ce2c7bf3cd8ba": "0.1.0",
