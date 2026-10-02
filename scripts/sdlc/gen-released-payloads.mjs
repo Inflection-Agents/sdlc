@@ -89,19 +89,47 @@ export function loadManifest(file = MANIFEST) {
     return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : { roles: {} }
 }
 
+/**
+ * The role/hash pairs `generated` has that `committed` lacks.
+ *
+ * A squash merge drops a branch's intermediate commits from main's history, so main
+ * regenerates fewer hashes than the branch recorded. Those extra committed hashes are
+ * copies from commits between releases, which count as released harmlessly, so the check
+ * only asks that the committed file holds everything history shows.
+ */
+export function missingFrom(committed, generated) {
+    const missing = []
+    for (const [role, hashes] of Object.entries(generated.roles)) {
+        for (const hash of Object.keys(hashes)) if (!committed.roles?.[role]?.[hash]) missing.push(`${role} ${hash.slice(0, 12)}`)
+    }
+    if (committed.through_version !== generated.through_version) missing.push(`through_version ${generated.through_version}`)
+    return missing
+}
+
+/** `generated` plus every hash `committed` already records, so a rewrite never drops one. */
+export function mergeManifests(committed, generated) {
+    const roles = {}
+    for (const role of new Set([...Object.keys(committed.roles ?? {}), ...Object.keys(generated.roles)])) {
+        roles[role] = { ...(committed.roles?.[role] ?? {}), ...generated.roles[role] }
+    }
+    const sorted = Object.fromEntries(Object.keys(roles).sort().map((r) => [r, roles[r]]))
+    return { through_version: generated.through_version, roles: sorted }
+}
+
 function main(argv) {
-    const manifest = buildManifest()
-    const text = serialize(manifest)
+    const generated = buildManifest()
+    const committed = existsSync(MANIFEST) ? JSON.parse(readFileSync(MANIFEST, 'utf8')) : { roles: {} }
     if (argv.includes('--check')) {
-        const current = existsSync(MANIFEST) ? readFileSync(MANIFEST, 'utf8') : ''
-        if (current !== text) {
-            process.stderr.write('released-payloads.json is stale: run gen-released-payloads.mjs and commit the result\n')
+        const missing = missingFrom(committed, generated)
+        if (missing.length) {
+            process.stderr.write(`released-payloads.json is stale: run gen-released-payloads.mjs and commit the result\n  missing: ${missing.slice(0, 10).join('\n  missing: ')}\n`)
             process.exit(1)
         }
-        process.stdout.write(`released-payloads.json OK (${Object.keys(manifest.roles).length} roles, through ${manifest.through_version})\n`)
+        process.stdout.write(`released-payloads.json OK (${Object.keys(committed.roles).length} roles, through ${committed.through_version})\n`)
         return
     }
-    writeFileSync(MANIFEST, text)
+    const manifest = mergeManifests(committed, generated)
+    writeFileSync(MANIFEST, serialize(manifest))
     process.stdout.write(`wrote ${MANIFEST} (${Object.keys(manifest.roles).length} roles)\n`)
 }
 

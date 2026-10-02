@@ -50,6 +50,8 @@ the same commit. The migration and `/sdlc-sync` replace an adopter's framework f
 its bytes match a copy listed there, so a release missing from it makes every copy of that
 release look like a local edit. The manifest covers every payload commit, not only bumps, so
 any PR that changes `init-payload/` regenerates it too; CI's `--check` step fails until it does.
+Regenerating keeps every hash already recorded, and `--check` accepts extra ones, because a
+squash merge drops a branch's intermediate commits from `main`'s history.
 
 ```bash
 node .sdlc/scripts/gen-released-payloads.mjs          # writes scripts/sdlc/lib/released-payloads.json

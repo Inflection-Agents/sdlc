@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
-import { loadManifest, releasedVersions, roleOf } from './gen-released-payloads.mjs'
+import { loadManifest, mergeManifests, missingFrom, releasedVersions, roleOf } from './gen-released-payloads.mjs'
 
 const SCRIPT = fileURLToPath(new URL('./gen-released-payloads.mjs', import.meta.url))
 const REPO = fileURLToPath(new URL('../..', import.meta.url))
@@ -38,4 +38,12 @@ test('roleOf maps both payload layouts to one role', () => {
     assert.equal(roleOf('init-payload/sdlc-state-machine.yaml'), 'state-machine')
     assert.equal(roleOf('init-payload/.github/workflows/sdlc-validate.yml'), 'workflows/sdlc-validate.yml')
     assert.equal(roleOf('init-payload/README.md'), null)
+})
+
+test('a squash merge that drops branch commits leaves the committed manifest valid, and a missing hash does not', () => {
+    const generated = { through_version: '0.4.0', roles: { 'scripts/a.mjs': { aaa: '0.4.0' } } }
+    const committed = { through_version: '0.4.0', roles: { 'scripts/a.mjs': { aaa: '0.4.0', bbb: '0.4.0' } } }
+    assert.deepEqual(missingFrom(committed, generated), [])
+    assert.deepEqual(missingFrom(generated, committed), ['scripts/a.mjs bbb'])
+    assert.deepEqual(mergeManifests(committed, generated).roles['scripts/a.mjs'], { aaa: '0.4.0', bbb: '0.4.0' })
 })
