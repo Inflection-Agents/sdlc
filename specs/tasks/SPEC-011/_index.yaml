@@ -25,6 +25,6 @@ phase:
   current: spec-authoring
   next_action: spec-execution
   next_trigger: 'execute SPEC-011'
-  exit_condition_met: true
+  exit_condition_met: false
   handoff_surfaced: false
   updated: 2026-10-02
