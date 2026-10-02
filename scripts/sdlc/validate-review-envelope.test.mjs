@@ -281,3 +281,25 @@ test('--stamp sets ids from content and validates, on stdin and in place', () =>
         rmSync(dir, { recursive: true, force: true })
     }
 })
+
+test('a file:line:col location loses its line and column, and a NUL in a hashed field is rejected', () => {
+    const f = { criterion: 'ac:AC-003', finding: 'x' }
+    assert.equal(findingId({ ...f, location: 'src/a.ts:40:5' }, 'pr'), findingId({ ...f, location: 'src/a.ts:57' }, 'pr'))
+    const env = stampEnvelope({ artifact: 'spec', reviewed_by: 'agent:spec-reviewer', findings: [{ severity: 'nit', ...base, location: 'a\u0000b' }] })
+    assert.match(validateRaw(env).errors.join('\n'), /NUL/)
+})
+
+test('stamp-envelope stamps in place and validates, with the validator\'s exit codes', () => {
+    const STAMP = join(HERE, 'stamp-envelope.mjs')
+    const env = { artifact: 'spec', reviewed_by: 'agent:spec-reviewer', findings: [{ id: 'F-001', severity: 'major', ...base }] }
+    const dir = mkdtempSync(join(tmpdir(), 'sdlc-stamp2-'))
+    try {
+        const file = join(dir, 'envelope.json')
+        writeFileSync(file, JSON.stringify(env))
+        assert.equal(spawnSync('node', [STAMP, file], { encoding: 'utf8' }).status, EXIT_VALID)
+        assert.equal(JSON.parse(readFileSync(file, 'utf8')).findings[0].id, findingId(base, 'spec'))
+        assert.equal(spawnSync('node', [STAMP, '-'], { input: '{}', encoding: 'utf8' }).status, EXIT_MALFORMED)
+    } finally {
+        rmSync(dir, { recursive: true, force: true })
+    }
+})

@@ -5,7 +5,8 @@
       "7f06368b4de9c30b6f51d93ba558d1204679bd186976fc3c047782d6c9cb91ae": "0.1.0",
       "b94aff9a5a97a356d8cceaec6dbc5fdb6521e6c8409021afc171f1da33943640": "0.2.0",
       "e80b744f8dbd1ad58521c0c71af114d1582cccbe4c7bee9a5a2469aa6c60375f": "0.4.0",
-      "a82838465026e49a77a88ca92c22275d96bac914b68a789837e98a1abeb6f521": "0.4.0"
+      "a82838465026e49a77a88ca92c22275d96bac914b68a789837e98a1abeb6f521": "0.4.0",
+      "b60dc6b803ba60bc128a84464e32cd5f04fec0c2b31f5da03a29c1c0d010e7f2": "0.4.0"
     },
     "contracts/review-primitives.md": {
       "8a6d7f0da4bbfde8af0bcbe8a6c68116447f346598baf40cc0b41973e5cbba30": "0.1.0",
@@ -15,7 +16,8 @@
       "10a91261efe7d65736425d786f98dd9f13cf9a189cf59052c2d0f651168ec948": "0.4.0",
       "c6edbdcd1e0ebc330d9bc6e44d31290d891c09185c7359d8fefbebd0c79775ef": "0.4.0",
       "6925c135ea681644f96d037f05b2d0ddaf1767c6b9573e4a60e9d4f65b040339": "0.4.0",
-      "4e0031c5cd6490d62528c77c94d3995228ad5405d78466b413c84bf779ab02ed": "0.4.0"
+      "4e0031c5cd6490d62528c77c94d3995228ad5405d78466b413c84bf779ab02ed": "0.4.0",
+      "b29170b8764bad43c3d8322897d4d38b5decf0086f4a8ca7389e1eae621d6e26": "0.4.0"
     },
     "scripts/archive-specs.mjs": {
       "60884236dd13cab415f828fd7fdf66d62066d294b1cddf304486eccc1bf0b7d1": "0.1.0",
@@ -24,7 +26,8 @@
       "b353f3df95f0c8185816a7fa275d3d32da3c5197ae62c6a5eaa0efa0a6e3c750": "0.4.0",
       "c0afc4f877f7c10274aa3f32b9d390c5ac55a4077aa9bd3219cb3b38c19b47af": "0.4.0",
       "d13f06e4edb1e9c5e8cc7f81471ce1c0ffa46180cad9957673f8d7b88555aeeb": "0.4.0",
-      "85926c3606c74ae40848dd264ad114f0c4c8ec8793adac39ebcd41ade527a2b6": "0.4.0"
+      "85926c3606c74ae40848dd264ad114f0c4c8ec8793adac39ebcd41ade527a2b6": "0.4.0",
+      "f227dc58fd879fc731db01c51df5daf3e62e7c49c3acd54f42a7318d617fd2c8": "0.4.0"
     },
     "scripts/check-review-constraint-globs.mjs": {
       "8457a5f6d4abd6fc93bbe438087efde1bbf08c6ecd9f02f41f5369713199c4df": "0.1.0",
@@ -41,14 +44,16 @@
     "scripts/complete-spec.mjs": {
       "5d76109be5b6e35fc29c3e6a365bced1d7c3a9c35d1830743cd6edc1fa9ca649": "0.1.0",
       "d4d5078de57fa6efaced1330ef4d06e4142e379e0e91912c3699a0b75520a22e": "0.3.0",
-      "82a4e9ccf5885a41595b30574c10b0164e755c9d0ceede33ebcc0b4b7e6a4e60": "0.4.0"
+      "82a4e9ccf5885a41595b30574c10b0164e755c9d0ceede33ebcc0b4b7e6a4e60": "0.4.0",
+      "f75316742312bce86106f8722de71b0dce96e88e9c28852b13dff537a438f737": "0.4.0"
     },
     "scripts/gen-spec-index.mjs": {
       "964a8881aa24d0bdc4deb0c5ecf84659fbe7ad8945b755fa40c9fc88dc0b3b24": "0.4.0",
       "d4ae9e3278017b0d03531aabdecf97ef5b1908d04dde111b0880b80b2e198284": "0.4.0"
     },
     "scripts/lib/finding-id.mjs": {
-      "cf35638bb9c2b05c7bff29f1e455e5f71cde76cedffcfa9b9f0d2a2f1ce758b2": "0.4.0"
+      "cf35638bb9c2b05c7bff29f1e455e5f71cde76cedffcfa9b9f0d2a2f1ce758b2": "0.4.0",
+      "5c629cbac6b97196e9a4235f891b71300e4a0d29f0409d6f5a632191349b345e": "0.4.0"
     },
     "scripts/lib/legacy-map.mjs": {
       "9a3d579f9c4c26780ff2afd62ad48a6f54ec02fe08ab88dc9e349d8caf4516ac": "0.3.0",
@@ -84,11 +89,13 @@
     },
     "scripts/resolve.mjs": {
       "223e2e62642a10240de1b4cf7c8c62671c665dfbd3e380ae5b4180a4ac00a6e0": "0.1.0",
-      "ba8afd8b2c3f8629e334b3d36aba47ea1444cdd31d19c3bf7edecc7b9a46cef2": "0.4.0"
+      "ba8afd8b2c3f8629e334b3d36aba47ea1444cdd31d19c3bf7edecc7b9a46cef2": "0.4.0",
+      "1618338ae97ea4691263a29ca827b879da7d6e4b9dfb1a653406fad9d4453a90": "0.4.0"
     },
     "scripts/review-log.mjs": {
       "f1f2d0d40e6b6764cf5e84a74a2c53858b66934ff8faa0f6b74f7a81b6108623": "0.4.0",
-      "de6600c5c879dd95475ab9f5d5d2c0493925e87181956308493ead79b02d100b": "0.4.0"
+      "de6600c5c879dd95475ab9f5d5d2c0493925e87181956308493ead79b02d100b": "0.4.0",
+      "d8448051dff332be5edc1e565614308f4aa7604ea361ef12498219d5d5b853d1": "0.4.0"
     },
     "scripts/reviewer-routing.mjs": {
       "31aae4fe9bf42086d29b49596b7fdc90d709998cfd5a6b35d88ce2c7bf3cd8ba": "0.1.0",
@@ -104,6 +111,9 @@
       "506d98320410dcadb715f4b43f478337108abbef7ba2ccf1d931a7ff47e41ab1": "0.4.0",
       "8a0d90d08690216e5d7c3b90cf5ccf8da9925147bbb1d69a7ab3dc5ef5719fc4": "0.4.0"
     },
+    "scripts/stamp-envelope.mjs": {
+      "5d08f8afa5f19716d0a5be782026f00333c4d81a430f434ab3fa4207872c8a54": "0.4.0"
+    },
     "scripts/validate-constraints-registry.mjs": {
       "31c4d59094058ff041c7b0a6854c9cd2a170c844974623396c1dc6c37d0624d7": "0.1.0",
       "2477a5a6390215421a60ff83856004afc22f1294ab161fa3cdab1a2599b6541e": "0.4.0"
@@ -112,7 +122,8 @@
       "9185be600e9a481372c587c3005f04ce331d2af41b511c30cb490c610385e752": "0.3.0",
       "bd6e93d8dc2934204fbd265610297d3821dbedf2982ffb8c4bfe704b9134c859": "0.3.0",
       "fc52d1f9c74b6ad761ef193ed2f1373b6a0f9427af46c9718b432207c4a1ff4f": "0.4.0",
-      "3f47c3583a88dd022a9a3c9978d80ee6555300222588bc1b6cf91dcb61fcfd18": "0.4.0"
+      "3f47c3583a88dd022a9a3c9978d80ee6555300222588bc1b6cf91dcb61fcfd18": "0.4.0",
+      "2cfb897dc89e4a930d310f86e83d66a039615eab3125346b937e5ea951ffb94d": "0.4.0"
     },
     "scripts/validate-phase-memory.mjs": {
       "bde6c10bf2ab567c81836a88e8f5f9a949a3645ad242116fb0aba47ae24d37ce": "0.1.0",
@@ -127,7 +138,8 @@
       "25f112cbd9f39666925653ac456117b2a21dbf71eeaa6d4e1be5311ca0a3af2e": "0.3.0",
       "814a6929e9e9c4f194e70fc9e8a4fdeb4b1e35f189e11162832ba9af2a7a33df": "0.4.0",
       "a76856d5152d17730a9ae243558d54b432dec0bf0aa6e8a2be21872913b03743": "0.4.0",
-      "5c28a530328cca0a24fa316b12f9437e343bac29ea37a194055fd16f7d6e245d": "0.4.0"
+      "5c28a530328cca0a24fa316b12f9437e343bac29ea37a194055fd16f7d6e245d": "0.4.0",
+      "485a3dc3507d37a5484ac89ddc4359a99d6ff8410c32bc0f802b5db00cd4f2e2": "0.4.0"
     },
     "scripts/validate-sdlc-config.mjs": {
       "425ff40950df02d5615a2fff13cb1dbef940134b25fe791d83cf581bc605ff00": "0.3.0",
@@ -137,7 +149,8 @@
     "scripts/validate-spec.mjs": {
       "189020876d0474d96328d4c20c3d3ba6517353a74cf8de99194593e2279446bf": "0.4.0",
       "54282aafd8d60f668c870a2ed9bb72f82bedc677d9f0a843bdfc33170e2bf041": "0.4.0",
-      "bf2adf1da67315a410d7124bc949940c939002b960489e4a7777577707b77037": "0.4.0"
+      "bf2adf1da67315a410d7124bc949940c939002b960489e4a7777577707b77037": "0.4.0",
+      "9770b8fda89e6160f9074df78d5e409ecfcdae2e287bc742cd1d21642a58b297": "0.4.0"
     },
     "scripts/validate-state-machine.mjs": {
       "cf9e74392f05f46ba48d5f83af3c15889edf30651e9ac2b8f218f5acc0147e56": "0.1.0",
@@ -217,7 +230,8 @@
       "9e3fe3c94c886df6faadce01cb99ec65855657941009531e911961737650af4b": "0.3.0",
       "bf4c76f6e563c42d9447a6d77ebe513059adfdda4f1a334a2735f8e34c45eb71": "0.4.0",
       "d3228d97eb23debb3e2ac975ce9dfdd2d422f8a316519ea895a2d0ea5e62a1e8": "0.4.0",
-      "4bf3f0d5300c9da38e44879f1a7cc652d8e96509447cc67bba8e4251c9b98ca6": "0.4.0"
+      "4bf3f0d5300c9da38e44879f1a7cc652d8e96509447cc67bba8e4251c9b98ca6": "0.4.0",
+      "2815f94ecd41d6247b10c4e554c467af26085ad0dbb07efc8af01b98cddbba3d": "0.4.0"
     }
   }
 }

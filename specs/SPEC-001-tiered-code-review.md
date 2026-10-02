@@ -369,7 +369,7 @@ Entries are append-only at first. The `resolved` boolean and its companion field
 - See SPEC-007 for the full design and rationale.
 
 ### v1.6 (2026-10-02) — owner rulings read from the review log, via SPEC-007
-- Live `review-primitives.md` > Orchestrator severity→action policy gains an optional `review_log` input and one step before severity routing: drop a finding the log records as `wontfix`, and route a finding it records as `overridden` at the lower of the reviewer's severity and the owner's `owner_severity`. The policy reads the ruling from `specs/review-logs/SPEC-NNN.json` and from no other file. Without `review_log`, as on every PR-side call, the policy is unchanged.
+- Live `review-primitives.md` > Orchestrator severity→action policy gains an optional `review_log` input and one step before severity routing: drop a finding the log records as `wontfix`, and route a finding it records as `overridden` at the lower of the reviewer's severity and the owner's `owner_severity`. A ruling covers only the severity it was made at (`ruled_severity`); the same finding raised higher routes as raised. The policy reads the ruling from `specs/review-logs/SPEC-NNN.json` and from no other file. Without `review_log`, as on every PR-side call, the policy is unchanged.
 - An override still downgrades only, and stays visible in the spec body's `spec_review_overrides`. `review-log.mjs` records a ruling only when that entry already shows it and the spec's owner records it.
 - See SPEC-007 for the full design and rationale.
 

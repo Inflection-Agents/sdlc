@@ -4,12 +4,12 @@
 import { createHash } from 'node:crypto'
 
 /**
- * The location as hashed. A PR finding's `file:line` loses its line, because edits between
- * rounds shift lines; a spec finding's section heading is used as written.
+ * The location as hashed. A PR finding's `file:line`, `file:line-line` or `file:line:col` loses its
+ * line, because edits between rounds shift lines; a spec finding's section heading is used as written.
  */
 export function locationKey(location, artifact) {
     const loc = String(location ?? '')
-    return artifact === 'spec' ? loc : loc.replace(/:\d+(-\d+)?$/, '')
+    return artifact === 'spec' ? loc : loc.replace(/:\d+([-:]\d+)?$/, '')
 }
 
 /** `criterion`, or its `citation` alias when `criterion` is absent. */

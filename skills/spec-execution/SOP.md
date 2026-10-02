@@ -251,7 +251,7 @@ talk itself out of; an absent tool is not. A registry `agent:` that names no fil
 `reviewer-routing.test.mjs`, so the routing cannot silently point at nothing.
 
 **Every verdict comes from a dispatched reviewer, never from you.** Validate each returned envelope
-with `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-review-envelope --stamp <file>` — exit `0` fold the findings, `2`
+with `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs stamp-envelope <file>` — exit `0` fold the findings, `2`
 abstained (escalate), `3` malformed or absent (re-dispatch or escalate). A malformed envelope is
 never a clean review. Severity → action is `review-primitives.md`; do not freehand it.
 

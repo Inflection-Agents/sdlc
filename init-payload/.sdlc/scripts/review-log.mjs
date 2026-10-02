@@ -6,7 +6,9 @@
  * routing policy reads an owner's ruling from here and from nowhere else (SPEC-007 > D-013).
  *
  * Usage (every command takes --root <dir>):
- *   review-log.mjs append  <spec.md> <envelope.json> --round <n>   stamp, validate and record one round
+ *   review-log.mjs append  <spec.md> <envelope.json> --round <n> [--review <label>]
+ *                                                                   stamp, validate and record one round;
+ *                                                                   an amendment passes its own label
  *   review-log.mjs resolve <spec.md> <F-id> --resolution overridden|wontfix --recorded-by <owner>
  *                          --reason <text> [--owner-severity <sev>]  record an owner's ruling
  *   review-log.mjs project <spec.md>                                print previous_output for the next round
@@ -15,8 +17,8 @@
  *
  * Exit codes: 0 done; 1 refused, and nothing was written; 2 usage or an unreadable file.
  */
-import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
+import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { criterionOf, stampEnvelope } from './lib/finding-id.mjs'
@@ -72,21 +74,43 @@ export function specOverrides(text) {
     return Array.isArray(parsed) ? parsed : []
 }
 
-/**
- * Record one round's envelope. A finding seen this round is `open` unless the owner has ruled on
- * it; an `open` finding last seen in an earlier round becomes `fixed`. A round may be appended more
- * than once (round 1 has two reviewers), so a finding marked fixed in this same round that turns up
- * in a second envelope is reopened.
- */
-export function appendRound(log, env, round, date = today()) {
-    if (!Number.isInteger(round) || round < 1) refuse(`--round must be a positive integer, got ${round}`)
-    const last = log.rounds.at(-1)?.round ?? 0
-    if (round !== last && round !== last + 1) refuse(`round ${round} cannot follow round ${last}; rounds are appended in order`)
+/** A valid, assessed spec-side envelope for this log's spec, stamped. Refuses anything else. */
+function admissible(env, log) {
     const stamped = stampEnvelope(env)
     const { ok, abstained, errors } = validateEnvelope(stamped)
     if (!ok) refuse(`the envelope is not valid:\n  - ${errors.join('\n  - ')}`)
     if (abstained) refuse('the reviewer abstained; an abstention is escalated, never logged as a round')
     if (stamped.artifact !== 'spec') refuse(`the review log is for spec reviews; this envelope has artifact "${stamped.artifact}"`)
+    if (stamped.artifact_id != null && stamped.artifact_id !== log.spec) {
+        refuse(`the envelope is for ${stamped.artifact_id}, not ${log.spec}`)
+    }
+    return stamped
+}
+
+/**
+ * Record one round's envelope. `round` is the policy's round within one review (`review`: the
+ * authoring review, or one amendment), which restarts at 1; the log numbers rounds globally, in
+ * order, and records both on each `rounds[]` entry. A finding seen this round is `open` unless the
+ * owner has ruled on it; an `open` finding last seen in an earlier round becomes `fixed`. A round
+ * may be appended more than once (round 1 has two reviewers), so a finding marked fixed in this
+ * same round that turns up in a second envelope is reopened. A ruled finding raised again above
+ * the severity the owner ruled on is reopened, because the owner never saw it at that severity.
+ */
+export function appendRound(log, env, round, date = today(), review = 'authoring') {
+    if (!Number.isInteger(round) || round < 1) refuse(`--round must be a positive integer, got ${round}`)
+    const prev = log.rounds.at(-1)
+    const prevReview = prev?.review ?? 'authoring'
+    const prevRound = prev?.review_round ?? prev?.round ?? 0
+    let global
+    if (prev && prevReview === review) {
+        if (round !== prevRound && round !== prevRound + 1) refuse(`round ${round} of review "${review}" cannot follow its round ${prevRound}`)
+        global = round === prevRound ? prev.round : prev.round + 1
+    } else {
+        if (round !== 1) refuse(`review "${review}" starts at round 1, not ${round}`)
+        global = (prev?.round ?? 0) + 1
+    }
+    const last = prev?.round ?? 0
+    const stamped = admissible(env, log)
 
     const next = structuredClone(log)
     const byId = new Map(next.findings.map((e) => [e.id, e]))
@@ -103,28 +127,64 @@ export function appendRound(log, env, round, date = today()) {
         }
         const e = byId.get(f.id)
         if (!e) {
-            const entry = { id: f.id, first_round: round, rounds: [round], ...fields, resolution: 'open' }
+            const entry = { id: f.id, first_round: global, rounds: [global], ...fields, resolution: 'open' }
             next.findings.push(entry)
             byId.set(f.id, entry)
             continue
         }
         Object.assign(e, fields)
-        if (!e.rounds.includes(round)) e.rounds.push(round)
+        if (!e.rounds.includes(global)) e.rounds.push(global)
         if (e.resolution === 'fixed') {
             e.resolution = 'open'
             delete e.fixed_in
         }
+        if (RULINGS.has(e.resolution) && RANK[e.severity] > RANK[e.ruled_severity]) {
+            e.superseded_ruling = { resolution: e.resolution, ruled_severity: e.ruled_severity, owner_severity: e.owner_severity, reason: e.reason, recorded_by: e.recorded_by, date: e.date }
+            for (const k of ['ruled_severity', 'owner_severity', 'reason', 'recorded_by', 'date']) delete e[k]
+            e.resolution = 'open'
+        }
     }
-    if (round > last) {
+    if (global > last) {
         for (const e of next.findings) {
             if (e.resolution === 'open' && !seen.has(e.id)) {
                 e.resolution = 'fixed'
-                e.fixed_in = round
+                e.fixed_in = global
             }
         }
     }
-    next.rounds.push({ round, reviewed_by: stamped.reviewed_by, date, findings: stamped.findings.map((f) => f.id) })
+    next.rounds.push({ round: global, review, review_round: round, reviewed_by: stamped.reviewed_by, date, findings: stamped.findings.map((f) => f.id) })
     return next
+}
+
+/**
+ * Every reason a ruled log entry is not backed by the spec. `resolveFinding` refuses on any of them
+ * and `check` reports them, so a log written by hand is held to the same rules as one written by
+ * this script.
+ */
+export function rulingProblems(e, specText) {
+    const problems = []
+    const owner = parseFrontmatter(specText).owner
+    if (!owner) problems.push('the spec has no `owner` frontmatter, so no ruling can be recorded')
+    else if (e.recorded_by !== owner) problems.push(`recorded_by is "${e.recorded_by}"; only the spec's owner, "${owner}", may record a ruling`)
+    if (!e.reason || !String(e.reason).trim()) problems.push('a ruling needs a reason')
+    if (!(e.ruled_severity in RANK)) problems.push('a ruling needs the ruled_severity it was made at')
+    const body = specOverrides(specText).find((o) => o.finding_id === e.id)
+    if (!body) return [...problems, `the spec body has no spec_review_overrides entry for ${e.id}; write it there first`]
+    if (e.resolution === 'overridden') {
+        if (body.resolution === 'wontfix') problems.push(`the spec body records ${e.id} as wontfix, not overridden`)
+        if (body.owner_severity !== e.owner_severity) problems.push(`the log's owner_severity is ${e.owner_severity} but the spec body records ${body.owner_severity ?? 'none'} for ${e.id}`)
+        if (body.reviewer_severity !== e.ruled_severity) problems.push(`the spec body records reviewer_severity ${body.reviewer_severity} for ${e.id}, but the log has it at ${e.ruled_severity}`)
+        if (!(e.owner_severity in RANK) || !(body.reviewer_severity in RANK) || RANK[e.owner_severity] >= RANK[body.reviewer_severity]) {
+            problems.push(`an override only downgrades: ${e.owner_severity} is not below the recorded reviewer_severity ${body.reviewer_severity}`)
+        }
+    } else {
+        if (body.resolution !== 'wontfix') problems.push(`the spec body entry for ${e.id} lacks resolution: wontfix`)
+        if (!body.reason || !String(body.reason).trim()) problems.push(`the spec body entry for ${e.id} has no reason`)
+        if (RANK[e.ruled_severity] >= RANK.major && !rawSection(specText, 'Disclosed, not reviewed-clean').join('\n').includes(e.id)) {
+            problems.push(`${e.id} is a ${e.ruled_severity}; a wontfix on it must also be listed in ## Disclosed, not reviewed-clean`)
+        }
+    }
+    return problems
 }
 
 /**
@@ -135,39 +195,17 @@ export function appendRound(log, env, round, date = today()) {
 export function resolveFinding(log, specText, { id, resolution, recordedBy, reason, ownerSeverity }, date = today()) {
     if (!RULINGS.has(resolution)) refuse(`--resolution must be overridden or wontfix, got ${resolution}`)
     if (!reason || !String(reason).trim()) refuse('--reason is required')
-    const owner = parseFrontmatter(specText).owner
-    if (!owner) refuse('the spec has no `owner` frontmatter, so no ruling can be recorded')
-    if (recordedBy !== owner) refuse(`--recorded-by is "${recordedBy}"; only the spec's owner, "${owner}", may record a ruling`)
-    const entry = log.findings.find((e) => e.id === id)
-    if (!entry) refuse(`${id} is not in the review log`)
-    const body = specOverrides(specText).find((o) => o.finding_id === id)
-    if (!body) refuse(`the spec body has no spec_review_overrides entry for ${id}; write it there first`)
-
-    if (resolution === 'overridden') {
-        if (body.resolution === 'wontfix') refuse(`the spec body records ${id} as wontfix, not overridden`)
-        if (!(ownerSeverity in RANK)) refuse(`--owner-severity must be one of ${Object.keys(RANK).join(', ')}`)
-        if (body.owner_severity !== ownerSeverity) refuse(`--owner-severity is ${ownerSeverity} but the spec body records ${body.owner_severity ?? 'none'} for ${id}`)
-        if (!(body.reviewer_severity in RANK) || RANK[ownerSeverity] >= RANK[body.reviewer_severity]) {
-            refuse(`an override only downgrades: ${ownerSeverity} is not below the recorded reviewer_severity ${body.reviewer_severity}`)
-        }
-    } else {
-        if (body.resolution !== 'wontfix') refuse(`the spec body entry for ${id} lacks resolution: wontfix`)
-        if (!body.reason || !String(body.reason).trim()) refuse(`the spec body entry for ${id} has no reason`)
-        if (RANK[entry.severity] >= RANK.major) {
-            const disclosed = rawSection(specText, 'Disclosed, not reviewed-clean').join('\n')
-            if (!disclosed.includes(id)) refuse(`${id} is a ${entry.severity}; a wontfix on it must also be listed in ## Disclosed, not reviewed-clean`)
-        }
-    }
+    if (resolution === 'overridden' && !(ownerSeverity in RANK)) refuse(`--owner-severity must be one of ${Object.keys(RANK).join(', ')}`)
+    if (!log.findings.some((e) => e.id === id)) refuse(`${id} is not in the review log`)
 
     const next = structuredClone(log)
     const e = next.findings.find((x) => x.id === id)
-    e.resolution = resolution
-    e.reason = String(reason)
-    e.recorded_by = recordedBy
-    e.date = date
+    Object.assign(e, { resolution, reason: String(reason), recorded_by: recordedBy, date, ruled_severity: e.severity })
     delete e.fixed_in
     if (resolution === 'overridden') e.owner_severity = ownerSeverity
     else delete e.owner_severity
+    const problems = rulingProblems(e, specText)
+    if (problems.length) refuse(problems[0])
     return next
 }
 
@@ -203,10 +241,12 @@ export function project(log) {
  */
 export function applyRulings(env, log) {
     const ruling = new Map(log.findings.filter((e) => RULINGS.has(e.resolution)).map((e) => [e.id, e]))
-    const stamped = stampEnvelope(env)
+    const stamped = admissible(env, log)
     const findings = []
-    for (const f of stamped.findings ?? []) {
-        const r = ruling.get(f.id)
+    for (const f of stamped.findings) {
+        let r = ruling.get(f.id)
+        // A ruling covers the severity the owner saw. Raised higher, the finding routes as raised.
+        if (r && !(RANK[f.severity] <= RANK[r.ruled_severity])) r = undefined
         if (r?.resolution === 'wontfix') continue
         if (r?.resolution === 'overridden') {
             const severity = RANK[r.owner_severity] < RANK[f.severity] ? r.owner_severity : f.severity
@@ -216,20 +256,16 @@ export function applyRulings(env, log) {
     return { ...stamped, findings }
 }
 
-/** Problems with one log against its spec: shape, and a ruling the spec body does not show. */
-export function checkLog(log, specText) {
+/** Problems with one log against its spec: shape, and every ruling the spec does not back. */
+export function checkLog(log, specText, expectedSpec) {
     const problems = []
     if (!log || !Array.isArray(log.rounds) || !Array.isArray(log.findings)) return ['not a review log: `rounds` and `findings` must be arrays']
-    const overrides = new Map(specOverrides(specText ?? '').map((o) => [o.finding_id, o]))
+    if (expectedSpec && log.spec !== expectedSpec) problems.push(`the log is for ${log.spec}, but its file is named for ${expectedSpec}`)
     for (const e of log.findings) {
         if (!/^F-[0-9a-f]{8}$/.test(String(e.id))) problems.push(`${e.id}: not a content-addressed id`)
         if (!['open', 'fixed', 'overridden', 'wontfix'].includes(e.resolution)) problems.push(`${e.id}: resolution "${e.resolution}" is not one of open, fixed, overridden, wontfix`)
         if (!RULINGS.has(e.resolution)) continue
-        if (!e.reason || !e.recorded_by) problems.push(`${e.id}: a ${e.resolution} entry needs reason and recorded_by`)
-        const o = overrides.get(e.id)
-        if (!o) problems.push(`${e.id}: ${e.resolution} in the log but no spec_review_overrides entry in the spec body`)
-        else if (e.resolution === 'overridden' && o.owner_severity !== e.owner_severity) problems.push(`${e.id}: log owner_severity ${e.owner_severity} differs from the spec body's ${o.owner_severity}`)
-        else if (e.resolution === 'wontfix' && o.resolution !== 'wontfix') problems.push(`${e.id}: wontfix in the log but not in the spec body`)
+        for (const p of rulingProblems(e, specText ?? '')) problems.push(`${e.id}: ${p}`)
     }
     return problems
 }
@@ -271,11 +307,13 @@ function loadLog(root, id) {
 function save(root, id, log) {
     const p = logPath(root, id)
     mkdirSync(dirname(p), { recursive: true })
+    // A committed symlink here would redirect the write anywhere the operator can write.
+    if (existsSync(p) && lstatSync(p).isSymbolicLink()) refuse(`${p} is a symlink; the review log must be a regular file`)
     writeFileSync(p, `${JSON.stringify(log, null, 2)}\n`, 'utf8')
     return p
 }
 
-const USAGE = 'usage: review-log.mjs [--root <dir>] (append <spec> <envelope> --round <n> | resolve <spec> <F-id> --resolution <r> --recorded-by <who> --reason <text> [--owner-severity <s>] | project <spec> | apply <spec> <envelope> | check)\n'
+const USAGE = 'usage: review-log.mjs [--root <dir>] (append <spec> <envelope> --round <n> [--review <label>] | resolve <spec> <F-id> --resolution <r> --recorded-by <who> --reason <text> [--owner-severity <s>] | project <spec> | apply <spec> <envelope> | check)\n'
 
 function main(argv) {
     const { root, rest } = takeRootArg(argv)
@@ -283,12 +321,14 @@ function main(argv) {
     const cmd = args.shift()
     try {
         if (cmd === 'append') {
-            const round = Number(flag(args, '--round'))
+            const roundArg = flag(args, '--round')
+            const review = flag(args, '--review') ?? 'authoring'
             const [specArg, envArg] = args
-            if (!specArg || !envArg) throw new Error('usage')
+            if (!specArg || !envArg || roundArg === undefined) throw new Error('usage')
+            const round = Number(roundArg)
             const { id } = loadSpec(specArg)
-            const p = save(root, id, appendRound(loadLog(root, id), readJson(envArg), round))
-            process.stdout.write(`review-log: round ${round} recorded in ${p}\n`)
+            const p = save(root, id, appendRound(loadLog(root, id), readJson(envArg), round, today(), review))
+            process.stdout.write(`review-log: ${review} round ${round} recorded in ${p}\n`)
         } else if (cmd === 'resolve') {
             const opts = {
                 resolution: flag(args, '--resolution'),
@@ -297,7 +337,7 @@ function main(argv) {
                 ownerSeverity: flag(args, '--owner-severity'),
             }
             const [specArg, fid] = args
-            if (!specArg || !fid) throw new Error('usage')
+            if (!specArg || !fid || !opts.resolution || !opts.recordedBy || !opts.reason) throw new Error('usage')
             const { text, id } = loadSpec(specArg)
             const p = save(root, id, resolveFinding(loadLog(root, id), text, { ...opts, id: fid }))
             process.stdout.write(`review-log: ${fid} recorded as ${opts.resolution} in ${p}\n`)
@@ -315,12 +355,13 @@ function main(argv) {
             let bad = 0
             for (const f of logs.sort()) {
                 const id = f.replace(/\.json$/, '')
-                // An archived spec still owns its log, so resolve by id rather than by directory.
-                const specFile = findById(id, root).find((s) => s.endsWith('.md'))
+                // An archived spec still owns its log, so resolve by id rather than by directory, and
+                // take the spec file itself, never its ledger under decisions/.
+                const specFile = findById(id, root).find((s) => /^SPEC-\d{3}-.*\.md$/.test(basename(s)) && /(^|[\\/])specs$/.test(dirname(s)))
                 const specText = specFile ? readFileSync(specFile, 'utf8') : ''
                 let problems
                 try {
-                    problems = checkLog(readJson(join(dir, f)), specText)
+                    problems = checkLog(readJson(join(dir, f)), specText, id)
                 } catch (err) {
                     problems = [`unreadable: ${err.message}`]
                 }

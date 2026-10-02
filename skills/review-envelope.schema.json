@@ -30,7 +30,7 @@
           "id": {
             "type": "string",
             "pattern": "^F-[0-9a-f]{8}$",
-            "description": "Content-addressed (ADR-006, SPEC-007 Lever 4): F- and the first 8 hex digits of sha256(location_key NUL criterion NUL finding). location_key is a PR finding's file:line without its line, or a spec finding's location as written; criterion falls back to the citation alias. validate-review-envelope.mjs recomputes it and rejects a mismatch, and its --stamp mode sets the ids from the findings' own fields."
+            "description": "Content-addressed (ADR-006, SPEC-007 Lever 4): F- and the first 8 hex digits of sha256(location_key NUL criterion NUL finding). location_key is a PR finding's file:line without its line, or a spec finding's location as written; criterion falls back to the citation alias. validate-review-envelope.mjs recomputes it and rejects a mismatch; stamp-envelope.mjs (the validator's --stamp mode) sets the ids from the findings' own fields."
           },
           "severity": {
             "enum": ["blocker", "major", "nit", "suggestion"],

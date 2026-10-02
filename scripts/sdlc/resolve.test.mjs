@@ -6,7 +6,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { rootsFor, matchesId } from './resolve.mjs'
+import { findById, rootsFor, matchesId } from './resolve.mjs'
+import { layout2Repo, write } from './__fixtures__/layouts/build.mjs'
 
 test('each id kind searches both its live and archived roots', () => {
     assert.ok(
@@ -50,4 +51,17 @@ test('id matching is case-insensitive on the prefix', () => {
 
 test('id matching does not match a mention inside a longer name', () => {
     assert.equal(matchesId('SPEC-004', 'notes-about-SPEC-004.md'), false)
+})
+
+test('a spec\'s decision ledger and review log never resolve as the spec (SPEC-007, PR #86)', () => {
+    const fx = layout2Repo()
+    try {
+        write(fx.root, 'specs/decisions/SPEC-050.md', '# ledger\n')
+        write(fx.root, 'specs/archive/decisions/SPEC-050.md', '# archived ledger\n')
+        assert.deepEqual(findById('SPEC-050', fx.root), [], 'a ledger alone is not a spec')
+        const spec = write(fx.root, 'specs/SPEC-050-x.md', '---\nid: SPEC-050\n---\n')
+        assert.deepEqual(findById('SPEC-050', fx.root), [spec])
+    } finally {
+        fx.cleanup()
+    }
 })
