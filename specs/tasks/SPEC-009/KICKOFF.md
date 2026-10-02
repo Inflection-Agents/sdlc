@@ -14,8 +14,8 @@ Read once, in one batch, before starting:
 - skills/spec-execution/SKILL.md and skills/spec-execution/SOP.md
 
 Before S1:
-- Confirm SPEC-007 has merged and SPEC-003 is closed (D1). If either is not, stop and escalate.
-- Rebase every Changes: list in the guide onto the tree after SPEC-007, and log each change as a guide change in DECISIONS.md.
+- Confirm SPEC-003 is closed (D1). If it is not, stop and escalate.
+- Leave SPEC-007's untracked draft files alone. SPEC-007 lands after this spec.
 
 Run traps:
 - S1 to S4 keep layout 1 working at every step. This repo stays on layout 1 until S10, so its own gates must pass through the fallback in between.

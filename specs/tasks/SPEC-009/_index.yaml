@@ -7,7 +7,7 @@ updated: 2026-10-01
 # SPEC-009 active.
 plan_review:
   status: approve-ready
-  approved: false
+  approved: true
   reviewed: 2026-10-01
 
 steps:
@@ -41,6 +41,6 @@ phase:
   current: spec-authoring
   next_action: spec-execution
   next_trigger: 'execute SPEC-009'
-  exit_condition_met: false
-  handoff_surfaced: false
+  exit_condition_met: true
+  handoff_surfaced: true
   updated: 2026-10-01

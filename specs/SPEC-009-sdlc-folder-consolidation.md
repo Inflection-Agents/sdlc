@@ -1,7 +1,7 @@
 ---
 id: SPEC-009
 title: "One .sdlc/ folder: consolidate the adopter footprint and migrate existing repos on /sdlc-sync"
-status: draft
+status: active
 version: 1
 supersedes:
 initiative: INI-002
@@ -9,7 +9,7 @@ owner: franklin
 created: 2026-10-01
 updated: 2026-10-01
 tags: [onboarding, install, layout, migration, sdlc-sync, sdlc-init]
-depends_on: [SPEC-007]
+depends_on: []
 linear_project:
 ---
 
@@ -619,8 +619,9 @@ append, using the migration's rules, when they already exist:
 16 KiB budget. `bootstrap.sh` copies the same payload and keeps its skills, hooks and agents wiring,
 pointed at `.sdlc/skills/`.
 
-The template parity invariant that SPEC-007 AC-022 pins between `templates/` and
-`init-payload/templates/` moves to `.sdlc/templates/` and `init-payload/.sdlc/templates/`.
+The template parity between `templates/` and `init-payload/templates/` moves to `.sdlc/templates/`
+and `init-payload/.sdlc/templates/`, and AC-017 checks it. Draft SPEC-007's AC-022 names the old
+pair and is revised to the new one when SPEC-007 is revived.
 
 ### This repo
 
@@ -857,11 +858,15 @@ SC-5's `--no-allow` run keeps this list from hiding a layout-1 path in shipped c
 - **The manifest only knows plugin releases.** A bootstrap-era copy never matches a released
   payload, so it counts as modified and is kept. That is the safe direction, at the cost of a longer
   report for forked repos.
-- **SPEC-007 edits the same files.** It touches `review-primitives.md`,
+- **SPEC-007 edits the same files and lands after this spec.** It touches `review-primitives.md`,
   `skills/spec-authoring/SKILL.md` and several validators (`grep -o` of
   `specs/SPEC-007-spec-review-convergence.md`), and adds `specs/review-logs/` and `specs/decisions/`.
-  The owner chose to land SPEC-007 first (2026-10-01), so the executor rebases each path list in the
-  guide before S1.
+  The owner first chose to land SPEC-007 first (2026-10-01). At sign-off SPEC-007 was still a draft,
+  last updated 2026-09-11, with no delivery guide and no PR, so it could not land first without its
+  own sign-off. On the owner's instruction to proceed autonomously, SPEC-009 lands first. SPEC-007 is
+  revised to the layout-2 paths when it is revived, including its AC-022 template pair. The rewrite
+  exceptions already cover the two directories SPEC-007 adds, so a later SPEC-007 needs no change to
+  this spec.
 - **SPEC-003 is still `active`.** Its success criteria require `.ai/skills` paths in `bootstrap.sh`
   and the docs (`specs/SPEC-003-onboarding-phase-1.md:26-28`). The owner chose to close SPEC-003
   through `spec-completion` before SPEC-009 executes (2026-10-01). Its delivered criteria then stand
