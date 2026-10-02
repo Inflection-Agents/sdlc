@@ -170,6 +170,9 @@
       "6b61e8d42d2183483e5a48b05e4378fc76ba21ac70141584c148651d30612d1f": "0.4.0",
       "818c9cce33a4ffeb922019ad3ee7abd1fc5b8c8ea2011237349979d84b0717db": "0.4.0"
     },
+    "scripts/worktrees.mjs": {
+      "f5ad29bd62e26b6f8a173393ed9e89e0f07dd01857450e2d0639e897498bfeb4": "0.4.0"
+    },
     "state-machine": {
       "80f5aed8005b180e356f310a65b126c401933615bb0d5505d82c0abe53a0cba8": "0.1.0",
       "eddb0842210a6f8ef61a8972cafc384c82c42abacb96845f3926bf1149d92aeb": "0.2.0",
