@@ -201,7 +201,8 @@ test('every payload validator is byte-identical to the one this repo runs', asyn
             `init-payload/.sdlc/scripts/${f} has drifted from scripts/sdlc/${f}`
         )
     }
-    for (const f of readdirSync(join(root, 'scripts', 'sdlc', 'lib')).filter((f) => !f.endsWith('.test.mjs'))) {
+    // The .mjs modules only: lib/released-payloads.json is read by the plugin-only migration.
+    for (const f of readdirSync(join(root, 'scripts', 'sdlc', 'lib')).filter((f) => f.endsWith('.mjs') && !f.endsWith('.test.mjs'))) {
         assert.ok(shipped.includes(`lib/${f}`), `scripts/sdlc/lib/${f} is not in the payload, so adopter validators cannot import it`)
     }
 })

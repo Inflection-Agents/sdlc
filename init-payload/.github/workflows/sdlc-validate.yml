@@ -77,6 +77,12 @@ jobs:
             - name: No superseded decision cited as current in always-loaded context
               run: node .sdlc/scripts/check-stale-citations.mjs
 
+            - name: No layout-1 path is left or reintroduced
+              # Layout 2 (ADR-008). A branch cut before the migration can bring back a
+              # .ai/ or scripts/sdlc/ path; a reader that misses its file goes silent, so
+              # this step fails instead. Name a deliberate mention in config.yaml scan.allow.
+              run: node .sdlc/scripts/scan-legacy-paths.mjs
+
             - name: Review-constraint globs resolve
               # Warn mode until your registry has rows. Switch to `--enforce` once
               # `/sdlc-init` has filled it, so a rule that matches nothing goes red
