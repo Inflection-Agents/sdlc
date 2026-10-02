@@ -21,7 +21,8 @@
       "60884236dd13cab415f828fd7fdf66d62066d294b1cddf304486eccc1bf0b7d1": "0.1.0",
       "b6f428e2b12172472659ce5be1cd48f5339347c3b60d5a2803f48eb1c85e0b30": "0.2.0",
       "23077e07d2d77565a20958ae6b5872b58b07ac2a767104d6279a3135dc7f03db": "0.3.0",
-      "b353f3df95f0c8185816a7fa275d3d32da3c5197ae62c6a5eaa0efa0a6e3c750": "0.4.0"
+      "b353f3df95f0c8185816a7fa275d3d32da3c5197ae62c6a5eaa0efa0a6e3c750": "0.4.0",
+      "c0afc4f877f7c10274aa3f32b9d390c5ac55a4077aa9bd3219cb3b38c19b47af": "0.4.0"
     },
     "scripts/check-review-constraint-globs.mjs": {
       "8457a5f6d4abd6fc93bbe438087efde1bbf08c6ecd9f02f41f5369713199c4df": "0.1.0",
@@ -147,6 +148,9 @@
     },
     "templates/adr.md": {
       "0d76a91b7e81baef9c7b6d5d82d0a016b370f6321cce414a5c166416ba05e00c": "0.1.0"
+    },
+    "templates/authoring-decisions.md": {
+      "e7f7964e632df7d38274e77372a5e4c4758456ede2e46f9d0c5fb6ba5476b704": "0.4.0"
     },
     "templates/bug.md": {
       "861920a1569b89ebfedbd997e7449f70de1b339edf283e0c0962cfee4aec817e": "0.1.0"

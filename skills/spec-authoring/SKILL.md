@@ -131,6 +131,8 @@ The user picks an approach (or a hybrid, or rejects all and gives new direction)
 - **What are the measurable success criteria?**
 - **What are the key design decisions** (potential ADRs)?
 
+**Write each decision into the ledger as it is made.** Create `specs/decisions/SPEC-NNN.md` from `.sdlc/templates/authoring-decisions.md` once the id is known (Step 6's open-PR check applies), and add one entry for every question in Steps 2-5 that was open: what was decided, what was rejected and why, what was left ambiguous on purpose, and who raised it. `spec-reviewer` sees only the artifacts Step 10a seeds it with, so a decision that lives only in this conversation is one the reviewer will reopen. A question with an obvious answer is not an entry.
+
 **Checkpoint:** Summarize the agreed design in 5-10 bullet points. Ask: "Does this capture what we're building? If yes, I'll formalize this into a spec."
 
 **Do not proceed to Phase 2 until the user confirms.**
@@ -319,6 +321,7 @@ Seed each dispatch with these inputs (all paths concrete; do not invent them):
 - `spec_file`: `specs/SPEC-NNN-<short-description>.md` — the draft just written.
 - `spec_schema`: `skills/spec-schema.md` — for required-section and frontmatter checks.
 - `authoring`: `skills/spec-authoring/SKILL.md` — this skill, for `spec-authoring:<anchor>` citations.
+- `decisions`: `specs/decisions/SPEC-NNN.md` — the authoring decision ledger from Phase 1 (Step 5).
 - `intent`: the relevant excerpt from `specs/intents.md` (the intent this spec formalizes). If invoked outside the intent-triage handoff, the owner provides the intent excerpt or confirms there is none.
 - `project`: the `AGENTS.md` SDLC block and `.sdlc/config.yaml` `workspaces` — for workspace coverage checks.
 - `adrs`: every ADR file referenced in the spec's Design section, plus any existing ADR the design may contradict (use judgment; when uncertain, include the candidate).
