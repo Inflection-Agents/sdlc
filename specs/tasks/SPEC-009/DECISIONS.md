@@ -57,3 +57,11 @@ in chronological order.
 **Decided:** the hook fixture copies `lib/`. The CI test step adds `scripts/sdlc/lib/*.test.mjs`. The shared fixture machine gains the fields a valid phase needs, so the `--root` test can run `validate-state-machine.mjs` against it.
 **Why:** without the fixture copy, the hook test stays red for a reason unrelated to the hooks. Without the glob, the resolver's own tests never run in CI.
 **Reversal path:** revert the three hunks.
+
+---
+
+## S2 — Validators resolve through the module
+
+**Merged:** PR #61
+**What changed:** every payload validator takes `--root` and resolves its paths through `sdlcPaths`. The `init-payload/scripts/sdlc/` copies include `lib/`.
+**Anything a later step must match:** `check-stale-citations.mjs` exports `blastRadius(rel, alsoLoaded)` and `classify(files, superseded, alsoLoaded)`. `validate-state-machine.mjs` still reads `domain_routing` from the machine file; S4 moves that read to `loadMachine`.
