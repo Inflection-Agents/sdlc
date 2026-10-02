@@ -12,7 +12,7 @@ steps:
   - id: S2
     status: done
   - id: S3
-    status: pending
+    status: done
   - id: S4
     status: pending
   - id: S5

@@ -46,3 +46,10 @@ in chronological order.
 **Date:** 2026-10-02
 **Question:** Both hooks must read a spec's `_index.yaml` from its spec worktree when one exists. The hooks share code only through `lib/sdlc-paths.mjs`, which they already import, and S3's `Changes:` did not list it.
 **Decided:** add `specIndexPaths()` to `lib/sdlc-paths.mjs`, used by both hooks. S3's `Changes:` gains that file, its payload copy and the manifest. No AC, scope or design changes.
+
+---
+
+## S3 — The hooks treat a worktree as its own tree, and nudge once
+
+**Merged:** PR #94
+**What changed:** The edit gate grades a target under .claude/worktrees/<name>/ by its path and branch inside that worktree; both hooks read a spec's _index.yaml from its spec worktree via lib/sdlc-paths.mjs specIndexPaths(); the prompt hook nudges once per session from worktrees.mjs --json. Guide change: lib/sdlc-paths.mjs added to S3.
