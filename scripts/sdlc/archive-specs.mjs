@@ -10,7 +10,7 @@
  * forget to check.
  *
  * Nothing is deleted. `git mv` preserves history, the archive stays tracked, and
- * `scripts/sdlc/resolve.mjs` addresses it by id.
+ * `resolve.mjs` addresses it by id.
  *
  * TWO DENYLIST CLAUSES, both derived at runtime rather than hardcoded:
  *   1. A spec whose id appears anywhere under `skills/**`. A token scan, not a

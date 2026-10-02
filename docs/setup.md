@@ -5,9 +5,9 @@ Everything a new developer (or new machine) needs to participate in the AI-nativ
 ## 1. Prerequisites
 
 - **GitHub account** with repo access.
-- **Node.js 22+** — required for the reference SDLC hooks under `.claude/hooks/` (`.mjs` ES modules) and the validators under `scripts/sdlc/` (the registry glob check uses `fs.globSync`). Check the receiving repo's `.nvmrc` / `engines` for any stricter requirement.
+- **Node.js 22+** — required for the reference SDLC hooks under `.claude/hooks/` (`.mjs` ES modules) and the validators under `.sdlc/scripts/` (the registry glob check uses `fs.globSync`). Check the receiving repo's `.nvmrc` / `engines` for any stricter requirement.
 
-The receiving repo may impose additional toolchain requirements (e.g. `pnpm`, Python via `uv`, language-specific runtimes). Read its `.ai/project.md` and root `README.md` after this onboarding to install them.
+The receiving repo may impose additional toolchain requirements (e.g. `pnpm`, Python via `uv`, language-specific runtimes). Read its `AGENTS.md` and root `README.md` after this onboarding to install them.
 
 ## 2. Quick start
 
@@ -21,10 +21,10 @@ Otherwise, run the SDLC's own bootstrap from this directory:
 
 This script:
 1. Checks prerequisites (Node.js for the hooks + validators, Git, GitHub CLI, Claude Code)
-2. Scaffolds `specs/` and `.ai/`, and copies the spec, guide and kickoff templates
-3. Copies the spine: the state machine (`specs/sdlc-state-machine.yaml`), the reference hooks (`.claude/hooks/`), the review contracts (`skills/review-*.yaml` / `.json` / `.md`), and the validators + gates (`scripts/sdlc/`)
-4. Wires the hooks into `.claude/settings.json` (advisory by default — and never clobbers an existing settings.json; it prints merge guidance instead)
-5. Links `.claude/skills` → `skills`
+2. Stops on a repo still on the older `.ai/` layout and points at the migration (`/sdlc-sync`)
+3. Installs the `.sdlc/` tree (ADR-008): `config.yaml`, the review-constraints registry, the state machine, the validators + gates in `.sdlc/scripts/`, and the templates. It adds the SDLC block to `AGENTS.md`, `@AGENTS.md` to `CLAUDE.md`, and the needed lines to `.ignore`, `.gitignore` and `.gitattributes`
+4. Copies the skills into `.sdlc/skills/` and links `.claude/skills` → `../.sdlc/skills`, then copies the reference hooks (with their `lib/`) into `.claude/hooks/` and the reviewer agents into `.claude/agents/`
+5. Wires the hooks into `.claude/settings.json` (advisory by default — and never clobbers an existing settings.json; it prints merge guidance instead)
 6. Prints next steps (the MCP + Linear-label setup below, and the customizations to fill in)
 
 It does NOT set up MCP or create Linear labels — those are the manual steps in §3 and §5 below.
@@ -48,9 +48,9 @@ The SDLC is agent-agnostic. You can use Claude Code, Gemini CLI, or both. We rec
 
 ## 4. Wire skills into your agents
 
-If the repo ships SDLC skills under `skills/` (the standard location — see `templates/project.md`), point your local agents at them:
+With the plugin installed, Claude Code loads the SDLC skills from the plugin, and a repo keeps only its own domain skills. A repo set up by `bootstrap.sh` keeps all of them in `.sdlc/skills/`:
 
-- **Claude Code** auto-discovers `.claude/skills/` in the repo root. Either symlink (`ln -s ../skills .claude/skills`) or run the repo's `setup-sdlc.sh` if it provides one.
+- **Claude Code** auto-discovers `.claude/skills/` in the repo root, which `bootstrap.sh` links to `../.sdlc/skills`.
 - **Gemini CLI** discovers skills via `~/.agents/skills/`. Symlink each repo skill into it.
 
 The repo's bootstrap script usually handles this. Restart your agent session after wiring so it reloads the skill index.
@@ -59,15 +59,15 @@ The repo's bootstrap script usually handles this. Restart your agent session aft
 
 The autonomous half of the SDLC runs on a small spine of machine-checkable pieces. The bootstrap script copies and wires it; this is what it sets up and how to confirm it.
 
-- **State machine** — `specs/sdlc-state-machine.yaml` is the single source of truth for phases, entry triggers, exit conditions, and per-workspace domain-skill routing. The `.ai/sdlc.md` narrative and each skill's `## Handoff` footer are generated/validated from it.
+- **State machine** — `.sdlc/state-machine.yaml` is the single source of truth for phases, entry triggers, exit conditions, and per-workspace domain-skill routing. The `${CLAUDE_PLUGIN_ROOT}/docs/sdlc.md` narrative and each skill's `## Handoff` footer are generated/validated from it.
 - **Reference hooks** — `.claude/hooks/` (`.mjs`, Node-based), wired via **`.claude/settings.json`** so they travel with the repo (NOT `settings.local.json`). **Advisory by default** — they nudge, they don't block:
   - `user-prompt-submit.mjs` — classify the prompt to its current phase
   - `stop-handoff.mjs` (Stop + SubagentStop) — advisory next-phase handoff at a phase exit, **and the delivery goal leash** on `Stop`: while `.claude/.sdlc-goal-<session_id>` is `status: active` it blocks a premature stop and feeds back the run's exit criteria (bounded, fails open)
   - `pre-tool-use-edit-write.mjs` — flag implementation-code edits made off a spec work branch
   - `pre-tool-use-review-identity.mjs` — flag an author reviewing their own PR
-- **Delivery gates** — `scripts/sdlc/validate-guide.mjs` (a spec's delivery guide is complete, current and within the 3,800-character kickoff limit), `scripts/sdlc/plan-gate.mjs` (the fail-closed plan-review gate a run checks before it starts), `scripts/sdlc/validate-review-envelope.mjs` (every reviewer verdict is validated through it), `scripts/sdlc/reviewer-routing.mjs` (lens → reviewer, from the registry), `scripts/sdlc/check-review-constraint-globs.mjs` (registry rows must resolve to real files).
+- **Delivery gates** — `.sdlc/scripts/validate-guide.mjs` (a spec's delivery guide is complete, current and within the 3,800-character kickoff limit), `.sdlc/scripts/plan-gate.mjs` (the fail-closed plan-review gate a run checks before it starts), `.sdlc/scripts/validate-review-envelope.mjs` (every reviewer verdict is validated through it), `.sdlc/scripts/reviewer-routing.mjs` (lens → reviewer, from the registry), `.sdlc/scripts/check-review-constraint-globs.mjs` (registry rows must resolve to real files).
 - **Review contracts** — `skills/review-primitives.md`, `skills/review-envelope.schema.json` (universal, identical in every repo).
-- **Constraint registry** — `.ai/sdlc/review-constraints.yaml`, this repo's own invariants. It sits outside `skills/` so a skills-tree update can never overwrite it.
+- **Constraint registry** — `.sdlc/review-constraints.yaml`, this repo's own invariants. It sits outside `skills/` so a skills-tree update can never overwrite it.
 
 There is **no execution engine to install.** A deterministic `execute-spec` Workflow script used to sit here; it was measured and retired (ADR-003). `spec-execution` is itself the engine.
 
@@ -84,49 +84,46 @@ Create these labels in your Linear workspace (if they don't already exist):
 node --version
 
 # State machine is valid (phases, triggers, transitions, domain routing)
-node scripts/sdlc/validate-state-machine.mjs
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-state-machine
 
 # Phase-memory blocks in _index.yaml files conform to the contract
-node scripts/sdlc/validate-phase-memory.mjs
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-phase-memory
 
 # Claude Code can reach Linear
 claude "list my Linear teams"
 ```
 
-`scripts/sdlc/` also ships `gen-handoffs.mjs` (regenerates skill `## Handoff` footers from the state machine; run with `--check` in CI). See `scripts/sdlc/README.md` for the full list, including forthcoming validators.
+`.sdlc/scripts/` also ships `gen-handoffs.mjs` (regenerates skill `## Handoff` footers from the state machine; run with `--check` in CI). See `.sdlc/scripts/README.md` for the full list, including forthcoming validators.
 
 ## 7. Directory structure
 
 ```
-.ai/
-├── sdlc.md         ← the shared process definition (read this first)
-├── project.md      ← repo structure, commands, code conventions
-├── CLAUDE.md       ← instructions for the Claude Code orchestrator
-├── GEMINI.md       ← instructions for the Gemini CLI orchestrator (if used)
-├── AGENTS.md       ← the executor brief (any agent dispatched to one guide step)
-├── setup.md        ← you are here
-├── sdlc/           ← this repo's own SDLC config, never overwritten by an update
-│   └── review-constraints.yaml   ← lens/constraint registry (yours to edit)
-└── skills/         ← shared SDLC + domain skills + review contracts
-                       (review-primitives.md, review-envelope.schema.json)
+AGENTS.md            ← project context in the SDLC block (read this first); CLAUDE.md imports it
+CLAUDE.md            ← instructions for the Claude Code orchestrator, with @AGENTS.md
+
+.sdlc/               ← everything the framework puts in the repo (ADR-008)
+├── config.yaml      ← workspaces, domain_routing, extensions, scan.allow (yours to edit)
+├── review-constraints.yaml   ← lens/constraint registry (yours to edit)
+├── state-machine.yaml        ← the phase spine; framework-owned, refreshed by every sync
+├── scripts/         ← validators + gates: validate-state-machine.mjs, validate-phase-memory.mjs,
+│                      plan-gate.mjs, reviewer-routing.mjs, validate-review-envelope.mjs,
+│                      check-review-constraint-globs.mjs, scan-legacy-paths.mjs, lib/
+├── templates/       ← templates for new specs, ADRs, bugs, guides, kickoff prompts
+└── contracts/       ← review-primitives.md, review-envelope.schema.json
 
 .claude/
-├── settings.json   ← wires the hooks (travels with the repo)
-├── hooks/          ← advisory SDLC hooks (.mjs)
-└── skills → ../skills   ← symlink; Claude Code loads skills from here
-
-scripts/sdlc/       ← validators + gates: validate-state-machine.mjs, validate-phase-memory.mjs,
-                       gen-handoffs.mjs, plan-gate.mjs, reviewer-routing.mjs,
-                       validate-review-envelope.mjs, check-review-constraint-globs.mjs
+├── settings.json    ← wires the hooks (travels with the repo)
+├── hooks/           ← advisory SDLC hooks (.mjs), when the plugin is not installed
+└── skills → ../.sdlc/skills   ← symlink, for a repo set up by bootstrap.sh
 
 specs/
-├── sdlc-state-machine.yaml  ← single source of truth for phases + transitions
-├── templates/      ← templates for new specs, ADRs, bugs, guides, kickoff prompts
-├── adrs/           ← architecture decision records
-├── bugs/           ← bug specs
-├── tasks/          ← per-spec delivery guides: GUIDE.md, _index.yaml (phase: memory), KICKOFF.md
-└── spec-index.json ← auto-generated, agent-readable index
+├── adrs/            ← architecture decision records
+├── bugs/            ← bug specs
+├── tasks/           ← per-spec delivery guides: GUIDE.md, _index.yaml (phase: memory), KICKOFF.md
+└── spec-index.json  ← auto-generated, agent-readable index
 ```
+
+The process definition and the executor brief ship with the plugin: `${CLAUDE_PLUGIN_ROOT}/docs/sdlc.md` and `${CLAUDE_PLUGIN_ROOT}/docs/executor-brief.md`.
 
 ## 8. Daily workflow
 
@@ -142,8 +139,8 @@ specs/
 |---------|-----|
 | Skills not found | Re-run the repo's `setup-sdlc.sh` (or re-symlink) and restart your agent session. |
 | Hooks not firing | Confirm they're wired in `.claude/settings.json` (not `settings.local.json`) and that `node` is on PATH. Most hooks are advisory — they log/nudge, they don't block — except the delivery goal leash (`stop-handoff.mjs`'s `Stop` branch), which deliberately blocks while a run is active. |
-| State-machine / phase-memory validation fails | Run `node scripts/sdlc/validate-state-machine.mjs` and `node scripts/sdlc/validate-phase-memory.mjs` and fix the reported drift. |
-| A delivery run refuses to start | It needs a spec with `status: active`, a delivery guide that passes `node scripts/sdlc/validate-guide.mjs specs/tasks/SPEC-NNN/GUIDE.md`, and an approved `plan_review:` block — check with `node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml`. A spec specced before guides existed needs "write the guide for SPEC-NNN" first. |
+| State-machine / phase-memory validation fails | Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-state-machine` and `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-phase-memory` and fix the reported drift. |
+| A delivery run refuses to start | It needs a spec with `status: active`, a delivery guide that passes `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-guide specs/tasks/SPEC-NNN/GUIDE.md`, and an approved `plan_review:` block — check with `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs plan-gate specs/tasks/SPEC-NNN/_index.yaml`. A spec specced before guides existed needs "write the guide for SPEC-NNN" first. |
 | A session won't stop / keeps being blocked | A delivery goal leash is armed. Finish the run and set `status: met` in `.claude/.sdlc-goal-<session_id>`, set `status: escalated` if you are blocked on a human, or delete that file to disarm it. |
 | Claude Code can't reach Linear | Check MCP config: `claude mcp list` — is `linear` listed? |
 | CI fails on spec validation | Check frontmatter against schema in `skills/spec-schema.md` |

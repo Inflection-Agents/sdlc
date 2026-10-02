@@ -1,0 +1,33 @@
+# SDLC config (ADR-008). Schema: skills/sdlc-config-schema.md.
+# This is the framework's own repo: its skills and contracts are the plugin source, at skills/,
+# and .sdlc/scripts is a symlink to scripts/sdlc, the validators' source.
+layout: 2
+framework_version: 0.4.0
+paths:
+  skills: skills
+  process_doc: docs/sdlc.md
+  primitives: skills/review-primitives.md
+  envelope_schema: skills/review-envelope.schema.json
+workspaces: []
+domain_routing: {}
+extensions:
+  phases: []
+  exempt: []
+scan:
+  allow:
+    # Plugin source: it names layout 1 to migrate from it.
+    - "scripts/sdlc/**"
+    - "hooks/**"
+    - "init-payload/**"
+    - "bootstrap.sh"
+    # Release history.
+    - "docs/RELEASING.md"
+    - "docs/plans/**"
+    # This repo's registry routes edits to the plugin source at its real path, scripts/sdlc/.
+    - ".sdlc/review-constraints.yaml"
+    # The original proposal, unchanged since the first commit.
+    - "proposal.html"
+    # Records that name layout 1 on purpose.
+    - "specs/SPEC-009-*.md"
+    - "specs/tasks/SPEC-009/**"
+    - "specs/adrs/**"

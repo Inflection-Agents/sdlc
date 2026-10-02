@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Migrate a repo from SDLC layout 1 (`.ai/`, `scripts/sdlc/`) to layout 2 (`.sdlc/`)
+ * Migrate a repo from SDLC layout 1 (the agent-config folder and top-level validators) to layout 2 (`.sdlc/`)
  * (SPEC-009 Design > Migration, ADR-008 decision 5).
  *
  * It runs from the plugin, because a layout-1 repo has no copy of it. It computes the
@@ -39,7 +39,9 @@ import {
     CONTRACT_FILES,
     FRAMEWORK_TEMPLATES,
     LAYOUT1,
+    LAYOUT1_DIRS,
     isHistory,
+    isUnder,
     mapEntries,
     mapPath,
     rewriteText,
@@ -242,8 +244,8 @@ function plannedMoves(files, forked) {
     const conflicts = []
     const contractNames = new Set(Object.values(CONTRACT_FILES))
     const take = (from, to) => (moves.has(from) ? null : moves.set(from, to))
-    if (files.some((f) => f.startsWith('.ai/sdlc/'))) dirMoves.push(['.ai/sdlc', '.sdlc'])
-    if (forked) dirMoves.push(['.ai/skills', '.sdlc/skills'])
+    if (files.some((f) => isUnder(f, LAYOUT1_DIRS.aiSdlc))) dirMoves.push([LAYOUT1_DIRS.aiSdlc, '.sdlc'])
+    if (forked) dirMoves.push([LAYOUT1_DIRS.aiSkills, '.sdlc/skills'])
     if (files.some((f) => f.startsWith(`${LAYOUT1.scripts}/`))) dirMoves.push([LAYOUT1.scripts, '.sdlc/scripts'])
     for (const f of files) {
         const dm = dirMoves.find(([d]) => f.startsWith(`${d}/`))
@@ -252,8 +254,8 @@ function plannedMoves(files, forked) {
             continue
         }
         const name = basename(f)
-        if (!forked && dirname(f) === '.ai/skills' && contractNames.has(name)) take(f, `.sdlc/contracts/${name}`)
-        else if (dirname(f) === '.ai' && AGENT_FILES.includes(name)) take(f, `.sdlc/agents/${name}`)
+        if (!forked && dirname(f) === LAYOUT1_DIRS.aiSkills && contractNames.has(name)) take(f, `.sdlc/contracts/${name}`)
+        else if (dirname(f) === LAYOUT1_DIRS.ai && AGENT_FILES.includes(name)) take(f, `.sdlc/agents/${name}`)
         else if (f === LAYOUT1.machine) take(f, '.sdlc/state-machine.yaml')
         else if (LAYOUT1.templatesCandidates.includes(dirname(f)) && FRAMEWORK_TEMPLATES.includes(name)) {
             const to = `.sdlc/templates/${name}`
@@ -275,7 +277,7 @@ export function planMigration(root, { exclude = [] } = {}) {
         throw new Refusal(`${root} is not a git repository`)
     }
     if (readConfig(root)) return { nothing: true }
-    if (!isLayout1Root(root)) throw new Refusal(`${root} matches neither layout: no .sdlc/config.yaml, and no specs/ beside .ai/ or scripts/sdlc/`)
+    if (!isLayout1Root(root)) throw new Refusal(`${root} matches neither layout: no .sdlc/config.yaml, and no specs/ beside ${LAYOUT1_DIRS.ai}/ or ${LAYOUT1.scripts}/`)
     const dirty = git(root, ['status', '--porcelain', '--untracked-files=no']).trim()
     if (dirty) throw new Refusal(`tracked files have uncommitted changes; commit or stash them first:\n${dirty}`)
 
@@ -284,7 +286,7 @@ export function planMigration(root, { exclude = [] } = {}) {
     const known = new Set(files)
     for (const f of files) for (let d = posix.dirname(f); d !== '.' && !known.has(d); d = posix.dirname(d)) known.add(d)
     const existedBefore = (rel) => known.has(rel.replace(/\/$/, ''))
-    const forked = files.some((f) => /^\.ai\/skills\/[^/]+\/SKILL\.md$/.test(f))
+    const forked = files.some((f) => isUnder(f, LAYOUT1_DIRS.aiSkills) && f.split('/').length === 4 && f.endsWith('/SKILL.md'))
     const { moves, dirMoves, conflicts } = plannedMoves(files, forked)
     const plan = {
         root,
@@ -517,7 +519,7 @@ function buildReport(root, plan, { files, forked }) {
     const report = {}
     if (forked) {
         const pluginSkills = existsSync(join(PLUGIN, 'skills')) ? new Set(readdirSync(join(PLUGIN, 'skills'))) : new Set()
-        report.shadowedSkills = [...new Set(files.filter((f) => /^\.ai\/skills\/[^/]+\//.test(f)).map((f) => f.split('/')[2]))].filter((n) =>
+        report.shadowedSkills = [...new Set(files.filter((f) => isUnder(f, LAYOUT1_DIRS.aiSkills) && f.split('/').length > 3).map((f) => f.split('/')[2]))].filter((n) =>
             pluginSkills.has(n)
         )
     }
@@ -526,7 +528,7 @@ function buildReport(root, plan, { files, forked }) {
     const movedOrDeleted = new Set([...plan.moves.keys(), ...plan.deletes])
     const insideMovedDir = (f) => plan.dirMoves.some(([d]) => f.startsWith(`${d}/`))
     report.unrecognized = files.filter(
-        (f) => /^(\.ai|templates|specs\/templates)\//.test(f) && !movedOrDeleted.has(f) && !insideMovedDir(f)
+        (f) => [LAYOUT1_DIRS.ai, ...LAYOUT1.templatesCandidates].some((d) => isUnder(f, d)) && !movedOrDeleted.has(f) && !insideMovedDir(f)
     )
     const ignore = readText(join(root, '.ignore')) ?? ''
     report.proposedExcludes = ignore
@@ -559,7 +561,7 @@ function openBranchesTouching(root, paths) {
         if (b === current) continue
         try {
             const changed = git(root, ['diff', '--name-only', `${current}...${b}`]).split('\n').filter(Boolean)
-            const touched = changed.filter((f) => set.has(f) || /^(\.ai|scripts\/sdlc)\//.test(f) || f === LAYOUT1.machine)
+            const touched = changed.filter((f) => set.has(f) || isUnder(f, LAYOUT1_DIRS.ai) || isUnder(f, LAYOUT1.scripts) || f === LAYOUT1.machine)
             if (touched.length) out.push({ branch: b, files: touched.length })
         } catch {
             // An unrelated history (no merge base) cannot be compared; it is not a migration input.
@@ -639,7 +641,7 @@ export function applyMigration(root, plan) {
             rmdirSync(abs)
         }
     }
-    removeEmptyDirs(root, '.ai')
+    removeEmptyDirs(root, LAYOUT1_DIRS.ai)
 
     git(root, ['add', '-A', '--', ...[...staged].filter((p) => existsSync(join(root, p)) || lstatExists(join(root, p)))])
     git(root, ['commit', '-q', '-m', COMMIT_MESSAGE])

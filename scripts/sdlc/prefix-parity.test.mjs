@@ -23,7 +23,7 @@ const REPO = join(HERE, '..', '..') // scripts/sdlc -> repo root
 
 const PRIMITIVES = join(REPO, 'skills', 'review-primitives.md')
 const SCHEMA = join(REPO, 'skills', 'review-envelope.schema.json')
-const PRREVIEWER = join(REPO, '.ai', 'skills', 'pr-reviewer', 'SKILL.md')
+const PRREVIEWER = join(REPO, 'skills', 'pr-reviewer', 'SKILL.md')
 
 const read = (p) => readFileSync(p, 'utf8')
 const sorted = (s) => [...s].sort()

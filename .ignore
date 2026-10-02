@@ -9,7 +9,7 @@
 # forget to check.
 #
 # HOW TO REACH ARCHIVED MATERIAL. Nothing here is deleted or untracked.
-#   node scripts/sdlc/resolve.mjs SPEC-005    # by id — the normal way
+#   node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs resolve SPEC-005    # by id — the normal way
 #   rg --no-ignore pattern specs/archive/     # by search, explicit opt-out
 #   cat on a known path                       # always works
 #
@@ -24,3 +24,4 @@
 # default on a docs corpus. Nesting puts a directory between the fence and the file,
 # and a pruned directory is not re-entered by a glob override.
 specs/archive/
+!.sdlc/

@@ -19,6 +19,12 @@ export const LAYOUT1 = Object.freeze({
     contractDirs: ['.ai/skills', '.ai/sdlc'],
 })
 
+/** The layout-1 agent-config folder and its two subfolders the migration moves whole. */
+export const LAYOUT1_DIRS = Object.freeze({ ai: '.ai', aiSdlc: '.ai/sdlc', aiSkills: '.ai/skills' })
+
+/** Whether a repo-relative path sits under `dir`. */
+export const isUnder = (rel, dir) => rel === dir || rel.startsWith(`${dir}/`)
+
 /** Directory prefixes whose presence (next to `specs/`) marks a layout-1 repo. */
 export const LAYOUT1_MARKERS = Object.freeze(['.ai', 'scripts/sdlc'])
 
@@ -317,8 +323,40 @@ export function isHistory(rel, { specsRel = 'specs', specStatus = () => null, re
     return false
 }
 
-/** Files the scan never reads, wherever they sit: the map itself and the resolver. */
+/**
+ * Files the scan never reads: the map itself, the resolver, the manifest, the repo's own
+ * `.sdlc/config.yaml` (whose `paths` and `scan.allow` name paths on purpose), and tests.
+ */
 export function isBuiltInExempt(rel) {
+    if (rel === '.sdlc/config.yaml') return true
     if (/(^|\/)lib\/(legacy-map\.mjs|sdlc-paths\.mjs|released-payloads\.json)$/.test(rel)) return true
     return /(^|\/)(__tests__|__fixtures__)\//.test(rel) || /\.test\.[cm]?[jt]sx?$/.test(rel)
+}
+
+// ─── Payload roles (the released-payload manifest) ──────────────────────────
+
+/**
+ * The adopter-side role of a payload path, on either payload layout, or null for a file
+ * the manifest does not track (stubs, the README). Layout-1 payloads shipped validators
+ * under `scripts/sdlc/`, templates under `templates/` and contracts under `.ai/skills/`.
+ */
+export function payloadRoleOf(payloadRel) {
+    const p = payloadRel.replace(/^init-payload\//, '')
+    const under = (dirs) => dirs.map((d) => `${d}/`).find((d) => p.startsWith(d))
+    let dir
+    if ((dir = under([LAYOUT1.scripts, '.sdlc/scripts'])) && p.endsWith('.mjs')) {
+        const name = p.slice(dir.length)
+        return name.includes('.test.') ? null : `scripts/${name}`
+    }
+    if ((dir = under(['templates', '.sdlc/templates'])) && p.endsWith('.md') && !p.slice(dir.length).includes('/')) {
+        return `templates/${p.slice(dir.length)}`
+    }
+    if ((dir = under([LAYOUT1_DIRS.aiSkills, '.sdlc/contracts'])) && Object.values(CONTRACT_FILES).includes(p.slice(dir.length))) {
+        return `contracts/${p.slice(dir.length)}`
+    }
+    if (p === 'sdlc-state-machine.yaml' || p === '.sdlc/state-machine.yaml') return 'state-machine'
+    if ((dir = under(['.github/workflows'])) && /\.ya?ml$/.test(p) && !p.slice(dir.length).includes('/')) {
+        return `workflows/${p.slice(dir.length)}`
+    }
+    return null
 }

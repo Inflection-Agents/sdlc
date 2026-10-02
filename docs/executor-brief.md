@@ -1,6 +1,6 @@
 # Executor — Agent Brief
 
-Read `.ai/sdlc.md` and `.ai/project.md` first. This file is the **executor brief**: the agent-agnostic instructions any agent that is handed a single guide step must follow. During a normal delivery run the agent running `spec-execution` implements the steps itself; this brief governs the exception — a worktree-isolated subagent dispatched for one step of a large spec.
+Read `${CLAUDE_PLUGIN_ROOT}/docs/sdlc.md` and `AGENTS.md` first. This file is the **executor brief**: the agent-agnostic instructions any agent that is handed a single guide step must follow. During a normal delivery run the agent running `spec-execution` implements the steps itself; this brief governs the exception — a worktree-isolated subagent dispatched for one step of a large spec.
 
 ## Your role
 
@@ -78,4 +78,4 @@ When your work is ready:
 
 ## Project structure and setup
 
-See `.ai/project.md` for the full project layout, commands, code conventions, and data architecture. All project-specific details live there — shared across every agent that participates in the SDLC.
+See `AGENTS.md` for the full project layout, commands, code conventions, and data architecture. All project-specific details live there — shared across every agent that participates in the SDLC.

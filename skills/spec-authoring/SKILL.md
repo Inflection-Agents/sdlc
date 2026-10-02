@@ -473,11 +473,11 @@ Two human gates in this skill: design approval (end of Phase 1) and spec-and-gui
 | Losing Phase 1 agreements in Phase 2 | Self-review checks for this. Every brainstorming agreement should appear in the spec. |
 
 <!-- sdlc:handoff:start -->
-<!-- GENERATED from specs/sdlc-state-machine.yaml by scripts/sdlc/gen-handoffs.mjs — do not edit between markers; re-run the generator. -->
+<!-- GENERATED from .sdlc/state-machine.yaml by ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/gen-handoffs.mjs — do not edit between markers; re-run the generator. -->
 
 ## Handoff
 
-This phase is **spec-authoring** in the SDLC state machine (`specs/sdlc-state-machine.yaml`, the single source of truth). The fields below are generated from that file — do not hand-edit them here.
+This phase is **spec-authoring** in the SDLC state machine (`.sdlc/state-machine.yaml`, the single source of truth). The fields below are generated from that file — do not hand-edit them here.
 
 **Entry triggers:**
 
@@ -492,7 +492,7 @@ This phase is **spec-authoring** in the SDLC state machine (`specs/sdlc-state-ma
 
 - intent exists or owner confirms none is needed (or, for "write the guide for", the spec is active and has no guide)
 
-**Exit condition:** spec status flips draft -> active and plan_review.approved flips true in one owner sign-off (ADR-007), after spec-reviewer sign-off on the spec; specs/tasks/SPEC-NNN/GUIDE.md passes scripts/sdlc/validate-guide.mjs, and KICKOFF.md (at most 3,800 characters) is written and shown to the owner
+**Exit condition:** spec status flips draft -> active and plan_review.approved flips true in one owner sign-off (ADR-007), after spec-reviewer sign-off on the spec; specs/tasks/SPEC-NNN/GUIDE.md passes .sdlc/scripts/validate-guide.mjs, and KICKOFF.md (at most 3,800 characters) is written and shown to the owner
 
 **Next step:** `spec-execution` — trigger: "execute SPEC-NNN"
 <!-- sdlc:handoff:end -->

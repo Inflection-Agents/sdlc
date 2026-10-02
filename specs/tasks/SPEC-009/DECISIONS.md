@@ -183,3 +183,37 @@ in chronological order.
 **Merged:** PR #68
 **What changed:** skills, agents, root docs and templates name layout-2 paths. Repo-local commands use the `run.mjs` form, and plugin-only scripts and docs are named under `${CLAUDE_PLUGIN_ROOT}`. Workspace data points at `config.yaml`, and project prose at the `AGENTS.md` block.
 **Anything a later step must match:** the generated `## Handoff` footers still name the layout-1 machine path and `scripts/sdlc/gen-handoffs.mjs`. S10 moves the machine, sets `GENERATOR_LABEL` to the `${CLAUDE_PLUGIN_ROOT}` form, and regenerates them. The docs now point at `${CLAUDE_PLUGIN_ROOT}/docs/sdlc.md`, `docs/executor-brief.md` and `docs/setup.md`, which S10 creates by moving the `.ai/*.md` files.
+
+---
+
+## EXECUTIVE DECISION — guide change: S10 cleans the shipped text and adds a release-time manifest mode
+
+**Date:** 2026-10-02
+**Question:** SC-5 needs shipped code and a fresh init to scan clean, but the comments and usage strings in hooks and scripts, the nudge text, the state machine's exit-condition text and two payload workflow comments still named layout-1 paths. The migration tools needed layout-1 patterns as literals. The manifest could not include the release being made, because its bump commit does not exist until the release is committed.
+**Decided:**
+- Rewrite that text to layout-2 terms.
+- Have `migrate-layout.mjs` and `gen-released-payloads.mjs` take their layout-1 patterns from new `legacy-map.mjs` exports (`LAYOUT1_DIRS`, `isUnder`, `payloadRoleOf`).
+- Give the generator a release-time mode: when the working `plugin.json` is ahead of the last bump, it covers every commit to HEAD plus the working tree, under the new version, and gives the same file after the commit.
+- Add `.sdlc/review-constraints.yaml` and `proposal.html` to this repo's `scan.allow`, with reasons.
+- Rewrite the paths in `specs/intents.md`, a live backlog.
+- Point this repo's own `CLAUDE.md` at local `docs/` and `.sdlc/scripts/`, because the `${CLAUDE_PLUGIN_ROOT}` form is for adopters.
+**Why:** without these, SC-5 and AC-017 cannot pass, and the 0.4.0 release would be missing from its own manifest.
+**Reversal path:** revert the hunks. The manifest regenerates either way.
+
+---
+
+## SPEC DEVIATION — template parity is checked with diff -rq
+
+**Date:** 2026-10-02
+**Spec says:** AC-009 and AC-017: "`cmp -r .sdlc/templates init-payload/.sdlc/templates` is clean".
+**Built instead:** BSD `cmp`, as shipped on macOS, has no `-r`, so the check runs `diff -rq`, which compares the same two trees file by file. `install-payload.test.mjs` also compares the trees in Node.
+
+---
+
+## EXECUTIVE DECISION — the payload machine takes the repo's newer spec-completion exit condition
+
+**Date:** 2026-10-02
+**Question:** before this run, `specs/sdlc-state-machine.yaml` and the payload's machine differed in one place. The repo had the archive clause in the `spec-completion` exit condition, from the archive-on-completion change, and the payload never received it.
+**Decided:** the payload takes the repo's text. This repo's `.sdlc/state-machine.yaml` is now byte-identical to the payload's.
+**Why:** the repo's text is the newer contract. A fixed copy that every sync refreshes has to start from the current one.
+**Reversal path:** restore the shorter exit condition in both.

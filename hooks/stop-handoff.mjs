@@ -14,7 +14,7 @@
 // applies, and SILENT on any internal error.
 //
 // Phase-exit detection (the `_index.yaml` phase-block contract documented in
-// the header of specs/sdlc-state-machine.yaml): each spec's
+// the header of the state machine, `.sdlc/state-machine.yaml`): each spec's
 // specs/tasks/SPEC-NNN/_index.yaml may carry a `phase:` block
 //
 //   phase:
@@ -26,7 +26,7 @@
 //
 // A phase-exit is "reached" when `phase.exit_condition_met` is truthy (the
 // owner_skill flipped it on exit). We read `next_phase` + `next_trigger` from
-// the state machine (specs/sdlc-state-machine.yaml — the single source of
+// the state machine (`.sdlc/state-machine.yaml`, the single source of
 // truth) keyed by `phase.current`, falling back to the values mirrored in the
 // `_index.yaml` phase block. We DO NOT duplicate the transition table here.
 //
@@ -102,7 +102,7 @@ import {
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-// The path resolver (SPEC-009, ADR-008). The plugin ships it at scripts/sdlc/lib/, and
+// The path resolver (SPEC-009, ADR-008). The plugin ships it in its own lib/ beside scripts, and
 // bootstrap.sh copies it to lib/ beside a repo-local hook. A hook that cannot find it
 // throws, so the failure shows instead of the hook quietly checking nothing.
 const LIB = (() => {

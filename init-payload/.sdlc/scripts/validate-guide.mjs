@@ -16,7 +16,7 @@
 //   6. the spec has a `## Acceptance criteria` section with at least one AC id, and every
 //      checkbox under it carries an `AC-NNN` id (an empty or missing section fails closed)
 //   7. every `After:` id names an earlier step
-//   8. when .ai/project.md defines workspaces, every step has `Workspace:`
+//   8. when the repo defines workspaces (.sdlc/config.yaml), every step has `Workspace:`
 //   9. an approved guide has a KICKOFF.md of at most 3,800 characters
 //
 // AC ids are read only from checkbox lines under `## Acceptance criteria`, in either the

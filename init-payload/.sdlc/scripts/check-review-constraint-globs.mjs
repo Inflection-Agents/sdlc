@@ -6,7 +6,7 @@
  * Dependency-free (Node built-ins only; uses `fs.globSync`, Node ≥ 22).
  *
  * WHY THIS EXISTS. ADR-003 retired the deterministic engine and made
- * `.ai/sdlc/review-constraints.yaml` the SDLC's only mechanical review
+ * `.sdlc/review-constraints.yaml` the SDLC's only mechanical review
  * guarantee: where a constraint's `when` matches, its lens must review; everything
  * else is the agent's judgment. That elevation turns a latent bug into a live one
  * — a `when.touches` glob that matches nothing in the repo silently advertises
@@ -184,7 +184,7 @@ function main(argv) {
         const dir = dirname(resolve(registry))
         const found = resolveRoot(dir)
         // With no repo marker above it, assume the registry sits at its standard depth:
-        // .sdlc/review-constraints.yaml (one level) or .ai/sdlc/review-constraints.yaml (two).
+        // .sdlc/review-constraints.yaml (one level) or the layout-1 registry (two levels).
         root = isSdlcRoot(found) ? found : basename(dir) === '.sdlc' ? dirname(dir) : resolve(dir, '..', '..')
     }
     const rootIdx = argv.indexOf('--root')

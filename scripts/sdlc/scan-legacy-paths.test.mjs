@@ -65,12 +65,15 @@ test('--only limits the scan, and a path config.yaml names as current is not leg
 })
 
 test('history and the built-in exemptions are not read', () => {
-    const fx = repo({
+    const fx = repo(
+        {
         'specs/archive/specs/SPEC-001-old.md': 'scripts/sdlc/\n',
         'specs/SPEC-002-done.md': '---\nstatus: completed\n---\nscripts/sdlc/\n',
         'tools/__tests__/fixture.test.mjs': "join(root, '.ai', 'skills')\n",
         'tools/lib/legacy-map.mjs': "'.ai/'\n",
-    })
+        },
+        'layout: 2\nscan:\n  allow: ["scripts/sdlc/**"]\n'
+    )
     try {
         const res = scan(fx.root)
         assert.equal(res.status, 0, res.stdout)
