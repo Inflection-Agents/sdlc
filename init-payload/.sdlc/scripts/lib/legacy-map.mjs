@@ -323,8 +323,12 @@ export function isHistory(rel, { specsRel = 'specs', specStatus = () => null, re
     return false
 }
 
-/** Files the scan never reads, wherever they sit: the map itself and the resolver. */
+/**
+ * Files the scan never reads: the map itself, the resolver, the manifest, the repo's own
+ * `.sdlc/config.yaml` (whose `paths` and `scan.allow` name paths on purpose), and tests.
+ */
 export function isBuiltInExempt(rel) {
+    if (rel === '.sdlc/config.yaml') return true
     if (/(^|\/)lib\/(legacy-map\.mjs|sdlc-paths\.mjs|released-payloads\.json)$/.test(rel)) return true
     return /(^|\/)(__tests__|__fixtures__)\//.test(rel) || /\.test\.[cm]?[jt]sx?$/.test(rel)
 }
