@@ -26,3 +26,10 @@ heading goes in the moment it happens, not batched at the end.
 
 **Merged:** PR #78
 **What changed:** The routing policy caps the spec-side loop with one constant, SPEC_REVIEW_ROUND_CAP = 4, and returns disclose_and_accept there; the PR side is unchanged. spec-schema declares ## Disclosed, not reviewed-clean and resolution: wontfix.
+
+---
+
+## S2 — One reviewer per round after the first
+
+**Merged:** PR #79
+**What changed:** Step 10a states the per-round reviewer count once: both variants in round 1, default alone after, both whenever the AC-010 measurement runs. spec-amendment and review-primitives cite it.
