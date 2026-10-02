@@ -169,6 +169,28 @@ ${filler}
 `
 }
 
+export const FORKED_HOOK = `import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+const p = JSON.parse(readFileSync(0, 'utf8'))
+const root = process.env.CLAUDE_PROJECT_DIR || p.cwd
+const isProc = (rel) => rel.startsWith('.ai/')
+const file = join(root, 'specs', 'sdlc-state-machine.yaml')
+if (existsSync(file)) {
+    const machine = { domain_routing: Object.fromEntries([...readFileSync(file, 'utf8').matchAll(/^ {4}([\\w-]+):\\n {8}- ([\\w-]+)/gm)].map((m) => [m[1], [m[2]]])) }
+    for (const [ws, chain] of Object.entries(machine.domain_routing)) if (p.prompt.includes(ws + '/')) console.log('route ' + ws + ': ' + chain.join(' -> '))
+}
+`
+
+/** The fixed form of FORKED_HOOK, as an owner would write it on the migration branch. */
+export const FIXED_HOOK = `import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+const p = JSON.parse(readFileSync(0, 'utf8'))
+const root = process.env.CLAUDE_PROJECT_DIR || p.cwd
+const { loadMachine } = await import(join(root, '.sdlc/scripts/lib/sdlc-paths.mjs'))
+const sm = loadMachine(root)
+for (const [ws, chain] of Object.entries(sm.domain_routing)) if (p.prompt.includes(ws + '/')) console.log('route ' + ws + ': ' + chain.join(' -> '))
+`
+
 /** A forked layout-1 repo modeled on high-gear-apps, carrying every form SPEC-009 AC-010 lists. */
 export function forkedHighGearRepo() {
     const fx = tempRoot('sdlc-fork-')
@@ -224,11 +246,17 @@ exempt:
     write(r, 'AGENTS.md', '# Jules entry point\n\nRead `.ai/project.md`, then `.ai/AGENTS.md`.\n<!-- BEGIN BEADS INTEGRATION -->\nbeads\n<!-- END BEADS INTEGRATION -->\n')
     write(r, '.ai/AGENTS.md', '# You are a step executor.\n')
     write(r, 'CLAUDE.md', '# Claude\n\n1. `.ai/project.md`\n')
-    write(r, '.claude/hooks/user-prompt-submit.mjs', "import { join } from 'node:path'\nconst sm = join(root, 'specs', 'sdlc-state-machine.yaml')\nconst isProc = (rel) => rel.startsWith('.ai/')\nrenderDbtContext(machine.domain_routing)\n")
+    // A working local hook in the layout-1 style: it reads the machine by joined segments,
+    // so after the move it finds nothing and goes quiet until someone fixes it.
+    write(r, '.claude/hooks/user-prompt-submit.mjs', FORKED_HOOK)
+    write(r, '.claude/settings.json', JSON.stringify({ hooks: { UserPromptSubmit: [{ hooks: [{ type: 'command', command: 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/user-prompt-submit.mjs"' }] }] } }, null, 2))
     write(r, '.github/workflows/sdlc-gates.yml', "on:\n  pull_request:\n    paths:\n      - '.ai/**'\n      - 'scripts/sdlc/**'\njobs:\n  gates:\n    runs-on: ubuntu-latest\n    steps:\n      - run: node scripts/sdlc/validate-guide.mjs specs/tasks/*/GUIDE.md\n")
     write(r, '.github/workflows/ci.yml', "on:\n  pull_request:\n    paths-ignore:\n      - '**.md'\njobs: {}\n")
     write(r, 'apps/web/layout.tsx', "import X from '@/components/templates/spec.md'\n")
     write(r, 'docs/runbooks/spec-execution.md', '# runbook\n')
+    // A flat archive behind one fence, as high-gear-apps keeps its 147 archived specs.
+    write(r, 'specs/archive/.ignore', '*\n')
+    write(r, 'specs/archive/SPEC-001-old.md', '---\nid: SPEC-001\nstatus: completed\n---\n')
     mkdirSync(join(r, '.claude'), { recursive: true })
     symlinkSync('../.ai/skills', join(r, '.claude', 'skills'), 'dir')
     commitAll(r, 'forked layout 1')
