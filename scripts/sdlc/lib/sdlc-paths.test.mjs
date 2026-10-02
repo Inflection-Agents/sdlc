@@ -6,11 +6,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, rmSync } from 'node:fs'
+import { mkdirSync, realpathSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { DEPRECATION, detectLayout, resolveRoot, sdlcPaths, takeRootArg } from './sdlc-paths.mjs'
+import { DEPRECATION, detectLayout, nestedWorktree, resolveRoot, sdlcPaths, takeRootArg } from './sdlc-paths.mjs'
 import { layout1Repo, layout2Repo, forkedRepo, write } from '../__fixtures__/layouts/build.mjs'
 
 delete process.env.CLAUDE_PROJECT_DIR
@@ -163,4 +163,55 @@ test('takeRootArg reads --root and leaves the other arguments', () => {
     assert.equal(root, '/tmp/x')
     assert.deepEqual(rest, ['a.md', '--flag'])
     assert.throws(() => takeRootArg(['--root']), /--root needs a directory/)
+})
+
+// ── SPEC-011: a linked worktree under .claude/worktrees/ is its own root ─────────
+
+function gitRepoWithWorktree() {
+    const fx = layout2Repo()
+    const git = (...a) => {
+        const r = spawnSync('git', a, { cwd: fx.root, encoding: 'utf8' })
+        assert.equal(r.status, 0, r.stderr)
+        return r.stdout
+    }
+    git('init', '-q', '-b', 'main', '.')
+    git('config', 'user.email', 't@t')
+    git('config', 'user.name', 't')
+    git('add', '-A')
+    git('commit', '-qm', 'init')
+    git('worktree', 'add', '-q', '-b', 'feat/spec-011', '.claude/worktrees/spec-011')
+    return { ...fx, wt: realpathSync(join(fx.root, '.claude/worktrees/spec-011')) }
+}
+
+test('AC-009: under CLAUDE_PROJECT_DIR, a start inside a linked worktree resolves to that worktree', () => {
+    const fx = gitRepoWithWorktree()
+    const saved = process.env.CLAUDE_PROJECT_DIR
+    try {
+        process.env.CLAUDE_PROJECT_DIR = fx.root
+        const deep = join(fx.wt, 'specs', 'tasks')
+        mkdirSync(deep, { recursive: true })
+        assert.equal(resolveRoot(deep), fx.wt)
+        assert.equal(resolveRoot(fx.wt), fx.wt)
+        assert.equal(resolveRoot(join(fx.root, 'specs')), fx.root, 'outside every worktree, CLAUDE_PROJECT_DIR still wins')
+        assert.equal(resolveRoot(fx.root), fx.root)
+        assert.equal(takeRootArg(['--root', fx.root], deep).root, fx.root, 'an explicit --root still overrides')
+    } finally {
+        if (saved === undefined) delete process.env.CLAUDE_PROJECT_DIR
+        else process.env.CLAUDE_PROJECT_DIR = saved
+        fx.cleanup()
+    }
+})
+
+test('a plain directory under .claude/worktrees/ that is not a linked worktree is not a root', () => {
+    const fx = gitRepoWithWorktree()
+    try {
+        const stray = join(fx.root, '.claude/worktrees/not-a-worktree')
+        mkdirSync(stray, { recursive: true })
+        // git answers for the main checkout here, which is not under .claude/worktrees/.
+        assert.equal(nestedWorktree(fx.root, stray), null)
+        assert.equal(nestedWorktree(fx.root, join(fx.root, 'specs')), null)
+        assert.equal(nestedWorktree(fx.root, fx.wt), fx.wt)
+    } finally {
+        fx.cleanup()
+    }
 })

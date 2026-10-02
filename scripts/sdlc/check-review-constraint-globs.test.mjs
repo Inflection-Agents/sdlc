@@ -9,7 +9,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -150,4 +150,20 @@ test('parseRegistryTouches survives a CRLF registry', () => {
     // write-time hook an empty touches list while the other parsers looked healthy.
     const crlf = 'constraints:\r\n  - id: X\r\n    when: { touches: ["a/**"] }\r\n'
     assert.deepEqual(parseRegistryTouches(crlf), [{ id: 'X', touches: ['a/**'] }])
+})
+
+test('AC-010: a glob that matches only inside .claude/worktrees/ does not resolve', () => {
+    // `**` never enters a dot-directory, so only a glob that names `.claude/` can reach a nested
+    // worktree; that is the case the exclusion closes.
+    const root = mkdtempSync(join(tmpdir(), 'sdlc-globs-wt-'))
+    try {
+        mkdirSync(join(root, '.claude/worktrees/x/hooks'), { recursive: true })
+        writeFileSync(join(root, '.claude/worktrees/x/hooks/a.mjs'), '')
+        assert.equal(globResolves('.claude/**/hooks/*.mjs', root), false)
+        mkdirSync(join(root, '.claude/hooks'), { recursive: true })
+        writeFileSync(join(root, '.claude/hooks/a.mjs'), '')
+        assert.equal(globResolves('.claude/**/hooks/*.mjs', root), true)
+    } finally {
+        rmSync(root, { recursive: true, force: true })
+    }
 })

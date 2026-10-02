@@ -130,3 +130,21 @@ test('the CLI fails a stale citation in the paths.process_doc file', () => {
         fx.cleanup()
     }
 })
+
+test('AC-010: the CLI reads no file under .claude/worktrees/', () => {
+    const fx = layout2Repo()
+    try {
+        write(fx.root, 'specs/adrs/ADR-901-old.md', '---\nid: ADR-901\nstatus: superseded\nsuperseded_by: ADR-902\n---\n')
+        write(fx.root, 'specs/adrs/ADR-902-new.md', '---\nid: ADR-902\nstatus: accepted\n---\n')
+        // A copy of an always-loaded file inside a nested worktree would fail the build if read.
+        write(fx.root, '.claude/worktrees/x/AGENTS.md', 'Per ADR-901, do the thing.\n')
+        write(fx.root, '.claude/worktrees/x/skills/a/SKILL.md', 'Per ADR-901, do the thing.\n')
+        const env = { ...process.env }
+        delete env.CLAUDE_PROJECT_DIR
+        const res = spawnSync(process.execPath, [fileURLToPath(new URL('./check-stale-citations.mjs', import.meta.url)), '--root', fx.root], { encoding: 'utf8', env })
+        assert.equal(res.status, 0, res.stdout + res.stderr)
+        assert.doesNotMatch(res.stdout + res.stderr, /worktrees/)
+    } finally {
+        fx.cleanup()
+    }
+})

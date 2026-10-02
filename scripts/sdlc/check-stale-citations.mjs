@@ -20,7 +20,7 @@
  *   node .sdlc/scripts/check-stale-citations.mjs --strict   # fail on reported hits too
  */
 import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
-import { join, relative, resolve } from 'node:path'
+import { basename, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { LAYOUT1_AI_PATTERN } from './lib/legacy-map.mjs'
@@ -138,6 +138,9 @@ function walk(dir, onFile, depth = 8) {
     for (const entry of readdirSync(dir)) {
         if (entry === '.git' || entry === 'node_modules') continue
         const p = join(dir, entry)
+        // A nested worktree is another checkout of the repo (SPEC-011): reading it would count
+        // every citation twice.
+        if (entry === 'worktrees' && basename(dir) === '.claude') continue
         let st
         try {
             // lstat, never stat: .claude/skills is often a symlink to the skills directory,

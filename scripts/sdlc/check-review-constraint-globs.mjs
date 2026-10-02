@@ -62,7 +62,9 @@ export function globResolves(glob, root = REPO_ROOT) {
     try {
         const hits = globSync(glob, {
             cwd: root,
-            exclude: (p) => String(p).split('/').some((seg) => IGNORED_SEGMENTS.includes(seg))
+            // `.claude/worktrees/` holds other checkouts of the repo (SPEC-011), so a glob that
+            // matches only there would advertise coverage the repo itself does not have.
+            exclude: (p) => String(p).split('/').some((seg) => IGNORED_SEGMENTS.includes(seg)) || /(^|\/)\.claude\/worktrees(\/|$)/.test(String(p))
         })
         return hits.length > 0
     } catch {
