@@ -33,3 +33,10 @@ heading goes in the moment it happens, not batched at the end.
 
 **Merged:** PR #79
 **What changed:** Step 10a states the per-round reviewer count once: both variants in round 1, default alone after, both whenever the AC-010 measurement runs. spec-amendment and review-primitives cite it.
+
+---
+
+## S3 — validate-spec.mjs before the reviewer, and in CI
+
+**Merged:** PR #80
+**What changed:** validate-spec.mjs decides the eight mechanical checks and emits the review envelope; Step 10a runs it before every dispatch; CI runs --ci, failing only active specs. spec-schema declares depends_on. Finding ids are still ordinal; S4 makes them content-addressed.
