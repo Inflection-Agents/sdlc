@@ -175,3 +175,11 @@ in chronological order.
 **Merged:** PR #67
 **What changed:** `skills/sdlc-sync/SKILL.md` now has a layout check, the seven migration steps and the refresh procedure. Added `sync-refresh.mjs` and its test. The manifest gained a workflow role.
 **Anything a later step must match:** S10's release commit regenerates the manifest. For the SC-3 end-to-end run, use `sync-refresh.mjs` with a payload copy that changes a phase.
+
+---
+
+## S9 — Path references in skills, agents and docs
+
+**Merged:** PR #68
+**What changed:** skills, agents, root docs and templates name layout-2 paths. Repo-local commands use the `run.mjs` form, and plugin-only scripts and docs are named under `${CLAUDE_PLUGIN_ROOT}`. Workspace data points at `config.yaml`, and project prose at the `AGENTS.md` block.
+**Anything a later step must match:** the generated `## Handoff` footers still name the layout-1 machine path and `scripts/sdlc/gen-handoffs.mjs`. S10 moves the machine, sets `GENERATOR_LABEL` to the `${CLAUDE_PLUGIN_ROOT}` form, and regenerates them. The docs now point at `${CLAUDE_PLUGIN_ROOT}/docs/sdlc.md`, `docs/executor-brief.md` and `docs/setup.md`, which S10 creates by moving the `.ai/*.md` files.
