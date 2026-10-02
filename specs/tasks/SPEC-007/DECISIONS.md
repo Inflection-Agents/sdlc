@@ -19,3 +19,10 @@ heading goes in the moment it happens, not batched at the end.
 **Date:** 2026-10-02
 **Question:** S1 and S2 edit `review-primitives.md`, and S8 edits a template. All three files ship in the payload, and `lib/released-payloads.json` records every payload byte, so CI's `--check` fails unless the same step regenerates it. None of the three steps listed the manifest in `Changes:`.
 **Decided:** add `scripts/sdlc/lib/released-payloads.json` to the `Changes:` of S1, S2 and S8. No AC, scope or design changes.
+
+---
+
+## S1 — Cap the spec-side loop at four rounds
+
+**Merged:** PR #78
+**What changed:** The routing policy caps the spec-side loop with one constant, SPEC_REVIEW_ROUND_CAP = 4, and returns disclose_and_accept there; the PR side is unchanged. spec-schema declares ## Disclosed, not reviewed-clean and resolution: wontfix.
