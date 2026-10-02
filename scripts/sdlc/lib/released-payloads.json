@@ -153,7 +153,9 @@
       "0d76a91b7e81baef9c7b6d5d82d0a016b370f6321cce414a5c166416ba05e00c": "0.1.0"
     },
     "templates/authoring-decisions.md": {
-      "e7f7964e632df7d38274e77372a5e4c4758456ede2e46f9d0c5fb6ba5476b704": "0.4.0"
+      "e7f7964e632df7d38274e77372a5e4c4758456ede2e46f9d0c5fb6ba5476b704": "0.4.0",
+      "00496dfdcb36e53d65abb293a96bd915c0eb0c185658c0a293c296875c8432a4": "0.4.0",
+      "37c17c852f2adf397ee6edfbf99100f2aa9c3965312506616ace887ae42c5b2e": "0.4.0"
     },
     "templates/bug.md": {
       "861920a1569b89ebfedbd997e7449f70de1b339edf283e0c0962cfee4aec817e": "0.1.0"

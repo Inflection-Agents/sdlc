@@ -245,17 +245,18 @@ this turn are a self-review wearing a reviewer's output format, and the two are 
 the artifact. The agent has no `Edit`/`Write` and a clean context, which is the whole of what makes
 its verdict worth having. If you are about to write findings inline, stop and dispatch.
 
-Seed each dispatch with these inputs (all paths concrete; do not invent them):
+Seed each dispatch with these inputs (all paths concrete; do not invent them). An input marked **optional** is handled exactly as `spec-authoring` Step 10a describes: when absent, say so in the dispatch prompt.
 
 - `spec_file`: the amended `specs/SPEC-NNN-<short-description>.md` (post-edit).
-- `spec_schema`: `skills/spec-schema.md`.
-- `authoring`: `skills/spec-authoring/SKILL.md`.
-- `intent`: the intent excerpt the original spec was authored from (still in `specs/intents.md` or its archive).
-- `project`: the `AGENTS.md` SDLC block and `.sdlc/config.yaml` `workspaces`.
+- `spec_schema`: `skills/spec-schema.md` at the plugin root (`${CLAUDE_PLUGIN_ROOT}/skills/spec-schema.md`).
+- `authoring`: `skills/spec-authoring/SKILL.md` at the plugin root.
+- `decisions` (**optional**: absent for a spec authored before SPEC-007): `specs/decisions/SPEC-NNN.md`, with any decisions this amendment made appended to it.
+- `intent` (**optional**): the intent excerpt the original spec was authored from (still in `specs/intents.md` or its archive).
+- `project`: `.sdlc/config.yaml` `workspaces`, plus (**optional**) the `AGENTS.md` SDLC block.
 - `adrs`: every ADR referenced in the amended Design section, plus any ADR newly superseded or affected by this amendment (Step 3b).
-- `upstream_specs`: every spec listed in this spec's `depends_on` (re-read post-amendment; amendments can change `depends_on`).
-- `downstream_specs`: every spec that declares this spec in its `depends_on` (use `specs/spec-index.json`). Downstream contradiction probing matters MORE on amendments than on first-draft specs — a contract that was honored at v1 can break at v2.
-- `previous_output`: projected from the review log with `review-log project` when `specs/review-logs/SPEC-NNN.json` exists (from the original `spec-authoring` Phase 2 review or a previous amendment), so nit/suggestion findings on unchanged sections carry forward per the contract in `review-primitives.md`. On the first amendment this is `null`.
+- `upstream_specs` (**optional**: none without `depends_on`): every spec listed in this spec's `depends_on` (re-read post-amendment; amendments can change `depends_on`).
+- `downstream_specs` (**optional**: none when no spec depends on this one): every spec that declares this spec in its `depends_on` (use `specs/spec-index.json`). Downstream contradiction probing matters MORE on amendments than on first-draft specs — a contract that was honored at v1 can break at v2.
+- `previous_output` (**optional**): projected from the review log with `review-log project` when `specs/review-logs/SPEC-NNN.json` exists (from the original `spec-authoring` Phase 2 review or a previous amendment), so nit/suggestion findings on unchanged sections carry forward per the contract in `review-primitives.md`. On the first amendment this is `null`.
 - `variant`: as `spec-authoring` Step 10a > **Reviewers per round** sets it for this round.
 
 **Present findings to the owner** alongside the amendment summary in Step 7. Render the JSON output as a graded list: blocker → major → nit → suggestion, with `criterion`, `location`, `finding`, and `suggested_fix`.

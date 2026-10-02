@@ -87,6 +87,22 @@ Before proposing solutions, understand what exists:
 - Check recent git history in affected areas — any in-flight work that could collide?
 - If domain skills exist for the affected workspaces, read them for technology-specific context
 
+**Research protocol.** Answer this fixed list in one fan-out (parallel tool calls in one message, or
+one `Explore` agent), not by iterative grep across the session:
+
+1. Which files, scripts, skills and agents implement the affected area today?
+2. Which specs and ADRs govern it, and what is each one's status (`node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs resolve <id>`)?
+3. Which `active` specs in `specs/spec-index.json` declare the same workspaces (the collision check, Step 2)?
+4. Does every file, symbol, script, command and field the design will name exist, and where?
+5. What changed in the affected paths recently (`git log -n 20 -- <paths>`), and which open PRs touch them?
+
+Write every answer to the `## Research` section of the decision ledger, `specs/decisions/SPEC-NNN.md`,
+as one row per question asked: the question, the command or path that answered it, the git ref it was
+checked against, and the result. **Record a search that found nothing as a row too**, for example
+"grepped `depends_on` across `skills/` and `agents/`, 0 hits, at `db3675b`". A negative result costs
+the most to re-derive, and the reviewer reads this section before it reopens one. A claim in the spec
+body then cites the row's command and ref, as the citation rule below requires.
+
 Every non-trivial factual claim reported to the owner, and every such claim that makes it into the spec body, must carry an inline citation — the exact command, file path, or file:line that grounds it — written into the artifact itself. A claim is **non-trivial** (and requires a citation) if it contains: (1) a numeral or count; (2) a file, symbol, script, or command name asserted to exist or not exist; (3) an assertion of current system state ("X is unused," "Y is dead," "Z is enabled," "none/all/every..."); (4) a claim about what another spec, ADR, or invariant says or requires; (5) a claim that something exists, is merged, or has landed — which must name the git ref it was checked against, since "not on `main`" and "does not exist anywhere" are different claims and must not be conflated; or (6) a status field (e.g. `status: deferred`, `status: superseded`) cited as if it also states the reason or cause behind that status — the evidence/rationale field beside it is a separate claim and must be checked independently, not inferred from the status value alone. Connective prose, section transitions, restatements of the user's own stated intent, and narration about this spec-authoring process itself (a review round's findings, a peer session's report, a revision's own history) are exempt — these assert no repo or system state, so there is nothing for an external command to check them against. A claim meeting this test with no citation is not made — investigate first.
 
 Before citing any spec or ADR as current: (1) check its `status` field — `active`/`draft` may be current as-is; `superseded`/`cancelled`/`deprecated`/`archived` is **stale**, continue to step 2; every other value (`done`/`completed`/`snapshot`, or any non-canonical status) is **closed but current** — immutable to further editing, but its contract is in force, so cite it freely rather than treating closed as stale. (2) For a stale record, check its own `superseded_by` field, if it carries one, and follow it to the target, then **re-run step 1 on the target** — a superseded record's successor can itself be superseded, so repeat until reaching a non-stale terminal or a dead end. (3) At any point where the record carries no `superseded_by`, reverse-search: `grep -l '^supersedes: <this-id>' specs/SPEC-*.md specs/adrs/ADR-*.md` to find what replaced it; if nothing is found, treat the topic as having no current successor and say so explicitly rather than silently citing a stale record as current.
@@ -316,17 +332,21 @@ this turn are a self-review wearing a reviewer's output format, and the two are 
 the artifact. The agent has no `Edit`/`Write` and a clean context, which is the whole of what makes
 its verdict worth having. If you are about to write findings inline, stop and dispatch.
 
-Seed each dispatch with these inputs (all paths concrete; do not invent them):
+Seed each dispatch with these inputs (all paths concrete; do not invent them). An input marked
+**optional** may not exist in this repo or for this spec. When one is absent, say so in the dispatch
+prompt ("no `AGENTS.md` in this repo") so the reviewer knows it was not given the file, rather than
+leaving it out silently or naming a path that does not resolve. Every other input must resolve.
 
 - `spec_file`: `specs/SPEC-NNN-<short-description>.md` — the draft just written.
-- `spec_schema`: `skills/spec-schema.md` — for required-section and frontmatter checks.
-- `authoring`: `skills/spec-authoring/SKILL.md` — this skill, for `spec-authoring:<anchor>` citations.
-- `decisions`: `specs/decisions/SPEC-NNN.md` — the authoring decision ledger from Phase 1 (Step 5).
-- `intent`: the relevant excerpt from `specs/intents.md` (the intent this spec formalizes). If invoked outside the intent-triage handoff, the owner provides the intent excerpt or confirms there is none.
-- `project`: the `AGENTS.md` SDLC block and `.sdlc/config.yaml` `workspaces` — for workspace coverage checks.
-- `adrs`: every ADR file referenced in the spec's Design section, plus any existing ADR the design may contradict (use judgment; when uncertain, include the candidate).
-- `upstream_specs`: every spec listed in this spec's `depends_on` (none on a greenfield spec; include all if present).
-- `downstream_specs`: every spec that declares this spec in its `depends_on` (use `specs/spec-index.json` to find them).
+- `spec_schema`: `skills/spec-schema.md` at the plugin root (`${CLAUDE_PLUGIN_ROOT}/skills/spec-schema.md`; in the framework repo, the repo root) — for required-section and frontmatter checks.
+- `authoring`: `skills/spec-authoring/SKILL.md` at the plugin root, as above — this skill, for `spec-authoring:<anchor>` citations.
+- `decisions`: `specs/decisions/SPEC-NNN.md` — the authoring decision ledger from Phase 1 (Step 5), including its `## Research` section (Step 3).
+- `intent` (**optional**): the relevant excerpt from `specs/intents.md` (the intent this spec formalizes). Absent when the spec was invoked outside the intent-triage handoff and the owner confirms there is no intent.
+- `project`: `.sdlc/config.yaml` `workspaces`, for workspace coverage checks, plus (**optional**) the `AGENTS.md` SDLC block. `/sdlc-init` writes `AGENTS.md` in every adopting repo; the framework repo has none.
+- `adrs` (**optional**: none when the Design cites no ADR and contradicts none): every ADR file referenced in the spec's Design section, plus any existing ADR the design may contradict (use judgment; when uncertain, include the candidate).
+- `upstream_specs` (**optional**: none on a spec with no `depends_on`): every spec listed in this spec's `depends_on`.
+- `downstream_specs` (**optional**: none when no spec depends on this one): every spec that declares this spec in its `depends_on` (the `depends_on` field of `specs/spec-index.json`).
+- `previous_output` (**optional**: absent in round 1): from `review-log project`, as **Record every round in the review log** below describes.
 - `variant`: as **Reviewers per round** above sets it for this round.
 
 **Present findings to the owner.** The reviewer emits JSON per the shared envelope in [`review-primitives.md`](../review-primitives.md) > Output schema. Render the findings to the owner as a graded list: blocker → major → nit → suggestion, each with its `criterion` (the grounded citation), `location` (the spec section), `finding` (one sentence), and `suggested_fix` if present.

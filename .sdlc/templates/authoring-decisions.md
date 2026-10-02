@@ -13,8 +13,23 @@ spec's AC list exists, and that list is renumbered as review rounds add and remo
 "the criterion that `--ci` fails only active specs", not "AC-011". When you must cite a number,
 re-check every such reference whenever the AC list is renumbered.
 
+Phase 1 Step 3's research protocol writes the `## Research` section below. Keep it above the
+decision entries, and add rows as research continues.
+
 This is not `specs/tasks/SPEC-NNN/DECISIONS.md`. That file records what the executor decided while
 delivering the spec. This one records what the author decided before the spec was written.
+
+---
+
+## Research
+
+One row per question asked, including every search that found nothing. Name the git ref each answer
+was checked against, so a reader can re-run it.
+
+| Question | Command or path | Ref | Result |
+|----------|-----------------|-----|--------|
+| Which files implement the affected area? | `rg -l '<term>' src/` | `<sha>` | `src/billing/invoice.ts`, `src/billing/tax.ts` |
+| Does any agent already read `<field>`? | `rg -n '<field>' agents/` | `<sha>` | 0 hits |
 
 ---
 
