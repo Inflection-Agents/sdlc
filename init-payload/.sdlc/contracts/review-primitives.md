@@ -248,12 +248,11 @@ RANK = {"suggestion": 0, "nit": 1, "major": 2, "blocker": 3}
 min_severity = lambda a, b: a if RANK[a] <= RANK[b] else b
 
 if review_log is not None:
-    # A ruling covers the severity the owner ruled at (`ruled_severity`). The same finding raised
-    # higher is one the owner never saw, so it routes as raised.
+    # A ruling holds for its id at any severity. A later round that raises the finding above the
+    # ruling's `ruled_severity` does not change its routing; `review-log check` fails on it until
+    # the owner rules again, so the raise is never silent.
     ruled = {e["id"]: e for e in review_log["findings"]
              if e["resolution"] in ("overridden", "wontfix")}
-    ruled = {i: e for i, e in ruled.items()
-             if any(f["id"] == i and RANK[f["severity"]] <= RANK[e["ruled_severity"]] for f in findings)}
     findings = [f for f in findings if ruled.get(f["id"], {}).get("resolution") != "wontfix"]
     findings = [{**f, "severity": min_severity(f["severity"], ruled[f["id"]]["owner_severity"])}
                 if f["id"] in ruled else f
@@ -290,7 +289,9 @@ dispatched.
 `owner_severity: nit`, and `F-5e6f7a8b` as `wontfix`. The ruling step drops `F-5e6f7a8b` and routes
 `F-1a2b3c4d` as a `nit`, so the action is `batch_followup_and_accept`. Had the reviewer raised
 `F-1a2b3c4d` as a `suggestion` that round, it would route as a `suggestion`: a ruling only lowers. Had the reviewer raised `F-5e6f7a8b` above the
-severity the owner ruled it at, the `wontfix` would not cover it, and it would route as raised.
+severity the owner ruled it at, it would still be dropped, and `review-log check` would fail until the
+owner ruled on it again; a `wontfix` on a blocker or major also needs a `## Disclosed, not
+reviewed-clean` entry.
 
 **Worked trace: a round-4 PR blocker.** `artifact: "pr"`, `round: 4` (or no `round`), one finding
 with `severity: "blocker"`. `capped` is false for any `artifact` other than `"spec"`, so the action

@@ -133,3 +133,31 @@ heading goes in the moment it happens, not batched at the end.
 **Accepted, not fixed:**
 - No idempotency guard on `append`. Two clean round-1 variants have identical (empty) id sets and the same `reviewed_by`, so a guard would refuse a legitimate second envelope.
 - `fixed` is recorded for a finding a later round did not re-raise. AC-019 fixes the resolution set at `fixed | overridden | wontfix | open`, so renaming the state is a spec change, not a gate fix.
+
+---
+
+## Gate round 2: 3 majors fixed, and one round-1 fix reversed to match the spec
+
+**Panel:** the same four reviewers, each seeded with its own round-1 envelope. The adversarial pass confirmed all five of its round-1 majors closed.
+
+**Reversed.** The integration reviewer showed that round 1's `ruled_severity` gate contradicts AC-018 and SC-4 as written. Both say a ruling holds by id, and the id excludes severity by design (Lever 4). Routing is therefore back to the spec's literal rule: a `wontfix` is always dropped, and an override always routes at the owner's severity. The round-1 concern still holds: an owner who ruled at `nit` never saw a blocker. A raise is now surfaced in three ways, none of which changes routing:
+- `apply` lists the raised ids on stderr;
+- `check` fails until the owner rules on the finding again;
+- a `wontfix` on a finding ever raised as a blocker or major needs a real disclosure.
+
+This keeps AC-018, SC-4 and D-011 all true at once, so no spec amendment is needed.
+
+**Fixed:**
+- `check` now finds a log's spec by its frontmatter id. That honors a configured `paths.specs` and skips companions.
+- The spec body's `reviewer_severity` must equal `ruled_severity` for a `wontfix` too.
+- A disclosure counts only as a visible list item. An HTML comment or a fenced block does not count.
+- Severity names are checked with `Object.hasOwn`.
+- Review labels must be `authoring` or `v<N>-amendment`, and an ended review cannot resume.
+- An envelope must name its spec in `artifact_id`.
+- One round keeps the highest severity its reviewers raised.
+- A placeholder's line number moves to `suggested_fix`, so its id is stable.
+- Unindented block lists are caught.
+- Fences close on the same character, through the shared `lib/fence.mjs`.
+- `CLAUDE.md` and the missing-id error now name `stamp-envelope`.
+
+**Moot:** restoring a superseded ruling. Rulings are no longer superseded.

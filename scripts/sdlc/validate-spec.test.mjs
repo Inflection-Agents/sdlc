@@ -128,8 +128,10 @@ test('a CRLF checkout of a valid spec is still valid', () => {
 })
 
 test('a block-style list under depends_on is reported, never silently skipped', () => {
-    const text = spec().replace('updated: 2026-10-02', 'updated: 2026-10-02\ndepends_on:\n  - SPEC-404')
-    assert.deepEqual(criteria(run(text)), ['spec-schema:depends_on'])
+    for (const item of ['  - SPEC-404', '- SPEC-404']) {
+        const text = spec().replace('updated: 2026-10-02', `updated: 2026-10-02\ndepends_on:\n${item}`)
+        assert.deepEqual(criteria(run(text)), ['spec-schema:depends_on'], JSON.stringify(item))
+    }
 })
 
 test('a double-backtick span hides a marker, and a section that is only a fenced block has content', () => {
@@ -141,5 +143,11 @@ test('a placeholder finding is located at its section, so its id survives lines 
     const one = run(spec({ body: { Problem: 'TBD later.' } }))
     const moved = run(spec({ body: { Problem: 'TBD later.' } }).replace('## Problem', 'Intro line.\n\n## Problem'))
     assert.equal(one[0].location, 'Problem')
-    assert.equal(moved[0].location, 'Problem')
+    assert.equal(moved[0].id, one[0].id, 'the line number lives in suggested_fix, which is not hashed')
+    assert.notEqual(moved[0].suggested_fix, one[0].suggested_fix)
+})
+
+test('a ~~~ fence is closed only by a ~~~ line, so a ``` line inside it changes nothing', () => {
+    const body = { Problem: 'x\n\n~~~\n```\n## Not a heading\nTODO in the block\n~~~' }
+    assert.deepEqual(run(spec({ body })), [])
 })
