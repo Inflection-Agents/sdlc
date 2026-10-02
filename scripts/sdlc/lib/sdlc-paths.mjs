@@ -95,6 +95,38 @@ export function nestedWorktree(project, start = process.cwd()) {
 }
 
 /**
+ * Every spec's `_index.yaml` the hooks should read, as `{ specId, indexPath }`. A spec whose
+ * delivery runs in `.claude/worktrees/spec-nnn` is read from there, because the run commits its
+ * status flips and phase block on `feat/spec-nnn`, which the main checkout does not have
+ * checked out (SPEC-011 > Design > A nested worktree is its own tree, item 4).
+ */
+export function specIndexPaths(root) {
+    const specs = sdlcPaths(root, { quiet: true }).specs
+    const specsRel = relative(root, specs) || 'specs'
+    const found = new Map()
+    const add = (base) => {
+        const tasks = join(base, specsRel, 'tasks')
+        if (!existsSync(tasks)) return
+        for (const name of readdirSync(tasks)) {
+            if (!/^SPEC-\d{3,}$/i.test(name)) continue
+            const indexPath = join(tasks, name, '_index.yaml')
+            if (existsSync(indexPath)) found.set(name.toUpperCase(), indexPath)
+        }
+    }
+    add(root)
+    const wts = join(root, WORKTREES_REL)
+    if (existsSync(wts)) {
+        for (const name of readdirSync(wts)) {
+            const m = name.match(/^spec-(\d{3,})$/i)
+            if (!m || !existsSync(join(wts, name, '.git'))) continue
+            const indexPath = join(wts, name, specsRel, 'tasks', `SPEC-${m[1]}`, '_index.yaml')
+            if (existsSync(indexPath)) found.set(`SPEC-${m[1]}`, indexPath)
+        }
+    }
+    return [...found].map(([specId, indexPath]) => ({ specId, indexPath }))
+}
+
+/**
  * The repo root for `start`. When `CLAUDE_PROJECT_DIR` is set, a linked worktree under its
  * `.claude/worktrees/` that contains `start` wins, and otherwise `CLAUDE_PROJECT_DIR` does
  * (SPEC-011 narrows SPEC-009 here, so a script run inside a spec worktree acts on that
