@@ -82,3 +82,10 @@ in chronological order.
 
 **Merged:** PR #97
 **What changed:** docs/worktrees.md states every rule; SOP §1 creates or re-enters .claude/worktrees/spec-NNN and runs worktrees.setup; §7.4 and §8 remove it from CLAUDE_PROJECT_DIR and run worktrees --fetch --prune --own; subagents branch from origin/feat/spec-NNN; nothing-lingers narrowed to step worktrees in five places; goal paths absolute.
+
+---
+
+## Simplify pass, and a gap it found
+
+**Merged:** 9043e8a (fast-forwarded onto `feat/spec-011`, per SOP §6.1), then a fix PR.
+**What changed:** The simplify pass removed duplication in `worktrees.mjs` (one worktree listing per prune, one read per spec), `lib/sdlc-paths.mjs`, and both hooks, with no behaviour change: 467 of 467 tests passed before and after. It also reported that `user-prompt-submit.mjs` > `readSpecPhase` called `specIndexPaths()` unguarded. The hook's top-level catch kept that silent, but a throw there also suppressed every other block the hook prints, the worktree nudge included. The fix moves the call inside the existing guard. A regression test makes `.claude/worktrees` a file, which makes listing it throw: on the previous tip the hook printed nothing, and after the fix it routes.

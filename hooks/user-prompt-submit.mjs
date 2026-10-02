@@ -171,9 +171,11 @@ function readSpecPhase(root, prompt) {
     const specId = detectSpecId(prompt)
     if (!specId) return { active: false, specId: null }
     // A spec delivered in `.claude/worktrees/spec-nnn` is read from there (SPEC-011).
-    const path = specIndexPaths(root).find((s) => s.specId === specId)?.indexPath
-    if (!path) return { active: false, specId }
+    // Reading the index is the only fallible step, and a throw here would silence every other
+    // block this hook prints, the worktree nudge included, so it reads as "not active" instead.
     try {
+        const path = specIndexPaths(root).find((s) => s.specId === specId)?.indexPath
+        if (!path) return { active: false, specId }
         return { active: indexLooksActive(readFileSync(path, 'utf8')), specId }
     } catch {
         return { active: false, specId }

@@ -146,3 +146,19 @@ test('AC-008: the worktree nudge prints on the first prompt only, and never with
         fx.cleanup()
     }
 })
+
+test('an unreadable worktrees directory does not silence the prompt hook', () => {
+    const fx = fixture()
+    try {
+        fx.git(fx.root, 'worktree', 'remove', '--force', fx.wt)
+        fx.git(fx.root, 'worktree', 'remove', '--force', join(fx.root, '.claude/worktrees/misc'))
+        rmSync(join(fx.root, '.claude/worktrees'), { recursive: true, force: true })
+        // A file where the directory should be: listing it throws ENOTDIR.
+        put(fx.root, '.claude/worktrees', 'not a directory\n')
+        const res = hook('user-prompt-submit.mjs', fx.root, { prompt: 'execute SPEC-011', session_id: 's7', cwd: fx.root })
+        assert.equal(res.status, 0)
+        assert.match(res.stdout, /SDLC routing/, 'entry routing still prints')
+    } finally {
+        fx.cleanup()
+    }
+})
