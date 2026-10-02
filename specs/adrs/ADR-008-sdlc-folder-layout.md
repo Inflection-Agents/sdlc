@@ -1,7 +1,7 @@
 ---
 id: ADR-008
 title: "Adopter repos keep SDLC files under .sdlc/, project context in root AGENTS.md, and resolve paths through one module"
-status: proposed
+status: accepted
 spec: SPEC-009
 date: 2026-10-01
 author: franklin

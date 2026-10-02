@@ -40,9 +40,9 @@ decisions:
     decided: SPEC-003 is closed through spec-completion before S1 starts (owner, 2026-10-01).
 
 phase:
-  current: spec-execution
-  next_action: spec-completion
-  next_trigger: 'close out SPEC-009'
+  current: spec-completion
+  next_action: none
+  next_trigger: none
   exit_condition_met: true
   handoff_surfaced: true
   updated: 2026-10-02
