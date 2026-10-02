@@ -24,11 +24,11 @@
 //   node .sdlc/scripts/validate-state-machine.mjs --machine <path> --skills <dir>
 //
 // Exits 0 when valid, 1 (with diagnostics on stderr) when invalid.
-import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, realpathSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
+import { loadMachine, pluginRoot, sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
 
 let REPO_ROOT
 
@@ -47,6 +47,7 @@ function parseArgs(rawArgv) {
     REPO_ROOT = root
     const paths = sdlcPaths(root)
     const args = {
+        root,
         machine: paths.machine,
         // The resolver's skills dir; in this repo the framework's own skills/ is searched too.
         skills: paths.skills ?? join(root, 'skills')
@@ -58,115 +59,6 @@ function parseArgs(rawArgv) {
         else throw new Error(`Unknown argument: ${flag}`)
     }
     return args
-}
-
-// ─── Minimal, dependency-free YAML reader ──────────────────────────────────
-//
-// Parses just the constructs the state machine uses: the `phases:` list (each a
-// `- id:` block with scalar + list-valued fields), the top-level
-// `domain_routing:` map, and the top-level `exempt:` list. Not a general YAML
-// parser; it throws on input it cannot read so the caller fails closed.
-
-function scalar(raw) {
-    if (raw == null) return null
-    let s = String(raw).trim()
-    if (!/^['"]/.test(s)) {
-        const hash = s.indexOf(' #')
-        if (hash !== -1) s = s.slice(0, hash).trim()
-    }
-    if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
-        s = s.slice(1, -1)
-    }
-    return s
-}
-
-function parseMachine(text) {
-    const lines = String(text).split('\n')
-    const phases = []
-    const domain_routing = {}
-    const exempt = []
-
-    let section = null // 'phases' | 'domain_routing' | 'exempt' | null
-    let current = null // current phase object
-    let listKey = null // field currently accumulating `-` items within a phase
-    let dr = null // current domain_routing workspace
-
-    for (const line of lines) {
-        // Top-level key boundaries.
-        if (/^phases\s*:/.test(line)) {
-            if (current) phases.push(current), (current = null)
-            section = 'phases'
-            continue
-        }
-        if (/^domain_routing\s*:/.test(line)) {
-            if (current) phases.push(current), (current = null)
-            section = 'domain_routing'
-            continue
-        }
-        if (/^exempt\s*:/.test(line)) {
-            if (current) phases.push(current), (current = null)
-            section = 'exempt'
-            continue
-        }
-        if (/^[A-Za-z0-9_]+\s*:/.test(line) && !/^\s/.test(line)) {
-            // some other top-level scalar (e.g. version:) — leave the section.
-            if (current) phases.push(current), (current = null)
-            section = null
-            continue
-        }
-
-        if (section === 'phases') {
-            const item = line.match(/^(\s*)-\s*id\s*:\s*(.+)$/)
-            if (item) {
-                if (current) phases.push(current)
-                current = {}
-                for (const f of STABLE_PHASE_FIELDS) {
-                    current[f] = f === 'entry_triggers' || f === 'preconditions' ? [] : null
-                }
-                current.id = scalar(item[2])
-                listKey = null
-                continue
-            }
-            if (!current) continue
-            const li = line.match(/^\s*-\s*(.+)$/)
-            if (li && listKey) {
-                if (Array.isArray(current[listKey])) current[listKey].push(scalar(li[1]))
-                continue
-            }
-            const kv = line.match(/^\s*([a-z_]+)\s*:\s*(.*)$/i)
-            if (kv) {
-                const key = kv[1]
-                const val = kv[2]
-                if (val.trim() === '') {
-                    listKey = key
-                } else {
-                    listKey = null
-                    if (key in current) current[key] = scalar(val)
-                }
-            }
-        } else if (section === 'domain_routing') {
-            if (/^\s*#/.test(line) || line.trim() === '') continue
-            const li = line.match(/^\s*-\s*(.+)$/)
-            if (li && dr) {
-                domain_routing[dr].push(scalar(li[1]))
-                continue
-            }
-            const ws = line.match(/^\s*([A-Za-z0-9_./-]+)\s*:\s*(.*)$/)
-            if (ws) {
-                dr = scalar(ws[1])
-                if (dr === '{}') {
-                    dr = null
-                    continue
-                }
-                domain_routing[dr] = []
-            }
-        } else if (section === 'exempt') {
-            const li = line.match(/^\s*-\s*(.+)$/)
-            if (li) exempt.push(scalar(li[1]))
-        }
-    }
-    if (current) phases.push(current)
-    return { phases, domain_routing, exempt }
 }
 
 // ─── Skill discovery ───────────────────────────────────────────────────────
@@ -201,9 +93,10 @@ function main() {
 
     let machine
     try {
-        machine = parseMachine(readFileSync(args.machine, 'utf8'))
+        // loadMachine merges config.yaml's domain_routing and extensions on layout 2.
+        machine = loadMachine(args.root, { machineFile: args.machine })
     } catch (err) {
-        console.error(`error: failed to parse ${args.machine}: ${err.message}`)
+        console.error(`error: ${err.message}`)
         process.exit(1)
     }
 
@@ -259,13 +152,15 @@ function main() {
     const registered = new Set([...ownerSkills, ...domainSkills, ...exempt])
 
     const skills = listSkills(args.skills)
+    const plugin = pluginRoot()
+    const pluginSkills = plugin ? listSkills(join(plugin, 'skills')) : []
 
     // A CONSUMING repo gets its skills from the installed plugin, not from a local
-    // skills/ directory - a plugin cannot write one into someone's repo. So an absent
-    // or empty skills dir is the normal adopter shape, not a defect, and the
-    // referential checks below are skipped rather than failed. The structural checks
+    // skills/ directory - a plugin cannot write one into someone's repo. So a skill is
+    // present when it is local or in the plugin, and only when neither can be listed
+    // are the referential checks skipped rather than failed. The structural checks
     // above still run, which is the part that grades the adopter's own state machine.
-    const skillsArePluginSide = skills.length === 0
+    const skillsArePluginSide = skills.length === 0 && pluginSkills.length === 0
     for (const skill of skills) {
         if (!registered.has(skill)) {
             errors.push(
@@ -276,16 +171,16 @@ function main() {
         }
     }
 
-    const skillSet = new Set(skills)
+    const skillSet = new Set([...skills, ...pluginSkills])
     if (!skillsArePluginSide) {
         for (const owner of ownerSkills) {
             if (!skillSet.has(owner)) {
-                errors.push(`owner_skill '${owner}' does not resolve to a skill under ${relName(args.skills)}`)
+                errors.push(`owner_skill '${owner}' does not resolve to a skill under ${relName(args.skills)} or the plugin`)
             }
         }
         for (const ds of domainSkills) {
             if (!skillSet.has(ds)) {
-                errors.push(`domain skill '${ds}' does not resolve to a skill under ${relName(args.skills)}`)
+                errors.push(`domain skill '${ds}' does not resolve to a skill under ${relName(args.skills)} or the plugin`)
             }
         }
     }

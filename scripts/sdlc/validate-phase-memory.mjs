@@ -28,7 +28,7 @@ import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
+import { loadMachine, resolveRoot, sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
 
 const NONE = 'none'
 const REQUIRED_FIELDS = ['current', 'next_action', 'next_trigger', 'updated']
@@ -51,49 +51,25 @@ function scalar(raw) {
 }
 
 /**
- * Load the set of valid phase ids from the state-machine source by scanning the
- * `phases:` list for `- id:` lines.
- * @param {string} [machinePath]
+ * The valid phase ids: the machine's own phases plus, on layout 2, the adopter's
+ * `extensions.phases` from `.sdlc/config.yaml` (loadMachine merges them).
+ * @param {string} [machinePath] defaults to the resolved machine of `root`
+ * @param {string} [root] the repo the machine belongs to
  * @returns {Set<string>}
  */
-export function loadPhaseIds(machinePath = DEFAULT_MACHINE) {
-    const text = readFileSync(machinePath, 'utf8')
-    const ids = new Set()
-    let inPhases = false
-    for (const line of text.split('\n')) {
-        if (/^phases\s*:/.test(line)) {
-            inPhases = true
-            continue
-        }
-        if (inPhases && /^\S/.test(line)) break
-        if (!inPhases) continue
-        const m = line.match(/^\s*-\s*id\s*:\s*(.+)$/)
-        if (m) ids.add(scalar(m[1]))
-    }
-    return ids
+export function loadPhaseIds(machinePath, root = resolveRoot(machinePath ? dirname(machinePath) : undefined)) {
+    return new Set(loadMachine(root, { machineFile: machinePath }).phases.map((p) => p.id).filter(Boolean))
 }
 
 /**
- * Load the retired phase ids from the state-machine source's top-level
- * `retired_phases:` list. A machine without the list retires nothing.
- * @param {string} [machinePath]
+ * The retired phase ids from the machine's top-level `retired_phases:` list. A machine
+ * without the list retires nothing.
+ * @param {string} [machinePath] defaults to the resolved machine of `root`
+ * @param {string} [root] the repo the machine belongs to
  * @returns {Set<string>}
  */
-export function loadRetiredIds(machinePath = DEFAULT_MACHINE) {
-    const text = readFileSync(machinePath, 'utf8')
-    const ids = new Set()
-    let inList = false
-    for (const line of text.split('\n')) {
-        if (/^retired_phases\s*:/.test(line)) {
-            inList = true
-            continue
-        }
-        if (inList && /^\S/.test(line)) break
-        if (!inList) continue
-        const m = line.match(/^\s*-\s*(.+)$/)
-        if (m) ids.add(scalar(m[1]))
-    }
-    return ids
+export function loadRetiredIds(machinePath, root = resolveRoot(machinePath ? dirname(machinePath) : undefined)) {
+    return new Set(loadMachine(root, { machineFile: machinePath }).retired_phases.filter(Boolean))
 }
 
 /**
@@ -224,7 +200,7 @@ const looksLikeGlob = (s) => /[*?[\]]/.test(s)
 
 function parseArgs(rawArgv) {
     const { root, rest: argv } = takeRootArg(rawArgv)
-    const args = { machine: sdlcPaths(root).machine, files: [] }
+    const args = { root, machine: sdlcPaths(root).machine, files: [] }
     for (let i = 0; i < argv.length; i += 1) {
         if (argv[i] === '--machine') {
             const value = argv[i + 1]
@@ -264,8 +240,14 @@ function main() {
         console.error(`error: state-machine source not found at ${args.machine}`)
         process.exit(2)
     }
-    const phaseIds = loadPhaseIds(args.machine)
-    const retiredIds = loadRetiredIds(args.machine)
+    let phaseIds, retiredIds
+    try {
+        phaseIds = loadPhaseIds(args.machine, args.root)
+        retiredIds = loadRetiredIds(args.machine, args.root)
+    } catch (err) {
+        console.error(`error: ${err.message}`)
+        process.exit(2)
+    }
 
     let failed = false
     for (const file of files) {

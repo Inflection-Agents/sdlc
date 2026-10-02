@@ -318,3 +318,15 @@ test('layout 1: the prompt hook nudges toward /sdlc-sync once per session', () =
     }
 })
 
+
+test('layout 2: the prompt hook routes a workspace through the domain_routing chain in config.yaml', () => {
+    const repo = makeLayout2Repo()
+    try {
+        writeFileSync(join(repo, '.sdlc', 'config.yaml'), 'layout: 2\ndomain_routing:\n  web-app: [web-planner, web-builder]\n', 'utf8')
+        const hook = join(repo, '.claude', 'hooks', 'user-prompt-submit.mjs')
+        const out = runHook(hook, { session_id: 'l2-route', prompt: 'fix the bug in web-app/src/page.tsx', cwd: repo }, bareEnv())
+        assert.match(out, /web-planner/, 'routing came from config.yaml, not the framework-owned machine')
+    } finally {
+        cleanup(repo)
+    }
+})
