@@ -78,3 +78,10 @@ heading goes in the moment it happens, not batched at the end.
 **Date:** 2026-10-02
 **Question:** S6 found a defect in `archive-specs.mjs` > `move()`: it wrote a `*` `.ignore` fence into the destination directory of every move. On a restore that directory is `specs/` (or `specs/tasks/`), so reopening an archived spec would have hidden the whole live corpus from search. S6 routes ledger and log restores through the same function, so it had to change either way.
 **Decided:** fence only a destination under `specs/archive/`, and create a live destination without a fence. The new AC-023 test asserts that a restore leaves no `specs/.ignore`. This is inside S6's `Changes:` and changes no AC, scope or design.
+
+---
+
+## S6 — The authoring decision ledger
+
+**Merged:** PR #83
+**What changed:** authoring-decisions.md template; Phase 1 writes specs/decisions/SPEC-NNN.md and Step 10a seeds it; the archiver moves the ledger and review log with their spec and no longer fences live directories on restore.
