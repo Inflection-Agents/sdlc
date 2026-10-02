@@ -163,6 +163,7 @@ exempt:
     # Schema documents living beside the skills that read them, not skills themselves.
     - spec-schema
     - guide-schema
+    - sdlc-config-schema
 
 # Phase ids removed from `phases:`. An `_index.yaml` written before the removal may still name one in
 # `phase.current` or `phase.next_action`; validate-phase-memory.mjs accepts it with a warning rather
