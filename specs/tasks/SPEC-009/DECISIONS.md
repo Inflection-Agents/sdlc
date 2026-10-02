@@ -101,3 +101,11 @@ in chronological order.
 **Decided:** add `scripts/sdlc/install-payload.mjs` (plugin-only) and its test. `sdlc-init` Phase 1 runs it, and `bootstrap.sh` runs it with `--contracts-in-skills`. S6's migration reuses its `appendLines`, `insertAgentsBlock` and `ensureClaudeImport`.
 **Why:** one implementation makes AC-009 a test, and makes the migration's merges match init's exactly.
 **Reversal path:** inline the copy in both callers and delete the two files.
+
+---
+
+## S5 — Layout-2 payload, sdlc-init and bootstrap.sh
+
+**Merged:** PR #64
+**What changed:** `init-payload/` mirrors the layout-2 tree. `install-payload.mjs` installs it for `/sdlc-init` and `bootstrap.sh`. `bootstrap.sh` refuses to run on a layout-1 repo.
+**Anything a later step must match:** the payload's validators live at `init-payload/.sdlc/scripts/`, and the parity test compares them with `scripts/sdlc/`. S6 adds `scan-legacy-paths.mjs` and a CI step for it in `init-payload/.github/workflows/sdlc-validate.yml`. The workflow-script test requires each script the workflow names to be in the payload. The block stub is `init-payload/AGENTS.sdlc-block.md`.
