@@ -95,7 +95,7 @@ consumers, on every spec, before any code is written.
 
 ## Success criteria
 
-- [ ] SC-1: The spec-side review loop terminates at a bounded round count on every spec and every
+- [x] SC-1: The spec-side review loop terminates at a bounded round count on every spec and every
       amendment, with any surviving blocker or major disclosed in the spec body rather than carried
       into another round.
 - [ ] SC-2: Across the rounds of a single spec review, the count of **first-appearance findings per
@@ -112,15 +112,15 @@ consumers, on every spec, before any code is written.
       Re-running `validate-spec.mjs` on the round-1 draft cannot serve here: AC-010 gates the
       dispatch on that script exiting `0`, so the draft the reviewer saw has already passed it and
       the re-run is guaranteed to pass, which would make this criterion unfalsifiable.
-- [ ] SC-4: In any round after N in which the reviewer reproduces a finding's `location`,
+- [x] SC-4: In any round after N in which the reviewer reproduces a finding's `location`,
       `criterion` and `finding` text, an owner override recorded in round N routes that finding at the
       owner's severity and never above it, and a `wontfix` recorded in round N is never routed, on any
       spec, because the routing policy acts on both by stable id before severity routing. A finding a later round rephrases gets a new id and is graded fresh; that limit is
       recorded in `## Risks & constraints`.
-- [ ] SC-5: Every file that `spec-authoring` names as a concrete reviewer input either resolves in
+- [x] SC-5: Every file that `spec-authoring` names as a concrete reviewer input either resolves in
       this repo or is explicitly marked optional in the skill, with zero unqualified references to a
       path that does not exist.
-- [ ] SC-6: A spec review leaves a durable, machine-readable trace: for every spec reviewed after
+- [x] SC-6: A spec review leaves a durable, machine-readable trace: for every spec reviewed after
       this ships, `specs/review-logs/SPEC-NNN.json` exists and records each finding, the round it
       first appeared in, and its resolution.
 

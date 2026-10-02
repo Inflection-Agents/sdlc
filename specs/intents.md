@@ -177,9 +177,20 @@ These are success criteria from `status: completed` specs that couldn't be verif
 ### `[deferred-verify]` SPEC-002 new orchestrator replaces legacy on next the reference implementation spec
 **Owner:** franklin. **Trigger:** when the reference implementation's next spec is ready to dispatch. **Method:** confirm the upstream `spec-execution` skill is the invoked orchestrator (not the legacy 4-reviewer fan-out); keep the reference implementation-local version as `spec-execution-legacy/` for one spec to enable side-by-side comparison per SPEC-001 migration step 6. Pass: new orchestrator drives spec end-to-end with telemetry log written.
 
+### `[deferred-verify]` SPEC-007 behavioral guardrail, SC-2 and SC-3 (spec stays `active`, monitoring)
+**Owner:** franklin. **Trigger:** the `spec-completion` of the first spec reviewed and delivered end to end under the new loop (the baseline), then of each of the two specs delivered after it. **Method:** see `specs/tasks/SPEC-007/COMPLETION.md` > Deferred verifications. Compute SC-2 and SC-3 from each spec's `specs/review-logs/SPEC-NNN.json`, and the guardrail from its integration-gate `spec:*` findings plus the GAP files filed during its delivery. Closing SPEC-007 also needs the owner to record that owner evaluation stands in for the automatic trigger, as the spec's Risks & constraints declares.
+
 ---
 
 ## Cross-cutting captures (not yet bucketed)
+
+### `[backlog]` SPEC-007 gate survivors: three review-log and fence majors, plus nits
+PR #86 merged with three majors disclosed under "Disclosed, not fixed" after the ADR-004 cap:
+1. An unclosed `<!--` in `## Disclosed, not reviewed-clean` hides the disclosure from the rendered spec (`review-log.mjs` > `disclosedIds`).
+2. A raise followed by a lower passes `check`, because a log entry keeps only the latest severity. The fix is a monotonic `peak_severity`.
+3. `lib/fence.mjs` accepts at most 3 spaces of indent before a fence, so a fence inside a nested list item is read as prose. This regressed in #89.
+
+The accepted nits are listed in `specs/tasks/SPEC-007/DECISIONS.md` > Gate round 3. These fixes are small and should land before a second spec runs under the new loop, because two of them weaken the ruling controls that SC-4 relies on.
 
 ### `[completed]` Conditional integration-branch strategy → SPEC-005
 SPEC-002 currently requires `feat/spec-NNN` as the *only* merge target with direct task PRs to main forbidden (hard rule, AC-010). User surfaced this is overkill for small specs and the bootstrap dispatch itself violated it pragmatically. Proposal: add optional `integration_strategy: branch | direct` to spec frontmatter; when unspecified, orchestrator computes (branch if `breaking` tag, multi-workspace, ≥5 tasks, or any task `blocks:` crosses workspace boundary; else direct). Lands as `spec-amendment` on SPEC-002 + cascade update to spec-execution skill. Why deferred: not blocking, and benefits from being applied to a real next spec to validate the heuristic. **Why:** explicit author control with sensible default; preserves SPEC-002's safety when needed without forcing ceremony on small specs.
