@@ -22,7 +22,7 @@ spec_version: 1
 
 ### S3: The hooks treat a worktree as its own tree, and nudge once
 - Covers: AC-008, AC-011, AC-012
-- Changes: `hooks/pre-tool-use-edit-write.mjs`, `hooks/stop-handoff.mjs`, `hooks/user-prompt-submit.mjs`, `hooks/__tests__/*.test.mjs`, `.gitignore`
+- Changes: `hooks/pre-tool-use-edit-write.mjs`, `hooks/stop-handoff.mjs`, `hooks/user-prompt-submit.mjs`, `hooks/__tests__/*.test.mjs`, `.gitignore`, `scripts/sdlc/lib/sdlc-paths.mjs`, `init-payload/.sdlc/scripts/lib/sdlc-paths.mjs`, `scripts/sdlc/lib/released-payloads.json`
 - Verify: `env -u CLAUDE_PROJECT_DIR -u CLAUDE_PLUGIN_ROOT node --test hooks/__tests__/*.test.mjs`
 - After: S2
 - Risk: high

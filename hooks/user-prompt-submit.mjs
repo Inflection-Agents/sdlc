@@ -49,6 +49,7 @@
 //            would otherwise be blocked, recording the reason. (Its
 //            lifecycle/cleanup is owned by the gate, not this hook.)
 // ───────────────────────────────────────────────────────────────────────────
+import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -63,7 +64,7 @@ const LIB = (() => {
     }
     throw new Error(`${fileURLToPath(import.meta.url)}: cannot find lib/sdlc-paths.mjs in the plugin or beside the hook`)
 })()
-const { isSdlcRoot, loadMachine, sdlcPaths } = await import(new URL('sdlc-paths.mjs', LIB).href)
+const { isSdlcRoot, loadMachine, sdlcPaths, specIndexPaths } = await import(new URL('sdlc-paths.mjs', LIB).href)
 const { LAYOUT1, LAYOUT1_AI_PREFIX } = await import(new URL('legacy-map.mjs', LIB).href)
 
 const ALLOW = 0
@@ -169,7 +170,9 @@ function indexLooksActive(text) {
 function readSpecPhase(root, prompt) {
     const specId = detectSpecId(prompt)
     if (!specId) return { active: false, specId: null }
-    const path = join(sdlcPaths(root, { quiet: true }).specs, 'tasks', specId, '_index.yaml')
+    // A spec delivered in `.claude/worktrees/spec-nnn` is read from there (SPEC-011).
+    const hit = specIndexPaths(root).find((s) => s.specId === specId.toUpperCase())
+    const path = hit?.indexPath ?? join(sdlcPaths(root, { quiet: true }).specs, 'tasks', specId, '_index.yaml')
     if (!existsSync(path)) return { active: false, specId }
     try {
         return { active: indexLooksActive(readFileSync(path, 'utf8')), specId }
@@ -264,6 +267,37 @@ function layoutNudge(root, sessionId) {
     return LAYOUT_NUDGE
 }
 
+/**
+ * The once-per-session worktree nudge, or null (SPEC-011). It runs `worktrees.mjs` list mode,
+ * which reads only `git worktree list` and local refs, behind a per-session marker, so a session
+ * pays for one check. It is advice, not a gate: a missing script or a failing check prints
+ * nothing, and the marker is written either way so a broken check is not retried every prompt.
+ */
+function worktreeNudge(root, sessionId) {
+    if (!sessionId) return null
+    const marker = join(root, '.claude', `.sdlc-worktree-nudge-${sessionId}`)
+    if (existsSync(marker)) return null
+    try {
+        mkdirSync(dirname(marker), { recursive: true })
+        writeFileSync(marker, `${new Date().toISOString()}\n`, 'utf8')
+    } catch {
+        return null
+    }
+    const script = [fileURLToPath(new URL('../scripts/sdlc/worktrees.mjs', import.meta.url)), join(sdlcPaths(root, { quiet: true }).scripts, 'worktrees.mjs')].find((p) => existsSync(p))
+    if (!script) return null
+    const res = spawnSync(process.execPath, [script, '--root', root, '--json'], { encoding: 'utf8', timeout: 5000 })
+    if (res.status !== 0) return null
+    let strays
+    try {
+        strays = JSON.parse(res.stdout)
+    } catch {
+        return null
+    }
+    if (!Array.isArray(strays) || strays.length === 0) return null
+    const kinds = [...new Set(strays.map((s) => s.reason))].join(', ')
+    return `SDLC: ${strays.length} stray worktree(s) (${kinds}). List them with \`node .sdlc/scripts/worktrees.mjs\`; \`--prune\` removes the finished ones (docs/worktrees.md).`
+}
+
 /** Write the override reason to the per-session state file. Best-effort. */
 function writeOverride(root, sessionId, reason) {
     if (!sessionId) return null
@@ -336,6 +370,8 @@ function main() {
     // (0) A layout-1 repo hears once per session that /sdlc-sync migrates it (SPEC-009).
     const nudge = layoutNudge(root, sessionId)
     if (nudge) blocks.push(nudge)
+    const strays = worktreeNudge(root, sessionId)
+    if (strays) blocks.push(strays)
 
     const sm = loadStateMachine(root)
     if (!sm) {

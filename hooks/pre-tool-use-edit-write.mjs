@@ -216,6 +216,20 @@ function targetPath(payload) {
     return ti.file_path ?? ti.filePath ?? ti.path ?? null
 }
 
+/**
+ * A target inside a linked worktree under `.claude/worktrees/<name>/` belongs to that worktree
+ * (SPEC-011): it is graded by its path within the worktree and by the worktree's branch, never as
+ * a `.claude/` process artifact of the main checkout. Returns `{ root, rel }` for the worktree, or
+ * null when the path is not inside one. A linked worktree is a directory with a `.git` file.
+ */
+function worktreeTarget(root, rel) {
+    const m = rel.match(/^\.claude\/worktrees\/([^/]+)\/(.+)$/)
+    if (!m) return null
+    const wt = join(root, '.claude', 'worktrees', m[1])
+    if (!existsSync(join(wt, '.git'))) return null
+    return { root: wt, rel: m[2] }
+}
+
 /** Path relative to root, POSIX-separated, no leading "./". null if outside root. */
 function relPosix(root, abs) {
     if (!abs) return null
@@ -336,11 +350,16 @@ async function main() {
     if (toolName !== 'Edit' && toolName !== 'Write') allow()
 
     const cwd = payload.cwd ?? payload.workingDir ?? null
-    const root = projectRoot(cwd)
+    const project = projectRoot(cwd)
     const sessionId = payload.session_id ?? payload.sessionId ?? null
 
-    const rel = relPosix(root, targetPath(payload))
-    if (!rel) allow() // target outside the project root → not our concern
+    const projectRel = relPosix(project, targetPath(payload))
+    if (!projectRel) allow() // target outside the project root → not our concern
+    // Grade an edit inside a nested worktree against that worktree. The override and the bypass
+    // log stay with the session's project, where the prompt hook writes them.
+    const inWorktree = worktreeTarget(project, projectRel)
+    const root = inWorktree?.root ?? project
+    const rel = inWorktree?.rel ?? projectRel
 
     // Implementation-code edit with no active task context.
     // A config that does not parse must not turn the gate off: classify with the default
@@ -355,9 +374,9 @@ async function main() {
         if (hasActiveTask(root)) return allow(await constraintGuidance(rel, root)) // active task → fine
 
         // No active task. Honor a logged override if present.
-        const reason = readOverride(root, sessionId)
+        const reason = readOverride(project, sessionId)
         if (reason) {
-            recordBypass(root, { sessionId, rel, reason })
+            recordBypass(project, { sessionId, rel: projectRel, reason })
             return allow(await constraintGuidance(rel, root))
         }
 

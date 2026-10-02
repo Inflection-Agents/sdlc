@@ -38,3 +38,11 @@ in chronological order.
 
 **Merged:** PR #93
 **What changed:** worktrees.mjs reports agent, outside, branch-gone (upstream gone), detached and spec-closed strays from local refs; --fetch prunes remote refs first; --prune removes only clean branch-gone and spec-closed strays under .claude/worktrees/, never forces, never deletes a branch; --own spec-NNN removes only that spec worktree. Exports findStrays() for the S3 nudge.
+
+---
+
+## EXECUTIVE DECISION — guide change: S3 puts the phase-memory lookup in lib/sdlc-paths.mjs
+
+**Date:** 2026-10-02
+**Question:** Both hooks must read a spec's `_index.yaml` from its spec worktree when one exists. The hooks share code only through `lib/sdlc-paths.mjs`, which they already import, and S3's `Changes:` did not list it.
+**Decided:** add `specIndexPaths()` to `lib/sdlc-paths.mjs`, used by both hooks. S3's `Changes:` gains that file, its payload copy and the manifest. No AC, scope or design changes.

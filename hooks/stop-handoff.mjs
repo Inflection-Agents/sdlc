@@ -112,7 +112,7 @@ const LIB = (() => {
     }
     throw new Error(`${fileURLToPath(import.meta.url)}: cannot find lib/sdlc-paths.mjs in the plugin or beside the hook`)
 })()
-const { isSdlcRoot, loadMachine, sdlcPaths } = await import(new URL('sdlc-paths.mjs', LIB).href)
+const { isSdlcRoot, loadMachine, sdlcPaths, specIndexPaths } = await import(new URL('sdlc-paths.mjs', LIB).href)
 
 const ALLOW = 0
 
@@ -535,26 +535,22 @@ function handoffSurfaced(phase) {
  * `phase:` block are skipped). Returns { specId, phase } or null.
  */
 function findPhaseExit(root) {
-    const tasksDir = join(sdlcPaths(root, { quiet: true }).specs, 'tasks')
-    if (!existsSync(tasksDir)) return null
-    let entries
+    // A spec delivered in `.claude/worktrees/spec-nnn` is read from there (SPEC-011).
+    let indexes
     try {
-        entries = readdirSync(tasksDir)
+        indexes = specIndexPaths(root)
     } catch {
         return null
     }
     const candidates = []
-    for (const name of entries) {
-        if (!/^SPEC-\d{3,}$/i.test(name)) continue
-        const indexPath = join(tasksDir, name, '_index.yaml')
-        if (!existsSync(indexPath)) continue
+    for (const { specId, indexPath } of indexes) {
         let mtime = 0
         try {
             mtime = statSync(indexPath).mtimeMs
         } catch {
             mtime = 0
         }
-        candidates.push({ specId: name.toUpperCase(), indexPath, mtime })
+        candidates.push({ specId, indexPath, mtime })
     }
     candidates.sort((a, b) => b.mtime - a.mtime)
 
