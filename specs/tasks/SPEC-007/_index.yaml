@@ -1,0 +1,34 @@
+spec: SPEC-007
+title: "Spec-review convergence: cap the loop, mechanize the checks, make findings durable"
+plan_review:
+  status: approve-ready
+  approved: false
+  reviewed: 2026-10-02
+
+steps:
+  - id: S1
+    status: pending
+  - id: S2
+    status: pending
+  - id: S3
+    status: pending
+  - id: S4
+    status: pending
+  - id: S5
+    status: pending
+  - id: S6
+    status: pending
+  - id: S7
+    status: pending
+  - id: S8
+    status: pending
+
+decisions: []
+
+phase:
+  current: spec-authoring
+  next_action: spec-execution
+  next_trigger: 'execute SPEC-007'
+  exit_condition_met: false
+  handoff_surfaced: false
+  updated: 2026-10-02

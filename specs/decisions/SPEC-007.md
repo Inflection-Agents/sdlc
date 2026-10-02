@@ -61,7 +61,7 @@ neither is load-bearing on any other part of the design.
 and PR-side reviewers. Change one side or both?
 **Decided:** Both. One envelope shape.
 **Rejected:** Spec-side only. It would have kept the working delivery path untouched, at the cost
-of a conditional in `scripts/sdlc/validate-review-envelope.mjs` and two envelope shapes that drift.
+of a conditional in `.sdlc/scripts/validate-review-envelope.mjs` and two envelope shapes that drift.
 The PR side also gains: ADR-004's `## Disclosed, not fixed` block becomes traceable across rounds.
 **Deliberately deferred:** Nothing.
 **Raised by:** author, decided by owner
@@ -159,7 +159,7 @@ ids from Lever 4 plus log-based suppression reduce its cost without changing the
 
 **Date:** 2026-09-11
 **Question:** D-005 chose a sidecar at `specs/SPEC-NNN.decisions.md`. Round 1 found that
-`scripts/sdlc/archive-specs.mjs:40` filters the live corpus with `SPEC_FILE = /^spec-\d+.*\.md$/i`,
+`archive-specs.mjs:40` (`:48` at `db3675b`) filters the live corpus with `SPEC_FILE = /^spec-\d+.*\.md$/i`,
 which that path matches, so the archiver would have treated the ledger as a spec with no frontmatter.
 **Decided:** `specs/decisions/SPEC-NNN.md`. The scan at `archive-specs.mjs:171` is non-recursive, so
 a subdirectory keeps the sidecar out of the spec enumeration entirely. The review log gets the
@@ -177,7 +177,7 @@ work, covered by AC-023.
 
 **Date:** 2026-09-11
 **Question:** Round 2 found that the `wontfix` resolution introduced in round 1 was a stronger
-suppression authority than anything the corpus has. `spec-schema.md:141` lets an override only
+suppression authority than anything the corpus has. `spec-schema.md:149` (at `db3675b`; `:143` at `a73eeb3`) lets an override only
 downgrade severity, and `skills/spec-reviewer/SKILL.md:17` states overrides "are visible in the spec,
 never silenced." A `wontfix` dropped a finding outright, with no named actor and no place a reader
 would see it, and a `wontfix` blocker would escape SC-1 entirely: not carried to another round, and
@@ -211,3 +211,66 @@ already supports.
 **Deliberately deferred:** Nothing. The adjudication is the owner's at `spec-completion`, same as
 SC-2's.
 **Raised by:** spec-reviewer round 2, decided by author
+
+---
+
+## D-013 — An override's severity lives on the review-log entry
+
+**Date:** 2026-10-02
+**Question:** Round 4 left a major open (F-001). AC-018 has the routing policy apply the owner's
+severity to an `overridden` finding, but nothing put that severity in the review log, so the only copy
+was the spec body's `spec_review_overrides` section. The two options were a field on the log entry,
+or a stated join from the log to the spec body by `finding_id`.
+**Decided:** the log entry carries `owner_severity`. The routing policy reads one file. The spec body's
+`spec_review_overrides` entry stays as the visible record `spec-schema.md` requires, written in the
+same edit.
+**Rejected:** the join. One copy of the severity, but the policy would read two files, and a join on
+an id is exactly the binding this spec exists to make reliable.
+**Deliberately deferred:** Nothing.
+**Raised by:** spec-reviewer round 4, decided by owner
+
+---
+
+## D-014 — `validate-spec.mjs --ci` fails only an `active` spec
+
+**Date:** 2026-10-02
+**Question:** The draft failed CI for any non-draft spec. At `db3675b` every spec but this one is at a
+terminal status, and a terminal spec is closed to editing, so a failing closed spec would have turned
+CI red with no legal edit to fix it.
+**Decided:** `--ci` fails a `status: active` spec and warns for every other status. A closed record is
+fixed only if `spec-amendment` reopens it, which makes it `active` again and so graded.
+**Rejected:** failing every non-draft spec; carving terminal specs out silently.
+**Deliberately deferred:** Nothing.
+**Raised by:** author, during the 2026-10-02 revision
+
+---
+
+## D-015 — SC-4 holds for findings the later round reproduces
+
+**Date:** 2026-10-02
+**Question:** Round 4 left a major open (F-002). ADR-006 records that a reviewer that rephrases a
+defect mints a new id, so the override does not follow it, yet SC-4 claimed the override held in every
+later round.
+**Decided:** SC-4 is scoped to rounds that reproduce the finding's `location`, `criterion` and
+`finding` text, and the rephrasing risk is listed in `## Risks & constraints`.
+**Rejected:** keeping SC-4 absolute by also matching on `location` and `criterion` alone. Two distinct
+defects often share both, so the fallback would bind an override to a finding the owner never ruled on,
+and it would change ADR-006's design.
+**Deliberately deferred:** a fuzzier identity, if the review log shows rephrasing is common.
+**Raised by:** spec-reviewer round 4, decided by owner
+
+---
+
+## D-016 — The draft is revised onto delivery guides and layout 2, with one verify round
+
+**Date:** 2026-10-02
+**Question:** SPEC-007 was drafted before SPEC-008 replaced task decomposition with delivery guides and
+before SPEC-009 moved the framework's files under `.sdlc/`. Its milestones assumed tasks, and its
+paths assumed the old layout.
+**Decided:** the milestones become delivery-guide steps, every path uses the layout-2 form, and every
+citation is re-checked at `db3675b`. The two round-4 majors close by D-013 and D-015, and the three
+round-4 nits close in the same revision. One `spec-reviewer` round grades the revision before
+sign-off.
+**Rejected:** signing off with no further review; a full new four-round cycle.
+**Deliberately deferred:** Nothing.
+**Raised by:** owner

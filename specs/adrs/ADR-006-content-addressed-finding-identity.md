@@ -37,7 +37,7 @@ state that can desynchronize from the envelopes it describes, and still leaves t
 anyone reading a single envelope on its own.
 
 A second alternative, applying stable ids spec-side only, was rejected because it costs a conditional
-in `scripts/sdlc/validate-review-envelope.mjs` and leaves two envelope shapes in a repo whose
+in `.sdlc/scripts/validate-review-envelope.mjs` and leaves two envelope shapes in a repo whose
 `prefix-parity.test.mjs` exists specifically to stop the schema, the validator, and the prose from
 drifting apart.
 
@@ -64,7 +64,7 @@ one rule.
 `review-envelope.schema.json` enforces the form with a `pattern` and makes `id`, `location`,
 `criterion` and `finding` **required**, which they are not today: the schema currently requires only
 `severity` per finding, so a pattern on an optional field would still admit an envelope with nothing
-to bind to. `scripts/sdlc/validate-review-envelope.mjs` recomputes the hash from the envelope's own
+to bind to. `.sdlc/scripts/validate-review-envelope.mjs` recomputes the hash from the envelope's own
 fields, normalizing the `citation` alias into `criterion` first, and rejects the envelope on a
 mismatch. Identity is verified rather than self-declared, which matters because `reviewed_by` is already documented as forensics
 rather than enforcement (`skills/review-primitives.md` > Reviewer provenance) and a second
@@ -75,9 +75,11 @@ purpose: a reviewer that re-raises the same defect at a different severity, or a
 downgrades one, must not thereby mint a new finding. `suggested_fix`, `lens`, and `altitude` are
 excluded because they describe how to route or resolve a finding rather than what it is.
 
-SPEC-001 is `status: completed` and closed to amendment, so this lands through the extension pattern
-`skills/review-primitives.md` > PR-side consequence catalog already names: a subsequent spec extends
-the live artifact and annotates SPEC-001's Changelog, as SPEC-004 did.
+SPEC-001 is `status: completed` and closed to amendment, so this lands as an annotation on SPEC-001's
+Changelog, on the precedent of its v1.3 entry, which records a change to the live artifact while
+stating that it does not rely on the extension pattern. The extension pattern
+(`skills/review-primitives.md:42`) charters only new consequence rows and citation prefixes, and a
+required-fields change to `review-envelope.schema.json` is neither.
 
 ## Consequences
 
