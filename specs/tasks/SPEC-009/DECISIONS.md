@@ -75,3 +75,11 @@ in chronological order.
 **Decided:** append `.claude/.sdlc-layout-nudge-*` to `.gitignore` in S3. The payload's broader `.claude/.sdlc-*` line lands in S5.
 **Why:** without it, every session in this repo leaves an untracked file behind.
 **Reversal path:** delete the line.
+
+---
+
+## S3 — Hooks resolve through the module
+
+**Merged:** PR #62
+**What changed:** the three hooks import `sdlc-paths.mjs` (and the edit gate also imports `legacy-map.mjs`) from the plugin's `scripts/sdlc/lib/`, or from `lib/` beside a repo-local hook. The root walk uses `isSdlcRoot`. The edit gate reads constraints through `sdlcPaths(root).scripts` and `.constraints`. The prompt hook nudges once per session on layout 1.
+**Anything a later step must match:** S5's `bootstrap.sh` must copy `scripts/sdlc/lib/` to `.claude/hooks/lib/` next to the hooks it installs. The nudge marker is `.claude/.sdlc-layout-nudge-<session>`.
