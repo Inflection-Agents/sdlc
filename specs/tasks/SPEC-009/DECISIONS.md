@@ -149,3 +149,11 @@ in chronological order.
 - S9 and S10 must make every file the payload ships scan clean: script and hook comments, the contracts, the state machine's exit-condition text, and the templates. After that, SC-5's fresh-init scan reports 0 hits, and the AC-013 test drops its `shippedByPayload` filter.
 - S10's release commit regenerates `released-payloads.json`, which must then cover 0.4.0.
 - `migrate-layout.mjs` exports `planMigration`, `applyMigration`, `parseWorkspaceTables` and `cutDomainRouting`. `scan-legacy-paths.mjs` exports `scanRepo` and `movesFromHistory`. S7's probes use them.
+
+---
+
+## S7 — Gate probes
+
+**Merged:** PR #66
+**What changed:** added `probe-gates.mjs` (P1 to P8, `probeRev`, `compare`, `--before/--after`) and its test. The forked fixture gained a working, wired local hook and a flat archive. P4 and P6 report `ran: false` where ripgrep is absent, which includes the CI image, so the test asserts on them only when `rg` is installed.
+**Anything a later step must match:** S8's sync skill runs `probe-gates.mjs --root . --before <pre-migration commit> --after HEAD` as step 5, and exit 1 there means a gate regressed. `compare()` reads "the same result" for P1 to P5 as no regression: a probe that caught before must still catch after.
