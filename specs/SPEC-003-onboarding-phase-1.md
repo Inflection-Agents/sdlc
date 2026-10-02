@@ -1,13 +1,13 @@
 ---
 id: SPEC-003
 title: Onboarding simplification — Phase 1 (docs + bootstrap fix)
-status: active
+status: superseded
 version: 1
 supersedes:
 initiative: INI-002
 owner: franklin
 created: 2026-05-18
-updated: 2026-05-18
+updated: 2026-10-02
 tags: [onboarding, docs, bootstrap, refresh]
 linear_project:
 ---
@@ -172,3 +172,11 @@ correctly describe goal-oriented single-executor delivery instead.
 *current* execution model. The graded-review half is unchanged. No task in this spec is
 affected; this is a wording reconciliation, not a scope change, recorded here rather than left
 to fail silently at spec-completion.
+
+## Changelog
+
+### Superseded (2026-10-02)
+- **Status:** `active` to `superseded`, closed through `spec-completion` under SPEC-009's owner decision D1.
+- **Why:** the step PRs (#15, #16, #18, #19, #20, #21) merged into `feat/spec-003`, but no integration PR to `main` was ever opened, so the work never reached `main` (`git branch -a --contains` on PR #21's merge commit lists only `origin/feat/spec-003`). Its success criteria require `.ai/skills/` paths, a 12-skill inventory, `task-schema.md` and wave-based execution, and later work replaced all of them. The plugin replaced `bootstrap.sh` as the main install path, SPEC-008 removed `task-schema.md`, ADR-003 retired wave execution, and SPEC-009 moves skills and config under `.sdlc/`.
+- **Successor:** SPEC-009 covers the bootstrap and documentation goals. No spec carries `supersedes: SPEC-003`, because no single spec replaced all of it.
+
