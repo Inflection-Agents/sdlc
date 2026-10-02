@@ -2,7 +2,7 @@ spec: SPEC-007
 title: "Spec-review convergence: cap the loop, mechanize the checks, make findings durable"
 plan_review:
   status: approve-ready
-  approved: false
+  approved: true
   reviewed: 2026-10-02
 
 steps:
@@ -29,6 +29,6 @@ phase:
   current: spec-authoring
   next_action: spec-execution
   next_trigger: 'execute SPEC-007'
-  exit_condition_met: false
-  handoff_surfaced: false
+  exit_condition_met: true
+  handoff_surfaced: true
   updated: 2026-10-02

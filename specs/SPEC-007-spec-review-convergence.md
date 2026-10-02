@@ -1,7 +1,7 @@
 ---
 id: SPEC-007
 title: "Spec-review convergence: cap the loop, mechanize the checks, make findings durable"
-status: draft
+status: active
 version: 1
 supersedes:
 initiative: INI-001
