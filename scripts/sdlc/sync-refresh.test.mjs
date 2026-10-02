@@ -1,6 +1,7 @@
 // Tests for the layout-2 refresh /sdlc-sync runs after a plugin update (SPEC-009 AC-016, SC-3).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
 import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -125,6 +126,23 @@ test('AC-013: --apply on a layout-2 repo adds the .claude/worktrees/ ignore line
         assert.equal(readFileSync(join(repo, '.gitignore'), 'utf8'), once, 'a second sync writes nothing')
         writeFileSync(join(repo, '.gitignore'), 'dist/\n')
         assert.deepEqual(gitignoreToAdd(repo), ['.claude/.sdlc-*', '!.claude/.sdlc-override-log', '.claude/worktrees/'], '--plan names every line --apply will add')
+    } finally {
+        rmSync(repo, { recursive: true, force: true })
+    }
+})
+
+test('--plan prints the .gitignore lines --apply will add', () => {
+    const repo = mkdtempSync(join(tmpdir(), 'sdlc-refresh-plan-'))
+    try {
+        git(repo, 'init', '-q', '-b', 'main')
+        installPayload(repo)
+        writeFileSync(join(repo, '.gitignore'), 'dist/\n')
+        commitAll(repo, 'pre-SPEC-011 adopter')
+        const env = { ...process.env }
+        delete env.CLAUDE_PROJECT_DIR
+        const res = spawnSync(process.execPath, [fileURLToPath(new URL('./sync-refresh.mjs', import.meta.url)), '--root', repo, '--plan'], { encoding: 'utf8', env })
+        assert.equal(res.status, 0, res.stderr)
+        assert.match(res.stdout, /\.gitignore lines to add \(3\):\n {2}\.claude\/\.sdlc-\*\n {2}!\.claude\/\.sdlc-override-log\n {2}\.claude\/worktrees\//)
     } finally {
         rmSync(repo, { recursive: true, force: true })
     }

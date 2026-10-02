@@ -300,7 +300,9 @@ function worktreeNudge(root, sessionId) {
     }
     if (!Array.isArray(strays) || strays.length === 0) return null
     const kinds = [...new Set(strays.map((s) => s.reason))].join(', ')
-    return `SDLC: ${strays.length} stray worktree(s) (${kinds}). List them with \`node \${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs worktrees\`; \`--prune\` removes the finished ones (docs/worktrees.md).`
+    // Name the script this hook just ran, by its absolute path: a `${CLAUDE_PLUGIN_ROOT}` placeholder
+    // is not expanded in hook output or in the executor's shell.
+    return `SDLC: ${strays.length} stray worktree(s) (${kinds}). List them with \`node ${script}\`; \`--prune\` removes the finished ones (docs/worktrees.md in the SDLC plugin).`
 }
 
 /** Write the override reason to the per-session state file. Best-effort. */

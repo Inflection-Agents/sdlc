@@ -46,6 +46,12 @@ function walk(dir, base = dir, out = []) {
  * comments included. Comment and blank lines are never appended to an existing file.
  * @returns {string[]} the lines added
  */
+/** The payload lines a file's text lacks: comments and blank lines are never added to an existing file. */
+export function missingLines(currentText, payloadText) {
+    const have = new Set(String(currentText).split(/\r?\n/))
+    return payloadText.split('\n').filter((l) => l.trim() && !l.startsWith('#') && !have.has(l))
+}
+
 export function appendLines(targetFile, payloadText, root = null) {
     if (root) assertWriteInside(root, targetFile)
     if (!existsSync(targetFile)) {
@@ -54,8 +60,7 @@ export function appendLines(targetFile, payloadText, root = null) {
         return payloadText.split('\n').filter((l) => l.trim() && !l.startsWith('#'))
     }
     const current = readFileSync(targetFile, 'utf8')
-    const have = new Set(current.split(/\r?\n/))
-    const add = payloadText.split('\n').filter((l) => l.trim() && !l.startsWith('#') && !have.has(l))
+    const add = missingLines(current, payloadText)
     if (add.length) {
         const sep = current === '' || current.endsWith('\n') ? '' : '\n'
         writeFileSync(targetFile, `${current}${sep}${add.join('\n')}\n`, 'utf8')

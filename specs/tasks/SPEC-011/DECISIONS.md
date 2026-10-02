@@ -118,3 +118,46 @@ in chronological order.
 - New tests pin: list mode runs no `git status` (a PATH shim); `--force` never reaches git; an override recorded in the main checkout covers a worktree edit; a hand-moved worktree stays registered.
 
 **Accepted:** recording SC-2's trigger as a `[deferred-verify]` intent, which belongs to spec-completion.
+
+---
+
+## Gate round 2 — 6 distinct majors, all from round 1's fixes, fixed at the root
+
+**Panel:** the same four reviewers, each seeded with its round-1 envelope. All four envelopes are valid. Every round-1 finding is closed. All six round-2 majors are regressions or gaps the round-1 fixes introduced.
+
+**Fixed:**
+- **SOP §1's resume ran a repo-wide `git worktree prune`** (all four reviewers). It brought back the orphaning round 1 removed from the script. It now runs `git worktree remove .claude/worktrees/spec-NNN 2>/dev/null || true`, which clears only that spec's stale registration. The same change is in `docs/worktrees.md`.
+- **Own-tree-first status hid a finished spec's leftover worktree** (integration, adversarial). Status now comes from three sources: the default branch through git (`origin/HEAD`, then `origin/main`, then `main`, archive included), the worktree's own tree, and the main checkout. Because a status only moves forward, a terminal status in any source wins.
+- **`export CLAUDE_PROJECT_DIR` does not survive between shell calls** (adversarial, conventions nit). The skill, the SOP and the doc now print the main checkout's path once, with `git worktree list --porcelain | sed -n '1s/^worktree //p'`, before arming the goal, and write it literally wherever `$CLAUDE_PROJECT_DIR` appears.
+- **The nested-worktree guard missed a differently-cased path on macOS** (security). Paths are now compared through `realpathSync.native`.
+
+**Nits fixed:**
+- An unresolved `spec-NNN` is never removable, whatever its branch.
+- An unparsable `.sdlc/config.yaml` in one worktree no longer stops the script.
+- The §1 resume fast-forwards to the remote before pushing.
+- §5 and §6.1 delete the subagent's local branch after removing its worktree.
+- The nudge names the absolute path of the script it ran and "docs/worktrees.md in the SDLC plugin".
+- A refused removal reports git's `fatal:` line.
+- The hand-made worktree recipe checks `git worktree list` before removing.
+- The `.gitignore` line filter is shared as `install-payload.mjs` > `missingLines`.
+- New tests pin `--own` skipping a prunable entry, the hand-moved branch-gone case, and `--plan` printing the `.gitignore` lines.
+
+**Carried forward and accepted:** recording SC-2's trigger as a `[deferred-verify]` intent, at spec-completion.
+
+---
+
+## SPEC DEVIATION — the shipped prune and exit are narrower than the spec's Design text
+
+**Date:** 2026-10-02
+**What the spec says:**
+- Design > Detection: `--prune` "runs `git worktree prune`".
+- Design > Delivery in a spec worktree: the exit runs `git worktree remove` and then `worktrees.mjs --fetch --prune --own`.
+- The Design gives no source tree for a spec's status.
+
+**What shipped, after gate rounds 1 and 2:**
+- No `git worktree prune` anywhere: it deregisters hand-moved worktrees.
+- The exit is the single `worktrees --own` command, which also refuses to remove a tree that holds another worktree.
+- A live `spec-NNN` is never a stray, and an unresolved one is never removable.
+- Status comes from the default branch, the worktree and the main checkout, with a terminal status winning.
+
+**Why this is not an amendment now:** every change removes fewer worktrees than the Design text allows, in the direction F-3e582b60 and D-015 set. No AC changes: AC-003's "remove without `--force` … and run `worktrees.mjs --fetch --prune --own`" holds for the single command. The spec's Design text should be brought in line by a cosmetic amendment at spec-completion.

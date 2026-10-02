@@ -32,26 +32,29 @@ A session or hand-made worktree:
 ```bash
 git worktree add -b <branch> .claude/worktrees/<branch-slug>    # new branch
 git worktree add .claude/worktrees/<branch-slug> <branch>        # existing branch
+git worktree list                                               # first: nothing may be registered under the one you remove
 git worktree remove .claude/worktrees/<branch-slug>              # when the branch is merged and deleted
 ```
 
 ## A delivery run
 
 SOP §1 creates or re-enters the spec worktree from the main checkout. `$CLAUDE_PROJECT_DIR` is the
-main checkout. Hooks receive it, but an executor's shell may not have it, so set it first when it is
-unset:
+main checkout's absolute path. Hooks receive it as a variable, but an executor's shell does not, and
+a variable set in one shell call is gone by the next. So print it once and write the literal path
+wherever these commands say `$CLAUDE_PROJECT_DIR`:
 
 ```bash
-export CLAUDE_PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && pwd)}"
+git worktree list --porcelain | sed -n '1s/^worktree //p'
 ```
 
 ```bash
 git fetch origin
 if git worktree list --porcelain | grep -q "/.claude/worktrees/spec-NNN$" && [ -d .claude/worktrees/spec-NNN ]; then :   # resume: reuse it
 elif git rev-parse -q --verify "refs/heads/feat/spec-NNN" >/dev/null || git rev-parse -q --verify "refs/remotes/origin/feat/spec-NNN" >/dev/null; then
-  git worktree prune                                                                  # drop a registration whose directory is gone
+  git worktree remove .claude/worktrees/spec-NNN 2>/dev/null || true                 # clear only this spec's stale registration
   git worktree add .claude/worktrees/spec-NNN feat/spec-NNN                          # resume: the branch exists
-  git -C .claude/worktrees/spec-NNN push -u origin feat/spec-NNN                     # no-op when already pushed
+  git -C .claude/worktrees/spec-NNN pull --ff-only 2>/dev/null || true               # catch up with the remote, if it has the branch
+  git -C .claude/worktrees/spec-NNN push -u origin feat/spec-NNN                     # sets the upstream; a no-op once pushed
 else
   git worktree add -b feat/spec-NNN .claude/worktrees/spec-NNN origin/main           # first run
   git -C .claude/worktrees/spec-NNN push -u origin feat/spec-NNN

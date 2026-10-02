@@ -19,19 +19,20 @@ Every spec gets exactly one, cut from `main` before the first step, in its own s
 worktrees go, and who removes them: [`docs/worktrees.md`](../../docs/worktrees.md)). From the main
 checkout, create it or re-enter it.
 
-`$CLAUDE_PROJECT_DIR` below is the main checkout. Hooks receive it, but an executor's shell may not have it, so set it first when it is unset:
+`$CLAUDE_PROJECT_DIR` in these instructions means the main checkout's absolute path. Hooks receive it as a variable, but an executor's shell does not, and a variable set in one shell call is gone by the next. So print the path once, before arming the goal, and write that literal path wherever these instructions say `$CLAUDE_PROJECT_DIR`:
 
 ```bash
-export CLAUDE_PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && pwd)}"
+git worktree list --porcelain | sed -n '1s/^worktree //p'
 ```
 
 ```bash
 git fetch origin
 if git worktree list --porcelain | grep -q "/.claude/worktrees/spec-NNN$" && [ -d .claude/worktrees/spec-NNN ]; then :   # resume: reuse it
 elif git rev-parse -q --verify "refs/heads/feat/spec-NNN" >/dev/null || git rev-parse -q --verify "refs/remotes/origin/feat/spec-NNN" >/dev/null; then
-  git worktree prune                                                                  # drop a registration whose directory is gone
+  git worktree remove .claude/worktrees/spec-NNN 2>/dev/null || true                 # clear only this spec's stale registration
   git worktree add .claude/worktrees/spec-NNN feat/spec-NNN                          # resume: the branch exists
-  git -C .claude/worktrees/spec-NNN push -u origin feat/spec-NNN                     # no-op when already pushed
+  git -C .claude/worktrees/spec-NNN pull --ff-only 2>/dev/null || true               # catch up with the remote, if it has the branch
+  git -C .claude/worktrees/spec-NNN push -u origin feat/spec-NNN                     # sets the upstream; a no-op once pushed
 else
   git worktree add -b feat/spec-NNN .claude/worktrees/spec-NNN origin/main           # first run
   git -C .claude/worktrees/spec-NNN push -u origin feat/spec-NNN
@@ -176,7 +177,8 @@ If you do fan out:
   any step that depends on it waits for that merge. Parallel does not mean batch-merge at the end.
 - The task list still shows every dispatched step as `in_progress` and each one is closed as it
   merges — fan-out never makes the run less visible.
-- Merge each agent's result from inside the spec worktree, then remove that agent's worktree.
+- Merge each agent's result from inside the spec worktree, then remove that agent's worktree and
+  delete its local branch.
 
 Two steps qualify for concurrent worktree-isolated execution iff all four hold: (a) neither step
 appears in the other's `After:` transitive closure (a step with no `After:` needs every earlier step,
@@ -216,7 +218,8 @@ After the last step merges and §6's end-to-end validation passes, and before th
 dispatch (§7.2) — not on every §7.3 fix-loop iteration — push `feat/spec-NNN` and dispatch a
 code-simplification agent (`isolation: "worktree"`, mandatory — a shared working tree risks the
 agent's `git checkout` / `stash` / `reset` discarding in-flight edits) that runs
-`git checkout -b claude/SPEC-NNN-simplify origin/feat/spec-NNN` before its first edit.
+`git checkout -b claude/SPEC-NNN-simplify origin/feat/spec-NNN` before its first edit. After its
+commit is on the integration branch, remove the agent's worktree and delete that local branch.
 
 If the pass makes any change, fast-forward (or cherry-pick) that single commit onto the integration
 branch from inside the spec worktree, then remove the agent's worktree. No step branch, no step PR, no

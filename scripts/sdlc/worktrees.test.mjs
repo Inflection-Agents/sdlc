@@ -4,7 +4,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -295,5 +295,96 @@ test('list mode runs no git status, and --prune never passes --force', () => {
     } finally {
         fx.cleanup()
         rmSync(shim, { recursive: true, force: true })
+    }
+})
+
+// ── Gate round 2 (PR #99) ────────────────────────────────────────────────────
+
+test('a spec worktree whose spec was completed on the default branch is spec-closed, though its own tree says active', () => {
+    const fx = fixture()
+    try {
+        writeFileSync(join(fx.root, 'specs/SPEC-900-live.md'), spec('SPEC-900', 'completed'))
+        fx.sh(fx.root, 'commit', '-qam', 'complete SPEC-900')
+        fx.sh(fx.root, 'push', '-q', 'origin', 'main')
+        assert.match(readFileSync(join(fx.path('spec-900'), 'specs/SPEC-900-live.md'), 'utf8'), /status: active/)
+        assert.equal(findStrays(fx.root).find((s) => s.path.endsWith('spec-900'))?.reason, 'spec-closed')
+    } finally {
+        fx.cleanup()
+    }
+})
+
+test('a spec-NNN worktree whose spec resolves nowhere is never removed, even with its upstream gone', () => {
+    const fx = fixture()
+    try {
+        fx.sh(fx.root, 'worktree', 'add', '-q', '-b', 'feat/spec-998', fx.path('spec-998'))
+        fx.sh(fx.path('spec-998'), 'push', '-q', '-u', 'origin', 'feat/spec-998')
+        fx.sh(fx.root, 'push', '-q', 'origin', '--delete', 'feat/spec-998')
+        fx.sh(fx.root, 'fetch', '-q', '--prune')
+        assert.equal(findStrays(fx.root).find((s) => s.path.endsWith('spec-998')).reason, 'branch-gone')
+        run(fx.root, '--prune')
+        assert.equal(existsSync(fx.path('spec-998')), true)
+    } finally {
+        fx.cleanup()
+    }
+})
+
+test('one worktree whose config does not parse does not stop the report', () => {
+    const fx = fixture()
+    try {
+        writeFileSync(join(fx.path('spec-900'), '.sdlc/config.yaml'), 'layout: 2\npaths:\n  specs: [unclosed\n')
+        const res = run(fx.root, '--json')
+        assert.equal(res.status, 0, res.stderr)
+        assert.equal(JSON.parse(res.stdout).length, 5)
+    } finally {
+        fx.cleanup()
+    }
+})
+
+test('a nested worktree registered under a differently-cased path is still seen as nested', () => {
+    const fx = fixture()
+    try {
+        const upper = join(fx.root, '.claude/worktrees/SPEC-900')
+        if (!existsSync(upper)) return // a case-sensitive filesystem has no such alias
+        const nested = join(upper, '.claude/worktrees/agent-in')
+        fx.sh(fx.root, 'worktree', 'add', '-q', '-b', 'worktree-agent-in', nested)
+        writeFileSync(join(nested, 'wip.txt'), 'unsaved\n')
+        const { removed } = prune(fx.root, { own: 'spec-900' })
+        assert.deepEqual(removed, [])
+        assert.equal(existsSync(join(fx.path('spec-900'), '.claude/worktrees/agent-in/wip.txt')), true)
+    } finally {
+        fx.cleanup()
+    }
+})
+
+test('a hand-moved branch-gone worktree is not touched by --prune, and --own skips a spec worktree whose directory is gone', () => {
+    const fx = fixture()
+    try {
+        renameSync(fx.path('feature-merged'), join(fx.tmp, 'feature-merged-moved'))
+        const res = run(fx.root, '--prune')
+        assert.equal(res.status, 0, res.stderr)
+        assert.match(fx.sh(fx.root, 'worktree', 'list', '--porcelain'), /\/feature-merged\n/, 'still registered')
+        rmSync(fx.path('spec-900'), { recursive: true, force: true })
+        const own = prune(fx.root, { own: 'spec-900' })
+        assert.deepEqual(own.removed, [])
+        assert.equal(own.kept.some((k) => k.path.endsWith('spec-900')), false, 'not reported as dirty and kept')
+    } finally {
+        fx.cleanup()
+    }
+})
+
+test('a spec completed and archived on main still reports its leftover worktree', () => {
+    const fx = fixture()
+    try {
+        mkdirSync(join(fx.root, 'specs/archive/specs'), { recursive: true })
+        fx.sh(fx.root, 'mv', 'specs/SPEC-900-live.md', 'specs/archive/specs/SPEC-900-live.md')
+        writeFileSync(join(fx.root, 'specs/archive/specs/SPEC-900-live.md'), spec('SPEC-900', 'completed'))
+        fx.sh(fx.root, 'add', '-A')
+        fx.sh(fx.root, 'commit', '-qm', 'complete and archive SPEC-900')
+        fx.sh(fx.root, 'push', '-q', 'origin', 'main')
+        assert.equal(findStrays(fx.root).find((s) => s.path.endsWith('spec-900'))?.reason, 'spec-closed')
+        run(fx.root, '--prune')
+        assert.equal(existsSync(fx.path('spec-900')), false, 'clean and finished: removed')
+    } finally {
+        fx.cleanup()
     }
 })
