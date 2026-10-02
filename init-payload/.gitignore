@@ -1,0 +1,4 @@
+# Per-session SDLC state written by the hooks (goal leash, block counters, overrides, nudges).
+# The bypass log is the exception: an edit-gate bypass must stay visible, never silent.
+.claude/.sdlc-*
+!.claude/.sdlc-override-log

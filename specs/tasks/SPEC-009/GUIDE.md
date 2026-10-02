@@ -31,7 +31,7 @@ spec_version: 1
 
 ### S5: Layout-2 payload, sdlc-init and bootstrap.sh
 - Covers: AC-009
-- Changes: `init-payload/**`, `skills/sdlc-init/SKILL.md`, `bootstrap.sh`, `scripts/sdlc/validate-plugin-manifest.mjs`, `scripts/sdlc/validate-plugin-manifest.test.mjs`
+- Changes: `init-payload/**`, `skills/sdlc-init/SKILL.md`, `bootstrap.sh`, `scripts/sdlc/validate-plugin-manifest.mjs`, `scripts/sdlc/validate-plugin-manifest.test.mjs`, `scripts/sdlc/install-payload.mjs`, `scripts/sdlc/install-payload.test.mjs`
 - Verify: `node --test scripts/sdlc/validate-plugin-manifest.test.mjs`, `node scripts/sdlc/validate-plugin-manifest.mjs`, then copy `init-payload/` into a fresh `git init` repo in the scratchpad, rename the stubs, compare `ls -A` before and after, and run the payload gates from that repo
 - Notes: Mirror the layout-2 tree in `init-payload/`:
   - `.sdlc/config.stub.yaml` (with `domain_routing: {}`, `extensions: {phases: [], exempt: []}` and `workspaces: []`)

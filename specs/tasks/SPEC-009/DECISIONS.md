@@ -91,3 +91,13 @@ in chronological order.
 **Merged:** PR #63
 **What changed:** added `loadMachine(root, { machineFile })` to `lib/sdlc-paths.mjs`. Every machine reader now goes through it, and each one's private parser is gone. The line-99 quote is escaped in both machines. The payload machine no longer carries `domain_routing:`.
 **Anything a later step must match:** `loadMachine` throws on a layout-2 machine that has a `domain_routing:` key, even an empty one, so S6's migration must cut the whole block out of the machine. `gen-handoffs.mjs` names the generator through `GENERATOR_LABEL`, still `scripts/sdlc/gen-handoffs.mjs`. S10 switches it to the `${CLAUDE_PLUGIN_ROOT}` form when it regenerates the footers.
+
+---
+
+## EXECUTIVE DECISION — guide change: S5 adds one payload installer shared by sdlc-init and bootstrap.sh
+
+**Date:** 2026-10-02
+**Question:** the spec has `/sdlc-init` and `bootstrap.sh` install the same payload, with the same never-overwrite copies, the same root-file appends and the same `AGENTS.md` block insert. Written once as skill instructions and once in bash, those would drift, and AC-009 (exactly three new directories, a second run writes nothing, existing root files keep every byte) would only be checkable by hand.
+**Decided:** add `scripts/sdlc/install-payload.mjs` (plugin-only) and its test. `sdlc-init` Phase 1 runs it, and `bootstrap.sh` runs it with `--contracts-in-skills`. S6's migration reuses its `appendLines`, `insertAgentsBlock` and `ensureClaudeImport`.
+**Why:** one implementation makes AC-009 a test, and makes the migration's merges match init's exactly.
+**Reversal path:** inline the copy in both callers and delete the two files.
