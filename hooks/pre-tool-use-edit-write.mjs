@@ -50,6 +50,19 @@ import { appendFileSync, existsSync, readFileSync } from 'node:fs'
 import { dirname, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
+// The path resolver (SPEC-009, ADR-008). The plugin ships it at scripts/sdlc/lib/, and
+// bootstrap.sh copies it to lib/ beside a repo-local hook. A hook that cannot find it
+// throws, so the failure shows instead of the hook quietly checking nothing.
+const LIB = (() => {
+    for (const rel of ['../scripts/sdlc/lib/', './lib/']) {
+        const url = new URL(rel, import.meta.url)
+        if (existsSync(fileURLToPath(new URL('sdlc-paths.mjs', url)))) return url
+    }
+    throw new Error(`${fileURLToPath(import.meta.url)}: cannot find lib/sdlc-paths.mjs in the plugin or beside the hook`)
+})()
+const { isSdlcRoot, sdlcPaths } = await import(new URL('sdlc-paths.mjs', LIB).href)
+const { LAYOUT1, LAYOUT1_AI_PREFIX } = await import(new URL('legacy-map.mjs', LIB).href)
+
 const ALLOW = 0
 const BLOCK = 2
 
@@ -123,10 +136,11 @@ function allow(guidance) {
  */
 async function constraintGuidance(rel, root) {
     try {
+        const paths = sdlcPaths(root, { quiet: true })
         const { loadConstraints, applicableConstraints } = await import(
-            pathToFileURL(join(root, 'scripts/sdlc/reviewer-routing.mjs')).href
+            pathToFileURL(join(paths.scripts, 'reviewer-routing.mjs')).href
         )
-        const hits = applicableConstraints(loadConstraints(), rel)
+        const hits = applicableConstraints(loadConstraints(paths.constraints), rel)
         if (!hits.length) return null
         const lines = hits.map(
             (c) => `- ${c.id} (${c.severity ?? 'major'}): ${c.check}\n    cite: ${c.cite ?? c.id}`
@@ -177,7 +191,7 @@ function projectRoot(cwd) {
     // and failed open silently.
     let dir = dirname(fileURLToPath(import.meta.url))
     for (let i = 0; i < 6; i += 1) {
-        if (existsSync(join(dir, 'specs')) && existsSync(join(dir, 'scripts'))) return dir
+        if (isSdlcRoot(dir)) return dir
         const up = dirname(dir)
         if (up === dir) break
         dir = up
@@ -208,14 +222,20 @@ function relPosix(root, abs) {
 // as implementation code and gated by the no-active-task rule. No repo-specific
 // workspace names are baked in.
 
-/** Is this a PROCESS-ARTIFACT path (exempt from the gate)? */
-function isProcessArtifact(rel) {
+/**
+ * Is this a PROCESS-ARTIFACT path (exempt from the gate)? Everything under `.sdlc/`
+ * counts except `.sdlc/scripts/`, which is validator code and stays gated, the way
+ * `scripts/sdlc/` is on layout 1.
+ */
+function isProcessArtifact(rel, specsRel = 'specs') {
     if (!rel) return false
-    if (rel === 'specs/sdlc-state-machine.yaml') return true
+    if (rel === LAYOUT1.machine) return true
     if (!rel.includes('/') && /\.md$/i.test(rel)) return true // root-level docs
+    if (rel.startsWith('.sdlc/')) return !rel.startsWith('.sdlc/scripts/')
     return (
+        rel.startsWith(`${specsRel}/`) ||
         rel.startsWith('specs/') ||
-        rel.startsWith('.ai/') ||
+        rel.startsWith(LAYOUT1_AI_PREFIX) ||
         rel.startsWith('.agents/') ||
         rel.startsWith('.claude/') ||
         rel.startsWith('docs/') ||
@@ -225,9 +245,9 @@ function isProcessArtifact(rel) {
 }
 
 /** Is this an IMPLEMENTATION-CODE path (gated)? Generic: not a process artifact. */
-function isImplementationCode(rel) {
+function isImplementationCode(rel, specsRel) {
     if (!rel) return false
-    return !isProcessArtifact(rel)
+    return !isProcessArtifact(rel, specsRel)
 }
 
 // ─── Active-task context ───────────────────────────────────────────────────
@@ -314,7 +334,8 @@ async function main() {
     if (!rel) allow() // target outside the project root → not our concern
 
     // Implementation-code edit with no active task context.
-    if (isImplementationCode(rel)) {
+    const specsRel = relPosix(root, sdlcPaths(root, { quiet: true }).specs) ?? 'specs'
+    if (isImplementationCode(rel, specsRel)) {
         if (hasActiveTask(root)) return allow(await constraintGuidance(rel, root)) // active task → fine
 
         // No active task. Honor a logged override if present.

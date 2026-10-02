@@ -49,9 +49,21 @@
 //            would otherwise be blocked, recording the reason. (Its
 //            lifecycle/cleanup is owned by the gate, not this hook.)
 // ───────────────────────────────────────────────────────────────────────────
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+// The path resolver (SPEC-009, ADR-008). The plugin ships it at scripts/sdlc/lib/, and
+// bootstrap.sh copies it to lib/ beside a repo-local hook. A hook that cannot find it
+// throws, so the failure shows instead of the hook quietly checking nothing.
+const LIB = (() => {
+    for (const rel of ['../scripts/sdlc/lib/', './lib/']) {
+        const url = new URL(rel, import.meta.url)
+        if (existsSync(fileURLToPath(new URL('sdlc-paths.mjs', url)))) return url
+    }
+    throw new Error(`${fileURLToPath(import.meta.url)}: cannot find lib/sdlc-paths.mjs in the plugin or beside the hook`)
+})()
+const { isSdlcRoot, sdlcPaths } = await import(new URL('sdlc-paths.mjs', LIB).href)
 
 const ALLOW = 0
 
@@ -86,7 +98,7 @@ function projectRoot(cwd) {
     // and failed open silently.
     let dir = dirname(fileURLToPath(import.meta.url))
     for (let i = 0; i < 6; i += 1) {
-        if (existsSync(join(dir, 'specs')) && existsSync(join(dir, 'scripts'))) return dir
+        if (isSdlcRoot(dir)) return dir
         const up = dirname(dir)
         if (up === dir) break
         dir = up
@@ -235,7 +247,7 @@ function parseDomainRouting(text) {
 
 /** Load the parsed state machine, or null on failure. */
 function loadStateMachine(root) {
-    const path = join(root, 'specs', 'sdlc-state-machine.yaml')
+    const path = sdlcPaths(root, { quiet: true }).machine
     let text
     try {
         text = readFileSync(path, 'utf8')
@@ -278,7 +290,7 @@ function indexLooksActive(text) {
 function readSpecPhase(root, prompt) {
     const specId = detectSpecId(prompt)
     if (!specId) return { active: false, specId: null }
-    const path = join(root, 'specs', 'tasks', specId, '_index.yaml')
+    const path = join(sdlcPaths(root, { quiet: true }).specs, 'tasks', specId, '_index.yaml')
     if (!existsSync(path)) return { active: false, specId }
     try {
         return { active: indexLooksActive(readFileSync(path, 'utf8')), specId }
@@ -348,6 +360,32 @@ function detectOverride(prompt) {
     return reason.length > 0 ? reason : null
 }
 
+const LAYOUT_NUDGE =
+    'SDLC: this repo is on layout 1 (`.ai/` and `scripts/sdlc/`). Run `/sdlc-sync` to migrate it to `.sdlc/` (ADR-008).'
+
+/**
+ * The once-per-session layout-1 nudge, or null. The per-session marker file is what
+ * makes it once: a repeat on every prompt would train the reader to skip it.
+ */
+function layoutNudge(root, sessionId) {
+    let layout
+    try {
+        layout = sdlcPaths(root, { quiet: true }).layout
+    } catch {
+        return null
+    }
+    if (layout !== 1 || !sessionId) return null
+    const marker = join(root, '.claude', `.sdlc-layout-nudge-${sessionId}`)
+    if (existsSync(marker)) return null
+    try {
+        mkdirSync(dirname(marker), { recursive: true })
+        writeFileSync(marker, `${new Date().toISOString()}\n`, 'utf8')
+    } catch {
+        return null
+    }
+    return LAYOUT_NUDGE
+}
+
 /** Write the override reason to the per-session state file. Best-effort. */
 function writeOverride(root, sessionId, reason) {
     if (!sessionId) return null
@@ -415,10 +453,17 @@ function main() {
         silent()
     }
 
-    const sm = loadStateMachine(root)
-    if (!sm) silent() // no source of truth → stay silent (advisory)
-
     const blocks = []
+
+    // (0) A layout-1 repo hears once per session that /sdlc-sync migrates it (SPEC-009).
+    const nudge = layoutNudge(root, sessionId)
+    if (nudge) blocks.push(nudge)
+
+    const sm = loadStateMachine(root)
+    if (!sm) {
+        if (blocks.length) inject(blocks.join('\n\n'))
+        silent() // no source of truth → stay silent (advisory)
+    }
 
     // (1) Entry routing — only when NO task is active for the spec in play.
     const { active } = readSpecPhase(root, prompt)

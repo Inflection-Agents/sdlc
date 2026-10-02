@@ -102,6 +102,18 @@ import {
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+// The path resolver (SPEC-009, ADR-008). The plugin ships it at scripts/sdlc/lib/, and
+// bootstrap.sh copies it to lib/ beside a repo-local hook. A hook that cannot find it
+// throws, so the failure shows instead of the hook quietly checking nothing.
+const LIB = (() => {
+    for (const rel of ['../scripts/sdlc/lib/', './lib/']) {
+        const url = new URL(rel, import.meta.url)
+        if (existsSync(fileURLToPath(new URL('sdlc-paths.mjs', url)))) return url
+    }
+    throw new Error(`${fileURLToPath(import.meta.url)}: cannot find lib/sdlc-paths.mjs in the plugin or beside the hook`)
+})()
+const { isSdlcRoot, sdlcPaths } = await import(new URL('sdlc-paths.mjs', LIB).href)
+
 const ALLOW = 0
 
 /** ms in 24h — the goal leash's expiry horizon, measured from `armed_at`. */
@@ -138,7 +150,7 @@ function projectRoot(cwd) {
     // and failed open silently.
     let dir = dirname(fileURLToPath(import.meta.url))
     for (let i = 0; i < 6; i += 1) {
-        if (existsSync(join(dir, 'specs')) && existsSync(join(dir, 'scripts'))) return dir
+        if (isSdlcRoot(dir)) return dir
         const up = dirname(dir)
         if (up === dir) break
         dir = up
@@ -511,7 +523,7 @@ function parsePhases(text) {
 
 /** Load + parse the state machine's phases. Returns [] on any failure. */
 function loadPhases(root) {
-    const path = join(root, 'specs', 'sdlc-state-machine.yaml')
+    const path = sdlcPaths(root, { quiet: true }).machine
     try {
         return parsePhases(readFileSync(path, 'utf8'))
     } catch {
@@ -568,7 +580,7 @@ function handoffSurfaced(phase) {
  * `phase:` block are skipped). Returns { specId, phase } or null.
  */
 function findPhaseExit(root) {
-    const tasksDir = join(root, 'specs', 'tasks')
+    const tasksDir = join(sdlcPaths(root, { quiet: true }).specs, 'tasks')
     if (!existsSync(tasksDir)) return null
     let entries
     try {
