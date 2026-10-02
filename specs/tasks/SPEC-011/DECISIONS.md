@@ -68,3 +68,10 @@ in chronological order.
 **Date:** 2026-10-02
 **Question:** S5's `Changes:` listed `init-payload/.sdlc/scripts/sync-refresh.mjs`, but that script is plugin-only (its header says "Usage (plugin-only)", and `git ls-files` shows no payload copy), because `/sdlc-sync` runs the plugin's copy against the adopter.
 **Decided:** drop the payload path from S5's `Changes:`. The `.gitignore` merge reaches adopters through the plugin's `sync-refresh.mjs` and the payload's `.gitignore`. No AC, scope or design changes. AC-014 covers the payload copies of the scripts that have one.
+
+---
+
+## S5 — The worktree ignore line reaches new and existing repos
+
+**Merged:** PR #96
+**What changed:** init-payload/.gitignore gains .claude/worktrees/; sync-refresh.mjs applyRefresh merges missing .gitignore lines through install-payload appendLines, idempotently. Guide change: no payload copy of the plugin-only sync-refresh.mjs.
