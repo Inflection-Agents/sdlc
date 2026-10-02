@@ -48,3 +48,10 @@ heading goes in the moment it happens, not batched at the end.
 **Date:** 2026-10-02
 **Question:** S4's `Changes:` did not list three things the step needs. Both `validate-review-envelope.mjs` and `validate-spec.mjs` compute ids, so the hash belongs in one place. `validate-spec.mjs` emits envelopes, so it must emit stamped ids. And every skill that says "validate the envelope" must now say "stamp, then validate".
 **Decided:** add `scripts/sdlc/lib/finding-id.mjs` and its payload copy, `validate-spec.mjs` with its test and payload copy, and the `spec-authoring`, `spec-amendment` and `spec-execution` (skill and SOP) instructions to S4's `Changes:`. No AC, scope or design changes.
+
+---
+
+## S4 — Content-addressed finding ids
+
+**Merged:** PR #81
+**What changed:** Finding ids are sha256 of location_key, criterion and finding; the validator recomputes them and --stamp sets them, so every validate instruction now stamps first. Example envelopes re-stamped and grounded. Guide change: shared lib/finding-id.mjs plus the skill files carrying the validate instruction.
