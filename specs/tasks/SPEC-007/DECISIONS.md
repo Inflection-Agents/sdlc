@@ -40,3 +40,11 @@ heading goes in the moment it happens, not batched at the end.
 
 **Merged:** PR #80
 **What changed:** validate-spec.mjs decides the eight mechanical checks and emits the review envelope; Step 10a runs it before every dispatch; CI runs --ci, failing only active specs. spec-schema declares depends_on. Finding ids are still ordinal; S4 makes them content-addressed.
+
+---
+
+## EXECUTIVE DECISION — guide change: S4 adds a shared id helper and updates every envelope-validation instruction
+
+**Date:** 2026-10-02
+**Question:** S4's `Changes:` did not list three things the step needs. Both `validate-review-envelope.mjs` and `validate-spec.mjs` compute ids, so the hash belongs in one place. `validate-spec.mjs` emits envelopes, so it must emit stamped ids. And every skill that says "validate the envelope" must now say "stamp, then validate".
+**Decided:** add `scripts/sdlc/lib/finding-id.mjs` and its payload copy, `validate-spec.mjs` with its test and payload copy, and the `spec-authoring`, `spec-amendment` and `spec-execution` (skill and SOP) instructions to S4's `Changes:`. No AC, scope or design changes.

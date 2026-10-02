@@ -24,6 +24,7 @@ The reviewer is invoked by `spec-authoring` Phase 2 at the sign-off gate, with `
 
 ```json
 {
+  "reviewed_by": "agent:spec-reviewer",
   "artifact": "spec",
   "artifact_id": "SPEC-099",
   "spec_id": "SPEC-099",
@@ -31,7 +32,7 @@ The reviewer is invoked by `spec-authoring` Phase 2 at the sign-off gate, with `
   "tier": 1,
   "findings": [
     {
-      "id": "F-001",
+      "id": "F-816bf157",
       "severity": "blocker",
       "criterion": "spec-authoring:testable-acceptance-criteria",
       "location": "Acceptance criteria > AC-002",
@@ -40,7 +41,7 @@ The reviewer is invoked by `spec-authoring` Phase 2 at the sign-off gate, with `
       "carried_forward_from_previous": false
     },
     {
-      "id": "F-002",
+      "id": "F-16a476fb",
       "severity": "major",
       "criterion": "monorepo:workspaces",
       "location": "Frontmatter > workspaces",
@@ -49,7 +50,7 @@ The reviewer is invoked by `spec-authoring` Phase 2 at the sign-off gate, with `
       "carried_forward_from_previous": false
     },
     {
-      "id": "F-003",
+      "id": "F-76254060",
       "severity": "nit",
       "criterion": "spec-authoring:risks-and-constraints",
       "location": "Risks & constraints > first paragraph",
@@ -58,7 +59,7 @@ The reviewer is invoked by `spec-authoring` Phase 2 at the sign-off gate, with `
       "carried_forward_from_previous": false
     },
     {
-      "id": "F-004",
+      "id": "F-3088ac6e",
       "severity": "nit",
       "criterion": "spec-authoring:in-scope-out-of-scope",
       "location": "In-scope / Out-of-scope",
@@ -76,4 +77,4 @@ Per the shared envelope (see `../review-primitives.md` > Output schema): `pr_num
 
 ## Expected orchestrator action
 
-Per SPEC-001 policy (see `../review-primitives.md` > Orchestrator severity→action policy): `fix_loop` (1 blocker, 1 major; either severity alone is sufficient to trigger the loop). The spec owner can override the blocker via `spec_review_overrides:` appended to the spec body if they genuinely intend AC-002 as an aspirational rather than testable criterion — the override is visible in the spec and never silenced — but the recommended path is to revise AC-002 to be measurable and to add `shared` to the workspaces frontmatter so the cross-workspace impact is declared. On the next iteration the reviewer carries forward F-003 and F-004 only if the byte content of "Risks & constraints > first paragraph" and "In-scope / Out-of-scope" is identical to this revision — otherwise both are re-evaluated.
+Per SPEC-001 policy (see `../review-primitives.md` > Orchestrator severity→action policy): `fix_loop` (1 blocker, 1 major; either severity alone is sufficient to trigger the loop). The spec owner can override the blocker via `spec_review_overrides:` appended to the spec body if they genuinely intend AC-002 as an aspirational rather than testable criterion — the override is visible in the spec and never silenced — but the recommended path is to revise AC-002 to be measurable and to add `shared` to the workspaces frontmatter so the cross-workspace impact is declared. On the next iteration the reviewer carries forward F-76254060 and F-3088ac6e only if the byte content of "Risks & constraints > first paragraph" and "In-scope / Out-of-scope" is identical to this revision — otherwise both are re-evaluated.

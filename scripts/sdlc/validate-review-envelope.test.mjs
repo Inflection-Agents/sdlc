@@ -7,6 +7,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
@@ -14,10 +16,27 @@ import {
     EXIT_MALFORMED,
     EXIT_VALID,
     PR_SIDE_PREFIXES,
-    validateEnvelope
+    findingId,
+    stampEnvelope,
+    validateEnvelope as validateRaw
 } from './validate-review-envelope.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
+
+/**
+ * Most tests below probe one rule with a partial finding. This fills the fields an id hashes
+ * (location, finding) and stamps the id, so each still exercises only the rule it names. The
+ * id tests at the end call the raw validator.
+ */
+function complete(env) {
+    if (!env || typeof env !== 'object' || !Array.isArray(env.findings)) return env
+    const loc = env.artifact === 'spec' ? 'Problem' : 'src/a.ts:1'
+    return stampEnvelope({
+        ...env,
+        findings: env.findings.map((f) => (f && typeof f === 'object' ? { location: loc, finding: 'x', ...f } : f)),
+    })
+}
+const validateEnvelope = (env) => validateRaw(complete(env))
 const CLI = join(HERE, 'validate-review-envelope.mjs')
 
 // A clean envelope is a VERDICT of "nothing wrong", so it needs provenance like any
@@ -107,7 +126,15 @@ test('every canonical prefix grounds a blocking finding', () => {
 
 // ── CLI exit codes: the branch points a caller routes on ──────────────────────
 
-const run = (input) => spawnSync('node', [CLI, '-'], { input, encoding: 'utf8' }).status
+const run = (input) => {
+    let text = input
+    try {
+        text = JSON.stringify(complete(JSON.parse(input)))
+    } catch {
+        // not JSON: pass it through, so the malformed cases stay malformed
+    }
+    return spawnSync('node', [CLI, '-'], { input: text, encoding: 'utf8' }).status
+}
 
 test('CLI exit codes distinguish valid / abstained / malformed', () => {
     assert.equal(run(JSON.stringify(clean)), EXIT_VALID)
@@ -190,7 +217,67 @@ test('a clean AGENT-graded envelope passes — that is a real accept', () => {
 })
 
 test('the CLI exits 3 on an inline blocking grading', () => {
-    const env = JSON.stringify({ ...clean, reviewed_by: 'inline', findings: [{ severity: 'blocker', criterion: 'ac:AC-001' }] })
+    const env = JSON.stringify(complete({ ...clean, reviewed_by: 'inline', findings: [{ severity: 'blocker', criterion: 'ac:AC-001' }] }))
     const res = spawnSync('node', [CLI, '-'], { input: env, encoding: 'utf8' })
     assert.equal(res.status, EXIT_MALFORMED)
+})
+
+// ── Content-addressed ids (SPEC-007 Lever 4, ADR-006) ─────────────────────────
+
+const base = { location: 'Design > Lever 1', criterion: 'spec-schema:Design', finding: 'The cap is not stated.' }
+
+test('AC-014: the same location key, criterion and finding give the same id in any round, and any change gives another', () => {
+    const a = findingId(base, 'spec')
+    assert.match(a, /^F-[0-9a-f]{8}$/)
+    assert.equal(findingId({ ...base, severity: 'major' }, 'spec'), findingId({ ...base, severity: 'nit', suggested_fix: 'y' }, 'spec'))
+    for (const field of ['location', 'criterion', 'finding']) {
+        assert.notEqual(findingId({ ...base, [field]: `${base[field]}!` }, 'spec'), a, field)
+    }
+})
+
+test('AC-015: a PR finding keeps its id when its line moves', () => {
+    const f = { criterion: 'ac:AC-003', finding: 'AC not addressed' }
+    assert.equal(findingId({ ...f, location: 'src/a.ts:40' }, 'pr'), findingId({ ...f, location: 'src/a.ts:57' }, 'pr'))
+    assert.notEqual(findingId({ ...f, location: 'src/a.ts:40' }, 'pr'), findingId({ ...f, location: 'src/b.ts:40' }, 'pr'))
+})
+
+test('AC-016: a wrong id, or a missing id, location, criterion or finding, is a contract violation', () => {
+    const good = stampEnvelope({ artifact: 'spec', reviewed_by: 'agent:spec-reviewer', findings: [{ severity: 'major', ...base }] })
+    assert.equal(validateRaw(good).ok, true)
+    const wrong = { ...good, findings: [{ ...good.findings[0], id: 'F-00000000' }] }
+    assert.match(validateRaw(wrong).errors.join('\n'), /hashes to/)
+    for (const field of ['id', 'location', 'finding']) {
+        const { [field]: _, ...rest } = good.findings[0]
+        assert.equal(validateRaw({ ...good, findings: [rest] }).ok, false, field)
+    }
+    const { criterion: _c, ...noCriterion } = good.findings[0]
+    assert.equal(validateRaw({ ...good, findings: [noCriterion] }).ok, false, 'criterion')
+    const res = spawnSync('node', [CLI, '-'], { input: JSON.stringify(wrong), encoding: 'utf8' })
+    assert.equal(res.status, EXIT_MALFORMED)
+})
+
+test('AC-017: the citation alias is hashed as the criterion', () => {
+    const { criterion, ...rest } = base
+    const aliased = { ...rest, citation: criterion }
+    assert.equal(findingId(aliased, 'spec'), findingId(base, 'spec'))
+    const env = stampEnvelope({ artifact: 'spec', reviewed_by: 'agent:spec-reviewer', findings: [{ severity: 'nit', ...aliased }] })
+    assert.equal(validateRaw(env).ok, true)
+})
+
+test('--stamp sets ids from content and validates, on stdin and in place', () => {
+    const env = { artifact: 'spec', reviewed_by: 'agent:spec-reviewer', findings: [{ id: 'F-001', severity: 'major', ...base }] }
+    const res = spawnSync('node', [CLI, '--stamp', '-'], { input: JSON.stringify(env), encoding: 'utf8' })
+    assert.equal(res.status, EXIT_VALID, res.stderr)
+    assert.equal(JSON.parse(res.stdout).findings[0].id, findingId(base, 'spec'))
+    const dir = mkdtempSync(join(tmpdir(), 'sdlc-stamp-'))
+    try {
+        const file = join(dir, 'envelope.json')
+        writeFileSync(file, JSON.stringify(env))
+        assert.equal(spawnSync('node', [CLI, '--stamp', file], { encoding: 'utf8' }).status, EXIT_VALID)
+        assert.equal(JSON.parse(readFileSync(file, 'utf8')).findings[0].id, findingId(base, 'spec'))
+        writeFileSync(file, JSON.stringify(env))
+        assert.equal(spawnSync('node', [CLI, file], { encoding: 'utf8' }).status, EXIT_MALFORMED, 'unstamped ordinal ids are rejected')
+    } finally {
+        rmSync(dir, { recursive: true, force: true })
+    }
 })
