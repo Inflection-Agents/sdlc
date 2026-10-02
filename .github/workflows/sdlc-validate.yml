@@ -37,6 +37,12 @@ jobs:
             - name: Generated handoff footers match the state machine
               run: node .sdlc/scripts/gen-handoffs.mjs --check
 
+            - name: Live specs pass the mechanical spec checks
+              # SPEC-007 Lever 2: an active spec with a missing section, bad frontmatter, an
+              # unresolved ADR or depends_on, thin scope or a placeholder fails; a draft or a
+              # closed spec is reported as a warning, because nobody may edit a closed one.
+              run: node .sdlc/scripts/validate-spec.mjs --ci
+
             - name: Delivery guides are complete and current
               # Every spec AC covered, every step verifiable, guide and index in step, and an
               # approved guide's KICKOFF.md within 3,800 characters (ADR-007). An unmatched glob

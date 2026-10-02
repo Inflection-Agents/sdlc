@@ -234,6 +234,8 @@ After self-review (Step 6b) and BEFORE presenting to the user in Step 7, DISPATC
 
 This is the mirror of the `spec-authoring` Phase 2 invocation (Step 10a there). The reviewer's output is informational; the owner remains the sign-off authority.
 
+**Run the mechanical checks first**, exactly as `spec-authoring` Step 10a describes: `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-spec <amended spec>` must exit `0` before every dispatch.
+
 **Dispatch, do not invoke.** Call the `Agent` tool with `subagent_type: spec-reviewer`, with the
 number of reviewers and their variants per round exactly as `spec-authoring` Step 10a >
 **Reviewers per round** sets them, against the amended spec.
