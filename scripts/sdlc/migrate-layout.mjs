@@ -303,6 +303,7 @@ export function planMigration(root, { exclude = [] } = {}) {
         rewritten: [],
         extensions: { phases: [], exempt: [] },
         replacedPhases: [],
+        phaseDiffs: {},
         dropped: [],
         noted: [],
         appended: {},
@@ -364,7 +365,10 @@ export function planMigration(root, { exclude = [] } = {}) {
         const frameworkById = new Map((theirs.phases ?? []).map((p) => [p.id, p]))
         for (const p of mine.phases ?? []) {
             if (!frameworkIds.has(p.id)) plan.extensions.phases.push(p)
-            else if (JSON.stringify(p) !== JSON.stringify(frameworkById.get(p.id))) plan.replacedPhases.push(p.id)
+            else if (JSON.stringify(p) !== JSON.stringify(frameworkById.get(p.id))) {
+                plan.replacedPhases.push(p.id)
+                plan.phaseDiffs[p.id] = phaseDiff(p, frameworkById.get(p.id))
+            }
         }
         const frameworkExempt = new Set(theirs.exempt ?? [])
         plan.extensions.exempt = (mine.exempt ?? []).filter((e) => !frameworkExempt.has(e))
@@ -657,6 +661,31 @@ function lstatExists(abs) {
     }
 }
 
+/**
+ * What replacing the repo's copy of a framework phase with the plugin's changes, one line
+ * per field value: `- field: value` for the repo's, `+ field: value` for the plugin's. A
+ * list field shows only the items that differ.
+ */
+export function phaseDiff(mine, theirs) {
+    const show = (v) => (typeof v === 'string' ? v : JSON.stringify(v))
+    const lines = []
+    for (const key of new Set([...Object.keys(mine ?? {}), ...Object.keys(theirs ?? {})])) {
+        const a = mine?.[key]
+        const b = theirs?.[key]
+        if (JSON.stringify(a) === JSON.stringify(b)) continue
+        if (Array.isArray(a) && Array.isArray(b)) {
+            const inB = new Set(b.map(show))
+            const inA = new Set(a.map(show))
+            for (const x of a) if (!inB.has(show(x))) lines.push(`- ${key}: ${show(x)}`)
+            for (const x of b) if (!inA.has(show(x))) lines.push(`+ ${key}: ${show(x)}`)
+        } else {
+            if (a !== undefined) lines.push(`- ${key}: ${show(a)}`)
+            if (b !== undefined) lines.push(`+ ${key}: ${show(b)}`)
+        }
+    }
+    return lines
+}
+
 // ─── CLI ────────────────────────────────────────────────────────────────────
 
 function printPlan(plan, out = process.stdout) {
@@ -679,7 +708,13 @@ function printPlan(plan, out = process.stdout) {
     }
     list('Extension phases (to config.yaml extensions.phases)', plan.extensions.phases.map((p) => p.id))
     list('Extension exempt skills (to config.yaml extensions.exempt)', plan.extensions.exempt)
-    list('Framework phases replaced by the plugin version', plan.replacedPhases)
+    if (plan.replacedPhases.length) {
+        w(`\nFramework phases replaced by the plugin version (${plan.replacedPhases.length}). Lines marked - are this repo's and are dropped:`)
+        for (const id of plan.replacedPhases) {
+            w(`  ${id}`)
+            for (const line of plan.phaseDiffs[id] ?? []) w(`      ${line}`)
+        }
+    }
     w(`\ndomain_routing: ${plan.routingBlock ? 'moved byte-for-byte to config.yaml' : 'none; config.yaml gets domain_routing: {}'}`)
     list('Framework files replaced with the plugin copy (unmodified)', plan.replaced)
     list('Framework files added', plan.added)

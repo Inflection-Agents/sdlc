@@ -179,9 +179,16 @@ export function definesWorkspaces(repoRoot) {
     if (paths.layout === 2) return (readConfig(repoRoot)?.workspaces ?? []).length > 0
     const path = paths.project
     if (!existsSync(path)) return false
-    const rows = (sectionLines(readFileSync(path, 'utf8'), 'Workspaces') ?? []).filter((l) => /^\s*\|/.test(l))
-    // The first two table lines are the header and its `---` separator.
-    return rows.length > 2
+    // The section's first table is the workspace table; later ones (eligibility, skills)
+    // are about the same rows. Its first two lines are the header and the `---` separator.
+    const lines = sectionLines(readFileSync(path, 'utf8'), 'Workspaces') ?? []
+    const start = lines.findIndex((l) => /^\s*\|/.test(l))
+    if (start < 0) return false
+    let end = start
+    while (end < lines.length && /^\s*\|/.test(lines[end])) end += 1
+    // A row whose first cell is a `[placeholder]` is the template's, which the migration
+    // drops, so it is no workspace here either.
+    return lines.slice(start + 2, end).some((l) => !/^\s*\|\s*`?\[[^\]]*\]`?\s*\|/.test(l))
 }
 
 const diff = (a, b) => [...a].filter((x) => !b.has(x))

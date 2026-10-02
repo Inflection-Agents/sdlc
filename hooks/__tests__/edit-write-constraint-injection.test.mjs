@@ -8,7 +8,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -133,6 +133,35 @@ test('an unreadable registry degrades to silence rather than breaking the edit',
             env: { ...process.env, CLAUDE_PROJECT_DIR: dir }
         })
         assert.equal(out.trim(), '')
+    } finally {
+        rmSync(dir, { recursive: true, force: true })
+    }
+})
+
+test("the plugin's hook falls back to the plugin's routing when the repo has none", () => {
+    // high-gear-apps is on layout 1 with no scripts/sdlc/reviewer-routing.mjs, and its
+    // registry is a bare top-level list. Before the fallback the plugin's hook imported a
+    // missing file, swallowed the error, and gave that repo no guidance on any edit.
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'sdlc-noroute-')))
+    try {
+        const git = (...args) => execFileSync('git', args, { cwd: dir, stdio: 'ignore' })
+        git('init', '-q', '-b', 'claude/SPEC-001-fallback')
+        mkdirSync(join(dir, 'specs'), { recursive: true })
+        mkdirSync(join(dir, 'scripts', 'sdlc'), { recursive: true })
+        mkdirSync(join(dir, '.ai', 'sdlc'), { recursive: true })
+        writeFileSync(
+            join(dir, '.ai', 'sdlc', 'review-constraints.yaml'),
+            "- id: INV-FALLBACK\n  when:\n      touches: ['src/**']\n  lens: correctness\n  check: >\n      Keep src honest.\n"
+        )
+        // An unborn branch has no name to read, so the hook would see no active task.
+        git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-q', '--allow-empty', '-m', 'init')
+        const out = execFileSync('node', [join(ROOT, 'hooks', 'pre-tool-use-edit-write.mjs')], {
+            input: JSON.stringify({ tool_name: 'Edit', tool_input: { file_path: join(dir, 'src', 'a.ts') }, session_id: 'fallback', cwd: dir }),
+            encoding: 'utf8',
+            stdio: ['pipe', 'pipe', 'ignore'],
+            env: { ...process.env, CLAUDE_PROJECT_DIR: dir }
+        })
+        assert.match(out, /INV-FALLBACK/)
     } finally {
         rmSync(dir, { recursive: true, force: true })
     }

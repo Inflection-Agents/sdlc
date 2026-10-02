@@ -26,7 +26,7 @@
  * (P1 to P5), or when P6 to P8 fail on the after commit; otherwise 0.
  */
 import { execFileSync, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, matchesGlob, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -147,8 +147,8 @@ function p3(root) {
     let rows
     try {
         rows = loadConstraints(sdlcPaths(root, { quiet: true }).constraints)
-            .map((c) => ({ ...c, touches: c.touches ?? c.when?.touches ?? [] }))
-            .filter((c) => c.touches.length)
+            .map((c) => ({ ...c, touches: c.when?.touches ?? [] }))
+            .filter((c) => c.touches.length && (c.scope ?? 'task') === 'task')
     } catch {
         return { ran: false, detail: 'no readable registry' }
     }
@@ -293,6 +293,10 @@ export function probeRev(root, rev) {
     const branch = `claude/${PROBE_SPEC}-probe-${process.pid}-${Date.now()}`
     rmSync(dir, { recursive: true, force: true })
     git(root, ['worktree', 'add', '-q', '-b', branch, dir, rev])
+    // A repo's own hooks and validators can import its packages. Without them in the
+    // worktree, a gate fails open on the import and its probe records a miss the real
+    // repo would not have.
+    if (existsSync(join(root, 'node_modules'))) symlinkSync(join(root, 'node_modules'), join(dir, 'node_modules'))
     try {
         const results = []
         for (const [id, probe] of Object.entries(PROBES)) {
@@ -303,7 +307,7 @@ export function probeRev(root, rev) {
                 results.push({ id, ran: true, caught: false, detail: `probe error: ${err.message}` })
             }
             git(dir, ['checkout', '-q', '--', '.'])
-            git(dir, ['clean', '-fdq'])
+            git(dir, ['clean', '-fdq', '-e', 'node_modules'])
         }
         return results
     } finally {

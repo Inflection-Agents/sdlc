@@ -45,10 +45,11 @@ without reading the diff.
 ## Before tagging
 
 Bump `version` in `.claude-plugin/plugin.json` and `framework_version` in
-`init-payload/.sdlc/config.stub.yaml` first. Then regenerate the released-payload manifest
-**in the same commit**: the migration and `/sdlc-sync` replace an adopter's framework file
-only when its bytes match a version listed there, so a release missing from it makes every
-copy of that release look like a local edit.
+`init-payload/.sdlc/config.stub.yaml` first, and regenerate the released-payload manifest in
+the same commit. The migration and `/sdlc-sync` replace an adopter's framework file only when
+its bytes match a copy listed there, so a release missing from it makes every copy of that
+release look like a local edit. The manifest covers every payload commit, not only bumps, so
+any PR that changes `init-payload/` regenerates it too; CI's `--check` step fails until it does.
 
 ```bash
 node .sdlc/scripts/gen-released-payloads.mjs          # writes scripts/sdlc/lib/released-payloads.json

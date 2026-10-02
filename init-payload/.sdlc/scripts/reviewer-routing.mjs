@@ -24,7 +24,7 @@ import { readFileSync, realpathSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { parseRegistryTouches } from './check-review-constraint-globs.mjs'
+import { parseRegistryTouches } from './lib/registry-touches.mjs'
 import { resolveRoot, sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
 
 // Outside skills on purpose: that tree ships in the plugin and is overwritten
@@ -84,6 +84,8 @@ export function parseConstraints(text) {
             inList = true
             continue
         }
+        // A registry may also be a bare top-level list, with no `constraints:` key.
+        if (!inList && /^-\s*id\s*:/.test(line)) inList = true
         if (!inList) continue
         if (blockIndent !== null) {
             if (line.trim() === '' || indentOf(line) > blockIndent) continue // still inside the block
@@ -289,7 +291,7 @@ export const applicableConstraintsFor = (rows, relPaths) => {
 function main(argv) {
     const { root, rest } = takeRootArg(argv)
     const args = [...rest]
-    let registry = sdlcPaths(root, { quiet: true }).constraints
+    let registry = sdlcPaths(root).constraints
     const rIdx = args.indexOf('--registry')
     if (rIdx !== -1) {
         registry = args[rIdx + 1]

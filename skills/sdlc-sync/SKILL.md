@@ -76,7 +76,7 @@ BEFORE=$(git rev-parse HEAD)
 4. **Fix the scan hits with the owner, as commits on the branch**, until the scan exits 0:
 
     ```bash
-    node .sdlc/scripts/scan-legacy-paths.mjs
+    node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs scan-legacy-paths
     ```
 
     Each hit is a reader that will go silent:
@@ -85,7 +85,14 @@ BEFORE=$(git rev-parse HEAD)
     - a schema that requires `domain_routing`;
     - a regular expression that matches the old `.ai/` prefix;
     - a skill that edits a workspace table now in `config.yaml`;
+    - code that reads the `Workspaces` table out of `project.md`;
     - a relative path whose target moved.
+
+    Tests are not scanned, except for a moved test's `'..'` joins, so run the repo's own SDLC
+    tests too and point their fixtures at layout 2. A repo with its own skill footers
+    regenerates them with its own generator, because the machine changed. A line the report
+    marks `-` under a replaced framework phase is dropped; if the repo still needs it, move it
+    into an `extensions.phases` entry with the owner.
 
     A locally edited framework validator is usually fixed by replacing it with the plugin's
     copy, with the owner's yes. Put a path in `config.yaml` `scan.allow` only when it names
@@ -157,11 +164,11 @@ keeps working on this plugin version through the resolver's fallback.
    been graded on:
 
     ```bash
-    node .sdlc/scripts/validate-sdlc-config.mjs
-    node .sdlc/scripts/validate-constraints-registry.mjs --allow-empty
-    node .sdlc/scripts/validate-state-machine.mjs
-    node .sdlc/scripts/check-review-constraint-globs.mjs
-    node .sdlc/scripts/scan-legacy-paths.mjs
+    node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-sdlc-config
+    node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-constraints-registry --allow-empty
+    node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-state-machine
+    node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs check-review-constraint-globs
+    node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs scan-legacy-paths
     ```
 
     Read the output. A new gate going red on its first run is usually the gate working, not

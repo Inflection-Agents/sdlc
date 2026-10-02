@@ -89,6 +89,7 @@ export function gradeConfig(config, { root, phaseIds = [] }) {
 
 function main(argv) {
     const { root } = takeRootArg(argv)
+    sdlcPaths(root) // prints the one-line notice on a layout-1 repo, as every gate does
     let config
     try {
         config = readConfig(root)

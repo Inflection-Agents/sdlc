@@ -4,6 +4,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { layout1Repo, layout2Repo, write } from './__fixtures__/layouts/build.mjs'
@@ -67,4 +69,19 @@ test('the runner itself prints no deprecation line on layout 1', () => {
     } finally {
         fx.cleanup()
     }
+})
+
+test('every script command a skill or agent gives uses run.mjs, or names a plugin-only script (AC-018)', () => {
+    const repo = fileURLToPath(new URL('../..', import.meta.url))
+    const shipped = new Set(readdirSync(join(repo, 'init-payload', '.sdlc', 'scripts')).filter((f) => f.endsWith('.mjs')))
+    const files = ['skills', 'agents'].flatMap((d) => readdirSync(join(repo, d), { recursive: true }).map((f) => join(d, f)))
+    const wrong = []
+    for (const rel of files.filter((f) => f.endsWith('.md'))) {
+        for (const [, path] of readFileSync(join(repo, rel), 'utf8').matchAll(/node\s+["']?([^\s"'`]+\.mjs)/g)) {
+            const name = path.split('/').pop()
+            const pluginOnly = path.startsWith('${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/') && !shipped.has(name)
+            if (name !== 'run.mjs' && !pluginOnly) wrong.push(`${rel}: ${path}`)
+        }
+    }
+    assert.deepEqual(wrong, [])
 })
