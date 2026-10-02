@@ -70,3 +70,11 @@ heading goes in the moment it happens, not batched at the end.
 
 **Merged:** PR #82
 **What changed:** review-log.mjs appends stamped rounds, records owner-only paired rulings, projects previous_output and applies rulings before routing; the policy gains the review_log step. Guide change: SPEC-001 Changelog v1.6.
+
+---
+
+## EXECUTIVE DECISION — a restore no longer fences the live specs directory
+
+**Date:** 2026-10-02
+**Question:** S6 found a defect in `archive-specs.mjs` > `move()`: it wrote a `*` `.ignore` fence into the destination directory of every move. On a restore that directory is `specs/` (or `specs/tasks/`), so reopening an archived spec would have hidden the whole live corpus from search. S6 routes ledger and log restores through the same function, so it had to change either way.
+**Decided:** fence only a destination under `specs/archive/`, and create a live destination without a fence. The new AC-023 test asserts that a restore leaves no `specs/.ignore`. This is inside S6's `Changes:` and changes no AC, scope or design.

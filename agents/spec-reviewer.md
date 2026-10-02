@@ -32,6 +32,9 @@ The dispatching skill seeds you with concrete paths, not descriptions:
 - the spec file under review, and for an amendment, what changed
 - `skills/spec-schema.md` — required sections and frontmatter
 - `skills/spec-authoring/SKILL.md` — for `spec-authoring:<anchor>` citations
+- the authoring decision ledger, `specs/decisions/SPEC-NNN.md`, when the spec has one: a question it
+  records as decided is not a gap unless the spec body contradicts the decision, and an item it
+  records as deliberately deferred is not a finding
 - the intent this spec formalizes
 - the `AGENTS.md` SDLC block and `.sdlc/config.yaml` `workspaces` — for workspace-coverage checks
 - every ADR the design references, plus any it may contradict

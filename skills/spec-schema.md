@@ -258,6 +258,8 @@ specs/
 │   └── ADR-002-linear-over-jira.md
 ├── baselines/
 │   └── SPEC-042.md              # per-spec baseline metric files
+├── decisions/
+│   └── SPEC-001.md              # authoring decision ledger, written in spec-authoring Phase 1
 ├── bugs/
 │   ├── BUG-001-login-timeout.md
 │   └── BUG-002-null-ref-dashboard.md
@@ -275,6 +277,7 @@ specs/
 ├── templates/
 │   ├── spec.md
 │   ├── adr.md
+│   ├── authoring-decisions.md
 │   ├── bug.md
 │   ├── decisions.md
 │   ├── gap.md
@@ -288,6 +291,8 @@ Subdirectories:
 - `adrs/` — Architectural Decision Records referenced by specs.
 - `baselines/` — per-spec baseline metric files for success-criteria comparison (e.g., `SPEC-042.md` captures pre-change metrics that the spec's success criteria are measured against). Introduced by SPEC-001.
 - `bugs/` — bug specs (`BUG-NNN-*.md`).
+- `decisions/` — one authoring decision ledger per spec (`SPEC-NNN.md`), created from `.sdlc/templates/authoring-decisions.md` during `spec-authoring` Phase 1 and seeded to `spec-reviewer`. It records each question that was open before the spec body existed: what was decided, what was rejected, and what was left ambiguous on purpose. It is not the per-run `tasks/SPEC-NNN/DECISIONS.md`. Introduced by SPEC-007.
+- `archive/decisions/`, `archive/review-logs/` — a terminal spec's ledger and review log, moved there with the spec by `archive-specs.mjs` and restored with it.
 - `gaps/` — gap artifacts (`GAP-NNN-*.md`). Each file records a specification gap discovered during implementation, its resolution, and downstream impact. Introduced by SPEC-004.
 - `review-logs/` — one JSON file per reviewed spec (`SPEC-NNN.json`), written by `review-log.mjs` and never by hand. It holds every finding raised in any spec-review round: its content-addressed `id`, `first_round`, every round it recurred in (`rounds`), and a `resolution` of `open`, `fixed`, `overridden` or `wontfix`. An `overridden` or `wontfix` entry also carries `reason`, `recorded_by` and a date, and an `overridden` entry carries `owner_severity`. The routing policy reads owner rulings from this file only. Introduced by SPEC-007.
 - `tasks/SPEC-NNN/` — each spec's delivery guide and its companions. See `guide-schema.md`.
