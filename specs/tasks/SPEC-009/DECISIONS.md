@@ -83,3 +83,11 @@ in chronological order.
 **Merged:** PR #62
 **What changed:** the three hooks import `sdlc-paths.mjs` (and the edit gate also imports `legacy-map.mjs`) from the plugin's `scripts/sdlc/lib/`, or from `lib/` beside a repo-local hook. The root walk uses `isSdlcRoot`. The edit gate reads constraints through `sdlcPaths(root).scripts` and `.constraints`. The prompt hook nudges once per session on layout 1.
 **Anything a later step must match:** S5's `bootstrap.sh` must copy `scripts/sdlc/lib/` to `.claude/hooks/lib/` next to the hooks it installs. The nudge marker is `.claude/.sdlc-layout-nudge-<session>`.
+
+---
+
+## S4 — State-machine loader, extensions, domain_routing and the YAML fix
+
+**Merged:** PR #63
+**What changed:** added `loadMachine(root, { machineFile })` to `lib/sdlc-paths.mjs`. Every machine reader now goes through it, and each one's private parser is gone. The line-99 quote is escaped in both machines. The payload machine no longer carries `domain_routing:`.
+**Anything a later step must match:** `loadMachine` throws on a layout-2 machine that has a `domain_routing:` key, even an empty one, so S6's migration must cut the whole block out of the machine. `gen-handoffs.mjs` names the generator through `GENERATOR_LABEL`, still `scripts/sdlc/gen-handoffs.mjs`. S10 switches it to the `${CLAUDE_PLUGIN_ROOT}` form when it regenerates the footers.
