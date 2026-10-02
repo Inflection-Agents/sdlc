@@ -23,7 +23,8 @@
       "23077e07d2d77565a20958ae6b5872b58b07ac2a767104d6279a3135dc7f03db": "0.3.0",
       "b353f3df95f0c8185816a7fa275d3d32da3c5197ae62c6a5eaa0efa0a6e3c750": "0.4.0",
       "c0afc4f877f7c10274aa3f32b9d390c5ac55a4077aa9bd3219cb3b38c19b47af": "0.4.0",
-      "d13f06e4edb1e9c5e8cc7f81471ce1c0ffa46180cad9957673f8d7b88555aeeb": "0.4.0"
+      "d13f06e4edb1e9c5e8cc7f81471ce1c0ffa46180cad9957673f8d7b88555aeeb": "0.4.0",
+      "85926c3606c74ae40848dd264ad114f0c4c8ec8793adac39ebcd41ade527a2b6": "0.4.0"
     },
     "scripts/check-review-constraint-globs.mjs": {
       "8457a5f6d4abd6fc93bbe438087efde1bbf08c6ecd9f02f41f5369713199c4df": "0.1.0",
