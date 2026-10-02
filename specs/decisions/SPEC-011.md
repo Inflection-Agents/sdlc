@@ -189,3 +189,14 @@ Phase 1 Step 3's research protocol writes the `## Research` section below.
 **Rejected:** Symlinking `node_modules/` from the main checkout, which shares one mutable tree between two checkouts on different branches. Leaving it to each step's `Verify:` commands, which would repeat the install on every step.
 **Deliberately deferred:** Which files a repo copies. The repo writes that into its own command.
 **Raised by:** reviewer (round 3)
+
+---
+
+## D-015 — `--prune` removes only worktrees whose work is over
+
+**Date:** 2026-10-02
+**Question:** Round 4 showed that `git worktree remove` deletes a tree's gitignored files, which `git status --porcelain` does not report, so the `--prune` the nudge prints would delete `.env.local` and `node_modules/` from live `outside` worktrees that the migration says to move. Which strays may `--prune` remove?
+**Decided:** Only `branch-gone` and `spec-closed` strays under `.claude/worktrees/`, whose work is over. `outside`, `detached` and `agent` strays are reported and never removed. This narrows D-009's claim that a wrong classification costs at most a recreatable worktree: removal can also cost gitignored files, so removal is limited to the two kinds where the work is finished.
+**Rejected:** Pruning every clean stray and naming the risk, which keeps the destructive default the nudge advertises.
+**Deliberately deferred:** Nothing.
+**Raised by:** reviewer (round 4), fixed after the cap and disclosed in the spec body

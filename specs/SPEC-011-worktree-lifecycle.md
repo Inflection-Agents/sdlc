@@ -109,7 +109,9 @@ A new worktree holds tracked files only, so it has none of the gitignored files 
 
 Every later command of the run runs inside that worktree. That covers each step branch, the step loop, the self-review, the step PRs, end-to-end validation, the simplify pass, the integration PR and the panel fix loop through §7.3. The main checkout stays on `main` (D-003). The worktree is removed only at exit: after §7.3's last round at §7.4, or at §8 on escalation (D-010).
 
-**At exit.** The exit and escalation commands run from `$CLAUDE_PROJECT_DIR`, the main checkout, because removing the worktree removes the shell's own directory otherwise. The run pushes `feat/spec-NNN` and runs `git worktree remove .claude/worktrees/spec-NNN`. If that refuses because the tree is dirty, the run keeps it and names it in its exit report. Then it runs `worktrees.mjs --fetch --prune --own spec-NNN`. That removes nothing but the spec worktree, and only if it is still there and clean, and it lists every other stray without touching it (D-011). Agent-tool worktrees the run spawned are already gone by then, because the spawner removes each one when it merges that agent's result (Subagents during a run, below). Changes requested later on the open integration PR are made by re-entering the worktree with §1's resume form.
+**At exit.** The removal commands run from `$CLAUDE_PROJECT_DIR`, the main checkout, because removing the worktree would otherwise remove the shell's own directory. The run pushes `feat/spec-NNN` and runs `git worktree remove .claude/worktrees/spec-NNN`. If that refuses because the tree is dirty, the run keeps it and names it in its exit report. Then it runs `worktrees.mjs --fetch --prune --own spec-NNN`. That removes nothing but the spec worktree, and only if it is still there and clean, and it lists every other stray without touching it (D-011). Agent-tool worktrees the run spawned are already gone by then, because the spawner removes each one when it merges that agent's result (Subagents during a run, below). Changes requested later on the open integration PR are made by re-entering the worktree with §1's resume form.
+
+**Where each exit command runs.** The WIP commit, the exit `phase:` block in `_index.yaml`, and their push are made inside the spec worktree. Only the `git worktree remove` and the `worktrees.mjs` call after them run from `$CLAUDE_PROJECT_DIR`.
 
 **On escalation.** The run commits work in progress on the current step branch as `SPEC-NNN S<n>: WIP (escalated)`, pushes it, and then removes the worktree as at exit. A step whose state cannot be committed (a merge in progress) is left dirty and reported, never forced.
 
@@ -127,7 +129,7 @@ Every later command of the run runs inside that worktree. That covers each step 
 4. `spec-closed`: it is named `spec-NNN`, and that spec's status is neither `draft` nor `active`, or the spec does not resolve.
 5. `agent`: it is an Agent-tool worktree (`agent-<id>`) that still exists, on a branch or on a detached HEAD. The tool removes an unchanged one itself, and the spawner removes one that kept changes when it merges them, so one that remains was either forgotten or belongs to an agent still running. The tool's `worktree-agent-<id>` branch is never pushed, so no other kind would catch it. `--prune` never removes an `agent` stray, because a running agent's worktree can be clean. It is reported for the spawner to remove.
 
-`--json` prints an array of `{ path, branch, reason }` records instead of lines. `--fetch` runs `git fetch --prune` first. Without it, `branch-gone` reflects the last fetch, so a hook run makes no network call. List mode reads only `git worktree list` and local refs. It never runs `git status` per worktree, which keeps the first-prompt check cheap in a large tree, and it prints one line per stray and exits 0. `--prune` checks each stray's cleanliness with `git status --porcelain`, removes the clean ones other than `agent` strays with `git worktree remove` (never `--force`), runs `git worktree prune`, and reports each dirty stray untouched. It deletes no branch. `--own spec-NNN` removes `.claude/worktrees/spec-NNN` when it is clean, whether or not it is a stray (at exit its spec is still `active`), and only lists the rest, so a run's exit never removes another session's worktree.
+`--json` prints an array of `{ path, branch, reason }` records instead of lines. `--fetch` runs `git fetch --prune` first. Without it, `branch-gone` reflects the last fetch, so a hook run makes no network call. List mode reads only `git worktree list` and local refs. It never runs `git status` per worktree, which keeps the first-prompt check cheap in a large tree, and it prints one line per stray and exits 0. `--prune` removes only the two kinds of stray that mean the work is over, `branch-gone` and `spec-closed`, and only when the worktree sits under `.claude/worktrees/`. It reports `outside`, `detached` and `agent` strays and never removes them. Removing a worktree also deletes its gitignored files (`.env.local`, `node_modules/`), which `git status --porcelain` does not list, and a worktree of those three kinds may still be in use (D-015). For each removable stray it checks cleanliness with `git status --porcelain`. It removes the clean ones with `git worktree remove` (never `--force`), runs `git worktree prune`, and reports each dirty stray untouched. It deletes no branch. `--own spec-NNN` removes `.claude/worktrees/spec-NNN` when it is clean, whether or not it is a stray (at exit its spec is still `active`), and only lists the rest, so a run's exit never removes another session's worktree.
 
 ### The once-per-session nudge
 
@@ -180,14 +182,14 @@ They keep only what is specific to them. The SOP keeps its literal §1 commands,
   - the session and `git worktree move` commands;
   - the three commands that free a branch held by the main checkout;
   - the note to exclude `.claude/worktrees/` from a project's own tree-walking tools.
-- [ ] AC-002: Given `CLAUDE.md`, `agent-orchestration.md`, `skills/spec-execution/SKILL.md`, `skills/spec-execution/SOP.md`, `docs/executor-brief.md` and the `spec-execution` `exit_condition` in `.sdlc/state-machine.yaml`, then each links to `docs/worktrees.md`. None of them contains the location table, or states where a session, hand-made or Agent-tool worktree goes or who removes it. Three things are excepted by name:
+- [ ] AC-002: Given `CLAUDE.md`, `agent-orchestration.md`, `skills/spec-execution/SKILL.md`, `skills/spec-execution/SOP.md`, `docs/executor-brief.md` and the `spec-execution` `exit_condition` in `.sdlc/state-machine.yaml`, then each links to `docs/worktrees.md`. None of them contains the location table, or states where a session, hand-made or Agent-tool worktree goes or who removes it. Four things are excepted by name:
   - SOP §1's commands;
   - SOP §7.4's and §8's commands;
   - AC-004's sentence that no step worktree lingers and the spec worktree lives until run exit;
   - the spawner's removal step in SOP §5 and §6.1.
 - [ ] AC-003: Given `skills/spec-execution/SOP.md`, then:
   - §1 holds the three-branch create-or-re-enter block from the Design;
-  - §7.4 and §8 run from `$CLAUDE_PROJECT_DIR`, remove the spec worktree without `--force`, name a kept dirty worktree in the exit report, and run `worktrees.mjs --fetch --prune --own spec-NNN`;
+  - §7.4 and §8 commit and push the exit `phase:` block (and on §8 the WIP commit) inside the spec worktree, then from `$CLAUDE_PROJECT_DIR` remove the spec worktree without `--force`, name a kept dirty worktree in the exit report, and run `worktrees.mjs --fetch --prune --own spec-NNN`;
   - §8 first commits work in progress as `SPEC-NNN S<n>: WIP (escalated)` and pushes it;
   - when `.sdlc/config.yaml` sets `worktrees.setup`, §1 runs it inside a newly added worktree, and when it is unset §1 runs nothing extra.
 - [ ] AC-004: Given `CLAUDE.md`, `skills/spec-execution/SKILL.md`, `SOP.md`, `agent-orchestration.md` and the state machine's `exit_condition`, then each states that no step worktree lingers and that the spec worktree lives until run exit. `init-payload/.sdlc/state-machine.yaml` is byte-identical to `.sdlc/state-machine.yaml`, and `node .sdlc/scripts/gen-handoffs.mjs --check` exits 0. Every goal-file and block-counter path in `skills/spec-execution/SKILL.md` is written under `$CLAUDE_PROJECT_DIR/.claude/`.
@@ -195,9 +197,9 @@ They keep only what is specific to them. The SOP keeps its literal §1 commands,
   - a live `spec-NNN` worktree;
   - a worktree on a branch with no commits and no upstream;
   - a worktree on a pushed branch whose upstream still exists.
-- [ ] AC-006: Given a clean stray, a dirty stray, a clean `agent` stray on a branch and a clean `agent-<id>` worktree on a detached HEAD, when `worktrees.mjs --prune` runs, then:
-  - the clean stray is removed without `--force`;
-  - the dirty stray and both Agent-tool worktrees are still present, each reported as dirty or `agent`;
+- [ ] AC-006: Given one clean worktree of each stray kind, a dirty `branch-gone` stray, and a clean `agent-<id>` worktree on a detached HEAD, when `worktrees.mjs --prune` runs, then:
+  - the clean `branch-gone` and `spec-closed` strays are removed without `--force`;
+  - the clean `outside`, `detached` and `agent` strays, the detached Agent-tool worktree, and the dirty stray are still present and reported;
   - the main worktree and every non-stray are untouched;
   - no branch is deleted.
 - [ ] AC-007: Given a clean `.claude/worktrees/spec-NNN` whose spec is `active`, and two clean strays belonging to other sessions, an `agent-<id>` worktree and a `detached` one, when `worktrees.mjs --prune --own spec-NNN` runs, then only `spec-NNN` is removed and both other strays are listed and left in place.
@@ -219,6 +221,7 @@ They keep only what is specific to them. The SOP keeps its literal §1 commands,
 - **A dirty worktree can survive a run.** `git worktree remove` without `--force` refuses a dirty tree, and the run never forces it. SC-2 counts such a worktree as met only when the exit report names it.
 - **A new worktree has no gitignored files.** Dependencies (`node_modules/`) and env files are absent from a fresh worktree. `worktrees.setup` lets a repo install them. A repo that sets nothing runs its `Verify:` commands in a tree that may lack them, and the first failing step shows it. high-gear-apps keeps `node_modules/` and `apps/*/.env*` files gitignored, so it needs the key.
 - **One worktree per run means a second full checkout on disk.** In high-gear-apps that is a large tree for the length of a delivery run, bounded because the run removes it at exit.
+- **Removing a worktree deletes its gitignored files.** `git worktree remove` deletes every file in the tree, and `--prune` judges cleanliness by `git status --porcelain`, which does not list gitignored files such as `.env.local`. So `--prune` removes only `branch-gone` and `spec-closed` strays under `.claude/worktrees/`, whose work is over. It never removes an `outside` or `detached` worktree, which the migration tells the developer to move or inspect.
 - **An agent worktree is reported, not removed.** An `agent` stray may belong to a subagent still running, so `--prune` leaves every `agent` stray to its spawner. A spawner that forgets one is told so on each session's first prompt, until it removes it.
 - **This narrows two completed contracts.** ADR-003 decision 7 and SPEC-009 > Design > `resolveRoot` are both closed records in force. ADR-009 records each narrowing, and the closed records are not edited.
 
@@ -234,8 +237,53 @@ Every worktree is under `.claude/worktrees/`. Each delivery run has a spec workt
 
 ### Migration strategy
 
-Nothing moves automatically. On the first session after an adopter syncs, `worktrees.mjs` reports every existing worktree outside `.claude/worktrees/` as `outside`. The developer moves a live one with `git worktree move <path> .claude/worktrees/<branch-slug>`, or removes a finished one, and `docs/worktrees.md` gives both commands. The `.gitignore` line arrives with the sync through the new merge in `sync-refresh.mjs`. A delivery run that is in flight when the change lands holds `feat/spec-NNN`, or a step branch, in the main checkout. Git refuses to check out a branch another worktree holds, so before its next resume the run must free the branch: commit and push the main checkout's work, then `git checkout main` there. Only then does it run §1's resume form. `docs/worktrees.md` gives the same three commands.
+Nothing moves automatically. On the first session after an adopter syncs, `worktrees.mjs` reports every existing worktree outside `.claude/worktrees/` as `outside`. The developer moves a live one with `git worktree move <path> .claude/worktrees/<branch-slug>`, or removes a finished one, and `docs/worktrees.md` gives both commands. The `.gitignore` line arrives with the sync through the new merge in `sync-refresh.mjs`. An adopter whose builds or tests need gitignored files sets `worktrees.setup` in `.sdlc/config.yaml` before its first delivery run after the sync, because the sync does not write it, and `docs/worktrees.md` says so too. A delivery run that is in flight when the change lands holds `feat/spec-NNN`, or a step branch, in the main checkout. Git refuses to check out a branch another worktree holds, so before its next resume the run must free the branch: commit and push the main checkout's work, then `git checkout main` there. Only then does it run §1's resume form. `docs/worktrees.md` gives the same three commands.
 
 ### Rollback plan
 
 Revert the integration commit. `spec-execution` returns to working in the main checkout, and the nudge and the script disappear. Worktrees created under `.claude/worktrees/` remain valid git worktrees, and `git worktree remove` clears them.
+
+## spec_followups
+
+```yaml
+- finding_id: F-b7ab31a8
+  source_review: "spec-reviewer round 4, 2026-10-02"
+  severity: nit
+  criterion: "spec-schema:design"
+  location: "Design > Delivery in a spec worktree"
+  finding: "The WIP commit and the exit phase block had no stated tree, and could land in the main checkout."
+  deferred_date: 2026-10-02
+  resolved: true
+  resolved_date: 2026-10-02
+  resolved_by: "revision after round 4: Where each exit command runs"
+- finding_id: F-6972b822
+  source_review: "spec-reviewer round 4, 2026-10-02"
+  severity: nit
+  criterion: "spec-schema:acceptance-criteria"
+  location: "Acceptance criteria"
+  finding: "AC-002 said three exceptions and listed four."
+  deferred_date: 2026-10-02
+  resolved: true
+  resolved_date: 2026-10-02
+  resolved_by: "revision after round 4: AC-002 says four"
+- finding_id: F-40d7dfd3
+  source_review: "spec-reviewer round 4, 2026-10-02"
+  severity: nit
+  criterion: "spec-schema:migration"
+  location: "Migration > Migration strategy"
+  finding: "The migration did not tell an adopter to set worktrees.setup before its first delivery run after sync."
+  deferred_date: 2026-10-02
+  resolved: true
+  resolved_date: 2026-10-02
+  resolved_by: "revision after round 4: Migration strategy sentence"
+```
+
+## Disclosed, not reviewed-clean
+
+- id: F-3e582b60
+  first_round: 4
+  severity: major
+  criterion: "spec-schema:risks-and-constraints"
+  location: "Risks & constraints"
+  why_not_closed: "Raised in round 4, the cap (ADR-005). Fixed after the round and not re-reviewed: `--prune` now removes only `branch-gone` and `spec-closed` strays under `.claude/worktrees/`. `outside`, `detached` and `agent` strays are report-only, so following the nudge never deletes the gitignored files of a live worktree. Design > Detection, AC-006 and a new risk carry the change, and D-015 records it. The owner signs off with this fix unreviewed."
+

@@ -1,0 +1,30 @@
+spec: SPEC-011
+title: "Worktree lifecycle: when to create one, where it goes, and when it is removed"
+plan_review:
+  status: approve-ready
+  approved: false
+  reviewed: 2026-10-02
+
+steps:
+  - id: S1
+    status: pending
+  - id: S2
+    status: pending
+  - id: S3
+    status: pending
+  - id: S4
+    status: pending
+  - id: S5
+    status: pending
+  - id: S6
+    status: pending
+
+decisions: []
+
+phase:
+  current: spec-authoring
+  next_action: spec-execution
+  next_trigger: 'execute SPEC-011'
+  exit_condition_met: true
+  handoff_surfaced: false
+  updated: 2026-10-02

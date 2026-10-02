@@ -203,6 +203,29 @@
       "acceptance_criteria_count": 23,
       "acceptance_criteria_done": 0,
       "gaps": []
+    },
+    {
+      "id": "SPEC-011",
+      "title": "Worktree lifecycle: when to create one, where it goes, and when it is removed",
+      "status": "draft",
+      "version": 1,
+      "path": "specs/SPEC-011-worktree-lifecycle.md",
+      "initiative": "INI-004",
+      "owner": "franklin",
+      "workspaces": [],
+      "tags": [
+        "worktrees",
+        "spec-execution",
+        "hooks",
+        "multi-agent"
+      ],
+      "depends_on": [
+        "SPEC-002",
+        "SPEC-009"
+      ],
+      "acceptance_criteria_count": 15,
+      "acceptance_criteria_done": 0,
+      "gaps": []
     }
   ],
   "adrs": [
@@ -261,6 +284,13 @@
       "status": "accepted",
       "spec": "SPEC-009",
       "path": "specs/adrs/ADR-008-sdlc-folder-layout.md"
+    },
+    {
+      "id": "ADR-009",
+      "title": "One worktree per branch of active work, all under .claude/worktrees/, removed by the creator and found by a script",
+      "status": "proposed",
+      "spec": "SPEC-011",
+      "path": "specs/adrs/ADR-009-worktree-lifecycle.md"
     }
   ],
   "bugs": [],

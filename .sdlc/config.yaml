@@ -34,4 +34,7 @@ scan:
     - "specs/tasks/SPEC-009/**"
     # A guide's Changes: name the plugin source by the path git tracks, scripts/sdlc.
     - "specs/tasks/SPEC-007/**"
+    # A spec that changes the plugin source names it by the path git tracks, scripts/sdlc.
+    - "specs/SPEC-011-*.md"
+    - "specs/tasks/SPEC-011/**"
     - "specs/adrs/**"
