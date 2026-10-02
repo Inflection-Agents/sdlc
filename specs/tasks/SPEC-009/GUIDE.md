@@ -13,7 +13,7 @@ spec_version: 1
 
 ### S2: Validators resolve through the module
 - Covers: AC-003, AC-008
-- Changes: `scripts/sdlc/*.mjs`, `scripts/sdlc/*.test.mjs`, `init-payload/scripts/sdlc/**`
+- Changes: `scripts/sdlc/*.mjs`, `scripts/sdlc/*.test.mjs`, `init-payload/scripts/sdlc/**`, `scripts/sdlc/__fixtures__/layouts/**`, `hooks/__tests__/project-root-resolution.test.mjs` (its fixture copies `lib/`), `.github/workflows/sdlc-validate.yml` (the test step's glob gains `scripts/sdlc/lib/*.test.mjs`)
 - Verify: `node --test scripts/sdlc/*.test.mjs`, `for f in scripts/sdlc/*.mjs; do b=$(basename $f); [ -f init-payload/scripts/sdlc/$b ] && cmp $f init-payload/scripts/sdlc/$b; done`
 - Notes: Each script takes `--root` and defaults to `resolveRoot(process.cwd())`. Keep every existing CLI argument and exit code. Usage strings say `.sdlc/scripts/<name>`. `check-stale-citations.mjs` adds `.sdlc/` (except `.sdlc/scripts/`) and `paths.process_doc` to its always-loaded list, and takes its layout-1 entry from the `legacy-map.mjs` export. The resolver's layout-1 values follow the per-shape table in SPEC-009 Design > The resolver. Copy `lib/` into the payload as well. S5 moves the payload to `.sdlc/scripts/`.
 

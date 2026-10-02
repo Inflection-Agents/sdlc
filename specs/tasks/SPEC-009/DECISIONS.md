@@ -47,3 +47,13 @@ in chronological order.
 **Merged:** PR #60
 **What changed:** added `lib/sdlc-paths.mjs` (`sdlcPaths`, `resolveRoot`, `readConfig`, `detectLayout`, `takeRootArg`), `lib/legacy-map.mjs`, `lib/mini-yaml.mjs`, `run.mjs`, `validate-sdlc-config.mjs`, the fixture builder at `__fixtures__/layouts/build.mjs`, and `skills/sdlc-config-schema.md`.
 **Anything a later step must match:** validators take `--root` through `takeRootArg(argv)`. Hooks call `sdlcPaths(root, { quiet: true })`, because they nudge once per session rather than print the stderr line. `pluginRoot()` is `CLAUDE_PLUGIN_ROOT` or the plugin-source repo, and null in an adopter's copy. Tests delete `CLAUDE_PROJECT_DIR` before calling `resolveRoot`, because a Claude session sets it.
+
+---
+
+## EXECUTIVE DECISION — guide change: S2 touches a hook test fixture, the CI test glob and the shared fixture
+
+**Date:** 2026-10-02
+**Question:** porting the validators broke two things outside S2's `Changes:`. A hook test copies `reviewer-routing.mjs` into a fixture repo without the `lib/` it now imports, and CI's test step globs `scripts/sdlc/*.test.mjs`, which skips the new `lib/*.test.mjs`.
+**Decided:** the hook fixture copies `lib/`. The CI test step adds `scripts/sdlc/lib/*.test.mjs`. The shared fixture machine gains the fields a valid phase needs, so the `--root` test can run `validate-state-machine.mjs` against it.
+**Why:** without the fixture copy, the hook test stays red for a reason unrelated to the hooks. Without the glob, the resolver's own tests never run in CI.
+**Reversal path:** revert the three hunks.

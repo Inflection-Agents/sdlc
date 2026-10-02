@@ -26,7 +26,7 @@ jobs:
                   node-version: '22'
 
             - name: Tests — validators, delivery gates, and the goal leash
-              run: node --test scripts/sdlc/*.test.mjs hooks/__tests__/*.test.mjs
+              run: node --test scripts/sdlc/*.test.mjs scripts/sdlc/lib/*.test.mjs hooks/__tests__/*.test.mjs
 
             - name: State machine is structurally and referentially valid
               run: node scripts/sdlc/validate-state-machine.mjs

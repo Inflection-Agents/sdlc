@@ -22,8 +22,8 @@
 // by an engine at its Plan phase.
 //
 // Usage:
-//   node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml [...]
-//   node scripts/sdlc/plan-gate.mjs --presence-only specs/tasks/*/_index.yaml
+//   node .sdlc/scripts/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml [...]
+//   node .sdlc/scripts/plan-gate.mjs --presence-only specs/tasks/*/_index.yaml
 //
 // Two modes, because the two questions are different:
 //   default          — is this plan APPROVED? The question a delivery run asks about
@@ -125,7 +125,7 @@ function main(argv) {
     const presenceOnly = argv.includes('--presence-only')
     const rawPaths = argv.filter((a) => a !== '--presence-only')
     if (rawPaths.length === 0) {
-        process.stderr.write('usage: node scripts/sdlc/plan-gate.mjs [--presence-only] <_index.yaml> [...]\n')
+        process.stderr.write('usage: node .sdlc/scripts/plan-gate.mjs [--presence-only] <_index.yaml> [...]\n')
         process.exit(1)
     }
     // A glob matching nothing (no specs/tasks/ yet on a fresh repo) is passed

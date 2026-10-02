@@ -29,15 +29,14 @@
  * gate can. That is why the interview asks rather than infers.
  *
  * Usage:
- *   node scripts/sdlc/validate-constraints-registry.mjs
- *   node scripts/sdlc/validate-constraints-registry.mjs --allow-empty   # pre-interview
+ *   node .sdlc/scripts/validate-constraints-registry.mjs [--root <dir>]
+ *   node .sdlc/scripts/validate-constraints-registry.mjs --allow-empty   # pre-interview
  */
 import { existsSync, realpathSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
-const REGISTRY = join(ROOT, '.ai', 'sdlc', 'review-constraints.yaml')
+import { sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
 
 /** Mirrors PR_SIDE_PREFIXES in validate-review-envelope.mjs. */
 const GROUNDED_PREFIXES = ['ac:', 'adr:', 'std:', 'inv:', 'design:', 'lens:', 'monorepo:', 'task:', 'spec:']
@@ -75,11 +74,13 @@ export function gradeRows(rows) {
 }
 
 async function main(argv) {
-    const allowEmpty = argv.includes('--allow-empty')
+    const { root, rest } = takeRootArg(argv)
+    const allowEmpty = rest.includes('--allow-empty')
+    const REGISTRY = sdlcPaths(root).constraints
 
     if (!existsSync(REGISTRY)) {
         process.stderr.write(
-            `constraints registry not found at .ai/sdlc/review-constraints.yaml\n` +
+            `constraints registry not found at ${relative(root, REGISTRY)}\n` +
                 `Run /sdlc-init, or create it from the stub.\n`
         )
         process.exit(1)

@@ -25,13 +25,15 @@
 // must not move the section boundary.
 //
 // Usage:
-//   node scripts/sdlc/validate-guide.mjs specs/tasks/SPEC-NNN/GUIDE.md [...]
+//   node .sdlc/scripts/validate-guide.mjs specs/tasks/SPEC-NNN/GUIDE.md [...] [--root <dir>]
 //
 // Exit 0 when every guide passes, 1 when any fails, 2 on a usage error.
 
 import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { isSdlcRoot, readConfig, resolveRoot, sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
 
 // The owner's limit for the prompt that arms a delivery goal (SPEC-008 Design > The kickoff prompt).
 export const KICKOFF_MAX_CHARS = 3800
@@ -167,9 +169,15 @@ export function parseIndex(text) {
     return out
 }
 
-/** Does .ai/project.md define workspaces (a `## Workspaces` table with at least one body row)? */
+/**
+ * Does the repo define workspaces? On layout 2, a non-empty `workspaces` list in
+ * `.sdlc/config.yaml`. On layout 1, a `## Workspaces` table with at least one body row
+ * in the project doc.
+ */
 export function definesWorkspaces(repoRoot) {
-    const path = join(repoRoot, '.ai', 'project.md')
+    const paths = sdlcPaths(repoRoot, { quiet: true })
+    if (paths.layout === 2) return (readConfig(repoRoot)?.workspaces ?? []).length > 0
+    const path = paths.project
     if (!existsSync(path)) return false
     const rows = (sectionLines(readFileSync(path, 'utf8'), 'Workspaces') ?? []).filter((l) => /^\s*\|/.test(l))
     // The first two table lines are the header and its `---` separator.
@@ -180,24 +188,26 @@ const diff = (a, b) => [...a].filter((x) => !b.has(x))
 const duplicates = (ids) => [...new Set(ids.filter((id, i) => ids.indexOf(id) !== i))]
 
 /**
- * Validate one guide. The repo root is three levels above the guide
- * (specs/tasks/SPEC-NNN/GUIDE.md), so a guide validates the same from any cwd.
+ * Validate one guide. The repo root is the nearest SDLC root above the guide, or three
+ * levels up (specs/tasks/SPEC-NNN/GUIDE.md) when there is none, so a guide validates the
+ * same from any cwd.
  * @returns {string[]} problems (empty = valid)
  */
 export function validateGuide(guidePath) {
     const problems = []
     const dir = dirname(resolve(guidePath))
-    const repoRoot = resolve(dir, '..', '..', '..')
+    const found = resolveRoot(dir)
+    const repoRoot = isSdlcRoot(found) ? found : resolve(dir, '..', '..', '..')
     const guide = parseGuide(readFileSync(guidePath, 'utf8'))
     const specId = guide.frontmatter.spec
     if (!specId) return ['frontmatter: missing `spec:`']
 
-    const specsDir = join(repoRoot, 'specs')
+    const specsDir = sdlcPaths(repoRoot, { quiet: true }).specs
     const matches = existsSync(specsDir)
         ? readdirSync(specsDir).filter((f) => f.startsWith(`${specId}-`) && f.endsWith('.md'))
         : []
     if (matches.length !== 1) {
-        return [`spec: expected exactly one specs/${specId}-*.md, found ${matches.length}`]
+        return [`spec: expected exactly one ${relative(repoRoot, specsDir) || 'specs'}/${specId}-*.md, found ${matches.length}`]
     }
     const specText = readFileSync(join(specsDir, matches[0]), 'utf8')
     const { ids: acIds, idless, hasSection, sections } = parseSpecAcs(specText)
@@ -273,7 +283,7 @@ export function validateGuide(guidePath) {
     // Rule 8
     if (definesWorkspaces(repoRoot)) {
         for (const step of guide.steps) {
-            if (!step.fields.Workspace) problems.push(`rule 8: ${step.id} has no Workspace:, and .ai/project.md defines workspaces`)
+            if (!step.fields.Workspace) problems.push(`rule 8: ${step.id} has no Workspace:, and the repo defines workspaces`)
         }
     }
 
@@ -296,9 +306,10 @@ export function validateGuide(guidePath) {
 const looksLikeGlob = (s) => /[*?[\]]/.test(s)
 
 function main() {
-    const args = process.argv.slice(2)
+    const { root, rest: args } = takeRootArg(process.argv.slice(2))
+    sdlcPaths(root)
     if (args.length === 0) {
-        console.error('usage: node scripts/sdlc/validate-guide.mjs <GUIDE.md> [<GUIDE.md> ...]')
+        console.error('usage: node .sdlc/scripts/validate-guide.mjs <GUIDE.md> [<GUIDE.md> ...] [--root <dir>]')
         process.exit(2)
     }
     // An unmatched glob (a repo with no guides yet) is "nothing to check", as in the other validators.

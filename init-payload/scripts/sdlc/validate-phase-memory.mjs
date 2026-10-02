@@ -18,8 +18,8 @@
 //     must be booleans (or the YAML-ish strings true/false/yes/no).
 //
 // Usage:
-//   node scripts/sdlc/validate-phase-memory.mjs <_index.yaml> [<_index.yaml> ...]
-//   node scripts/sdlc/validate-phase-memory.mjs --machine <path> <_index.yaml> ...
+//   node .sdlc/scripts/validate-phase-memory.mjs <_index.yaml> [<_index.yaml> ...]
+//   node .sdlc/scripts/validate-phase-memory.mjs --machine <path> <_index.yaml> ...
 //
 // Exit 0 if every file is compliant; 1 otherwise (listing problems per file).
 // Exposes validatePhaseBlock(...) + loadPhaseIds(...) + parsePhaseBlock(...) as
@@ -28,9 +28,7 @@ import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT = resolve(__dirname, '..', '..')
-const DEFAULT_MACHINE = join(REPO_ROOT, 'specs', 'sdlc-state-machine.yaml')
+import { sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
 
 const NONE = 'none'
 const REQUIRED_FIELDS = ['current', 'next_action', 'next_trigger', 'updated']
@@ -224,8 +222,9 @@ export function checkFile(path, phaseIds, retiredIds = new Set()) {
 /** Does this argument look like an unexpanded shell glob (contains * ? [ )? */
 const looksLikeGlob = (s) => /[*?[\]]/.test(s)
 
-function parseArgs(argv) {
-    const args = { machine: DEFAULT_MACHINE, files: [] }
+function parseArgs(rawArgv) {
+    const { root, rest: argv } = takeRootArg(rawArgv)
+    const args = { machine: sdlcPaths(root).machine, files: [] }
     for (let i = 0; i < argv.length; i += 1) {
         if (argv[i] === '--machine') {
             const value = argv[i + 1]
@@ -246,7 +245,7 @@ function main() {
     const args = parseArgs(process.argv.slice(2))
     if (args.files.length === 0) {
         console.error(
-            'usage: node scripts/sdlc/validate-phase-memory.mjs <_index.yaml> [<_index.yaml> ...]'
+            'usage: node .sdlc/scripts/validate-phase-memory.mjs <_index.yaml> [<_index.yaml> ...] [--root <dir>]'
         )
         process.exit(2)
     }

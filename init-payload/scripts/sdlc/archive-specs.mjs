@@ -19,20 +19,28 @@
  *      orphan an ADR that is still cited as current authority.
  *
  * Usage:
- *   node scripts/sdlc/archive-specs.mjs            # move eligible specs
- *   node scripts/sdlc/archive-specs.mjs --check    # exit 1 if any are misplaced
- *   node scripts/sdlc/archive-specs.mjs --dry-run  # print the plan only
+ *   node .sdlc/scripts/archive-specs.mjs            # move eligible specs
+ *   node .sdlc/scripts/archive-specs.mjs --check    # exit 1 if any are misplaced
+ *   node .sdlc/scripts/archive-specs.mjs --dry-run  # print the plan only
  */
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
-const SPECS = join(ROOT, 'specs')
-const ARCHIVE = join(SPECS, 'archive')
-const ARCHIVE_SPECS = join(ARCHIVE, 'specs')
-const ARCHIVE_TASKS = join(ARCHIVE, 'tasks')
+import { LAYOUT1 } from './lib/legacy-map.mjs'
+import { resolveRoot, sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
+
+// Bound to the repo being graded: the resolved root at import, rebound from --root in main().
+let ROOT, SPECS, ARCHIVE, ARCHIVE_SPECS, ARCHIVE_TASKS
+function bind(root) {
+    ROOT = root
+    SPECS = sdlcPaths(root, { quiet: true }).specs
+    ARCHIVE = join(SPECS, 'archive')
+    ARCHIVE_SPECS = join(ARCHIVE, 'specs')
+    ARCHIVE_TASKS = join(ARCHIVE, 'tasks')
+}
+bind(resolveRoot())
 
 /** Statuses whose spec still governs work in flight and must stay searchable. */
 export const LIVE_STATUSES = new Set(['draft', 'active'])
@@ -96,12 +104,12 @@ export function archivable(specs, { citedIds, adrBoundIds }) {
  * Every `SPEC-NNN` token appearing anywhere in this repo's skill tree.
  *
  * TWO SKILL ROOTS, because the tree lives somewhere different depending on the repo.
- * This framework authors its skills at `skills/`; a repo that adopted the framework
- * receives them at `.ai/skills/` and has no top-level `skills/` at all. Scanning only
+ * This framework authors its skills at `skills/`; a forked repo keeps them in the
+ * resolver's skills directory and has no top-level `skills/` at all. Scanning only
  * `skills/` therefore collected NOTHING in every consuming repo, so clause 1 protected
  * nothing there and a spec those skills still cite as authority was archived unguarded
  * — the false-archive direction this denylist exists to prevent. Deduped by realpath
- * because `.ai/skills` is a symlink to `skills` here, so both roots resolve to one.
+ * because the resolver's skills directory can be a symlink to `skills` here.
  *
  * Deliberately over-broad: it is a token scan, not a spec-of-record test, so it also
  * protects ids that appear only as illustrative examples in skill prose (SPEC-026,
@@ -111,7 +119,10 @@ export function archivable(specs, { citedIds, adrBoundIds }) {
  */
 export function collectCitedIds(root = ROOT, knownIds = null) {
     const ids = new Set()
-    const skillRoots = [join(root, 'skills'), join(root, '.ai', 'skills')]
+    const paths = sdlcPaths(root, { quiet: true })
+    // Every place a skill tree can live, so an uninitialized or half-migrated repo is still read.
+    const skillRoots = [join(root, 'skills'), paths.skills, ...LAYOUT1.skillsCandidates.map((d) => join(root, d))]
+        .filter(Boolean)
     const seenRoots = new Set()
     const walk = (dir) => {
         if (!existsSync(dir)) return
@@ -127,7 +138,7 @@ export function collectCitedIds(root = ROOT, knownIds = null) {
     }
     for (const skills of skillRoots) {
         if (!existsSync(skills)) continue
-        // realpath, not the literal path: `.ai/skills -> ../skills` in this repo.
+        // realpath, not the literal path: a layout-1 skills dir can be a symlink to ../skills.
         let key
         try {
             key = realpathSync(skills)
@@ -140,8 +151,9 @@ export function collectCitedIds(root = ROOT, knownIds = null) {
     }
     // The constraints registry sits outside the skill tree on purpose (that tree ships
     // in the plugin and is overwritten on update), so it is read from its own path.
-    const registry = join(root, '.ai', 'sdlc', 'review-constraints.yaml')
-    if (existsSync(registry)) for (const m of read(registry).matchAll(/\b(SPEC-\d{3})\b/g)) ids.add(m[1])
+    for (const registry of new Set([paths.constraints, join(root, LAYOUT1.constraints)])) {
+        if (existsSync(registry)) for (const m of read(registry).matchAll(/\b(SPEC-\d{3})\b/g)) ids.add(m[1])
+    }
     // Keep only ids that name a spec THIS repo actually has. The shipped skills cite
     // the framework's own SPEC-001/002/004/006 as provenance, so an unfiltered scan
     // pinned those four numbers as permanently unarchivable in every repo that copied
@@ -153,7 +165,7 @@ export function collectCitedIds(root = ROOT, knownIds = null) {
 /** Spec ids bound by an ADR that is not itself archived. */
 export function collectAdrBoundIds(root = ROOT) {
     const ids = new Set()
-    const dir = join(root, 'specs', 'adrs')
+    const dir = join(sdlcPaths(root, { quiet: true }).specs, 'adrs')
     if (!existsSync(dir)) return ids
     for (const name of readdirSync(dir)) {
         if (!name.endsWith('.md')) continue
@@ -226,12 +238,15 @@ function move(from, to) {
 }
 
 function main(argv) {
+    const { root } = takeRootArg(argv)
+    sdlcPaths(root)
+    bind(root)
     const check = argv.includes('--check')
     const dryRun = argv.includes('--dry-run')
 
     const live = scanLive()
     const knownIds = new Set([...live, ...scanArchived()].map((s) => s.id).filter(Boolean))
-    const protections = { citedIds: collectCitedIds(ROOT, knownIds), adrBoundIds: collectAdrBoundIds() }
+    const protections = { citedIds: collectCitedIds(ROOT, knownIds), adrBoundIds: collectAdrBoundIds(ROOT) }
     const toArchive = archivable(live, protections)
     // A spec whose status went back to draft/active is restored by the same run.
     const toRestore = scanArchived().filter((s) => s.status && LIVE_STATUSES.has(s.status))
@@ -244,7 +259,7 @@ function main(argv) {
         if (problems.length) {
             process.stderr.write(
                 `archive boundary is incorrect:\n  ${problems.join('\n  ')}\n\n` +
-                    `Run: node scripts/sdlc/archive-specs.mjs\n`
+                    `Run: node .sdlc/scripts/archive-specs.mjs\n`
             )
             process.exit(1)
         }

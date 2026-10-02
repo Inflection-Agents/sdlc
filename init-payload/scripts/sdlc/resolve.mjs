@@ -11,14 +11,15 @@
  * Reads the filesystem directly, so ripgrep's ignore rules do not apply here.
  *
  * Usage:
- *   node scripts/sdlc/resolve.mjs SPEC-004         # -> path, status, archived?
- *   node scripts/sdlc/resolve.mjs ADR-004 --print  # -> path plus file contents
+ *   node .sdlc/scripts/resolve.mjs SPEC-004         # -> path, status, archived?
+ *   node .sdlc/scripts/resolve.mjs ADR-004 --print  # -> path plus file contents
  */
 import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
-import { dirname, join, relative, resolve as resolvePath } from 'node:path'
+import { join, relative, resolve as resolvePath } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const ROOT = resolvePath(dirname(fileURLToPath(import.meta.url)), '../..')
+import { resolveRoot, sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
+
 const read = (p) => readFileSync(p, 'utf8')
 
 /**
@@ -78,11 +79,13 @@ function walk(dir, onFile, depth = 6) {
     }
 }
 
-export function findById(id, root = ROOT) {
+export function findById(id, root = resolveRoot()) {
     const hits = []
     const seen = new Set()
+    // rootsFor() names the default specs/ dir; a config override moves all of it.
+    const specsRel = relative(root, sdlcPaths(root, { quiet: true }).specs) || 'specs'
     for (const r of rootsFor(id)) {
-        walk(join(root, r), (p, name) => {
+        walk(join(root, r.replace(/^specs/, specsRel)), (p, name) => {
             if (name.endsWith('.md') && matchesId(id, name) && !seen.has(p)) {
                 seen.add(p)
                 hits.push(p)
@@ -93,14 +96,16 @@ export function findById(id, root = ROOT) {
 }
 
 function main(argv) {
-    const wantPrint = argv.includes('--print')
-    const id = argv.find((a) => !a.startsWith('--'))
+    const { root: ROOT, rest } = takeRootArg(argv)
+    sdlcPaths(ROOT)
+    const wantPrint = rest.includes('--print')
+    const id = rest.find((a) => !a.startsWith('--'))
     if (!id) {
-        process.stderr.write('usage: node scripts/sdlc/resolve.mjs <SPEC-NNN|TASK-NNN|ADR-NNN> [--print]\n')
+        process.stderr.write('usage: node .sdlc/scripts/resolve.mjs <SPEC-NNN|TASK-NNN|ADR-NNN> [--print] [--root <dir>]\n')
         process.exit(2)
     }
 
-    const hits = findById(id)
+    const hits = findById(id, ROOT)
     if (!hits.length) {
         process.stderr.write(`resolve: no file found for ${id}\n`)
         process.exit(1)

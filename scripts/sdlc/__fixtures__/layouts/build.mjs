@@ -43,8 +43,14 @@ export const MACHINE = `version: 1
 
 phases:
     - id: spec-authoring
+      entry_triggers:
+          - 'spec out'
+      preconditions:
+          - 'an intent exists'
       owner_skill: spec-authoring
+      exit_condition: 'the spec is active'
       next_phase: none
+      next_trigger: none
 
 domain_routing:
     web: [web-patterns]
