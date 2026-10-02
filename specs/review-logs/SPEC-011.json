@@ -68,6 +68,23 @@
         "F-dfa139fc",
         "F-a76b0b27"
       ]
+    },
+    {
+      "round": 3,
+      "review": "authoring",
+      "review_round": 3,
+      "reviewed_by": "agent:spec-reviewer",
+      "date": "2026-10-02",
+      "findings": [
+        "F-f132c76e",
+        "F-ba4b2c85",
+        "F-9585d97e",
+        "F-b4440b0b",
+        "F-dc770a4a",
+        "F-d48bc98a",
+        "F-80b4752f",
+        "F-bdae7942"
+      ]
     }
   ],
   "findings": [
@@ -548,7 +565,8 @@
       "finding": "AC-002 bars SOP.md, SKILL.md, agent-orchestration.md and the state machine's exit_condition from holding 'a removal duty for a worktree creator' and excepts only SOP §1's literal commands, yet AC-003 requires SOP §7.4 and §8 to remove the spec worktree and run `worktrees.mjs --fetch --prune --own spec-NNN`, and AC-004 requires all four files to say the spec worktree lives until run exit; read strictly no text satisfies all three, and read loosely AC-002 has no stated boundary (catalog: contradictory ACs is blocker, ambiguous AC is major; graded major because a reading exists under which they agree).",
       "suggested_fix": "Define in AC-002 exactly what it forbids (the location table and the per-creator 'Removed by, and when' duties) and except the §7.4 and §8 commands and the AC-004 sentence by name.",
       "carried_forward_from_previous": false,
-      "resolution": "open"
+      "resolution": "fixed",
+      "fixed_in": 3
     },
     {
       "id": "F-1f50b73c",
@@ -562,7 +580,8 @@
       "finding": "The rewording list names four places that state 'nothing lingers', but `CLAUDE.md:51` also tells the delivery orchestrator '**Nothing lingers**: no open PR, no remote or local branch, no worktree', and neither this list, In scope nor AC-004 rewords it, so the orchestrator's own config keeps the un-narrowed ADR-003 decision 7 that ADR-009 says now applies only to step worktrees, and AC-002 may or may not count that line as a removal duty.",
       "suggested_fix": "Add `CLAUDE.md:51` to this list, to the In scope rewording item and to AC-004, making it five places.",
       "carried_forward_from_previous": false,
-      "resolution": "open"
+      "resolution": "fixed",
+      "fixed_in": 3
     },
     {
       "id": "F-c651e012",
@@ -576,7 +595,8 @@
       "finding": "A run in flight when the change lands 'finishes in the main checkout', which leaves the main checkout on `feat/spec-NNN` or on a `claude/SPEC-NNN-S<n>` branch, and git refuses to check out a branch that another worktree holds, so the stated next step, entering a spec worktree through §1's resume form (`git worktree add .claude/worktrees/spec-NNN feat/spec-NNN`, then the step branch inside it), fails for exactly the case it describes (catalog: design known-broken is blocker; graded major because it is one transitional case with a manual workaround).",
       "suggested_fix": "Add a step before the resume: commit and push the main checkout's work, switch the main checkout to `main`, then run §1, and put the same instruction in `docs/worktrees.md`.",
       "carried_forward_from_previous": false,
-      "resolution": "open"
+      "resolution": "fixed",
+      "fixed_in": 3
     },
     {
       "id": "F-e61c43a8",
@@ -590,7 +610,8 @@
       "finding": "An Agent-tool worktree that kept changes sits at `.claude/worktrees/agent-<id>` on the tool-set `worktree-agent-<id>` branch, which is never pushed (ledger Research), so it has no upstream and is never `branch-gone` under D-009, and is not `outside`, `detached` or `spec-closed`; when a spawner forgets to remove one, `worktrees.mjs` never reports it, in the location that held 19 of the Problem's 23 worktrees, and Risks & constraints does not say so (raised at major despite D-009 because it is a risk-surface omission for the owner to rule on, not a reopening of the branch-gone rule).",
       "suggested_fix": "State in Risks & constraints that a forgotten, unpushed agent worktree is invisible to the detector and accept it, or add a stray kind for an `agent-<id>` worktree whose branch has no upstream.",
       "carried_forward_from_previous": false,
-      "resolution": "open"
+      "resolution": "fixed",
+      "fixed_in": 3
     },
     {
       "id": "F-b37ba0d1",
@@ -604,7 +625,8 @@
       "finding": "The Design says commands through §7.3 run inside the spec worktree but does not say where §7.4 and §8 run, and from inside the worktree `git worktree remove .claude/worktrees/spec-NNN` names a path that does not exist and removing the shell's own directory leaves the next `worktrees.mjs` call in a deleted cwd (graded nit because 'through §7.3' already implies §7.4 runs elsewhere).",
       "suggested_fix": "Say the exit and escalation commands run from `$CLAUDE_PROJECT_DIR`, or write the path as `$CLAUDE_PROJECT_DIR/.claude/worktrees/spec-NNN` as the goal-leash paragraph does.",
       "carried_forward_from_previous": false,
-      "resolution": "open"
+      "resolution": "fixed",
+      "fixed_in": 3
     },
     {
       "id": "F-49345d5a",
@@ -618,7 +640,8 @@
       "finding": "`hooks/user-prompt-submit.mjs` `readSpecPhase` also reads `specs/tasks/SPEC-NNN/_index.yaml` from `CLAUDE_PROJECT_DIR`, which now stays on `main`, so during a run it no longer sees the run's `current: spec-execution` block and can print entry routing over live work, while the first risk says the four fixed places cover the tree split (graded nit because the output is advisory and never blocks).",
       "suggested_fix": "Add this reader to Design > A nested worktree is its own tree item 4, or name it in the first risk as an accepted gap.",
       "carried_forward_from_previous": false,
-      "resolution": "open"
+      "resolution": "fixed",
+      "fixed_in": 3
     },
     {
       "id": "F-60d2b90e",
@@ -632,7 +655,8 @@
       "finding": "In scope rewords the `exit_condition` in `.sdlc/state-machine.yaml` and names payload copies only for scripts, but `init-payload/.sdlc/state-machine.yaml` is a byte-identical copy that `sync-refresh.mjs` always refreshes into adopters, and no check fails if it keeps 'no PR, branch or worktree left lingering'.",
       "suggested_fix": "Add the payload state machine to In scope and require it in AC-004 to stay byte-identical to `.sdlc/state-machine.yaml`.",
       "carried_forward_from_previous": false,
-      "resolution": "open"
+      "resolution": "fixed",
+      "fixed_in": 3
     },
     {
       "id": "F-f72864c6",
@@ -646,7 +670,8 @@
       "finding": "The usage line offers `--json`, but the Design gives it no output shape and no AC exercises `--json` or `--fetch` (re-evaluated from round 1 F-70934fec: the missing `[--fetch]` in the usage line is fixed).",
       "suggested_fix": "Name the `--json` record fields (path, branch, reason) and cover `--json` and `--fetch` in AC-005, or drop `--json`.",
       "carried_forward_from_previous": false,
-      "resolution": "open"
+      "resolution": "fixed",
+      "fixed_in": 3
     },
     {
       "id": "F-dfa139fc",
@@ -660,7 +685,8 @@
       "finding": "No AC requires §8's escalation steps from the Design, committing work in progress as `SPEC-NNN S<n>: WIP (escalated)` and pushing it before removal, and leaving an uncommittable state dirty and reported, because AC-003 checks only that §8 removes the worktree and runs the prune.",
       "suggested_fix": "Extend AC-003 to require those two §8 rules in the SOP text.",
       "carried_forward_from_previous": false,
-      "resolution": "open"
+      "resolution": "fixed",
+      "fixed_in": 3
     },
     {
       "id": "F-a76b0b27",
@@ -673,6 +699,119 @@
       "location": "Migration > Current state",
       "finding": "Current state lists `.worktrees/` as a place worktrees are spread, but Problem and the ledger Research name the three locations as `.claude/worktrees/`, sibling directories in `~/_code/` and the main checkout, and `.worktrees/` appears only as a `.gitignore` line in high-gear-apps.",
       "suggested_fix": "Drop `.worktrees/` from Current state so it matches Problem.",
+      "carried_forward_from_previous": false,
+      "resolution": "fixed",
+      "fixed_in": 3
+    },
+    {
+      "id": "F-f132c76e",
+      "first_round": 3,
+      "rounds": [
+        3
+      ],
+      "severity": "major",
+      "criterion": "ADR-009",
+      "location": "Design > Detection: `worktrees.mjs`",
+      "finding": "The Design reports each stray 'with one reason' and lists `detached` (3) and `branch-gone` (2) before `agent` (5) without saying which reason wins when several apply, and the ledger Research shows a live Agent-tool worktree on a detached HEAD (`agent-a4ca2563…`), so an implementation that takes the first matching reason labels it `detached` and `--prune` removes it when clean, which breaks ADR-009 decision 4 ('removes clean strays except Agent-tool ones') and D-013 and can drop a running agent's detached commits with the worktree's HEAD reflog (catalog: ambiguous AC, major; AC-005 and AC-006 use one fixture per kind and never test an overlap).",
+      "suggested_fix": "State that `agent` takes precedence over every other reason for any `agent-<id>` worktree (or that `--prune` skips every `agent-<id>` path whatever its reason), and add an Agent-tool worktree on a detached HEAD to AC-006's fixtures as one that survives `--prune`.",
+      "carried_forward_from_previous": false,
+      "resolution": "open"
+    },
+    {
+      "id": "F-ba4b2c85",
+      "first_round": 3,
+      "rounds": [
+        3
+      ],
+      "severity": "major",
+      "criterion": "spec-schema:risks-and-constraints",
+      "location": "Risks & constraints",
+      "finding": "A spec worktree made by `git worktree add` holds tracked files only, and high-gear-apps keeps gitignored files its builds and tests need (`node_modules/`, `apps/dealer-app/.env.local`, `apps/*/.env.keys`, per `git status --ignored` there), so every step's `Verify:` commands and the SOP §6 end-to-end validation run in a tree without dependencies or env files, yet the §1 block has no install or env-copy step and Risks & constraints names only disk size.",
+      "suggested_fix": "Add a risk that a new spec worktree lacks gitignored dependencies and env files, and say where the bootstrap goes (for example an adopter-filled install step after SOP §1's block, named in `docs/worktrees.md`).",
+      "carried_forward_from_previous": false,
+      "resolution": "open"
+    },
+    {
+      "id": "F-9585d97e",
+      "first_round": 3,
+      "rounds": [
+        3
+      ],
+      "severity": "nit",
+      "criterion": "spec-schema:success-criteria",
+      "location": "Success criteria",
+      "finding": "SC-1 says none of the six places 'restates the table or a removal duty', while AC-002 now excepts SOP §7.4's and §8's removal commands and AC-004's sentence that the spec worktree lives until run exit, so SC-1 read literally fails on text the ACs require (graded nit, not major, because AC-002 states the boundary precisely and a completion check would read SC-1 through it).",
+      "suggested_fix": "Add to SC-1 'apart from the exceptions AC-002 names'.",
+      "carried_forward_from_previous": false,
+      "resolution": "open"
+    },
+    {
+      "id": "F-b4440b0b",
+      "first_round": 3,
+      "rounds": [
+        3
+      ],
+      "severity": "nit",
+      "criterion": "spec-schema:acceptance-criteria",
+      "location": "Acceptance criteria",
+      "finding": "Design item 4 and SC-4 now have `user-prompt-submit.mjs` > `readSpecPhase` read `_index.yaml` from the spec worktree, but no AC tests it (AC-012 covers `stop-handoff.mjs` only), and the first risk still lists 'the Stop hook' as the fourth place without the prompt hook (re-evaluated from round 2 F-49345d5a: the Design now covers the reader).",
+      "suggested_fix": "Extend AC-012 so `user-prompt-submit.mjs` also reports a spec active from a phase block committed only on `feat/spec-NNN` in the spec worktree, and name both hooks in the first risk.",
+      "carried_forward_from_previous": false,
+      "resolution": "open"
+    },
+    {
+      "id": "F-dc770a4a",
+      "first_round": 3,
+      "rounds": [
+        3
+      ],
+      "severity": "nit",
+      "criterion": "spec-schema:acceptance-criteria",
+      "location": "Acceptance criteria",
+      "finding": "The goal-leash fix in the Design is a text change to `skills/spec-execution/SKILL.md`, whose goal-file paths are relative today (`.claude/.sdlc-goal-current` at line 41, `.claude/.sdlc-goal-<session_id>` at line 187), but AC-012 tests only the hook with the file already at `$CLAUDE_PROJECT_DIR/.claude/`, which today's hook passes unchanged, so no AC requires the skill to write or delete the goal file by absolute path.",
+      "suggested_fix": "Add to AC-004 or AC-012 that every goal-file path in `skills/spec-execution/SKILL.md` is written as `$CLAUDE_PROJECT_DIR/.claude/...`.",
+      "carried_forward_from_previous": false,
+      "resolution": "open"
+    },
+    {
+      "id": "F-d48bc98a",
+      "first_round": 3,
+      "rounds": [
+        3
+      ],
+      "severity": "nit",
+      "criterion": "spec-schema:acceptance-criteria",
+      "location": "Acceptance criteria",
+      "finding": "AC-001 checks only the table, the §1 commands and the subagent base rule in `docs/worktrees.md`, while the Design lists seven contents and Migration > Migration strategy relies on two of them (the `git worktree move` command and the three commands that free a branch held by the main checkout), so the migration instructions can ship missing without any AC failing.",
+      "suggested_fix": "Extend AC-001 to the escalation commands, the five stray kinds, the session and `git worktree move` commands, the migration commands and the tree-walker exclusion note.",
+      "carried_forward_from_previous": false,
+      "resolution": "open"
+    },
+    {
+      "id": "F-80b4752f",
+      "first_round": 3,
+      "rounds": [
+        3
+      ],
+      "severity": "nit",
+      "criterion": "spec-schema:design",
+      "location": "Design > Detection: `worktrees.mjs`",
+      "finding": "Detection says `--own spec-NNN` 'limits removal' to the spec worktree, which reads as strays intersected with `spec-NNN`, but a spec worktree at exit is live (its spec is `active`) and so is never a stray, while the At-exit paragraph says `--own` removes it when it is still there and clean, and AC-007 does not state the fixture spec's status, so both implementations pass (graded nit because the `git worktree remove` before it already removes a clean spec worktree).",
+      "suggested_fix": "Say that `--own spec-NNN` removes `.claude/worktrees/spec-NNN` when it is clean whether or not it is a stray, and give AC-007's fixture an `active` spec.",
+      "carried_forward_from_previous": false,
+      "resolution": "open"
+    },
+    {
+      "id": "F-bdae7942",
+      "first_round": 3,
+      "rounds": [
+        3
+      ],
+      "severity": "nit",
+      "criterion": "spec-schema:design",
+      "location": "Design > Delivery in a spec worktree",
+      "finding": "AC-002 bars the SOP and `docs/executor-brief.md` from stating who removes an Agent-tool worktree, which strips today's 'Clean up every worktree when the group finishes' (SOP §5) and 'then remove the worktree' (SOP §6.1) from the procedure the spawner follows on every run, while this section says the spawner removes the agent worktree and that the executor brief 'says the same', and SC-2 depends on that removal happening.",
+      "suggested_fix": "Either add SOP §5's and §6.1's removal step to AC-002's named exceptions, or say here that the executor brief repeats only the base rule and the SOP links to `docs/worktrees.md` for the removal.",
       "carried_forward_from_previous": false,
       "resolution": "open"
     }

@@ -178,3 +178,14 @@ Phase 1 Step 3's research protocol writes the `## Research` section below.
 **Rejected:** Accepting the blind spot, which leaves the largest source of the recorded sprawl unreported. Pruning clean agent worktrees, which can delete a running agent's tree.
 **Deliberately deferred:** Nothing.
 **Raised by:** reviewer (round 2)
+
+---
+
+## D-014 — A repo can name one setup command for a new spec worktree
+
+**Date:** 2026-10-02
+**Question:** Round 3 found that a new worktree holds tracked files only, so every `Verify:` command in high-gear-apps would run without `node_modules/` or its env files. Where does the bootstrap go?
+**Decided:** An optional `worktrees.setup` command in `.sdlc/config.yaml`, which SOP §1 runs inside a newly added spec worktree. Unset means nothing runs. A failing command fails the run's start.
+**Rejected:** Symlinking `node_modules/` from the main checkout, which shares one mutable tree between two checkouts on different branches. Leaving it to each step's `Verify:` commands, which would repeat the install on every step.
+**Deliberately deferred:** Which files a repo copies. The repo writes that into its own command.
+**Raised by:** reviewer (round 3)
