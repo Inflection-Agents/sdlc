@@ -161,3 +161,25 @@ This keeps AC-018, SC-4 and D-011 all true at once, so no spec amendment is need
 - `CLAUDE.md` and the missing-id error now name `stamp-envelope`.
 
 **Moot:** restoring a superseded ruling. Rulings are no longer superseded.
+
+---
+
+## Gate round 3 — at the ADR-004 cap; three majors disclosed, not fixed
+
+**Panel:** the same four reviewers, each seeded with its round-2 envelope. Integration and conventions raised no blocker or major. The integration reviewer confirmed that the round-2 routing satisfies AC-018, SC-4 and D-011 together.
+
+**Disclosed in the PR body under `## Disclosed, not fixed`.** Each was found in round 3, and no fourth round runs:
+1. An unclosed `<!--` in the Disclosed section hides the disclosure from the rendered spec (`review-log.mjs` > `disclosedIds`).
+2. A raise followed by a lower passes `check`, because only the latest severity is kept (`review-log.mjs` > `appendRound`). This corrects the round-2 entry above: a raise fails `check` only while it is the current severity.
+3. `lib/fence.mjs` accepts at most 3 spaces of indent before a fence, so a fence inside a nested list item is read as prose. This regressed in #89.
+
+**Accepted as follow-ups:**
+- the `review-logs/` directory symlink;
+- amendment-label version binding and ordering;
+- three fence edge cases (a backtick info string, tab indent, a mixed closer);
+- `artifact_id` missing from the `spec-reviewer` field list;
+- `validate-spec --json` emitting `artifact_id: null`;
+- two untested code paths;
+- relaying `apply`'s stderr warning to the owner;
+- a friendlier parse error for `spec_review_overrides`;
+- a test that a re-ruling clears the `check` failure.
