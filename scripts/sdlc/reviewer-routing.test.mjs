@@ -12,6 +12,7 @@ import {
     agentForLens,
     applicableConstraints,
     applicableConstraintsFor,
+    enrich,
     globToRe,
     loadConstraints,
     parseConstraints
@@ -87,6 +88,28 @@ test('a check: block scalar cannot hijack the row it documents', () => {
     assert.equal(one.lens, 'core-purity', 'block-scalar text overwrote the real lens')
     assert.equal(one.severity, 'blocker')
     assert.equal(agentForLens(parsed, 'hijacked'), 'task-reviewer', 'a hijacked lens must not exist')
+})
+
+test('a bare top-level list, with no constraints: key, parses', () => {
+    const text = [
+        '# a registry written as a top-level sequence',
+        '- id: INV-A',
+        '  when:',
+        '      touches:',
+        "          ['dbt/models/**',",
+        "           'dbt/macros/**']",
+        '  lens: data',
+        '  agent: data-reviewer',
+        '- id: INV-B',
+        '  lens: security',
+        '',
+    ].join('\n')
+    const rows = enrich(parseConstraints(text), text)
+    assert.deepEqual(rows.map((r) => [r.id, r.lens, r.agent ?? null]), [
+        ['INV-A', 'data', 'data-reviewer'],
+        ['INV-B', 'security', null],
+    ])
+    assert.deepEqual(rows[0].when.touches, ['dbt/models/**', 'dbt/macros/**'])
 })
 
 test('a column-0 list style still parses (a real top-level key ends the list)', () => {

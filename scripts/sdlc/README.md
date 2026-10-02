@@ -2,7 +2,7 @@
 
 Generic, dependency-free (Node built-ins only) reference implementations of the
 AI-native SDLC "phase spine" — the enforcement hooks and validators that keep
-work anchored to the state machine in `specs/sdlc-state-machine.yaml` and the
+work anchored to the state machine in `.sdlc/state-machine.yaml` and the
 phase-memory contract documented in that file's header. They ship with the
 framework as references: adapt them per repo. The hooks parse YAML with a small
 inlined subset reader, so no npm package (`js-yaml` etc.) is required.
@@ -90,10 +90,10 @@ and `SDLC_GUARD_MODE` defaults to `warn` regardless. See
 `.claude/hooks/__tests__/review-identity-merge-carveout.test.mjs` for the exact
 boundary.
 
-## Validators (`scripts/sdlc/`)
+## Validators (`.sdlc/scripts/`)
 
 **`validate-state-machine.mjs`** — structural + referential validator for
-`specs/sdlc-state-machine.yaml`. It checks that every phase carries the stable
+`.sdlc/state-machine.yaml`. It checks that every phase carries the stable
 contract fields, that there are no duplicate phase ids, that each `next_phase`
 resolves to a real phase id or the terminal sentinel `none` (with terminal
 phases pairing `next_phase: none` and `next_trigger: none`), and that every
@@ -101,7 +101,7 @@ skill under the skills dir (`skills/`, where `.claude/skills` symlinks) is
 registered as a phase `owner_skill`, a domain skill, or in the `exempt:` list —
 and conversely that every owner/domain skill resolves to a real skill. Exit 0
 when valid, 1 with diagnostics otherwise. Run:
-`node scripts/sdlc/validate-state-machine.mjs`.
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-state-machine`.
 
 **`validate-phase-memory.mjs`** — validator for the optional `phase:` block in
 each `specs/tasks/SPEC-NNN/_index.yaml`. Absence of the block is compliant
@@ -111,16 +111,16 @@ and the optional `exit_condition_met` / `handoff_surfaced` flags must be
 booleans. An unmatched shell glob (no `specs/tasks/` yet on a fresh repo) is a
 clean no-op, not a failure — an explicit missing literal path still fails. It
 exports `validatePhaseBlock` / `loadPhaseIds` / `parsePhaseBlock` for in-process
-tests. Run: `node scripts/sdlc/validate-phase-memory.mjs <_index.yaml> [...]`.
+tests. Run: `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-phase-memory <_index.yaml> [...]`.
 
 **`gen-handoffs.mjs`** — generates the phase-handoff documentation FROM the
 state machine so it never drifts from the source. It writes/refreshes a
 marker-delimited `## Handoff` footer on each phase owner-skill `SKILL.md`
 (reviewer/standards skills excluded) and the phase-narrative section of
-`.ai/sdlc.md`. Generation is idempotent: hand-edits outside the markers are
+`${CLAUDE_PLUGIN_ROOT}/docs/sdlc.md`. Generation is idempotent: hand-edits outside the markers are
 preserved, and `--check` reports drift without writing (suitable as a CI gate).
-Run: `node scripts/sdlc/gen-handoffs.mjs` (write) or
-`node scripts/sdlc/gen-handoffs.mjs --check` (verify).
+Run: `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/gen-handoffs.mjs` (write) or
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/gen-handoffs.mjs --check` (verify).
 
 **`plan-gate.mjs`** — the fail-closed plan-review gate (ADR-002, re-homed by
 ADR-003). Reads the top-level `plan_review:` block from one or more
@@ -133,15 +133,15 @@ per-spec, run-start question, so enforcing it on every PR would redden any PR
 touching a spec still awaiting sign-off. An unmatched shell glob (no
 `specs/tasks/` yet on a fresh repo) is a clean no-op in either mode, not a
 failure — see `empty-glob.test.mjs`. Exports `planApproved` / `parsePlanReviewBlock`
-/ `checkPlanGate`. Run: `node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml`
-or `node scripts/sdlc/plan-gate.mjs --presence-only specs/tasks/*/_index.yaml`.
+/ `checkPlanGate`. Run: `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs plan-gate specs/tasks/SPEC-NNN/_index.yaml`
+or `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs plan-gate --presence-only specs/tasks/*/_index.yaml`.
 
 **`reviewer-routing.mjs`** — lens → reviewer resolution (ADR-001, re-homed by
 ADR-003). The binding is data on the constraint that owns the lens
-(`.ai/sdlc/review-constraints.yaml` → optional `agent:`); a lens with no such
+(`.sdlc/review-constraints.yaml` → optional `agent:`); a lens with no such
 constraint folds into the generic `task-reviewer`. Exports `agentForLens` /
 `parseConstraints` / `loadConstraints`. Run:
-`node scripts/sdlc/reviewer-routing.mjs <lens>` or `--list`.
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs reviewer-routing <lens>` or `--list`.
 
 **`validate-review-envelope.mjs`** — the owner of reviewer-envelope validation.
 Every returned verdict is checked against `skills/review-envelope.schema.json`
@@ -151,7 +151,7 @@ prefix). Exit **0** valid + assessed (fold the findings), **2** valid but
 absent or ungrounded (contract violation: re-dispatch or escalate). Never let a
 malformed envelope fold to "no findings" — that is the silent-accept path.
 Exports `validateEnvelope` / `PR_SIDE_PREFIXES`. Run:
-`node scripts/sdlc/validate-review-envelope.mjs <envelope.json>` (or `-` for stdin).
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-review-envelope <envelope.json>` (or `-` for stdin).
 
 **`check-review-constraint-globs.mjs`** — resolvability gate for the review
 registry. Every `when.touches` glob should match at least one real file: a dead
@@ -161,11 +161,11 @@ does not prove: it checks that a row's globs RESOLVE, not that a reviewer consul
 row — nothing mechanical evaluates the registry since ADR-003 retired the engine's
 selector.) **Warn by default** (the shipped
 registry is illustrative); pass `--enforce` in CI once a repo has replaced the
-example rows. Run: `node scripts/sdlc/check-review-constraint-globs.mjs [--enforce]`.
+example rows. Run: `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs check-review-constraint-globs [--enforce]`.
 
 ## Tests
 
-`node --test scripts/sdlc/*.test.mjs` covers the plan gate, reviewer routing, the
+`node --test .sdlc/scripts/*.test.mjs` covers the plan gate, reviewer routing, the
 envelope validator, the registry glob checker, and PR-side prefix parity
 (`review-primitives.md` ↔ the validator's `PR_SIDE_PREFIXES` ↔ the envelope
 schema ↔ the `pr-reviewer` GROUNDING block). `node --test

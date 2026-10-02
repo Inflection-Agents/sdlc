@@ -30,8 +30,8 @@ cut feat/spec-NNN  →  step → verify → self-review → PR → merge → nex
 ADR-007 — fail closed):
 
 ```
-node scripts/sdlc/validate-guide.mjs specs/tasks/SPEC-NNN/GUIDE.md
-node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-guide specs/tasks/SPEC-NNN/GUIDE.md
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs plan-gate specs/tasks/SPEC-NNN/_index.yaml
 ```
 
 A missing guide is not something to invent here: route to `spec-authoring` with "write the guide for
@@ -95,7 +95,7 @@ Cut `feat/spec-NNN` from `main` before the first step. **Every change for this s
 and nothing reaches `main` except by merging that branch.** No step PR targets `main`, no direct
 commits to `main`, ever.
 
-Alongside it, create `specs/tasks/SPEC-NNN/DECISIONS.md` from `templates/decisions.md`. This is not
+Alongside it, create `specs/tasks/SPEC-NNN/DECISIONS.md` from `.sdlc/templates/decisions.md`. This is not
 optional bookkeeping: §8's narrow escalation bar is only safe because almost every judgment call
 gets decided and logged rather than asked, and this log is what makes that reviewable after the fact
 instead of invisible. One `## S<n>` entry per step appended after it merges; an `EXECUTIVE DECISION`
@@ -168,12 +168,12 @@ SOP §7.
 
 This is the one place `review-constraints.yaml` is evaluated **in full, across the whole diff**
 (not per step, where a narrowly-declared `Changes:` set makes matching unreliable). Lens → reviewer
-routing is registry data (ADR-001): `node scripts/sdlc/reviewer-routing.mjs <lens>`.
+routing is registry data (ADR-001): `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs reviewer-routing <lens>`.
 
 Two rules that are not negotiable:
 
 - **Independence is structural here.** Every verdict comes from a separately dispatched reviewer,
-  and every envelope is validated (`node scripts/sdlc/validate-review-envelope.mjs <file>`).
+  and every envelope is validated (`node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-review-envelope <file>`).
   Step-level self-review (§4, rule 2) is the deliberate exception, bought back in full at this gate.
   A malformed, ungrounded or absent envelope is never a clean review.
 - **Leave the PR open.** The human reviews and merges it. You never merge to `main`, never push to
@@ -234,14 +234,14 @@ phase:
 
 Set `handoff_surfaced: true` **after** you surface the handoff (the hook reads it, never writes it —
 without it, it re-blocks every turn). Take `next_action`/`next_trigger` from
-`specs/sdlc-state-machine.yaml`; never restate the transition table here.
+`.sdlc/state-machine.yaml`; never restate the transition table here.
 
 <!-- sdlc:handoff:start -->
-<!-- GENERATED from specs/sdlc-state-machine.yaml by scripts/sdlc/gen-handoffs.mjs — do not edit between markers; re-run the generator. -->
+<!-- GENERATED from .sdlc/state-machine.yaml by ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/gen-handoffs.mjs — do not edit between markers; re-run the generator. -->
 
 ## Handoff
 
-This phase is **spec-execution** in the SDLC state machine (`specs/sdlc-state-machine.yaml`, the single source of truth). The fields below are generated from that file — do not hand-edit them here.
+This phase is **spec-execution** in the SDLC state machine (`.sdlc/state-machine.yaml`, the single source of truth). The fields below are generated from that file — do not hand-edit them here.
 
 **Entry triggers:**
 
@@ -255,10 +255,10 @@ This phase is **spec-execution** in the SDLC state machine (`specs/sdlc-state-ma
 
 **Preconditions:**
 
-- spec has status active and specs/tasks/SPEC-NNN/GUIDE.md passes scripts/sdlc/validate-guide.mjs (ADR-007)
-- the plan-review gate passes (ADR-002, fail-closed): the _index.yaml plan_review block is present, approved, and not needs-rework — verify with scripts/sdlc/plan-gate.mjs
+- spec has status active and specs/tasks/SPEC-NNN/GUIDE.md passes .sdlc/scripts/validate-guide.mjs (ADR-007)
+- the plan-review gate passes (ADR-002, fail-closed): the _index.yaml plan_review block is present, approved, and not needs-rework — verify with .sdlc/scripts/plan-gate.mjs
 
-**Exit condition:** single-executor delivery (ADR-003): the owner skill armed a session goal leash (.claude/.sdlc-goal-<session_id>, enforced by the Stop hook), kept a visible task list covering every guide step plus end-to-end validation and the integration gate, cut the integration branch feat/spec-NNN off main, and burned the guide's steps down ITSELF one at a time — each step gated by its own Verify: commands plus an executor self-review, landed via a short-lived PR into feat/spec-NNN that is merged and deleted before the next step starts, with no PR, branch or worktree left lingering; guide changes mid-run are logged in DECISIONS.md and listed under "## Guide changes" in the integration PR; sub-agent fan-out is the exception, for large specs with steps whose After: closures and Changes: do not overlap, and carries the same merge discipline. End-to-end validation ran ONCE before the gate with attached evidence. Exit (success) = the goal file is status:met and ONE integration PR (feat/spec-NNN -> main) is open, carrying every spec success criterion mapped to its evidence, having survived a full multi-lens adversarial review panel — independently dispatched, every envelope validated with scripts/sdlc/validate-review-envelope.mjs, the constraints registry evaluated in full across the whole diff — looped until no blocker or major survives OR the three-round cap (ADR-004) is reached with every survivor named in a "## Disclosed, not fixed" section of the PR body, and LEFT OPEN for the human to review and merge. Nothing for a spec reaches main except by merging that branch; the agent never merges or pushes to main. A HALT is goal file status:escalated with a surfaced reason — security/data-loss/payment risk, an owner decision, the amendment cap (spec.version reaching 4), or a step that cannot land and cannot be fixed at the root
+**Exit condition:** single-executor delivery (ADR-003): the owner skill armed a session goal leash (.claude/.sdlc-goal-<session_id>, enforced by the Stop hook), kept a visible task list covering every guide step plus end-to-end validation and the integration gate, cut the integration branch feat/spec-NNN off main, and burned the guide's steps down ITSELF one at a time — each step gated by its own Verify: commands plus an executor self-review, landed via a short-lived PR into feat/spec-NNN that is merged and deleted before the next step starts, with no PR, branch or worktree left lingering; guide changes mid-run are logged in DECISIONS.md and listed under "## Guide changes" in the integration PR; sub-agent fan-out is the exception, for large specs with steps whose After: closures and Changes: do not overlap, and carries the same merge discipline. End-to-end validation ran ONCE before the gate with attached evidence. Exit (success) = the goal file is status:met and ONE integration PR (feat/spec-NNN -> main) is open, carrying every spec success criterion mapped to its evidence, having survived a full multi-lens adversarial review panel — independently dispatched, every envelope validated with .sdlc/scripts/validate-review-envelope.mjs, the constraints registry evaluated in full across the whole diff — looped until no blocker or major survives OR the three-round cap (ADR-004) is reached with every survivor named in a "## Disclosed, not fixed" section of the PR body, and LEFT OPEN for the human to review and merge. Nothing for a spec reaches main except by merging that branch; the agent never merges or pushes to main. A HALT is goal file status:escalated with a surfaced reason — security/data-loss/payment risk, an owner decision, the amendment cap (spec.version reaching 4), or a step that cannot land and cannot be fixed at the root
 
 **Next step:** `spec-completion` — trigger: "close out SPEC-NNN"
 <!-- sdlc:handoff:end -->

@@ -58,7 +58,7 @@ Delivery is **one executor plus a review panel at the end** — not a fan-out of
 | Agent role | Responsibility |
 |------------|----------------|
 | **Delivery agent (executor)** | Checks the plan gate, arms the goal leash, keeps the visible task list, cuts `feat/spec-NNN`, implements every guide step against its `Changes:`, verifies, **self-reviews its own diff**, merges each step onto the branch, validates end-to-end once, and opens the integration PR. |
-| **Dispatched executor (exception)** | Same brief (`.ai/AGENTS.md`), for a large spec with genuinely independent steps. Always `isolation: "worktree"`; same merge discipline. |
+| **Dispatched executor (exception)** | Same brief (`${CLAUDE_PLUGIN_ROOT}/docs/executor-brief.md`), for a large spec with genuinely independent steps. Always `isolation: "worktree"`; same merge discipline. |
 | **Reviewers (multi-lens panel)** | The reviewer of record for code, dispatched at the integration gate. `task-reviewer` (folded generic lenses) + specialist reviewers (e.g. invariants, security, design-fidelity) selected from the registry across the whole diff. Emit graded, grounded envelopes; never fix. |
 | **Integration-reviewer** | Independent review of the integration PR against the spec's **success criteria**, not just per-step ACs. |
 

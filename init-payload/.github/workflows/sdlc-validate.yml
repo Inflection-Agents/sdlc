@@ -34,46 +34,57 @@ jobs:
               run: |
                   set -eu
                   shopt -s nullglob
-                  files=(scripts/sdlc/*.test.mjs)
+                  files=(.sdlc/scripts/*.test.mjs)
                   if [ ${#files[@]} -eq 0 ]; then
-                    echo "no scripts/sdlc/*.test.mjs yet — nothing to run"
+                    echo "no .sdlc/scripts/*.test.mjs yet — nothing to run"
                   else
                     node --test "${files[@]}"
                   fi
               shell: bash
 
+            - name: SDLC config is well-formed
+              # .sdlc/config.yaml holds this repo's workspaces, domain_routing and extensions.
+              # A config wrong in shape quietly changes which gates run, so grade it first.
+              run: node .sdlc/scripts/validate-sdlc-config.mjs
+
             - name: Constraints registry is well-formed
               # Shape only: id, lens, check, a groundable cite, a severity on the
               # ladder. --allow-empty because a repo that has not run the interview
               # yet legitimately has no rows.
-              run: node scripts/sdlc/validate-constraints-registry.mjs --allow-empty
+              run: node .sdlc/scripts/validate-constraints-registry.mjs --allow-empty
 
             - name: State machine is structurally and referentially valid
               # Skills come from the installed plugin, so this skips the referential
               # skill checks when there is no local skills/ dir and still grades the
               # structure of your state machine.
-              run: node scripts/sdlc/validate-state-machine.mjs
+              run: node .sdlc/scripts/validate-state-machine.mjs
 
             - name: Delivery guides are complete and current
               # Every spec AC covered, every step verifiable, guide and index in step, and an
               # approved guide's KICKOFF.md within 3,800 characters (ADR-007). An unmatched glob
               # (no guides yet) is nothing to check.
-              run: node scripts/sdlc/validate-guide.mjs specs/tasks/*/GUIDE.md
+              run: node .sdlc/scripts/validate-guide.mjs specs/tasks/*/GUIDE.md
 
             - name: Phase-memory blocks are valid
-              run: node scripts/sdlc/validate-phase-memory.mjs specs/tasks/*/_index.yaml specs/archive/tasks/*/_index.yaml
+              run: node .sdlc/scripts/validate-phase-memory.mjs specs/tasks/*/_index.yaml specs/archive/tasks/*/_index.yaml
 
             - name: Every spec with a plan carries a plan-review block
-              run: node scripts/sdlc/plan-gate.mjs --presence-only specs/tasks/*/_index.yaml specs/archive/tasks/*/_index.yaml
+              run: node .sdlc/scripts/plan-gate.mjs --presence-only specs/tasks/*/_index.yaml specs/archive/tasks/*/_index.yaml
 
             - name: Archive boundary is correct (no expired spec in the live corpus)
-              run: node scripts/sdlc/archive-specs.mjs --check
+              run: node .sdlc/scripts/archive-specs.mjs --check
 
             - name: No superseded decision cited as current in always-loaded context
-              run: node scripts/sdlc/check-stale-citations.mjs
+              run: node .sdlc/scripts/check-stale-citations.mjs
+
+            - name: No layout-1 path is left or reintroduced
+              # Layout 2 (ADR-008). A branch cut before the migration can bring back a
+              # layout-1 path; a reader that misses its file goes silent, so
+              # this step fails instead. Name a deliberate mention in config.yaml scan.allow.
+              run: node .sdlc/scripts/scan-legacy-paths.mjs
 
             - name: Review-constraint globs resolve
               # Warn mode until your registry has rows. Switch to `--enforce` once
               # `/sdlc-init` has filled it, so a rule that matches nothing goes red
               # instead of sitting there never firing.
-              run: node scripts/sdlc/check-review-constraint-globs.mjs
+              run: node .sdlc/scripts/check-review-constraint-globs.mjs

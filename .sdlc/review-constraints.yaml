@@ -1,0 +1,140 @@
+# Review constraints registry — AI-native SDLC
+#
+# Review lenses are selected as:
+#     lenses = baseLenses(workspace)  ∪  { lens of each constraint whose `when` matches the change }
+# and the review TIER a change earns follows constraint severity:
+#     a matched blocker → fortified · a matched major → at least standard (express vetoed)
+# Since ADR-003 this is READ BY THE AGENT composing the panel at the integration gate, not
+# resolved by code. It can only raise rigor: a guide step's `Risk:` is a hint and never shrinks
+# the panel.
+#
+# Per ADR-003 this registry is evaluated IN FULL at the integration gate, across the whole diff —
+# not per step, where matching against one step's narrowly declared `Changes:` is unreliable in both
+# directions (a broad `**` glob trips constraints it should not; concrete paths miss ones they should).
+#
+# `when` matches if ANY of: a `touches` glob overlaps the PR's changed paths; a guide step's
+# `Workspace:` is in `workspace`; or a guide step declares the field named by `task_has` (the key
+# keeps its name from before ADR-007).
+# `scope:` names WHAT a row grades, not when it runs. Both scopes are evaluated at the
+# integration gate, against the whole diff: `scope: task` rows grade task-level concerns
+# (a boundary, a convention, a risky surface a change touched) and are graded by their
+# `agent:`; `scope: integration` rows grade whole-spec concerns and are graded by the
+# `integration-reviewer`. Match `when.touches` against the PR's changed paths — there is
+# no per-task evaluation pass any more (ADR-003).
+#
+# Lens → reviewer routing is DATA, not code (ADR-001): each task-scope constraint's optional
+# `agent:` field is the single source of truth, resolved by reviewer-routing.mjs
+# (`node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs reviewer-routing <lens>`). Defaults: a constraint with no `agent:` ⇒ the
+# generic `task-reviewer`; a `scope: integration` constraint ⇒ the `integration-reviewer` at the
+# gate (integration lenses carry no `agent:`). Adding a specialist for a lens is a one-line
+# `agent:` edit here — no code change. Cite findings by the constraint `cite` prefix
+# (see review-primitives.md > Grounding rules for the allowed prefixes).
+#
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# This file ships with GENERIC, illustrative entries. Replace `baseLenses` workspaces and the
+# `constraints:` list with this repo's real invariants. The three always-on base lenses
+# (ac-completeness, conventions, adversarial) are a sensible default for any stack; the
+# constraints below show the shape for stack-specific blockers/majors. Delete what you don't need.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+
+# Always-on lenses per workspace (the generic `task-reviewer` grades these). `_default` applies to
+# any workspace without an explicit entry.
+baseLenses:
+  _default: [ac-completeness, conventions, adversarial]
+
+constraints:
+  # ── A row that matches THIS repo, so write-time injection is exercised end to end ─────────
+  # Every other row below is illustrative and matches nothing here, which meant the
+  # feature's only proof was a fictional path. Replace or delete this row in a consuming
+  # repo; keep one row that matches a real path so the canary stays meaningful.
+  - id: SDLC-GATE-TESTED
+    scope: task
+    when: { touches: ["scripts/sdlc/**", ".claude/hooks/**"] }
+    lens: conventions
+    agent: task-reviewer
+    severity: major
+    check: >
+      A gate or hook here is a contract other repos copy. It must fail loudly rather than
+      silently: guard direct invocation with isMain() (see cli-invocation.test.mjs), and
+      never let a catch turn a broken dependency into a passing no-op.
+    cite: "inv:SDLC-GATE-TESTED"
+
+  # ── EXAMPLE: a hard architectural invariant on a "pure core" / shared package ──────────────
+  - id: INV-CORE-PURITY
+    scope: task
+    when: { touches: ["packages/shared/src/core/**", "**/domain/**"] }
+    lens: core-purity
+    agent: task-reviewer
+    severity: blocker
+    check: >
+      The pure core imports no I/O, platform, or framework API and contains no side effects
+      (no network, no clock, no global mutable state). Effects are described as data and
+      performed at the edges, never inline in domain logic.
+    cite: "inv:INV-CORE-PURITY"
+
+  # ── EXAMPLE: design-system fidelity on UI code ────────────────────────────────────────────
+  - id: INV-DESIGN-FIDELITY
+    scope: task
+    when: { touches: ["**/ui/theme/**", "**/ui/components/**", "**/components/**"] }
+    lens: design-fidelity
+    agent: design-fidelity-reviewer
+    severity: major
+    check: >
+      All colors/type/spacing/radius/elevation come from the design-system tokens (no hardcoded
+      values a token already names); components match the design handoff contracts.
+    cite: "design:tokens"
+
+  # ── EXAMPLE: accessibility on interactive UI ──────────────────────────────────────────────
+  - id: INV-A11Y
+    scope: task
+    when: { touches: ["**/ui/components/**", "**/*Screen*", "**/pages/**"] }
+    lens: a11y
+    severity: major
+    check: >
+      Interactive targets meet the platform minimum hit area; every actionable element has an
+      accessible name/role; color contrast meets WCAG AA.
+    cite: "lens:a11y"
+
+  # ── EXAMPLE: security-sensitive surfaces always get the adversarial + a security lens ──────
+  - id: INV-AUTHZ-FAILCLOSED
+    scope: task
+    when: { touches: ["**/auth/**", "**/middleware/**", "**/api/**"] }
+    lens: security
+    agent: security-reviewer
+    severity: blocker
+    check: >
+      Authorization is fail-closed (missing/invalid credentials are denied, never defaulted to
+      allow); no secrets in code or logs; inputs at trust boundaries are validated.
+    cite: "lens:security"
+
+  # ── EXAMPLE: an integration-scope constraint, checked once at the integration gate ────────
+  - id: INV-CONTRACT-PARITY
+    scope: integration
+    when: { touches: ["packages/contracts/**", "**/schema/**"] }
+    lens: contract-parity
+    severity: blocker
+    check: >
+      Producer and consumer contracts stay in parity (run the repo's contract-drift check);
+      additive/optional changes preserve compatibility; a breaking shape change bumps the version.
+    cite: "inv:INV-CONTRACT-PARITY"
+
+  # ── EXAMPLE: standing integration-gate checklist items, not tied to any one glob ──────────
+  - id: INTEG-NO-VACUOUS-TEST
+    scope: integration
+    lens: integration
+    severity: major
+    cite: "lens:integration"
+    check: >
+      For every test added or modified in this diff, confirm it actually fails against the
+      pre-fix code (or an equivalent deliberately-broken variant) — a test that passes
+      unconditionally proves nothing about the change it claims to cover.
+
+  - id: INTEG-REGRESSION-PROVEN
+    scope: integration
+    lens: integration
+    severity: major
+    cite: "lens:integration"
+    check: >
+      For any failing check the author claims is pre-existing (not introduced by this diff),
+      independently confirm it also fails at the merge-base commit before accepting the claim —
+      do not take "pre-existing" on the author's word.

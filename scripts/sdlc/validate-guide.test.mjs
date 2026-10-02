@@ -198,6 +198,20 @@ test('rule 8: a step without Workspace fails when .ai/project.md defines workspa
     const problems = check({ '.ai/project.md': project })
     assert.ok(problems.some((p) => p.startsWith('rule 8:') && p.includes('S1')), problems.join('\n'))
     assert.deepEqual(check({ '.ai/project.md': project.replace('| web | apps/web |\n', '') }), [], 'a header-only table defines no workspace')
+    assert.deepEqual(
+        check({ '.ai/project.md': project.replace('| web | apps/web |', '| [web-app] | [path] |') }),
+        [],
+        "the template's placeholder rows define no workspace"
+    )
+    const later = project.replace('| web | apps/web |\n', '') + '\n### Agent eligibility\n\n| Workspace | Eligible |\n|---|---|\n'
+    assert.deepEqual(check({ '.ai/project.md': later.replace('## Commands\n', '') }), [], "a later table's header is not a workspace row")
+})
+
+test('rule 8 on layout 2: workspaces come from .sdlc/config.yaml (SPEC-009 AC-008)', () => {
+    const withWs = 'layout: 2\nworkspaces:\n  - name: web\n    path: apps/web\n    agent_executable: yes\n'
+    const problems = check({ '.sdlc/config.yaml': withWs })
+    assert.ok(problems.some((p) => p.startsWith('rule 8:') && p.includes('S1')), problems.join('\n'))
+    assert.deepEqual(check({ '.sdlc/config.yaml': 'layout: 2\nworkspaces: []\n' }), [], 'an empty list defines no workspace')
 })
 
 test('rule 9: an approved guide with no KICKOFF.md fails', () => {

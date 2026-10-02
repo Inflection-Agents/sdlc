@@ -4,7 +4,7 @@ Skills are how agents learn to follow the SDLC process at the right moment. They
 
 ## The three-phase grouping
 
-The SDLC splits into **judgment up front, autonomous delivery behind** (see `.ai/sdlc.md` → "The phase model"). The skills group along that split:
+The SDLC splits into **judgment up front, autonomous delivery behind** (see `${CLAUDE_PLUGIN_ROOT}/docs/sdlc.md` → "The phase model"). The skills group along that split:
 
 ```
 intent-triage → spec-authoring (spec + delivery guide) │ spec-execution → spec-completion
@@ -98,21 +98,21 @@ your-repo/
 │   ├── review-primitives.md          ← review contract: severity spine, policy (not a skill)
 │   └── review-envelope.schema.json   ← the one reviewer-output schema (not a skill)
 │
-├── .ai/sdlc/review-constraints.yaml  ← lens/constraint registry keyed on `touches`;
+├── .sdlc/review-constraints.yaml  ← lens/constraint registry keyed on `touches`;
 │                                       repo-specific, so it lives outside skills/
 │
 ├── .claude/skills → ../skills    ← symlink; Claude Code loads from here
 │
 ├── .claude/hooks/                    ← advisory SDLC hooks (.mjs)
-├── specs/sdlc-state-machine.yaml     ← single source of truth for phases + transitions
-├── scripts/sdlc/                     ← validators (state machine, phase memory) + gen-handoffs
+├── .sdlc/state-machine.yaml     ← single source of truth for phases + transitions
+├── .sdlc/scripts/                     ← validators (state machine, phase memory) + gen-handoffs
 │
 │   # Domain skills (Layer 1) — add to skills/ prefixed by workspace/technology
 │   ├── dbt-cartographer/SKILL.md
 │   └── nextjs-app-patterns/SKILL.md
 │
-├── .ai/                        ← agent config (process definition)
-│   └── project.md              ← maps workspaces → domain skills
+├── .sdlc/config.yaml           ← maps workspaces → domain skills, plus routing and extensions
+├── AGENTS.md                   ← project context, in the SDLC block
 ├── specs/                      ← specs, delivery guides, ADRs, bugs, gaps
 └── src/                        ← code
 ```
@@ -126,15 +126,15 @@ your-repo/
 A guide step's `Workspace:` field is the link:
 
 1. The step says `Workspace: dbt`
-2. `.ai/project.md` maps `dbt` → domain skills: `dbt-cartographer`, `dbt-craftsman`
+2. `.sdlc/config.yaml` maps `dbt` → domain skills: `dbt-cartographer`, `dbt-craftsman`
 3. SDLC skills (code-standards, code-review, spec-authoring's guide step) read this mapping and apply domain conventions alongside SDLC process
 
-This is declarative — adding a new domain skill requires only creating the SKILL.md and adding it to the workspace-skills table in `project.md`.
+This is declarative: adding a new domain skill takes only the SKILL.md and an entry in the workspace's `skills` list in `.sdlc/config.yaml`.
 
 ### Portability
 
 - **New team member clones repo** → gets all skills automatically. Claude Code picks them up via the `.claude/skills` symlink.
-- **Any dispatched executor** reads `.ai/AGENTS.md` (the generic executor brief), the spec and its delivery guide, which encode the same principles.
+- **Any dispatched executor** reads `${CLAUDE_PLUGIN_ROOT}/docs/executor-brief.md` (the generic executor brief), the spec and its delivery guide, which encode the same principles.
 - **Switching to another agent** → the skills are markdown. Adapt the SKILL.md format to the new agent's convention. The content (process, checklists, standards) stays the same.
 
 ## Skill details
@@ -195,7 +195,7 @@ There is no separate decomposition skill ([ADR-007](specs/adrs/ADR-007-delivery-
 1. `specs/tasks/SPEC-NNN/GUIDE.md` — ordered steps, each naming the spec ACs it covers (`Covers:`), the paths it may change (`Changes:`) and the commands that verify it (`Verify:`); the owner decisions the run cannot close alone; the end-to-end validation
 2. `_index.yaml` — `plan_review:` (stamped `approved: false`), step and decision statuses, and the `phase:` block
 3. `KICKOFF.md` — the prompt the owner pastes to start delivery, **at most 3,800 characters**
-4. `scripts/sdlc/validate-guide.mjs` checks all of it mechanically; `spec-reviewer` does not grade the guide
+4. `.sdlc/scripts/validate-guide.mjs` checks all of it mechanically; `spec-reviewer` does not grade the guide
 5. The owner approves spec and guide in one sign-off: `status: active` plus `plan_review.approved: true`
 
 "Write the guide for SPEC-NNN" runs the same step alone for an active spec that has no guide. A guide over 10 steps means the spec should be split. Schema: [`skills/guide-schema.md`](skills/guide-schema.md).
@@ -226,7 +226,7 @@ There is no separate decomposition skill ([ADR-007](specs/adrs/ADR-007-delivery-
 3. Verifies step-covered criteria by tracing to the AC evidence in the step PRs and the integration PR
 4. Runs integration verification (e2e tests, cross-step validation)
 5. Handles measurement criteria: verify now or defer with owner + trigger condition + method
-6. Produces a `templates/completion-report.md`-shaped report with evidence for each criterion
+6. Produces a `.sdlc/templates/completion-report.md`-shaped report with evidence for each criterion
 7. Gets user sign-off, then sets spec to `completed`, updates Linear
 
 **Key rules:**
@@ -244,19 +244,19 @@ There is no separate decomposition skill ([ADR-007](specs/adrs/ADR-007-delivery-
 **This is THE delivery engine — the autonomous half of the SDLC.** The agent running the skill *is* the executor: policy in `SKILL.md`, procedures in `SOP.md`. A deterministic Workflow engine held this role until [ADR-003](specs/adrs/ADR-003-goal-oriented-single-executor-delivery.md) retired it on measured cost; delivery is now goal-oriented judgment above a machine-readable floor.
 
 **What it does:** Drives the whole spec to one integration PR:
-1. Refuses to start unless the spec is `active`, its guide passes `scripts/sdlc/validate-guide.mjs`, and the fail-closed plan-review gate passes (`scripts/sdlc/plan-gate.mjs`)
+1. Refuses to start unless the spec is `active`, its guide passes `.sdlc/scripts/validate-guide.mjs`, and the fail-closed plan-review gate passes (`.sdlc/scripts/plan-gate.mjs`)
 2. Arms the goal leash (`.claude/.sdlc-goal-<session_id>`) so the run cannot stop half-done — `met` and `escalated` are the only release words
 3. Opens a **visible task list** (one entry per guide step, plus e2e validation and the gate) and keeps it current
 4. Cuts `feat/spec-NNN` off `main`; nothing for the spec reaches `main` any other way
 5. Burns the guide's steps down **serially, inline**: implement → the step's `Verify:` commands → **self-review the diff** → PR into the integration branch → merge → delete the branch → next. It may re-plan the guide in place (logged, listed under `## Guide changes`). Worktree-isolated subagents are the exception for a large spec
 6. Runs **end-to-end validation once** before the gate, with attached evidence
-7. Opens ONE integration PR and dispatches a **multi-lens adversarial panel** — independently, clean contexts, every envelope validated (`scripts/sdlc/validate-review-envelope.mjs`), the registry evaluated across the whole diff — looping until no blocker or major survives (at most three rounds, ADR-004)
+7. Opens ONE integration PR and dispatches a **multi-lens adversarial panel** — independently, clean contexts, every envelope validated (`.sdlc/scripts/validate-review-envelope.mjs`), the registry evaluated across the whole diff — looping until no blocker or major survives (at most three rounds, ADR-004)
 8. Leaves the PR open — **a human merges; the agent never does** — and hands off to `spec-completion`
 9. Escalates rather than grinding: `task:scope` → in-place guide re-plan; `spec:*` → spec-amendment (amendment cap); a `spec:gap` is recorded against the spec and never licenses widening the current step; security/data-loss/owner calls → hard stop
 
 **Optional telemetry:** `specs/tasks/SPEC-NNN/_execution.log.jsonl` — one JSONL event per action, append-only, restart-safe (SOP §9). Recommended, not a gate.
 
-**Interacts with:** `pr-reviewer` (LLM lens grading), `sdlc-code-review` (human-readable rendering), `spec-amendment` (on `spec:*` signals), `spec-completion` (final gate). **Contracts:** `review-primitives.md`, `review-constraints.yaml`, `review-envelope.schema.json`, `specs/sdlc-state-machine.yaml`.
+**Interacts with:** `pr-reviewer` (LLM lens grading), `sdlc-code-review` (human-readable rendering), `spec-amendment` (on `spec:*` signals), `spec-completion` (final gate). **Contracts:** `review-primitives.md`, `review-constraints.yaml`, `review-envelope.schema.json`, `.sdlc/state-machine.yaml`.
 
 ### 4. pr-reviewer
 
@@ -323,11 +323,11 @@ There is no separate decomposition skill ([ADR-007](specs/adrs/ADR-007-delivery-
 
 **What it does:** Walks through creating a domain skill and wiring all references. Touching:
 1. `skills/[workspace]-[name]/SKILL.md` — the skill itself
-2. `.ai/project.md` → Workspace skills table — the wiring SDLC skills use to find it
-3. `.ai/project.md` → Workspace interfaces — boundary contracts
-4. `.ai/project.md` → Change propagation patterns — cross-workspace patterns
-5. `.ai/project.md` → Agent eligibility — what's now agent-executable
-6. `.ai/project.md` → Per-workspace conventions — conventions that differ from defaults
+2. `.sdlc/config.yaml` → the workspace's `skills` — the wiring SDLC skills use to find it
+3. `AGENTS.md` SDLC block → Workspace interfaces — boundary contracts
+4. `AGENTS.md` SDLC block → Change propagation patterns — cross-workspace patterns
+5. `.sdlc/config.yaml` → the workspace's `agent_executable` — what's now agent-executable
+6. `AGENTS.md` SDLC block → Per-workspace conventions — conventions that differ from defaults
 
 Missing any of these means the skill exists but is disconnected from the SDLC process.
 
@@ -346,26 +346,26 @@ Skills to build when adopting this framework, in order of immediate value:
 
 All SDLC process skills are already implemented in `skills/`.
 
-## Relationship to .ai/ config
+## Relationship to the `.sdlc/` config
 
 Skills are the "how" — they encode specific workflows agents follow.
-`.ai/sdlc.md` is the "what" — it defines the process any agent follows.
-`.ai/project.md` is the "where" — it maps workspaces to domain skills and conventions.
+`${CLAUDE_PLUGIN_ROOT}/docs/sdlc.md` is the "what" — it defines the process any agent follows.
+`.sdlc/config.yaml` `workspaces` is the "where" — it maps workspaces to domain skills and conventions.
 
 ```
-.ai/sdlc.md          → "Every spec is delivered from a short guide the owner approves with it"
+${CLAUDE_PLUGIN_ROOT}/docs/sdlc.md          → "Every spec is delivered from a short guide the owner approves with it"
 spec-authoring        → "Here's exactly how to write that guide and its kickoff prompt, step by step"
 
-.ai/CLAUDE.md         → "Review all PRs against the spec"
+CLAUDE.md         → "Review all PRs against the spec"
 sdlc-code-review      → "Here's the exact checklist: read diff, find spec, check each criterion..."
 
-.ai/project.md        → "dbt workspace uses dbt-cartographer and dbt-craftsman"
+.sdlc/config.yaml → "dbt workspace uses dbt-cartographer and dbt-craftsman"
 Domain skill          → "Here's how to write dbt models: CTE ordering, naming, macros..."
 ```
 
-**There is no dispatch skill.** Delivery is not a dispatch problem: the agent running `spec-execution` implements the guide's steps itself, and fans out to worktree-isolated subagents only as an exception for a large spec. The generic executor brief is `.ai/AGENTS.md`; the orchestrator config is `.ai/CLAUDE.md`. The spec and its guide carry everything any executor needs (`Covers:`, `Changes:`, `Verify:`, `Notes:`).
+**There is no dispatch skill.** Delivery is not a dispatch problem: the agent running `spec-execution` implements the guide's steps itself, and fans out to worktree-isolated subagents only as an exception for a large spec. The generic executor brief is `${CLAUDE_PLUGIN_ROOT}/docs/executor-brief.md`; the orchestrator config is `CLAUDE.md`. The spec and its guide carry everything any executor needs (`Covers:`, `Changes:`, `Verify:`, `Notes:`).
 
-**The delivery spine.** `spec-execution` sits on the spine: the state machine (`specs/sdlc-state-machine.yaml`, the single source of truth for phases/transitions consumed by the advisory `.claude/hooks/`), the `phase:` memory block in each `_index.yaml`, and the review contracts (`review-primitives.md`, `review-constraints.yaml`, `review-envelope.schema.json`). Validators live in `scripts/sdlc/`.
+**The delivery spine.** `spec-execution` sits on the spine: the state machine (`.sdlc/state-machine.yaml`, the single source of truth for phases/transitions consumed by the advisory `.claude/hooks/`), the `phase:` memory block in each `_index.yaml`, and the review contracts (`review-primitives.md`, `review-constraints.yaml`, `review-envelope.schema.json`). Validators live in `.sdlc/scripts/`.
 
 ## Relationship to domain skills
 

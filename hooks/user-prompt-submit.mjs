@@ -11,7 +11,7 @@
 // all DETERMINISTIC (no per-prompt model call):
 //
 //   1. SDLC entry routing. A deterministic keyword classifier reads the
-//      `entry_triggers` table from specs/sdlc-state-machine.yaml (the single
+//      `entry_triggers` table from `.sdlc/state-machine.yaml` (the single
 //      source of truth — this hook does NOT duplicate the trigger lists). On a
 //      prompt whose text contains an entry_trigger AND no task is active for
 //      the referenced spec, it injects routing context naming the matched
@@ -49,9 +49,22 @@
 //            would otherwise be blocked, recording the reason. (Its
 //            lifecycle/cleanup is owned by the gate, not this hook.)
 // ───────────────────────────────────────────────────────────────────────────
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+// The path resolver (SPEC-009, ADR-008). The plugin ships it in its own lib/ beside scripts, and
+// bootstrap.sh copies it to lib/ beside a repo-local hook. A hook that cannot find it
+// throws, so the failure shows instead of the hook quietly checking nothing.
+const LIB = (() => {
+    for (const rel of ['../scripts/sdlc/lib/', './lib/']) {
+        const url = new URL(rel, import.meta.url)
+        if (existsSync(fileURLToPath(new URL('sdlc-paths.mjs', url)))) return url
+    }
+    throw new Error(`${fileURLToPath(import.meta.url)}: cannot find lib/sdlc-paths.mjs in the plugin or beside the hook`)
+})()
+const { isSdlcRoot, loadMachine, sdlcPaths } = await import(new URL('sdlc-paths.mjs', LIB).href)
+const { LAYOUT1, LAYOUT1_AI_PREFIX } = await import(new URL('legacy-map.mjs', LIB).href)
 
 const ALLOW = 0
 
@@ -86,7 +99,7 @@ function projectRoot(cwd) {
     // and failed open silently.
     let dir = dirname(fileURLToPath(import.meta.url))
     for (let i = 0; i < 6; i += 1) {
-        if (existsSync(join(dir, 'specs')) && existsSync(join(dir, 'scripts'))) return dir
+        if (isSdlcRoot(dir)) return dir
         const up = dirname(dir)
         if (up === dir) break
         dir = up
@@ -112,138 +125,16 @@ function parsePayload() {
     }
 }
 
-// ─── Minimal, dependency-free YAML reader for the state machine ────────────
-//
-// The framework keeps hooks on Node built-ins only. We parse just enough of
-// specs/sdlc-state-machine.yaml to read each phase's id, owner_skill,
-// entry_triggers, next_phase, next_trigger, plus the top-level
-// `domain_routing` map. This is a deliberately small subset reader; on
-// anything it can't read it returns conservative empties.
-
-/** Strip a trailing unquoted `# comment` and surrounding quotes/whitespace. */
-function scalar(raw) {
-    if (raw == null) return null
-    let s = String(raw).trim()
-    if (!/^['"]/.test(s)) {
-        const hash = s.indexOf(' #')
-        if (hash !== -1) s = s.slice(0, hash).trim()
-    }
-    if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
-        s = s.slice(1, -1)
-    }
-    return s
-}
+// ─── State machine ─────────────────────────────────────────────────────────
 
 /**
- * Parse the `phases:` list. Returns an array of
- * `{ id, owner_skill, entry_triggers[], next_phase, next_trigger }`.
+ * The parsed machine through the shared loader (SPEC-009), which takes
+ * `domain_routing` and `extensions` from `.sdlc/config.yaml` on layout 2. Null on
+ * any failure: this hook is advisory and stays silent.
  */
-function parsePhases(text) {
-    const lines = String(text).split('\n')
-    const phases = []
-    let inPhases = false
-    let current = null
-    let listKey = null // the field currently accumulating `-` items
-    for (const line of lines) {
-        if (/^\S/.test(line) && !/^phases\s*:/.test(line)) {
-            if (inPhases) break
-            continue
-        }
-        if (/^phases\s*:/.test(line)) {
-            inPhases = true
-            continue
-        }
-        if (!inPhases) continue
-
-        const item = line.match(/^(\s*)-\s*id\s*:\s*(.+)$/)
-        if (item) {
-            if (current) phases.push(current)
-            current = {
-                id: scalar(item[2]),
-                owner_skill: null,
-                entry_triggers: [],
-                next_phase: null,
-                next_trigger: null
-            }
-            listKey = null
-            continue
-        }
-        if (!current) continue
-
-        // a list item belonging to the most-recent list-valued key
-        const li = line.match(/^\s*-\s*(.+)$/)
-        if (li && listKey) {
-            if (listKey === 'entry_triggers') current.entry_triggers.push(scalar(li[1]))
-            continue
-        }
-
-        const kv = line.match(/^\s*([a-z_]+)\s*:\s*(.*)$/i)
-        if (kv) {
-            const key = kv[1]
-            const val = kv[2]
-            if (val.trim() === '') {
-                listKey = key // a list/block follows on subsequent lines
-            } else {
-                listKey = null
-                if (key === 'owner_skill') current.owner_skill = scalar(val)
-                else if (key === 'next_phase') current.next_phase = scalar(val)
-                else if (key === 'next_trigger') current.next_trigger = scalar(val)
-            }
-        }
-    }
-    if (current) phases.push(current)
-    return phases.filter((p) => p.id)
-}
-
-/**
- * Parse the top-level `domain_routing:` block into { workspace: [skills] }.
- * Tolerant of the illustrative empty/`{}` default; returns {} when absent.
- */
-function parseDomainRouting(text) {
-    const lines = String(text).split('\n')
-    let inBlock = false
-    let baseIndent = null
-    let currentWs = null
-    const routing = {}
-    for (const line of lines) {
-        if (/^domain_routing\s*:/.test(line)) {
-            inBlock = true
-            continue
-        }
-        if (!inBlock) continue
-        if (line.trim() === '' || /^\s*#/.test(line)) continue
-        if (/^\S/.test(line)) break // next top-level key ends the block
-        const indent = line.match(/^(\s*)/)[1].length
-        if (baseIndent === null) baseIndent = indent
-        const li = line.match(/^\s*-\s*(.+)$/)
-        if (li && currentWs) {
-            routing[currentWs].push(scalar(li[1]))
-            continue
-        }
-        const ws = line.match(/^\s*([A-Za-z0-9_./-]+)\s*:\s*(.*)$/)
-        if (ws) {
-            currentWs = scalar(ws[1])
-            if (currentWs === '{}') {
-                currentWs = null
-                continue
-            }
-            routing[currentWs] = []
-        }
-    }
-    return routing
-}
-
-/** Load the parsed state machine, or null on failure. */
 function loadStateMachine(root) {
-    const path = join(root, 'specs', 'sdlc-state-machine.yaml')
-    let text
     try {
-        text = readFileSync(path, 'utf8')
-    } catch {
-        return null
-    }
-    try {
-        return { phases: parsePhases(text), domain_routing: parseDomainRouting(text) }
+        return loadMachine(root)
     } catch {
         return null
     }
@@ -278,7 +169,7 @@ function indexLooksActive(text) {
 function readSpecPhase(root, prompt) {
     const specId = detectSpecId(prompt)
     if (!specId) return { active: false, specId: null }
-    const path = join(root, 'specs', 'tasks', specId, '_index.yaml')
+    const path = join(sdlcPaths(root, { quiet: true }).specs, 'tasks', specId, '_index.yaml')
     if (!existsSync(path)) return { active: false, specId }
     try {
         return { active: indexLooksActive(readFileSync(path, 'utf8')), specId }
@@ -348,6 +239,31 @@ function detectOverride(prompt) {
     return reason.length > 0 ? reason : null
 }
 
+const LAYOUT_NUDGE = `SDLC: this repo is on layout 1 (${LAYOUT1_AI_PREFIX} and ${LAYOUT1.scripts}/). Run /sdlc-sync to migrate it to .sdlc/ (ADR-008).`
+
+/**
+ * The once-per-session layout-1 nudge, or null. The per-session marker file is what
+ * makes it once: a repeat on every prompt would train the reader to skip it.
+ */
+function layoutNudge(root, sessionId) {
+    let layout
+    try {
+        layout = sdlcPaths(root, { quiet: true }).layout
+    } catch {
+        return null
+    }
+    if (layout !== 1 || !sessionId) return null
+    const marker = join(root, '.claude', `.sdlc-layout-nudge-${sessionId}`)
+    if (existsSync(marker)) return null
+    try {
+        mkdirSync(dirname(marker), { recursive: true })
+        writeFileSync(marker, `${new Date().toISOString()}\n`, 'utf8')
+    } catch {
+        return null
+    }
+    return LAYOUT_NUDGE
+}
+
 /** Write the override reason to the per-session state file. Best-effort. */
 function writeOverride(root, sessionId, reason) {
     if (!sessionId) return null
@@ -415,10 +331,17 @@ function main() {
         silent()
     }
 
-    const sm = loadStateMachine(root)
-    if (!sm) silent() // no source of truth → stay silent (advisory)
-
     const blocks = []
+
+    // (0) A layout-1 repo hears once per session that /sdlc-sync migrates it (SPEC-009).
+    const nudge = layoutNudge(root, sessionId)
+    if (nudge) blocks.push(nudge)
+
+    const sm = loadStateMachine(root)
+    if (!sm) {
+        if (blocks.length) inject(blocks.join('\n\n'))
+        silent() // no source of truth → stay silent (advisory)
+    }
 
     // (1) Entry routing — only when NO task is active for the spec in play.
     const { active } = readSpecPhase(root, prompt)

@@ -13,7 +13,7 @@ finding — you never make the change.
 
 - The PR or diff to review, the task, the spec, and the applicable ADRs.
 - The **lens** you are reviewing through. The dispatching agent assigns it, resolved from
-  `review-constraints.yaml` via `node scripts/sdlc/reviewer-routing.mjs <lens>` (ADR-001: routing is
+  `review-constraints.yaml` via `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs reviewer-routing <lens>` (ADR-001: routing is
   registry data, never a list in a skill).
 - The **registered constraints** that apply, each with an `id`, a severity floor, a `check` and a
   `cite`. These are the project's accumulated laws. Enforce every one assigned to your lens and cite
@@ -37,7 +37,7 @@ Emit the graded findings envelope from `review-primitives.md` and nothing else. 
 
 Every finding carries `severity`, a grounded `criterion`, a `location`, and an `altitude`
 (`design` when no code edit can satisfy it, otherwise `implementation`). The dispatching agent
-validates the shape with `node scripts/sdlc/validate-review-envelope.mjs` and re-dispatches you on a
+validates the shape with `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-review-envelope` and re-dispatches you on a
 contract violation.
 
 Set `reviewed_by: "agent:task-reviewer"` — the provenance field that tells a reader an independent reviewer produced this, not the context that wrote the code.

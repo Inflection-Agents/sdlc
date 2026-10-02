@@ -35,7 +35,7 @@ INPUTS:
 
 GROUNDING (per review-primitives.md > PR-side canonical prefix table — the authoritative set):
   - Allowed citation prefixes (lowercase colon form, mirroring review-primitives.md;
-    these MUST match PR_SIDE_PREFIXES in scripts/sdlc/validate-review-envelope.mjs,
+    these MUST match PR_SIDE_PREFIXES in .sdlc/scripts/validate-review-envelope.mjs,
     which rejects an ungrounded blocking finding): ac:AC-NNN; adr:ADR-NNN;
     std:<section-anchor>; monorepo:boundary; monorepo:workspace-scope;
     monorepo:verify-coverage; task:blocks:<id>; task:scope; task:evidence-missing;
@@ -88,7 +88,7 @@ rule about the ACT, not about the output format.
 ### Step 1 — compute the lens set
 
 1. Derive the changed files from the real diff: `gh pr diff <pr> --name-only`.
-2. Load the registry: `loadConstraints()` from `scripts/sdlc/reviewer-routing.mjs`.
+2. Load the registry: `loadConstraints()` from `.sdlc/scripts/reviewer-routing.mjs`.
 3. Compute the applicable constraints across ALL changed paths with
    `applicableConstraintsFor(rows, changedFiles)`. Use that helper rather than looping
    `applicableConstraints` yourself — one lens set, one matcher, or a lens fires at write time and
@@ -96,7 +96,7 @@ rule about the ACT, not about the output format.
 
 ### Step 2 — fold by resolved agent, then dispatch
 
-Resolve every firing lens to its reviewer with `node scripts/sdlc/reviewer-routing.mjs <lens>`
+Resolve every firing lens to its reviewer with `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs reviewer-routing <lens>`
 (ADR-001: routing is registry data).
 
 **Fold by resolved agent, per [`../review-primitives.md`](../review-primitives.md) > Panel fold
@@ -116,7 +116,7 @@ context, not from a credential.
 ### Step 4 — validate every returned envelope, then route
 
 ```
-node scripts/sdlc/validate-review-envelope.mjs <envelope.json>
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-review-envelope <envelope.json>
 ```
 
 Exit `0` folds the findings. `2` is an abstention and escalates — never accept it, even with an
@@ -139,7 +139,7 @@ This table is the source of truth for Tier 2 dispatch. SPEC-002 consumes verbati
 | domain:playwright   | Diff touches `apps/*/app/**` page files                                      |
 ```
 
-Domain reviewers consume the domain skill listed in `.ai/project.md` for the workspace. If no domain skill exists, the specialist is not dispatched.
+Domain reviewers consume the domain skills listed in the workspace's `skills` in `.sdlc/config.yaml`. If no domain skill exists, the specialist is not dispatched.
 
 ## Dispatch ownership
 

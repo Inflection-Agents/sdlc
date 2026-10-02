@@ -14,7 +14,7 @@
 // applies, and SILENT on any internal error.
 //
 // Phase-exit detection (the `_index.yaml` phase-block contract documented in
-// the header of specs/sdlc-state-machine.yaml): each spec's
+// the header of the state machine, `.sdlc/state-machine.yaml`): each spec's
 // specs/tasks/SPEC-NNN/_index.yaml may carry a `phase:` block
 //
 //   phase:
@@ -26,7 +26,7 @@
 //
 // A phase-exit is "reached" when `phase.exit_condition_met` is truthy (the
 // owner_skill flipped it on exit). We read `next_phase` + `next_trigger` from
-// the state machine (specs/sdlc-state-machine.yaml — the single source of
+// the state machine (`.sdlc/state-machine.yaml`, the single source of
 // truth) keyed by `phase.current`, falling back to the values mirrored in the
 // `_index.yaml` phase block. We DO NOT duplicate the transition table here.
 //
@@ -102,6 +102,18 @@ import {
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+// The path resolver (SPEC-009, ADR-008). The plugin ships it in its own lib/ beside scripts, and
+// bootstrap.sh copies it to lib/ beside a repo-local hook. A hook that cannot find it
+// throws, so the failure shows instead of the hook quietly checking nothing.
+const LIB = (() => {
+    for (const rel of ['../scripts/sdlc/lib/', './lib/']) {
+        const url = new URL(rel, import.meta.url)
+        if (existsSync(fileURLToPath(new URL('sdlc-paths.mjs', url)))) return url
+    }
+    throw new Error(`${fileURLToPath(import.meta.url)}: cannot find lib/sdlc-paths.mjs in the plugin or beside the hook`)
+})()
+const { isSdlcRoot, loadMachine, sdlcPaths } = await import(new URL('sdlc-paths.mjs', LIB).href)
+
 const ALLOW = 0
 
 /** ms in 24h — the goal leash's expiry horizon, measured from `armed_at`. */
@@ -138,7 +150,7 @@ function projectRoot(cwd) {
     // and failed open silently.
     let dir = dirname(fileURLToPath(import.meta.url))
     for (let i = 0; i < 6; i += 1) {
-        if (existsSync(join(dir, 'specs')) && existsSync(join(dir, 'scripts'))) return dir
+        if (isSdlcRoot(dir)) return dir
         const up = dirname(dir)
         if (up === dir) break
         dir = up
@@ -448,13 +460,16 @@ export function renderGoalBlock(goal, used, path = null) {
     )
 }
 
-// ─── Minimal, dependency-free YAML reader for the state machine ────────────
-//
-// The framework keeps hooks on Node built-ins only (no npm packages). We parse
-// just enough of specs/sdlc-state-machine.yaml to read each phase's `id`,
-// `next_phase`, and `next_trigger`. This is a deliberately small subset reader:
-// a list of `- id:` blocks under a top-level `phases:` key. It tolerates
-// quoting and inline comments; on anything it can't read it returns [].
+// ─── State machine ─────────────────────────────────────────────────────────
+
+/** The machine's phases through the shared loader (SPEC-009). Returns [] on any failure: this hook fails open. */
+function loadPhases(root) {
+    try {
+        return loadMachine(root).phases.filter((p) => p.id)
+    } catch {
+        return []
+    }
+}
 
 /** Strip a trailing unquoted `# comment` and surrounding quotes/whitespace. */
 function scalar(raw) {
@@ -469,54 +484,6 @@ function scalar(raw) {
         s = s.slice(1, -1)
     }
     return s
-}
-
-/**
- * Parse the `phases:` list out of the state-machine YAML text. Returns an
- * array of `{ id, next_phase, next_trigger }`. Empty array on any failure.
- */
-function parsePhases(text) {
-    const lines = String(text).split('\n')
-    const phases = []
-    let inPhases = false
-    let current = null
-    for (const line of lines) {
-        if (/^\S/.test(line) && !/^phases\s*:/.test(line)) {
-            // a new top-level key ends the phases block
-            if (inPhases) break
-            continue
-        }
-        if (/^phases\s*:/.test(line)) {
-            inPhases = true
-            continue
-        }
-        if (!inPhases) continue
-        const item = line.match(/^\s*-\s*id\s*:\s*(.+)$/)
-        if (item) {
-            if (current) phases.push(current)
-            current = { id: scalar(item[1]), next_phase: null, next_trigger: null }
-            continue
-        }
-        if (!current) continue
-        const kv = line.match(/^\s*([a-z_]+)\s*:\s*(.*)$/i)
-        if (kv) {
-            const key = kv[1]
-            if (key === 'next_phase') current.next_phase = scalar(kv[2])
-            else if (key === 'next_trigger') current.next_trigger = scalar(kv[2])
-        }
-    }
-    if (current) phases.push(current)
-    return phases.filter((p) => p.id)
-}
-
-/** Load + parse the state machine's phases. Returns [] on any failure. */
-function loadPhases(root) {
-    const path = join(root, 'specs', 'sdlc-state-machine.yaml')
-    try {
-        return parsePhases(readFileSync(path, 'utf8'))
-    } catch {
-        return []
-    }
 }
 
 // ─── Phase-block reader (_index.yaml) ──────────────────────────────────────
@@ -568,7 +535,7 @@ function handoffSurfaced(phase) {
  * `phase:` block are skipped). Returns { specId, phase } or null.
  */
 function findPhaseExit(root) {
-    const tasksDir = join(root, 'specs', 'tasks')
+    const tasksDir = join(sdlcPaths(root, { quiet: true }).specs, 'tasks')
     if (!existsSync(tasksDir)) return null
     let entries
     try {

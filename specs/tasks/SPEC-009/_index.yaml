@@ -6,31 +6,33 @@ updated: 2026-10-01
 # Plan-review verdict (ADR-002). The owner sets approved: true in the same sign-off that makes
 # SPEC-009 active.
 plan_review:
+  # Spec v2 (a breaking amendment at the integration gate): the owner approved it on
+  # 2026-10-02 by directing the merge of PR #71.
   status: approve-ready
   approved: true
-  reviewed: 2026-10-01
+  reviewed: 2026-10-02
 
 steps:
   - id: S1
-    status: pending
+    status: done
   - id: S2
-    status: pending
+    status: done
   - id: S3
-    status: pending
+    status: done
   - id: S4
-    status: pending
+    status: done
   - id: S5
-    status: pending
+    status: done
   - id: S6
-    status: pending
+    status: done
   - id: S7
-    status: pending
+    status: done
   - id: S8
-    status: pending
+    status: done
   - id: S9
-    status: pending
+    status: done
   - id: S10
-    status: pending
+    status: done
 
 decisions:
   - id: D1
@@ -38,9 +40,9 @@ decisions:
     decided: SPEC-003 is closed through spec-completion before S1 starts (owner, 2026-10-01).
 
 phase:
-  current: spec-authoring
-  next_action: spec-execution
-  next_trigger: 'execute SPEC-009'
+  current: spec-execution
+  next_action: spec-completion
+  next_trigger: 'close out SPEC-009'
   exit_condition_met: true
   handoff_surfaced: true
-  updated: 2026-10-01
+  updated: 2026-10-02

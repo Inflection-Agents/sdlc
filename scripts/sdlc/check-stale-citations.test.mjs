@@ -6,8 +6,11 @@
 // wolf on the second case gets deleted, which is how the first case survives.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 
 import { blastRadius, classify, isAcknowledged, supersededIds } from './check-stale-citations.mjs'
+import { layout2Repo, write } from './__fixtures__/layouts/build.mjs'
 
 test('always-loaded paths are hard failures', () => {
     assert.equal(blastRadius('.ai/CLAUDE.md'), 'fail')
@@ -102,4 +105,28 @@ test('top-level skills/ and agents/ are always-loaded', () => {
 
 test('a test file under the new locations is still history, not always-loaded', () => {
     assert.equal(blastRadius('skills/review-primitives/examples/x.test.mjs'), 'report')
+})
+
+test('layout 2: .sdlc/ is always loaded except its scripts, and so is the configured process doc', () => {
+    assert.equal(blastRadius('.sdlc/agents/sdlc.md'), 'fail')
+    assert.equal(blastRadius('.sdlc/project.md'), 'fail')
+    assert.equal(blastRadius('.sdlc/scripts/notes.md'), 'report')
+    assert.equal(blastRadius('docs/process.md'), 'report')
+    assert.equal(blastRadius('docs/process.md', ['docs/process.md']), 'fail')
+})
+
+test('the CLI fails a stale citation in the paths.process_doc file', () => {
+    const fx = layout2Repo({ config: 'layout: 2\npaths:\n  process_doc: docs/process.md\n' })
+    try {
+        write(fx.root, 'specs/adrs/ADR-901-old.md', '---\nid: ADR-901\nstatus: superseded\nsuperseded_by: ADR-902\n---\n')
+        write(fx.root, 'specs/adrs/ADR-902-new.md', '---\nid: ADR-902\nstatus: accepted\n---\n')
+        write(fx.root, 'docs/process.md', 'Per ADR-901, do the thing.\n')
+        const env = { ...process.env }
+        delete env.CLAUDE_PROJECT_DIR
+        const res = spawnSync(process.execPath, [fileURLToPath(new URL('./check-stale-citations.mjs', import.meta.url)), '--root', fx.root], { encoding: 'utf8', env })
+        assert.equal(res.status, 1, res.stdout + res.stderr)
+        assert.match(res.stderr, /docs\/process\.md:1 +cites ADR-901/)
+    } finally {
+        fx.cleanup()
+    }
 })

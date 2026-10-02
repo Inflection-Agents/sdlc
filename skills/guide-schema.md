@@ -6,7 +6,7 @@ the same sign-off that makes the spec `active` (ADR-007). `spec-execution` burns
 a time. The guide replaces the separate decomposition phase and its per-task briefs.
 
 The guide is not graded by `spec-reviewer`. Everything mechanical about it is checked by
-[`scripts/sdlc/validate-guide.mjs`](../scripts/sdlc/validate-guide.mjs), which CI runs on every guide.
+[`.sdlc/scripts/validate-guide.mjs`](../scripts/sdlc/validate-guide.mjs), which CI runs on every guide.
 
 ## Files
 
@@ -31,8 +31,8 @@ spec_version: 1
 
 ### S1: <title>
 - Covers: AC-001, AC-004
-- Changes: `scripts/sdlc/foo.mjs`, `skills/bar/**`
-- Verify: `node --test scripts/sdlc/foo.test.mjs`
+- Changes: `.sdlc/scripts/foo.mjs`, `skills/bar/**`
+- Verify: `node --test .sdlc/scripts/foo.test.mjs`
 - Workspace: <name>
 - Risk: low
 - After: S1
@@ -54,7 +54,7 @@ spec_version: 1
 | `Covers:` | yes | The spec AC ids this step delivers. AC ids only; SC ids are what the integration PR maps its evidence to. |
 | `Changes:` | yes | The paths or globs the step may change. The self-review changed-path audit (SOP §4) and the fan-out test (SOP §5) read it. |
 | `Verify:` | yes | The commands that gate the step. For a change to shared code, include each consuming workspace's command. |
-| `Workspace:` | when `.ai/project.md` defines workspaces | The one workspace the step changes. `monorepo:workspace-scope` grounds on it. |
+| `Workspace:` | when `.sdlc/config.yaml` `workspaces` defines workspaces | The one workspace the step changes. `monorepo:workspace-scope` grounds on it. |
 | `Risk:` | no (default `low`) | `low`, `medium` or `high`. The agent composing the integration panel reads the highest `Risk:` in the guide; the registry can only raise rigor. |
 | `After:` | no (default: every earlier step) | The earlier steps this one needs. SOP §5 lets two steps fan out only if neither is in the other's `After:` closure. |
 | `Run by:` | no | A step only a human can perform, such as a credentialed run. The executor does not run it; it stays `pending` until the human reports it done. |
@@ -109,7 +109,7 @@ owner's approval of the spec and its guide before any code is written.
 | `approved` | boolean | Owner sign-off. The writer stamps `false`; the owner sets `true` in the same sign-off that makes the spec `active`. |
 | `reviewed` | ISO date | When the plan review was recorded. |
 
-The gate fails closed. `node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml` exits 0
+The gate fails closed. `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs plan-gate specs/tasks/SPEC-NNN/_index.yaml` exits 0
 only when `approved` is `true` and `status` is not `needs-rework`, and a missing block halts like an
 unapproved one. `spec-execution` runs it before a run starts. CI runs `--presence-only` repo-wide,
 because enforcing approval on every PR would fail PRs that touch a spec still awaiting sign-off.
@@ -122,14 +122,14 @@ entry and writes it on exit. `spec-authoring` writes `current: spec-authoring` a
 writes `current: spec-amendment`, each with `next_action: spec-execution`; `spec-execution` accepts
 either, or `spec-execution` when resuming. `handoff_surfaced` is set to `true` only after the handoff
 is surfaced, because `stop-handoff.mjs` reads it and never writes it. The allowed ids and triggers are
-defined once in `specs/sdlc-state-machine.yaml`; a retired id listed under `retired_phases:` there is
+defined once in `.sdlc/state-machine.yaml`; a retired id listed under `retired_phases:` there is
 accepted with a warning.
 
 ## `KICKOFF.md`
 
 The prompt the owner pastes to start delivery. **It holds at most 3,800 characters**, counted as
 Unicode characters, not bytes. Validator rule 9 enforces this on every approved guide. It is generated
-from `templates/kickoff.md`, rewritten whole by each writer, and never hand-edited. `spec-execution`
+from `.sdlc/templates/kickoff.md`, rewritten whole by each writer, and never hand-edited. `spec-execution`
 does not read it.
 
 ## Validator rules
@@ -146,5 +146,5 @@ does not read it.
    id; or a checkbox under it (`-`, `*` or `+`) carries no `AC-NNN` id (`AC-NNN:` and the legacy
    `AC-NNN —` both count). Headings and checkboxes inside fenced code are ignored;
 7. an `After:` id names no step, or a step that is not earlier;
-8. `.ai/project.md` defines workspaces and a step has no `Workspace:`;
+8. `.sdlc/config.yaml` `workspaces` defines workspaces and a step has no `Workspace:`;
 9. `plan_review.approved` is `true` and `KICKOFF.md` is missing or over 3,800 characters.

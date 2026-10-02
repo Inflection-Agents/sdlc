@@ -15,35 +15,49 @@ after an upgrade must not lose a single edit. Report what you skipped, by name.
 
 A plugin cannot create directories in someone's repo, and a GitHub Actions runner
 checks out the repo rather than the plugin cache. So the parts CI reads, and the parts
-the adopter edits, are physically copied. Everything else — skills, agents, hooks, the
-two review contracts — stays in the plugin and updates on its own.
+the adopter edits, are physically copied. Everything else (skills, agents, hooks) stays
+in the plugin and updates on its own.
 
 ---
 
 ## Phase 1 — Scaffold
 
-Copy `${CLAUDE_PLUGIN_ROOT}/init-payload/` into `${CLAUDE_PROJECT_DIR}`:
+**On a repo that is already on layout 1** (it has `.ai/`, or validators in a top-level
+`scripts` directory, and no `.sdlc/config.yaml`), stop: that repo is migrated by
+`/sdlc-sync`, not initialized.
 
-| From payload | To repo | Note |
-| --- | --- | --- |
-| `scripts/sdlc/*.mjs` | `scripts/sdlc/` | the validators CI runs |
-| `.github/workflows/*.yml` | `.github/workflows/` | skip if the repo uses different CI; say so |
-| `templates/*.md` | `templates/` | |
-| `.ignore` | `.ignore` | **append** if one exists, never overwrite |
-| `.gitattributes` | `.gitattributes` | **append** the LF rules if one exists |
-| `sdlc-state-machine.yaml` | `specs/` | |
-| `.ai/sdlc/review-constraints.stub.yaml` | `.ai/sdlc/review-constraints.yaml` | renamed on copy |
-| `.ai/skills/review-envelope.schema.json` | `.ai/skills/` | the envelope validator reads it at the integration gate; without it every review exits 3 |
-| `.ai/skills/review-primitives.md` | `.ai/skills/` | the contract a reviewer grounds against |
-| `.ai/project.stub.md` | `.ai/project.md` | renamed on copy; **30 plugin-shipped skills read this file**, so a repo without it has skills pointing at nothing |
+Install the layout-2 payload (ADR-008) with the plugin's installer:
 
-Create the empty tree the framework expects: `specs/`, `specs/adrs/`, `specs/tasks/`,
-`specs/bugs/`.
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/install-payload.mjs" --root .
+```
 
-`.gitattributes`: append the line `* text=auto eol=lf` unless that exact line is
-already there. Create the file if it does not exist; never rewrite one that does. The
-hooks and validators are shell and `.mjs`, and a CRLF checkout parses several of them
-to zero rows while every gate still reports green.
+It copies `${CLAUDE_PLUGIN_ROOT}/init-payload/` into the repo root, renames each
+`*.stub.*` file, and never overwrites a file that exists:
+
+| Lands at | Note |
+| --- | --- |
+| `.sdlc/config.yaml` | from the stub: `layout: 2`, empty `workspaces`, `domain_routing`, `extensions` and `scan.allow`. Schema: `skills/sdlc-config-schema.md`. |
+| `.sdlc/review-constraints.yaml` | from the stub. Phase 2 fills it. |
+| `.sdlc/state-machine.yaml` | framework-owned; every `/sdlc-sync` replaces it. Do not edit it: routing and the adopter's own phases go in `config.yaml`. |
+| `.sdlc/scripts/` | the validators CI runs, with `lib/`. |
+| `.sdlc/templates/`, `.sdlc/contracts/` | templates, and the review primitives and envelope schema the gate grades against. |
+| `.github/workflows/*.yml` | skip if the repo uses different CI, and say so. |
+| `specs/adrs/`, `specs/bugs/`, `specs/tasks/` | the empty tree the framework expects. |
+
+Five root files are merged, not copied, when they already exist:
+
+- `AGENTS.md` gets the SDLC project-context block between `<!-- BEGIN SDLC -->` and
+  `<!-- END SDLC -->`, after everything already there.
+- `CLAUDE.md` gets the line `@AGENTS.md`.
+- `.ignore` gets `!.sdlc/` (ripgrep skips hidden directories, so without it the SDLC files
+  drop out of agent search) and `specs/archive/`.
+- `.gitignore` gets the hooks' per-session marker glob and the bypass-log exception.
+- `.gitattributes` gets the LF rules. The hooks and validators are shell and `.mjs`, and a
+  CRLF checkout parses several of them to zero rows while every gate still reports green.
+
+Each line goes in only when the file lacks it, and existing content is never rewritten.
+Report what was created, kept and appended, by name. The installer prints all three.
 
 **If the repo already has SDLC hooks wired in `.claude/settings.json`, offer to remove
 that block.** Plugin hooks MERGE with project hooks rather than override them, so a repo
@@ -53,12 +67,13 @@ cosmetic: the goal leash counts its own block lines, so a double-wired repo spen
 what you found, and let the adopter choose which path they are on.
 
 **Idempotency is the acceptance criterion.** Running init twice must leave the repo
-byte-identical after the first run and report every file as already present. Verify it
-rather than assuming: run it, run it again, `git status` must be clean the second time.
+exactly as the first run left it, with every file reported as kept. Verify it rather
+than assuming: run the installer again, and `git status --porcelain` must print the same
+lines it printed after the first run.
 
 ## Phase 2 — Interview
 
-Generate `review-constraints.yaml` from what the adopter tells you. Ask about:
+Generate `.sdlc/review-constraints.yaml` from what the adopter tells you. Ask about:
 
 1. **Workspaces.** What are the top-level units — apps, packages, services? Their real
    paths, not their names.
@@ -76,10 +91,18 @@ Generate `review-constraints.yaml` from what the adopter tells you. Ask about:
 adopter did not ask for is worse than no law: it produces findings they cannot act on,
 and it teaches them to ignore the reviewer.
 
-**Fill `.ai/project.md` from the same answers.** The interview already asks for
-workspaces, paths and stack; that is most of what `project.md` holds, and thirty
-plugin-shipped skills read it. Leaving it as an unfilled template means those skills
-resolve to placeholder prose.
+**Fill the project context from the same answers.** The interview already asks for
+workspaces, paths and stack. Write them in two places:
+
+- `.sdlc/config.yaml` `workspaces`: one entry per workspace with `name`, `path`, `package`,
+  `stack`, `test`, `build`, `agent_executable` (`yes`, `caution` or `human`) and `skills`.
+  Rule 8 of `validate-guide.mjs`, the `Run by:` handling and the domain-skill routing read it.
+- The SDLC block in `AGENTS.md`: what the product is, the layout, import boundaries,
+  workspace interfaces and conventions. Keep the block within 16 KiB, which is half of
+  what Codex reads from `AGENTS.md` by default. Longer prose goes in `.sdlc/project.md`
+  with a one-line pointer in the block, and `paths.project: .sdlc/project.md` in the config.
+
+Leaving either as the stub means the skills that read them resolve to placeholders.
 
 Every row needs a `cite` whose prefix is grounded — `inv:` for a registry invariant,
 `std:` for a coding-standards anchor that actually exists, `adr:` for a real ADR.
@@ -89,15 +112,17 @@ Every row needs a `cite` whose prefix is grounded — `inv:` for a registry inva
 Before the file is final, run the framework's own gates against the adopter's tree:
 
 ```bash
-node scripts/sdlc/validate-constraints-registry.mjs
-node scripts/sdlc/check-review-constraint-globs.mjs --enforce
-node scripts/sdlc/validate-state-machine.mjs
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-sdlc-config
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-constraints-registry
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs check-review-constraint-globs --enforce
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-state-machine
 ```
 
-The first grades the SHAPE of every row you generated — id, lens, check, a `cite`
-whose prefix a reviewer can actually ground, a severity on the ladder. The second
-grades whether each glob resolves against their real tree. Together they are the
-proof; neither alone is.
+The first grades the config's shape: workspace paths that exist, eligibility values on
+the enum. The second grades the SHAPE of every row you generated — id, lens, check, a
+`cite` whose prefix a reviewer can actually ground, a severity on the ladder. The third
+grades whether each glob resolves against their real tree. Together they are the proof;
+none alone is.
 
 Do NOT substitute `node --test` here. The framework's test files grade the FRAMEWORK's
 corpus and do not travel to an adopting repo, and `node --test` exits 0 on an unmatched

@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url'
 import { checkFile, loadPhaseIds, loadRetiredIds, validatePhaseBlock } from './validate-phase-memory.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
-const MACHINE = join(HERE, '..', '..', 'specs', 'sdlc-state-machine.yaml')
+const MACHINE = join(HERE, '..', '..', '.sdlc', 'state-machine.yaml')
 const phaseIds = loadPhaseIds(MACHINE)
 const retiredIds = loadRetiredIds(MACHINE)
 const [retired] = [...retiredIds]

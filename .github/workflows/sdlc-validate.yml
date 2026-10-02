@@ -5,7 +5,7 @@ name: SDLC
 # is shipping a gate it does not itself pass.
 #
 # ADR-003 concentrates delivery rigor at one integration gate and re-homes the
-# engine's contracts into scripts/sdlc/. That only means anything if something
+# engine's contracts into .sdlc/scripts/. That only means anything if something
 # actually runs them — before this workflow existed, nothing did.
 
 on:
@@ -19,6 +19,9 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
+              with:
+                  # Full history: gen-released-payloads.mjs --check builds the manifest from it.
+                  fetch-depth: 0
 
             - uses: actions/setup-node@v4
               with:
@@ -26,22 +29,22 @@ jobs:
                   node-version: '22'
 
             - name: Tests — validators, delivery gates, and the goal leash
-              run: node --test scripts/sdlc/*.test.mjs hooks/__tests__/*.test.mjs
+              run: node --test .sdlc/scripts/*.test.mjs .sdlc/scripts/lib/*.test.mjs hooks/__tests__/*.test.mjs
 
             - name: State machine is structurally and referentially valid
-              run: node scripts/sdlc/validate-state-machine.mjs
+              run: node .sdlc/scripts/validate-state-machine.mjs
 
             - name: Generated handoff footers match the state machine
-              run: node scripts/sdlc/gen-handoffs.mjs --check
+              run: node .sdlc/scripts/gen-handoffs.mjs --check
 
             - name: Delivery guides are complete and current
               # Every spec AC covered, every step verifiable, guide and index in step, and an
               # approved guide's KICKOFF.md within 3,800 characters (ADR-007). An unmatched glob
               # (no guides yet) is nothing to check.
-              run: node scripts/sdlc/validate-guide.mjs specs/tasks/*/GUIDE.md
+              run: node .sdlc/scripts/validate-guide.mjs specs/tasks/*/GUIDE.md
 
             - name: Phase-memory blocks are valid
-              run: node scripts/sdlc/validate-phase-memory.mjs specs/tasks/*/_index.yaml specs/archive/tasks/*/_index.yaml
+              run: node .sdlc/scripts/validate-phase-memory.mjs specs/tasks/*/_index.yaml specs/archive/tasks/*/_index.yaml
 
             - name: Every spec with a plan carries a plan-review block
               # PRESENCE, repo-wide — not approval. A spec awaiting sign-off sits at
@@ -49,22 +52,22 @@ jobs:
               # every PR would redden unrelated PRs and pressure people to flip the flag.
               # Approval is checked per-spec by `spec-execution` §1 before a run starts
               # (ADR-002), which is the moment it actually matters.
-              run: node scripts/sdlc/plan-gate.mjs --presence-only specs/tasks/*/_index.yaml specs/archive/tasks/*/_index.yaml
+              run: node .sdlc/scripts/plan-gate.mjs --presence-only specs/tasks/*/_index.yaml specs/archive/tasks/*/_index.yaml
 
             - name: Constraints registry is well-formed
-              run: node scripts/sdlc/validate-constraints-registry.mjs
+              run: node .sdlc/scripts/validate-constraints-registry.mjs
 
             - name: Plugin manifest resolves to what is on disk
               # A manifest naming a missing hook installs cleanly and never fires.
               # Same dangling-name class as a registry routing to an agent no repo
               # defines, which is why it is a gate rather than a convention.
-              run: node scripts/sdlc/validate-plugin-manifest.mjs
+              run: node .sdlc/scripts/validate-plugin-manifest.mjs
 
             - name: Archive boundary is correct (no expired spec in the live corpus)
               # Corpus-wide and enforcing. Green because the arming commit arranged the
               # corpus; it goes red when a spec reaches a terminal status and is not moved,
               # or when an archived spec is reopened and not restored.
-              run: node scripts/sdlc/archive-specs.mjs --check
+              run: node .sdlc/scripts/archive-specs.mjs --check
 
             - name: No superseded decision cited as current in always-loaded context
               # Corpus-wide, no `if:` scope. Every other gate here grades changed files,
@@ -76,10 +79,26 @@ jobs:
               # a row-level reversal is deliberately out of scope: no automated check can
               # tell which of an ADR's rows a citation relies on. The FAIL branch is
               # exercised by fixture in check-stale-citations.test.mjs, not by the corpus.
-              run: node scripts/sdlc/check-stale-citations.mjs
+              run: node .sdlc/scripts/check-stale-citations.mjs
+
+            - name: SDLC config is well-formed
+              run: node .sdlc/scripts/validate-sdlc-config.mjs
+
+            - name: Released-payload manifest is current
+              # The migration and /sdlc-sync replace a framework file only when its bytes match
+              # a shipped one. A stale manifest misclassifies an adopter's files.
+              run: node .sdlc/scripts/gen-released-payloads.mjs --check
+
+            - name: Shipped code holds no layout-1 path (SPEC-009 SC-5)
+              # --no-allow: scan.allow names this repo's plugin source, which must not hide a
+              # layout-1 literal in code adopters run.
+              run: node .sdlc/scripts/scan-legacy-paths.mjs --only hooks,scripts/sdlc --no-allow
+
+            - name: No layout-1 path is left or reintroduced
+              run: node .sdlc/scripts/scan-legacy-paths.mjs
 
             - name: Review-constraint globs (warn — this repo's registry is illustrative)
               # Reports, never fails: the shipped rows deliberately match nothing in a
               # docs-only repo. A consuming repo replaces them and switches to
               # `--enforce`, at which point this step can actually go red.
-              run: node scripts/sdlc/check-review-constraint-globs.mjs
+              run: node .sdlc/scripts/check-review-constraint-globs.mjs

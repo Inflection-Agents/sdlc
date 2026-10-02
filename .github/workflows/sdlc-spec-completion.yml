@@ -6,7 +6,7 @@ name: SDLC spec completion check
 # It NEVER writes to the repo. Permissions are contents: read. Whether the evidence
 # substantiates each criterion is judgment, and that stays with the human at the
 # integration PR. The framework also does not ship the auto-merge lane a writing
-# workflow would need (see .ai/CLAUDE.md), so a writer here would open bookkeeping
+# workflow would need (see CLAUDE.md), so a writer here would open bookkeeping
 # PRs nobody merges - the manual chore it exists to remove, relocated.
 
 on:
@@ -53,7 +53,7 @@ jobs:
               id: grade
               run: |
                   set +e
-                  out=$(node scripts/sdlc/complete-spec.mjs "${{ steps.spec.outputs.id }}" 2>&1)
+                  out=$(node .sdlc/scripts/complete-spec.mjs "${{ steps.spec.outputs.id }}" 2>&1)
                   code=$?
                   {
                     echo "verdict<<SDLC_VERDICT"
@@ -80,7 +80,7 @@ jobs:
                     echo
                     echo "This check grades only; it does not change the spec. When the evidence"
                     echo "genuinely substantiates each criterion, run \`spec-completion\`, then"
-                    echo "\`node scripts/sdlc/archive-specs.mjs\` to move the closed spec out of the"
+                    echo "\`node .sdlc/scripts/archive-specs.mjs\` to move the closed spec out of the"
                     echo "default search path."
                   } > /tmp/sdlc-verdict.md
                   gh pr comment "$PR" --body-file /tmp/sdlc-verdict.md

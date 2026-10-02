@@ -2,12 +2,12 @@
 id: SPEC-009
 title: "One .sdlc/ folder: consolidate the adopter footprint and migrate existing repos on /sdlc-sync"
 status: active
-version: 1
+version: 2
 supersedes:
 initiative: INI-002
 owner: franklin
 created: 2026-10-01
-updated: 2026-10-01
+updated: 2026-10-02
 tags: [onboarding, install, layout, migration, sdlc-sync, sdlc-init]
 depends_on: []
 linear_project:
@@ -87,7 +87,8 @@ Existing adopters come in two shapes, and the migration must handle both.
   Measured with `ls -A` before and after on a fresh `git init` repo.
 - [ ] SC-2: Migration works on a plugin-init fixture built from the 0.3.0 payload and on a local
   clone of high-gear-apps. On each target, the gates and gate probes P1 to P5 give the same result on
-  the commit before the migration and on the migration branch tip, P6 to P8 pass on the tip, and the
+  the commit before the migration and on the migration branch tip, with the probes run with
+  `--repo-code` (a probe held back on either commit means the criterion is not met), P6 to P8 pass on the tip, and the
   scan reports 0 hits on the tip. Design > Measuring SC-2 defines the gate set and the protocol. The dry-run report and the
   `--apply` report list the same number of unrecognized files.
 - [ ] SC-3: After a change to the phase spine in the plugin, `/sdlc-sync` on a layout-2 repo rewrites
@@ -268,7 +269,9 @@ readers of phases, exempt entries or routing go through it:
 - `hooks/stop-handoff.mjs` (machine at `:514`).
 
 The referential skill checks count a skill as present when it is in `sdlcPaths(root).skills` or in
-the plugin's own `skills/`.
+the plugin's own `skills/`. With no plugin installed, as in an adopter's CI, the owner skill of a
+framework phase cannot be seen and is listed as not checked. Domain skills and extension phases'
+owner skills are the repo's own, so they must still resolve.
 
 **`resolveRoot(start)`** uses `CLAUDE_PROJECT_DIR` when it is set. Otherwise it walks up from `start`
 to the first directory that holds either:
@@ -280,8 +283,10 @@ This replaces the `specs/` and `scripts/` check in the three hooks.
 
 Every validator takes `--root <dir>`, and the root defaults to `resolveRoot(process.cwd())`. The hooks
 import the resolver from the plugin's own `../scripts/sdlc/lib/`. `pre-tool-use-edit-write.mjs`
-imports `reviewer-routing.mjs` from `sdlcPaths(root).scripts`, where today it imports from
-`scripts/sdlc/` (`hooks/pre-tool-use-edit-write.mjs:127`). It also counts `.sdlc/` as a
+imports the plugin's own `reviewer-routing.mjs`, where today it imports from the repo's
+`scripts/sdlc/` (`hooks/pre-tool-use-edit-write.mjs:127`), so a plugin hook never runs code from the
+repo. A hook copy that `bootstrap.sh` installed into `.claude/hooks/` has no plugin beside it and
+imports the repo's copy from `sdlcPaths(root).scripts`. Both copies of the hook count `.sdlc/` as a
 process-artifact path, except `.sdlc/scripts/`, which stays gated as code the way `scripts/sdlc/` is
 today (the list is at lines 214 to 222). When `user-prompt-submit.mjs` sees
 layout 1, it adds one line telling the user to run `/sdlc-sync`, once per session.
@@ -388,11 +393,26 @@ match the payload file of the same name in any released version, and **modified*
 `migrate-layout.mjs` runs from the plugin, because a layout-1 repo has no copy of it:
 `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/migrate-layout.mjs --root . (--dry-run | --apply) [--exclude <glob>]...`.
 
-It refuses to run (exit 1) in three cases:
+It refuses to run (exit 1), dry run included, when:
 - the target is not a git repo;
 - a tracked file has uncommitted changes (`git status --porcelain --untracked-files=no` prints
   anything);
-- the layout matches neither shape.
+- the layout matches neither shape;
+- `.sdlc/config.yaml` exists but `HEAD` does not hold it, which is the leftover of an interrupted run;
+- `.sdlc/`, or the destination of any move, already exists;
+- a root file it writes, or a tracked symlink in a path it moves, resolves outside the repo, or a moved
+  link would still point outside the repo from its new place;
+- `AGENTS.md` already has an SDLC block and there is project prose to write there;
+- a workspace table cannot be read, or the config it would write does not read back as written.
+
+`--apply` also refuses while anything the rollback could not restore is in the way. That covers an
+untracked or ignored file in a directory it moves, an untracked root file it would change, and an ignored
+root file it would create. The dry run lists these under `Blocks --apply` and still prints the plan.
+
+The apply is atomic. If anything fails before its commit, a pre-commit hook included, the repo goes
+back to its branch, or its detached `HEAD`, at the same commit. The files the run created are removed,
+a local link it repointed is restored, and the branch is deleted. A rollback step that fails is
+reported with the commands that finish the recovery.
 
 On a layout-2 repo it prints `nothing to migrate` and exits 0. A repo counts as forked when
 `.ai/skills/` holds any `*/SKILL.md`.
@@ -542,16 +562,24 @@ works. `probe-gates.mjs --root <dir> --rev <commit>` checks out the commit in a 
 runs the copy that the repo's own workflow `run:` line invokes. Each hook probe runs every wired hook:
 the plugin's (from its `hooks/hooks.json`) and every hook command in `.claude/settings.json`.
 
+The repo's own code (its `.claude/settings.json` hook commands and the validators its workflows
+name) runs only with `--repo-code`, because it runs with the developer's environment. For each
+probed revision, `probe-gates.mjs` prints the repo code it would run, read from that revision and
+quoted, and it lists every probe it held back under `not probed without --repo-code`. `/sdlc-sync`
+shows the printed repo code to the owner and runs the probes with `--repo-code` only after a yes. The
+report names any probe that stayed unprobed. Every git call in the probe worktree runs with hooks
+off, so a checkout never runs the probed revision's git hooks.
+
 | Probe | Planted violation | Caught when | Runs when |
 | --- | --- | --- | --- |
-| P1 | a guide step with no `Workspace:` | `validate-guide.mjs` exits 1 | workspaces are defined |
-| P2 | a prompt naming a `domain_routing` workspace path | each wired `UserPromptSubmit` hook prints that workspace's chain | `domain_routing` is non-empty |
-| P3 | an edit to a path a registry row matches | each wired edit-write hook prints the row id | the registry has rows |
+| P1 | a guide step with no `Workspace:` | `validate-guide.mjs` exits 1 | workspaces are defined, with `--repo-code` |
+| P2 | a prompt naming a `domain_routing` workspace path | each wired `UserPromptSubmit` hook prints that workspace's chain | `domain_routing` is non-empty; the repo's hooks only with `--repo-code` |
+| P3 | an edit to a path a registry row matches | each wired edit-write hook prints the row id | the registry has rows; the repo's hooks only with `--repo-code` |
 | P4 | a search for a word in an archived spec | `rg -l -g '*.md'` from the root does not list it | `specs/archive/` exists |
-| P5 | a skill directory no phase or exempt entry names, planted in the resolved skills directory | `validate-state-machine.mjs` exits 1 | always |
+| P5 | a skill directory no phase or exempt entry names, planted in the resolved skills directory | `validate-state-machine.mjs` exits 1 | with `--repo-code` |
 | P6 | a search for a word in `.sdlc/scripts/` | plain `rg -l` from the root lists it | layout 2 |
 | P7 | none: compare workflow triggers | no moved file is selected by fewer workflows at its new path than at its old path, using `path.matchesGlob` on every `paths` and `paths-ignore` filter; added workflows are reported, not failed | always, on the branch tip |
-| P8 | a citation of a superseded ADR in a file the stale-citation gate treats as always loaded, under `.sdlc/` or at `paths.process_doc` | `check-stale-citations.mjs` exits 1 | the repo has a superseded ADR, on the branch tip |
+| P8 | a citation of a superseded ADR in a file the stale-citation gate treats as always loaded, under `.sdlc/` or at `paths.process_doc` | `check-stale-citations.mjs` exits 1 | the repo has a superseded ADR, on the branch tip, with `--repo-code` |
 
 A probe whose precondition does not hold reports `ran: false`. `/sdlc-sync` runs the probes on the
 commit before the migration and on the branch tip, and requires P1 to P5 to give the same result on
@@ -569,6 +597,10 @@ both, and P6 to P8 to pass on the tip.
   holds exactly the files its own pattern selects. Every boolean output is then forced to `true`, so
   every scoped gate runs. `github.event_name` is `pull_request`, and every base or before SHA is the
   pre-migration commit. The same substitution applies before and after.
+- **Probes:** `probe-gates.mjs --before <pre-migration commit> --after <tip> --repo-code`.
+- **What runs locally:** for a gate step, only its `node <SDLC script>` invocation, without any
+  command chained after it. A scope step runs in full, as above. `/sdlc-sync` lists every command
+  for the owner before it runs any.
 - **Unrecognized files:** the count in the `--dry-run` report against the count in the `--apply`
   report.
 
@@ -580,8 +612,8 @@ On layout 1, `/sdlc-sync` runs these steps in order:
 2. show the plan and the diff to the owner;
 3. `--apply`;
 4. fix scan hits with the owner, as commits on the branch, until the scan exits 0;
-5. the gate probes, before and after;
-6. the gates;
+5. the gate probes, before and after, with `--repo-code` after the owner's yes to the printed repo code;
+6. the gates: each SDLC gate step's `node` invocation and each scope step, listed for the owner first;
 7. the report.
 
 That run makes no other changes, so reverting the branch undoes exactly the migration.
@@ -685,8 +717,11 @@ SC-5's `--no-allow` run keeps this list from hiding a layout-1 path in shipped c
   hooks runs without `CLAUDE_PROJECT_DIR`, then it binds to the repo root. Given a layout-1 repo, it
   binds as it does today. Verified by `node --test hooks/__tests__/project-root-resolution.test.mjs`.
 - [ ] AC-005: Given a layout-2 repo, when the edit-write hook sees an edit under `.sdlc/`, then it
-  classifies the edit as a process artifact, except under `.sdlc/scripts/`, which it gates as code. When it loads constraints, it imports
-  `reviewer-routing.mjs` from `sdlcPaths(root).scripts`.
+  classifies the edit as a process artifact, except under `.sdlc/scripts/`, which it gates as code. When the hook runs from the
+  plugin, on either layout, it imports the plugin's own `reviewer-routing.mjs` and never the repo's;
+  a hook copy that `bootstrap.sh` installed in `.claude/hooks/` imports
+  `sdlcPaths(root).scripts/reviewer-routing.mjs`. Verified by `containment.test.mjs` and
+  `edit-write-constraint-injection.test.mjs`.
 - [ ] AC-006: Given a layout-1 repo, when the first prompt of a session is submitted, then
   `user-prompt-submit.mjs` adds one line telling the user to run `/sdlc-sync`, and it does not add
   the line again that session.
@@ -797,7 +832,7 @@ SC-5's `--no-allow` run keeps this list from hiding a layout-1 path in shipped c
   Given the 0.3.0 `project.stub.md` left unfilled (every row's first cell is a `[...]` placeholder),
   and given a filled single-app `project.md` whose tables keep their headings with no rows, each
   migrates to `workspaces: []`, and the report lists any dropped placeholder rows.
-- [ ] AC-015: Given `probe-gates.mjs` on the forked fixture, when it runs on the pre-migration commit
+- [ ] AC-015: Given `probe-gates.mjs --repo-code` on the forked fixture, when it runs on the pre-migration commit
   and on the branch tip with the scan hits fixed, then P1 to P5 give the same result on both. P6, P7
   and P8 pass on the tip. Given the tip before the fixes, at least one of P2, P3 or P5 differs.
 - [ ] AC-016: Given `/sdlc-sync` on a layout-1 repo, when it runs, then it follows the seven migration
@@ -844,7 +879,10 @@ SC-5's `--no-allow` run keeps this list from hiding a layout-1 path in shipped c
 
 - **A forked repo reads paths or data in a way the scan does not know.** A hook that misses its input
   goes silent and does not fail. The scan flags the forms it knows (AC-013). The gate probes catch the
-  silent result for the gates that matter (AC-015), and the clone run (SC-2) is the end-to-end check.
+  silent result for the gates that matter (AC-015), when the owner approves `--repo-code`, and the
+  clone run (SC-2) is the end-to-end check. If the owner declines, the readers behind the probes that
+  were held back are unverified, and the report lists them. The plugin's edit hook also ignores a
+  forked `reviewer-routing.mjs`; P3 runs the plugin's hook against the repo's registry.
   A local gate that no probe covers can still go silent. high-gear-apps' `check-subagent-types.mjs`
   is one, and the scan flags its `join(root, '.ai', 'skills')` walk.
 - **A local tool recreates the old layout.** high-gear-apps' `tools/dev/setup-sdlc.ts` relinks
@@ -873,7 +911,7 @@ SC-5's `--no-allow` run keeps this list from hiding a layout-1 path in shipped c
   as history, and this spec supersedes the paths.
 - **Double-wired hooks.** high-gear-apps wires hooks in `.claude/settings.json`, and the plugin is
   also installed (`~/.claude/plugins/installed_plugins.json` lists `sdlc@inflection-agents`). The
-  report names each double-wired hook, and the probes run both copies. This spec does not unwire them.
+  report names each double-wired hook, and with `--repo-code` the probes run both copies. This spec does not unwire them.
 - **Claude starts loading an adopter's existing `AGENTS.md`.** The `@AGENTS.md` import pulls in
   whatever that file already says. In high-gear-apps it is the Jules entry point, which sends the
   reader to a step-executor brief. The dry run prints that text and the files it points to, and
@@ -926,3 +964,15 @@ through the fallback until a later release removes it.
   (`hooks/stop-handoff.mjs:514`, `hooks/pre-tool-use-edit-write.mjs:127`) and would go silent on
   layout 2. Pinning back to `0.3.x` therefore also requires each migrated adopter to revert its
   migration merge first.
+
+## Changelog
+
+### v2 (2026-10-02)
+- **Breaking:** AC-005 and Design > The resolver. The plugin's edit hook imports the plugin's own `reviewer-routing.mjs`, not `sdlcPaths(root).scripts/reviewer-routing.mjs`. The integration panel's security review showed that the old import let any repo with a `.sdlc/config.yaml` run its own JavaScript inside a plugin hook (PR #71, round 1). A hook that `bootstrap.sh` installed into `.claude/hooks/` keeps using the repo's copy.
+- **Breaking:** Design > Gate probes, SC-2, AC-015 and Design > Measuring SC-2. The repo's own hooks and validators run only with `--repo-code` after the owner agrees, and the SC-2 measurement runs with it. Each revision prints what it would run, and the probes that were held back are listed. The probe worktree runs git with hooks off (PR #71, rounds 1 to 3).
+- **Breaking:** `/sdlc-sync` step 6 and Design > Measuring SC-2. A gate step runs only its `node` invocation, and every command is listed for the owner first.
+- **Additive:** Design > Migration lists every refusal and the atomic apply. `--apply` refuses, and the dry run lists, what a rollback could not restore. Moved relative links are repointed, and a local `.claude/skills` link is repointed but not committed.
+- **Additive:** Design > The resolver. With no plugin installed, the state-machine gate does not grade the framework phases' owner skills.
+
+### v1 (2026-10-01)
+- Initial spec.

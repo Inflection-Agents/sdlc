@@ -29,13 +29,13 @@ Before invoking spec-amendment, decide whether the change is small enough to be 
 
 | Change type | Path |
 |---|---|
-| Word-level AC clarification preserving semantics (e.g., wording tighten without changing what passes/fails) | gap-capture (use `templates/gap.md`; do not run this skill) |
+| Word-level AC clarification preserving semantics (e.g., wording tighten without changing what passes/fails) | gap-capture (use `.sdlc/templates/gap.md`; do not run this skill) |
 | Design-section workaround that does not affect any AC's pass/fail | gap-capture |
 | Cross-link to an ADR that should have been cited but wasn't (no design change) | gap-capture |
 | Any change that would bump the spec version (per `skills/spec-schema.md` version rules) | **spec-amendment** (this skill) |
 | Any change to In/Out scope, AC pass/fail conditions, or design semantics | **spec-amendment** |
 
-If the change qualifies as a gap, create a GAP-NNN-*.md file under `specs/gaps/` (template at `templates/gap.md`) and stop. Otherwise continue with the amendment process below. See SPEC-004 for the originating design.
+If the change qualifies as a gap, create a GAP-NNN-*.md file under `specs/gaps/` (template at `.sdlc/templates/gap.md`) and stop. Otherwise continue with the amendment process below. See SPEC-004 for the originating design.
 
 ---
 
@@ -215,7 +215,7 @@ Edit `GUIDE.md` and `_index.yaml` in the same commit as the spec:
 Then run the validator. It must exit 0 before Step 6b:
 
 ```bash
-node scripts/sdlc/validate-guide.mjs specs/tasks/SPEC-NNN/GUIDE.md
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-guide specs/tasks/SPEC-NNN/GUIDE.md
 ```
 
 ## Step 6b: Self-review (mandatory)
@@ -249,7 +249,7 @@ Seed each dispatch with these inputs (all paths concrete; do not invent them):
 - `spec_schema`: `skills/spec-schema.md`.
 - `authoring`: `skills/spec-authoring/SKILL.md`.
 - `intent`: the intent excerpt the original spec was authored from (still in `specs/intents.md` or its archive).
-- `project`: `.ai/project.md`.
+- `project`: the `AGENTS.md` SDLC block and `.sdlc/config.yaml` `workspaces`.
 - `adrs`: every ADR referenced in the amended Design section, plus any ADR newly superseded or affected by this amendment (Step 3b).
 - `upstream_specs`: every spec listed in this spec's `depends_on` (re-read post-amendment; amendments can change `depends_on`).
 - `downstream_specs`: every spec that declares this spec in its `depends_on` (use `specs/spec-index.json`). Downstream contradiction probing matters MORE on amendments than on first-draft specs — a contract that was honored at v1 can break at v2.
@@ -261,7 +261,7 @@ Seed each dispatch with these inputs (all paths concrete; do not invent them):
 **Validate every returned envelope before folding it:**
 
 ```bash
-node scripts/sdlc/validate-review-envelope.mjs <envelope.json>
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-review-envelope <envelope.json>
 ```
 
 Exit `0` folds the findings. `2` is an abstention and escalates — never accept it, even with
@@ -312,7 +312,7 @@ Ask:
 - Any in-progress work I should handle differently?
 
 **Rewrite the kickoff prompt.** A changed guide or AC set changes the prompt that starts delivery.
-Regenerate `specs/tasks/SPEC-NNN/KICKOFF.md` whole from `templates/kickoff.md` against the amended
+Regenerate `specs/tasks/SPEC-NNN/KICKOFF.md` whole from `.sdlc/templates/kickoff.md` against the amended
 spec and guide, keep it within **3,800 characters** (Unicode characters, not bytes), and show it to
 the owner in full. Validator rule 9 fails an approved guide whose prompt is missing or too long.
 
@@ -370,11 +370,11 @@ Amending means the spec is still fundamentally right — you're adjusting, not r
 | Leaving the old kickoff prompt | The prompt names the steps and ACs. Rewrite it at re-approval, within 3,800 characters. |
 
 <!-- sdlc:handoff:start -->
-<!-- GENERATED from specs/sdlc-state-machine.yaml by scripts/sdlc/gen-handoffs.mjs — do not edit between markers; re-run the generator. -->
+<!-- GENERATED from .sdlc/state-machine.yaml by ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/gen-handoffs.mjs — do not edit between markers; re-run the generator. -->
 
 ## Handoff
 
-This phase is **spec-amendment** in the SDLC state machine (`specs/sdlc-state-machine.yaml`, the single source of truth). The fields below are generated from that file — do not hand-edit them here.
+This phase is **spec-amendment** in the SDLC state machine (`.sdlc/state-machine.yaml`, the single source of truth). The fields below are generated from that file — do not hand-edit them here.
 
 **Entry triggers:**
 
@@ -389,7 +389,7 @@ This phase is **spec-amendment** in the SDLC state machine (`specs/sdlc-state-ma
 - an active spec is found to be wrong, incomplete, or in need of change mid-flight
 - a spec is amendable IFF its status is active or draft — every other status (done, superseded, deprecated, cancelled) is CLOSED and immutable; route a change to a closed spec to a new spec (spec-authoring) or a bug spec under specs/bugs/ instead
 
-**Exit condition:** spec is amended (version bumped), spec-reviewer re-signs off, the guide is updated in the same commit (Covers: re-mapped, spec_version bumped) and passes scripts/sdlc/validate-guide.mjs, KICKOFF.md is rewritten, and the owner re-approves plan_review; an active spec with no guide hands off to "write the guide for SPEC-NNN" instead
+**Exit condition:** spec is amended (version bumped), spec-reviewer re-signs off, the guide is updated in the same commit (Covers: re-mapped, spec_version bumped) and passes .sdlc/scripts/validate-guide.mjs, KICKOFF.md is rewritten, and the owner re-approves plan_review; an active spec with no guide hands off to "write the guide for SPEC-NNN" instead
 
 **Next step:** `spec-execution` — trigger: "execute SPEC-NNN"
 <!-- sdlc:handoff:end -->

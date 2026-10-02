@@ -1,25 +1,25 @@
 ---
 spec: SPEC-009
-spec_version: 1
+spec_version: 2
 ---
 
 ## Steps
 
 ### S1: Resolver, legacy map, runner and config validator
 - Covers: AC-001, AC-002, AC-020
-- Changes: `scripts/sdlc/lib/sdlc-paths.mjs`, `scripts/sdlc/lib/sdlc-paths.test.mjs`, `scripts/sdlc/lib/legacy-map.mjs`, `scripts/sdlc/run.mjs`, `scripts/sdlc/run.test.mjs`, `scripts/sdlc/validate-sdlc-config.mjs`, `scripts/sdlc/validate-sdlc-config.test.mjs`, `scripts/sdlc/__fixtures__/layouts/**`, `skills/sdlc-config-schema.md`
+- Changes: `scripts/sdlc/lib/sdlc-paths.mjs`, `scripts/sdlc/lib/sdlc-paths.test.mjs`, `scripts/sdlc/lib/mini-yaml.mjs`, `scripts/sdlc/lib/mini-yaml.test.mjs`, `specs/sdlc-state-machine.yaml` and `init-payload/sdlc-state-machine.yaml` (the `sdlc-config-schema` entry under `exempt:` only), `scripts/sdlc/lib/legacy-map.mjs`, `scripts/sdlc/run.mjs`, `scripts/sdlc/run.test.mjs`, `scripts/sdlc/validate-sdlc-config.mjs`, `scripts/sdlc/validate-sdlc-config.test.mjs`, `scripts/sdlc/__fixtures__/layouts/**`, `skills/sdlc-config-schema.md`
 - Verify: `node --test scripts/sdlc/lib/sdlc-paths.test.mjs scripts/sdlc/run.test.mjs scripts/sdlc/validate-sdlc-config.test.mjs`
 - Notes: Before starting, confirm that SPEC-003 is closed (D1). `legacy-map.mjs` holds SPEC-009 Design > Legacy map, including the normalization and matching rules and an export of the layout-1 prefixes the fallback needs, so S6 imports them and does not reimplement them. `run.mjs` falls back to the plugin's own copy with `--root` when the repo has none, and exits 2 only when neither exists. Build the layout-1 and layout-2 fixtures under `__fixtures__/layouts/` here; S2 to S7 reuse them. The deprecation line is exactly `sdlc: layout 1 detected; run /sdlc-sync to migrate`, once per process. `skills/sdlc-config-schema.md` and the validator must agree field for field.
 
 ### S2: Validators resolve through the module
 - Covers: AC-003, AC-008
-- Changes: `scripts/sdlc/*.mjs`, `scripts/sdlc/*.test.mjs`, `init-payload/scripts/sdlc/**`
+- Changes: `scripts/sdlc/*.mjs`, `scripts/sdlc/*.test.mjs`, `init-payload/scripts/sdlc/**`, `scripts/sdlc/__fixtures__/layouts/**`, `hooks/__tests__/project-root-resolution.test.mjs` (its fixture copies `lib/`), `.github/workflows/sdlc-validate.yml` (the test step's glob gains `scripts/sdlc/lib/*.test.mjs`)
 - Verify: `node --test scripts/sdlc/*.test.mjs`, `for f in scripts/sdlc/*.mjs; do b=$(basename $f); [ -f init-payload/scripts/sdlc/$b ] && cmp $f init-payload/scripts/sdlc/$b; done`
 - Notes: Each script takes `--root` and defaults to `resolveRoot(process.cwd())`. Keep every existing CLI argument and exit code. Usage strings say `.sdlc/scripts/<name>`. `check-stale-citations.mjs` adds `.sdlc/` (except `.sdlc/scripts/`) and `paths.process_doc` to its always-loaded list, and takes its layout-1 entry from the `legacy-map.mjs` export. The resolver's layout-1 values follow the per-shape table in SPEC-009 Design > The resolver. Copy `lib/` into the payload as well. S5 moves the payload to `.sdlc/scripts/`.
 
 ### S3: Hooks resolve through the module
 - Covers: AC-004, AC-005, AC-006
-- Changes: `hooks/*.mjs`, `hooks/__tests__/**`
+- Changes: `hooks/*.mjs`, `hooks/__tests__/**`, `.gitignore` (the nudge marker glob)
 - Verify: `node --test hooks/__tests__/*.test.mjs`
 - Notes: Import `../scripts/sdlc/lib/sdlc-paths.mjs`, which is plugin-internal and exempt from the scan. The edit-write hook takes its `.ai/` prefix from the `legacy-map.mjs` export. The root walk replaces the `specs` plus `scripts` check at `stop-handoff.mjs:141`, `user-prompt-submit.mjs:89` and `pre-tool-use-edit-write.mjs:180`. Track the once-per-session nudge with the per-session marker style the hooks already use (`.claude/.sdlc-handoff-<session>`).
 
@@ -31,7 +31,7 @@ spec_version: 1
 
 ### S5: Layout-2 payload, sdlc-init and bootstrap.sh
 - Covers: AC-009
-- Changes: `init-payload/**`, `skills/sdlc-init/SKILL.md`, `bootstrap.sh`, `scripts/sdlc/validate-plugin-manifest.mjs`, `scripts/sdlc/validate-plugin-manifest.test.mjs`
+- Changes: `init-payload/**`, `skills/sdlc-init/SKILL.md`, `bootstrap.sh`, `scripts/sdlc/validate-plugin-manifest.mjs`, `scripts/sdlc/validate-plugin-manifest.test.mjs`, `scripts/sdlc/install-payload.mjs`, `scripts/sdlc/install-payload.test.mjs`
 - Verify: `node --test scripts/sdlc/validate-plugin-manifest.test.mjs`, `node scripts/sdlc/validate-plugin-manifest.mjs`, then copy `init-payload/` into a fresh `git init` repo in the scratchpad, rename the stubs, compare `ls -A` before and after, and run the payload gates from that repo
 - Notes: Mirror the layout-2 tree in `init-payload/`:
   - `.sdlc/config.stub.yaml` (with `domain_routing: {}`, `extensions: {phases: [], exempt: []}` and `workspaces: []`)
@@ -49,7 +49,7 @@ spec_version: 1
 
 ### S6: Migration, scan and released-payload manifest
 - Covers: AC-010, AC-011, AC-012, AC-013, AC-014, AC-022
-- Changes: `scripts/sdlc/gen-released-payloads.mjs`, `scripts/sdlc/gen-released-payloads.test.mjs`, `scripts/sdlc/lib/released-payloads.json`, `scripts/sdlc/migrate-layout.mjs`, `scripts/sdlc/migrate-layout.test.mjs`, `scripts/sdlc/scan-legacy-paths.mjs`, `scripts/sdlc/scan-legacy-paths.test.mjs`, `scripts/sdlc/lib/legacy-map.mjs`, `scripts/sdlc/__fixtures__/layouts/**`, `init-payload/.sdlc/scripts/scan-legacy-paths.mjs`, `init-payload/.sdlc/scripts/lib/legacy-map.mjs`
+- Changes: `scripts/sdlc/gen-released-payloads.mjs`, `scripts/sdlc/gen-released-payloads.test.mjs`, `scripts/sdlc/lib/released-payloads.json`, `scripts/sdlc/migrate-layout.mjs`, `scripts/sdlc/migrate-layout.test.mjs`, `scripts/sdlc/scan-legacy-paths.mjs`, `scripts/sdlc/scan-legacy-paths.test.mjs`, `scripts/sdlc/lib/legacy-map.mjs`, `scripts/sdlc/__fixtures__/layouts/**`, `init-payload/.sdlc/scripts/scan-legacy-paths.mjs`, `init-payload/.sdlc/scripts/lib/legacy-map.mjs`, `scripts/sdlc/lib/legacy-map.test.mjs`, `scripts/sdlc/lib/mini-yaml.mjs` and its payload copy (quote a scalar that starts with `@`), `scripts/sdlc/validate-plugin-manifest.test.mjs` (parity covers `lib/*.mjs` only), `init-payload/.github/workflows/sdlc-validate.yml` (the scan step), `.github/workflows/sdlc-validate.yml` (`fetch-depth: 0` for the manifest check)
 - Verify: `node --test scripts/sdlc/gen-released-payloads.test.mjs scripts/sdlc/migrate-layout.test.mjs scripts/sdlc/scan-legacy-paths.test.mjs`, `node scripts/sdlc/gen-released-payloads.mjs --check`
 - Notes: Build the manifest first, from every commit that touched `init-payload/`. The plugin-init fixture is the 0.3.0 payload (`git show 89cba06:init-payload/...`), not the working tree. Build the forked fixture from the AC-010 list. The tests run each fixture as a temp git repo with `git init` and a commit, never on this working tree. The scan reads `config.yaml` `paths`, so a configured path is current, not legacy. Recompute every relative path in a moved file, list branches and worktrees that touch mapped paths, and append framework-owned files to an existing `.prettierignore`. `migrate-layout.mjs` ships in the plugin only.
 
@@ -61,7 +61,7 @@ spec_version: 1
 
 ### S8: sdlc-sync runs the migration
 - Covers: AC-016
-- Changes: `skills/sdlc-sync/SKILL.md`
+- Changes: `skills/sdlc-sync/SKILL.md`, `scripts/sdlc/sync-refresh.mjs`, `scripts/sdlc/sync-refresh.test.mjs`, `scripts/sdlc/gen-released-payloads.mjs`, `scripts/sdlc/gen-released-payloads.test.mjs`, `scripts/sdlc/lib/released-payloads.json` (the workflow role)
 - Verify: `rg -n "migrate-layout|scan-legacy-paths|probe-gates|framework_version|layout 1|layout 2|extensions" skills/sdlc-sync/SKILL.md`
 - Notes: Replace the "Never touches" row with the narrower rule from SPEC-009 Design > Migration > Rewrites. Spell out the seven layout-1 steps in order, and say that no refresh runs in the migrating run. Scan hits get fixed with the owner as commits on the branch. Never pass `--exclude` to make the scan go quiet.
 
@@ -73,8 +73,8 @@ spec_version: 1
 
 ### S10: This repo moves to layout 2, and release 0.4.0
 - Covers: AC-017, AC-019
-- Changes: `.ai/**`, `.sdlc/**`, `.ignore`, `CLAUDE.md`, `docs/sdlc.md`, `docs/executor-brief.md`, `docs/setup.md`, `docs/RELEASING.md`, `templates/**`, `specs/sdlc-state-machine.yaml`, `.agents/skills`, `.claude/settings.json`, `.github/workflows/*.yml`, `scripts/sdlc/gen-handoffs.mjs`, `skills/*/SKILL.md` (generated regions only), `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`
-- Verify: every `run:` step of `.github/workflows/sdlc-validate.yml`, `node --test scripts/sdlc/*.test.mjs scripts/sdlc/lib/*.test.mjs hooks/__tests__/*.test.mjs`, `cmp -r .sdlc/templates init-payload/.sdlc/templates`, `node scripts/sdlc/scan-legacy-paths.mjs --root .`, `node scripts/sdlc/scan-legacy-paths.mjs --root . --only hooks,scripts/sdlc --no-allow`, `git ls-files .ai`, `rg -l sdlc-paths .sdlc`, `node scripts/sdlc/validate-plugin-manifest.mjs`
+- Changes: `.ai/**`, `.sdlc/**`, `.ignore`, `CLAUDE.md`, `docs/sdlc.md`, `docs/executor-brief.md`, `docs/setup.md`, `docs/RELEASING.md`, `templates/**`, `specs/sdlc-state-machine.yaml`, `.agents/skills`, `.claude/settings.json`, `.github/workflows/*.yml`, `scripts/sdlc/gen-handoffs.mjs`, `skills/*/SKILL.md` (generated regions only), `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, plus: `hooks/*.mjs` and `scripts/sdlc/*.mjs` comments, usage strings and the nudge text (and their payload copies), `scripts/sdlc/README.md`, `scripts/sdlc/lib/legacy-map.mjs` (exports for the migration tools), `scripts/sdlc/gen-released-payloads.mjs` (release-time mode) and `lib/released-payloads.json`, `scripts/sdlc/migrate-layout.mjs` (literals from exports), `init-payload/.sdlc/state-machine.yaml` and `init-payload/.github/workflows/*.yml` (text), tests that read this repo's paths, `specs/intents.md`, `init-payload/.sdlc/config.stub.yaml`
+- Verify: every `run:` step of `.github/workflows/sdlc-validate.yml`, `node --test scripts/sdlc/*.test.mjs scripts/sdlc/lib/*.test.mjs hooks/__tests__/*.test.mjs`, `cmp -r .sdlc/templates init-payload/.sdlc/templates`, `node scripts/sdlc/scan-legacy-paths.mjs --root .`, `node scripts/sdlc/scan-legacy-paths.mjs --root . --only hooks,scripts/sdlc --no-allow`, `git ls-files .ai`, `rg -l framework_version` (lists `.sdlc/config.yaml`), `diff -rq .sdlc/templates init-payload/.sdlc/templates`, `node .sdlc/scripts/validate-plugin-manifest.mjs`
 - Notes: Use `git mv` for each move in SPEC-009 Design > This repo. `gen-handoffs.mjs` writes `docs/sdlc.md` in place of `.ai/sdlc.md`. Regenerate the footers. Write `config.yaml` with the values in SPEC-009 Design > This repo, including `scan.allow`. Version `0.4.0`, with the RELEASING row and release step from AC-019.
 
 ## Owner decisions

@@ -183,17 +183,27 @@ test('every payload validator is byte-identical to the one this repo runs', asyn
     const { join, dirname } = await import('node:path')
     const { fileURLToPath } = await import('node:url')
     const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
-    const payload = join(root, 'init-payload', 'scripts', 'sdlc')
+    // Layout 2 (ADR-008): the payload mirrors an adopter's tree, so validators ship under .sdlc/scripts/.
+    const payload = join(root, 'init-payload', '.sdlc', 'scripts')
     if (!existsSync(payload)) return
 
-    for (const f of readdirSync(payload).filter((f) => f.endsWith('.mjs'))) {
+    // lib/ too: every payload validator imports the path resolver from it (SPEC-009).
+    const shipped = [
+        ...readdirSync(payload).filter((f) => f.endsWith('.mjs')),
+        ...(existsSync(join(payload, 'lib')) ? readdirSync(join(payload, 'lib')).map((f) => `lib/${f}`) : [])
+    ]
+    for (const f of shipped.filter((f) => f.endsWith('.mjs'))) {
         const live = join(root, 'scripts', 'sdlc', f)
         assert.ok(existsSync(live), `init-payload ships ${f}, which no longer exists in scripts/sdlc/`)
         assert.equal(
             readFileSync(join(payload, f), 'utf8'),
             readFileSync(live, 'utf8'),
-            `init-payload/scripts/sdlc/${f} has drifted from scripts/sdlc/${f}`
+            `init-payload/.sdlc/scripts/${f} has drifted from scripts/sdlc/${f}`
         )
+    }
+    // The .mjs modules only: lib/released-payloads.json is read by the plugin-only migration.
+    for (const f of readdirSync(join(root, 'scripts', 'sdlc', 'lib')).filter((f) => f.endsWith('.mjs') && !f.endsWith('.test.mjs'))) {
+        assert.ok(shipped.includes(`lib/${f}`), `scripts/sdlc/lib/${f} is not in the payload, so adopter validators cannot import it`)
     }
 })
 
@@ -201,7 +211,7 @@ test('the payload does not ship a validator that only makes sense upstream', () 
     // A consuming repo CONSUMES the plugin; it does not ship one, so it has no
     // .claude-plugin/plugin.json for this gate to grade.
     assert.equal(
-        existsSync(join(REPO_ROOT_FOR_PAYLOAD, 'init-payload', 'scripts', 'sdlc', 'validate-plugin-manifest.mjs')),
+        existsSync(join(REPO_ROOT_FOR_PAYLOAD, 'init-payload', '.sdlc', 'scripts', 'validate-plugin-manifest.mjs')),
         false,
         'validate-plugin-manifest.mjs must not ship to adopters'
     )
@@ -219,7 +229,7 @@ test('every script the payload workflow invokes is IN the payload', async () => 
 
     for (const wf of readdirSync(wfDir).filter((f) => f.endsWith('.yml'))) {
         const text = readFileSync(join(wfDir, wf), 'utf8')
-        for (const m of text.matchAll(/node\s+(?:--test\s+)?(scripts\/sdlc\/[\w.-]+\.mjs)/g)) {
+        for (const m of text.matchAll(/node\s+(?:--test\s+)?(\.sdlc\/scripts\/[\w.-]+\.mjs)/g)) {
             const rel = m[1]
             if (rel.includes('*')) continue
             assert.ok(
