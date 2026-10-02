@@ -1,7 +1,7 @@
 ---
 id: SPEC-009
 title: "One .sdlc/ folder: consolidate the adopter footprint and migrate existing repos on /sdlc-sync"
-status: active
+status: completed
 version: 2
 supersedes:
 initiative: INI-002
@@ -82,24 +82,24 @@ Existing adopters come in two shapes, and the migration must handle both.
 
 ## Success criteria
 
-- [ ] SC-1: `/sdlc-init` on an empty git repo creates 3 new top-level directories (`.github/`,
+- [x] SC-1: `/sdlc-init` on an empty git repo creates 3 new top-level directories (`.github/`,
   `.sdlc/`, `specs/`), down from 5 today (`.github/`, `specs/`, `templates/`, `scripts/`, `.ai/`).
   Measured with `ls -A` before and after on a fresh `git init` repo.
-- [ ] SC-2: Migration works on a plugin-init fixture built from the 0.3.0 payload and on a local
+- [x] SC-2: Migration works on a plugin-init fixture built from the 0.3.0 payload and on a local
   clone of high-gear-apps. On each target, the gates and gate probes P1 to P5 give the same result on
   the commit before the migration and on the migration branch tip, with the probes run with
   `--repo-code` (a probe held back on either commit means the criterion is not met), P6 to P8 pass on the tip, and the
   scan reports 0 hits on the tip. Design > Measuring SC-2 defines the gate set and the protocol. The dry-run report and the
   `--apply` report list the same number of unrecognized files.
-- [ ] SC-3: After a change to the phase spine in the plugin, `/sdlc-sync` on a layout-2 repo rewrites
+- [x] SC-3: After a change to the phase spine in the plugin, `/sdlc-sync` on a layout-2 repo rewrites
   `.sdlc/state-machine.yaml`. `domain_routing` and `extensions` in `.sdlc/config.yaml` stay
   byte-identical (`cmp` on the extracted blocks before and after).
-- [ ] SC-4: With the 0.4.0 plugin installed, the 0.3.0 plugin-init fixture (still on layout 1) keeps
+- [x] SC-4: With the 0.4.0 plugin installed, the 0.3.0 plugin-init fixture (still on layout 1) keeps
   working. Each 0.4.0 payload gate, run against it through `run.mjs` with `--root`, exits as the
   fixture's own 0.3.0 copy does and prints exactly one deprecation line to stderr. Every repo-local
   script command a 0.4.0 plugin skill gives resolves through `run.mjs`, to the repo's copy or the
   plugin's fallback.
-- [ ] SC-5: Shipped code holds no layout-1 path. `scan-legacy-paths.mjs` on a fresh layout-2 init
+- [x] SC-5: Shipped code holds no layout-1 path. `scan-legacy-paths.mjs` on a fresh layout-2 init
   reports 0 hits. In this repo, `scan-legacy-paths.mjs --root . --only hooks,scripts/sdlc
   --no-allow` reports 0 hits. Both runs apply only the scan's built-in exemptions (Design > Legacy
   map > Which files the scan reads).
