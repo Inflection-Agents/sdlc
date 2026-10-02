@@ -25,6 +25,7 @@ import {
     readlinkSync,
     realpathSync,
     rmdirSync,
+    rmSync,
     symlinkSync,
     unlinkSync,
     writeFileSync,
@@ -33,13 +34,14 @@ import { basename, dirname, join, matchesGlob, posix, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { loadManifest, releasedVersions, roleOf } from './gen-released-payloads.mjs'
-import { appendLines, ensureClaudeImport, insertAgentsBlock, BLOCK_BEGIN } from './install-payload.mjs'
+import { appendLines, appendPrettierIgnore, ensureClaudeImport, insertAgentsBlock, BLOCK_BEGIN } from './install-payload.mjs'
 import {
     AGENT_FILES,
     CONTRACT_FILES,
     FRAMEWORK_TEMPLATES,
     LAYOUT1,
     LAYOUT1_DIRS,
+    frontmatterStatus,
     isHistory,
     isUnder,
     mapEntries,
@@ -47,7 +49,7 @@ import {
     rewriteText,
 } from './lib/legacy-map.mjs'
 import { emitYaml, parseYaml } from './lib/mini-yaml.mjs'
-import { isLayout1Root, readConfig, takeRootArg } from './lib/sdlc-paths.mjs'
+import { CONFIG_REL, assertWriteInside, isLayout1Root, readConfig, takeRootArg } from './lib/sdlc-paths.mjs'
 import { BINARY, readText, scanRepo } from './scan-legacy-paths.mjs'
 import { filesUnder, pluginVersion } from './sync-refresh.mjs'
 
@@ -78,7 +80,14 @@ const TABLES = {
 }
 const POINTER = 'Listed in `.sdlc/config.yaml` `workspaces` (ADR-008).'
 
-const cells = (line) => line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim())
+// A GFM `\|` is a pipe inside a cell, as in `pnpm test 2>&1 \| tee t.log`, not a column break.
+const cells = (line) =>
+    line
+        .trim()
+        .replace(/^\|/, '')
+        .replace(/(?<!\\)\|$/, '')
+        .split(/(?<!\\)\|/)
+        .map((c) => c.trim().replace(/\\\|/g, '|'))
 const unwrap = (cell) => (/^`[^`]+`$/.test(cell) ? cell.slice(1, -1) : cell)
 const isPlaceholder = (row) => /^\[.*\]$/.test(unwrap(row[0] ?? ''))
 const commandOf = (cell) => (/^`[^`]+`$/.test(cell) ? cell.slice(1, -1) : null)
@@ -121,6 +130,11 @@ export function parseWorkspaceTables(text) {
     const live = (table) => {
         const keep = []
         for (const r of table?.rows ?? []) {
+            const name = Object.keys(TABLES).find((k) => t[k] === table)
+            if (table.header.length && r.length !== table.header.length) {
+                problems.push(`${name} table: row "${r[0]}" has ${r.length} cells for ${table.header.length} columns`)
+                continue
+            }
             if (isPlaceholder(r)) dropped.push(`${r[0]} (${Object.keys(TABLES).find((k) => t[k] === table)} table)`)
             else keep.push(r)
         }
@@ -261,7 +275,16 @@ export function planMigration(root, { exclude = [] } = {}) {
     } catch {
         throw new Refusal(`${root} is not a git repository`)
     }
-    if (readConfig(root)) return { nothing: true }
+    if (readConfig(root)) {
+        // Only a committed config means the migration happened. An untracked one is a leftover,
+        // for example from an apply that failed before its commit.
+        try {
+            git(root, ['ls-files', '--error-unmatch', CONFIG_REL])
+            return { nothing: true }
+        } catch {
+            throw new Refusal(`${CONFIG_REL} exists but is not committed; remove the untracked .sdlc/ and run again`)
+        }
+    }
     if (!isLayout1Root(root)) throw new Refusal(`${root} matches neither layout: no .sdlc/config.yaml, and no specs/ beside ${LAYOUT1_DIRS.ai}/ or ${LAYOUT1.scripts}/`)
     const dirty = git(root, ['status', '--porcelain', '--untracked-files=no']).trim()
     if (dirty) throw new Refusal(`tracked files have uncommitted changes; commit or stash them first:\n${dirty}`)
@@ -273,6 +296,23 @@ export function planMigration(root, { exclude = [] } = {}) {
     const existedBefore = (rel) => known.has(rel.replace(/\/$/, ''))
     const forked = files.some((f) => isUnder(f, LAYOUT1_DIRS.aiSkills) && f.split('/').length === 4 && f.endsWith('/SKILL.md'))
     const { moves, dirMoves, conflicts } = plannedMoves(files, forked)
+    // git mv into an existing directory nests the source inside it instead of renaming it.
+    if (lstatExists(join(root, '.sdlc'))) throw new Refusal('.sdlc/ already exists; move it aside and run again')
+    for (const [from, to] of [...dirMoves, ...moves]) {
+        if (dirMoves.some(([d]) => from !== d && from.startsWith(`${d}/`))) continue
+        if (lstatExists(join(root, to))) throw new Refusal(`${from} cannot move: ${to} already exists`)
+    }
+    const agents = readText(join(root, 'AGENTS.md')) ?? ''
+    if (agents.includes(BLOCK_BEGIN)) {
+        throw new Refusal(`AGENTS.md already has an SDLC block (${BLOCK_BEGIN}); remove it so the migration can write the project context there`)
+    }
+    for (const name of ROOT_WRITES) {
+        try {
+            assertWriteInside(root, join(root, name))
+        } catch (err) {
+            throw new Refusal(`${name} is a symlink to a file outside the repo, which the migration would change: ${err.message}`)
+        }
+    }
     const plan = {
         root,
         forked,
@@ -376,7 +416,17 @@ export function planMigration(root, { exclude = [] } = {}) {
         scan: { allow: [] },
     }
     const header = '# SDLC config (ADR-008), written by migrate-layout.mjs. Schema: skills/sdlc-config-schema.md in the plugin.\n'
-    plan.writes.set('.sdlc/config.yaml', `${header}${emitYaml(config)}${routingBlock ?? 'domain_routing: {}'}\n`)
+    let emitted
+    try {
+        emitted = emitYaml(config)
+    } catch (err) {
+        throw new Refusal(`the config cannot be written: ${err.message}`)
+    }
+    // The config is read back by the subset parser in every gate, so it must round-trip.
+    if (JSON.stringify(parseYaml(emitted)) !== JSON.stringify(JSON.parse(JSON.stringify(config)))) {
+        throw new Refusal('the config the migration would write does not read back as written; report this with your project.md and state machine')
+    }
+    plan.writes.set('.sdlc/config.yaml', `${header}${emitted}${routingBlock ?? 'domain_routing: {}'}\n`)
     plan.routingBlock = routingBlock
 
     // Framework files: unmodified ones are replaced with the plugin's copy, modified ones kept.
@@ -405,12 +455,23 @@ export function planMigration(root, { exclude = [] } = {}) {
             plan.modified.push(dest)
         }
     }
+    // Workflows stay where they are. A released copy is replaced, so the repo's CI gains the
+    // 0.4.0 steps (the scan among them); an edited one is kept and only its paths change below.
+    // A workflow the repo deleted is not added back.
+    for (const rel of filesUnder(PAYLOAD, '.github/workflows')) {
+        if (!trackedSet.has(rel)) continue
+        const role = roleOf(`init-payload/${rel}`)
+        if (role && releasedVersions(manifest, role, readFileSync(join(root, rel))).length) {
+            plan.writes.set(rel, readFileSync(join(PAYLOAD, rel), 'utf8'))
+            plan.replaced.push(rel)
+        } else plan.modified.push(rel)
+    }
 
     // Rewrites, over every live tracked text file.
     const specsRel = 'specs'
     const specStatus = (id) => {
         const hit = files.find((f) => f.startsWith(`${specsRel}/${id}-`) && f.endsWith('.md'))
-        return hit ? (read(hit).match(/^status:\s*([A-Za-z0-9_-]+)/m)?.[1] ?? null) : null
+        return hit ? frontmatterStatus(read(hit)) : null
     }
     const excluded = (rel) => exclude.some((g) => matchesGlob(rel, g))
     for (const oldRel of files) {
@@ -547,8 +608,12 @@ function openBranchesTouching(root, paths) {
 
 // ─── Apply ──────────────────────────────────────────────────────────────────
 
+/** Root files the migration may write; each must stay inside the repo. */
+const ROOT_WRITES = ['AGENTS.md', 'CLAUDE.md', '.gitignore', '.ignore', '.gitattributes', '.prettierignore']
+
 function writeFile(root, rel, content) {
     const abs = join(root, rel)
+    assertWriteInside(root, abs)
     mkdirSync(dirname(abs), { recursive: true })
     writeFileSync(abs, content, 'utf8')
 }
@@ -562,12 +627,33 @@ function removeEmptyDirs(root, rel) {
     if (readdirSync(abs).length === 0) rmdirSync(abs)
 }
 
-const FRAMEWORK_OWNED = ['.sdlc/state-machine.yaml', '.sdlc/scripts/', '.sdlc/templates/']
-
-/** Carry out `plan` as one commit on BRANCH. */
+/**
+ * Carry out `plan` as one commit on BRANCH. Any failure before the commit lands, a
+ * pre-commit hook included, puts the repo back on its branch at its commit, with nothing
+ * left behind, and then rethrows.
+ */
 export function applyMigration(root, plan) {
     if (localBranches(root).includes(BRANCH)) throw new Refusal(`branch ${BRANCH} already exists; delete it or finish that migration first`)
+    const startBranch = git(root, ['rev-parse', '--abbrev-ref', 'HEAD']).trim()
+    const startHead = git(root, ['rev-parse', 'HEAD']).trim()
+    const untrackedBefore = new Set(git(root, ['ls-files', '--others', '--exclude-standard']).split('\n').filter(Boolean))
     git(root, ['switch', '-q', '-c', BRANCH])
+    try {
+        applyOnBranch(root, plan)
+    } catch (err) {
+        git(root, ['reset', '-q', '--hard', startHead])
+        for (const f of git(root, ['ls-files', '--others', '--exclude-standard']).split('\n').filter(Boolean)) {
+            if (!untrackedBefore.has(f)) rmSync(join(root, f), { force: true })
+        }
+        removeEmptyDirs(root, '.sdlc')
+        git(root, ['switch', '-q', startBranch === 'HEAD' ? startHead : startBranch])
+        git(root, ['branch', '-q', '-D', BRANCH])
+        throw new Refusal(`the migration failed and was rolled back, so the repo is as it was: ${err.message.trim().split('\n').slice(0, 6).join('\n')}`)
+    }
+    return plan
+}
+
+function applyOnBranch(root, plan) {
     const staged = new Set()
 
     for (const [from, to] of plan.dirMoves) {
@@ -595,13 +681,13 @@ export function applyMigration(root, plan) {
         staged.add(r.link)
     }
     for (const name of ['.ignore', '.gitignore']) {
-        const added = appendLines(join(root, name), readFileSync(join(PAYLOAD, name), 'utf8'))
+        const added = appendLines(join(root, name), readFileSync(join(PAYLOAD, name), 'utf8'), root)
         if (added.length) plan.appended[name] = added
         staged.add(name)
     }
-    if (existsSync(join(root, '.prettierignore'))) {
-        const added = appendLines(join(root, '.prettierignore'), FRAMEWORK_OWNED.join('\n') + '\n.sdlc/contracts/\n')
-        if (added.length) plan.appended['.prettierignore'] = added
+    const prettier = appendPrettierIgnore(root)
+    if (prettier.length) {
+        plan.appended['.prettierignore'] = prettier
         staged.add('.prettierignore')
     }
     if (plan.agentsBody !== null && insertAgentsBlock(root, plan.agentsBody)) staged.add('AGENTS.md')
@@ -619,7 +705,6 @@ export function applyMigration(root, plan) {
 
     git(root, ['add', '-A', '--', ...[...staged].filter((p) => lstatExists(join(root, p)))])
     git(root, ['commit', '-q', '-m', COMMIT_MESSAGE])
-    return plan
 }
 
 /** Whether anything is at `abs`, a dangling symlink included (existsSync follows links and says no). */

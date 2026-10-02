@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 
 import { layout1Repo, layout2Repo, write } from './__fixtures__/layouts/build.mjs'
@@ -44,6 +45,36 @@ test("falls back to the plugin's copy with --root when the repo has none", () =>
         assert.equal(res.status, 0, res.stderr)
         assert.match(res.stderr, /running the plugin's copy/)
         assert.match(res.stdout, /config\.yaml OK/)
+    } finally {
+        fx.cleanup()
+    }
+})
+
+test('a --root given from another directory picks that repo, for the fallback and for its own copy', () => {
+    const l2 = layout2Repo()
+    const l1 = layout1Repo()
+    try {
+        // Dropping the forwarded --root makes the plugin's copy grade the cwd, which has no config.
+        const fallback = run(tmpdir(), 'validate-sdlc-config', '--root', l2.root)
+        assert.equal(fallback.status, 0, fallback.stderr)
+        assert.match(fallback.stdout, /config\.yaml OK/)
+        write(l1.root, 'scripts/sdlc/probe-exit.mjs', 'process.exit(7)\n')
+        const own = run(tmpdir(), 'probe-exit', '--root', l1.root)
+        assert.equal(own.status, 7, own.stderr)
+    } finally {
+        l2.cleanup()
+        l1.cleanup()
+    }
+})
+
+test('a name that is a path is refused before anything runs', () => {
+    const fx = layout2Repo()
+    try {
+        for (const name of ['../../outside/evil', 'lib/sdlc-paths', '/abs/x.mjs']) {
+            const res = run(fx.root, name)
+            assert.equal(res.status, 2, name)
+            assert.match(res.stderr, /is not a script name/)
+        }
     } finally {
         fx.cleanup()
     }

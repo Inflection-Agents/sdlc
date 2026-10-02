@@ -25,6 +25,8 @@ scan:
     - "docs/plans/**"
     # This repo's registry routes edits to the plugin source at its real path, scripts/sdlc/.
     - ".sdlc/review-constraints.yaml"
+    # This repo's CI scans the plugin source by its real path, scripts/sdlc.
+    - ".github/workflows/sdlc-validate.yml"
     # The original proposal, unchanged since the first commit.
     - "proposal.html"
     # Records that name layout 1 on purpose.

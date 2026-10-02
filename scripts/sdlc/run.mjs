@@ -15,10 +15,10 @@
  */
 import { spawnSync } from 'node:child_process'
 import { existsSync, realpathSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { resolveRoot, sdlcPaths } from './lib/sdlc-paths.mjs'
+import { sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 
@@ -40,7 +40,12 @@ function main(argv) {
         process.stderr.write('usage: node run.mjs <script-name> [args...]\n')
         process.exit(2)
     }
-    const root = resolveRoot(process.cwd())
+    // A bare script name only: a path would let the runner execute any file the caller names.
+    if (!/^[a-z0-9][a-z0-9-]*(\.mjs)?$/.test(name)) {
+        process.stderr.write(`sdlc: ${JSON.stringify(name)} is not a script name (lowercase letters, digits and dashes)\n`)
+        process.exit(2)
+    }
+    const { root, rest } = takeRootArg(args)
     const hit = locate(name, root)
     if (!hit.file) {
         process.stderr.write(`sdlc: no script named ${name} in ${hit.searched.join(' or ')}\n`)
@@ -49,8 +54,14 @@ function main(argv) {
     if (hit.fallback) {
         process.stderr.write(`sdlc: ${name} is not in ${hit.searched[0]}; running the plugin's copy against ${root}\n`)
     }
-    const finalArgs = hit.fallback ? ['--root', root, ...args] : args
-    const result = spawnSync(process.execPath, [hit.file, ...finalArgs], { cwd: root, stdio: 'inherit' })
+    // The plugin's copy needs --root to find the repo. The repo's own copy gets the arguments
+    // as given, minus --root, which a 0.3.0 copy does not accept.
+    const finalArgs = hit.fallback ? ['--root', root, ...rest] : rest
+    // Relative arguments mean what they meant to the caller, so the caller's directory is
+    // kept when it is inside the repo.
+    const here = process.cwd()
+    const cwd = relative(root, here).startsWith('..') || isAbsolute(relative(root, here)) ? root : here
+    const result = spawnSync(process.execPath, [hit.file, ...finalArgs], { cwd, stdio: 'inherit' })
     if (result.error) throw result.error
     process.exit(result.status ?? 1)
 }

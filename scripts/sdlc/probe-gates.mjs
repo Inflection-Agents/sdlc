@@ -19,8 +19,11 @@
  * | P8 | a superseded-ADR citation in an always-loaded `.sdlc/` file | check-stale-citations exits 1 |
  *
  * Usage (plugin-only):
- *   node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/probe-gates.mjs --root . --rev <commit> [--json]
- *   node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/probe-gates.mjs --root . --before <commit> --after <commit>
+ *   node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/probe-gates.mjs --root . --rev <commit> [--json] [--local-hooks]
+ *   node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/probe-gates.mjs --root . --before <commit> --after <commit> [--local-hooks]
+ *
+ * The plugin's hooks are always probed. The repo's own hooks, commands from its
+ * .claude/settings.json, run only with --local-hooks; each one is printed first.
  *
  * With --before/--after it exits 1 when a probe that caught before no longer catches after
  * (P1 to P5), or when P6 to P8 fail on the after commit; otherwise 0.
@@ -34,7 +37,7 @@ import { fileURLToPath } from 'node:url'
 import { definesWorkspaces } from './validate-guide.mjs'
 import { loadConstraints } from './reviewer-routing.mjs'
 import { movesFromHistory } from './scan-legacy-paths.mjs'
-import { loadMachine, sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
+import { assertWriteInside, isInside, loadMachine, sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const PLUGIN = resolve(HERE, '..', '..')
@@ -42,7 +45,11 @@ const PROBE_SPEC = 'SPEC-990'
 
 const git = (cwd, args) => execFileSync('git', args, { cwd, encoding: 'utf8', maxBuffer: 1 << 26 })
 
+// A probe plants files in a worktree of a repo it does not trust: every write must stay inside
+// it, through any symlink the repo tracks, or the worktree's removal would leave the file behind.
 function write(root, rel, body) {
+    if (!isInside(root, rel)) throw new Error(`refusing to write ${rel}: it is outside the worktree`)
+    assertWriteInside(root, join(root, rel))
     mkdirSync(dirname(join(root, rel)), { recursive: true })
     writeFileSync(join(root, rel), body, 'utf8')
 }
@@ -62,7 +69,8 @@ export function workflowCopy(root, script) {
 }
 
 function runNode(cwd, file, args = [], env = {}) {
-    const res = spawnSync(process.execPath, [file, ...args], { cwd, encoding: 'utf8', env: { ...process.env, ...env } })
+    // CLAUDE_PROJECT_DIR wins in every resolver, so it must name the worktree under probe.
+    const res = spawnSync(process.execPath, [file, ...args], { cwd, encoding: 'utf8', env: { ...process.env, CLAUDE_PROJECT_DIR: cwd, ...env } })
     return { status: res.status, out: `${res.stdout ?? ''}${res.stderr ?? ''}` }
 }
 
@@ -86,6 +94,15 @@ export function wiredHooks(root, event, matcher = null) {
         }
     }
     return out
+}
+
+// The repo's own hooks are commands from its .claude/settings.json, run through a shell with
+// the developer's environment. They run only when the caller passes --local-hooks.
+let runLocalHooks = false
+
+/** The hooks a probe may run: the plugin's always, the repo's only on request. */
+function probedHooks(root, event, matcher) {
+    return wiredHooks(root, event, matcher).filter((h) => h.source === 'plugin' || runLocalHooks)
 }
 
 function runHook(root, command, payload, env = {}) {
@@ -144,7 +161,7 @@ function p2(root) {
     }
     const [ws, chain] = Object.entries(routing).find(([, c]) => Array.isArray(c) && c.length) ?? []
     if (!ws) return { ran: false, detail: 'domain_routing is empty' }
-    const hooks = wiredHooks(root, 'UserPromptSubmit')
+    const hooks = probedHooks(root, 'UserPromptSubmit')
     if (!hooks.length) return { ran: false, detail: 'no UserPromptSubmit hook wired' }
     const results = hooks.map((h) => ({
         ...h,
@@ -173,11 +190,14 @@ function p3(root) {
         }
     }
     if (!pick) {
-        const row = rows[0]
-        pick = { row, file: row.touches[0].replace(/\*\*/g, 'probe').replace(/\*/g, 'probe') }
+        const planted = rows
+            .map((row) => ({ row, file: row.touches[0].replace(/\*\*/g, 'probe').replace(/\*/g, 'probe') }))
+            .find((c) => isInside(root, c.file))
+        if (!planted) return { ran: false, detail: 'no touches glob names a path inside the repo' }
+        pick = planted
         write(root, pick.file, '// probe\n')
     }
-    const hooks = wiredHooks(root, 'PreToolUse', 'Edit')
+    const hooks = probedHooks(root, 'PreToolUse', 'Edit')
     if (!hooks.length) return { ran: false, detail: 'no edit hook wired' }
     const payload = { tool_name: 'Edit', tool_input: { file_path: join(root, pick.file) }, session_id: 'sdlc-probe', cwd: root }
     const results = hooks.map((h) => ({ ...h, caught: runHook(root, h.command, payload).includes(pick.row.id) }))
@@ -298,7 +318,8 @@ function p8(root) {
 export const PROBES = { P1: p1, P2: p2, P3: p3, P4: p4, P5: p5, P6: p6, P7: p7, P8: p8 }
 
 /** Run every probe against `rev` in a throwaway worktree of `root`; the worktree and its branch are always removed. */
-export function probeRev(root, rev) {
+export function probeRev(root, rev, { localHooks = false } = {}) {
+    runLocalHooks = localHooks
     const dir = realpathSync(mkdtempSync(join(tmpdir(), 'sdlc-probe-')))
     const branch = `claude/${PROBE_SPEC}-probe-${process.pid}-${Date.now()}`
     rmSync(dir, { recursive: true, force: true })
@@ -313,8 +334,10 @@ export function probeRev(root, rev) {
             try {
                 results.push({ id, ...probe(dir) })
             } catch (err) {
-                // A probe that crashes has not shown the gate works, so it counts as missed.
-                results.push({ id, ran: true, caught: false, detail: `probe error: ${err.message}` })
+                // A plant the repo's layout would send outside the worktree is not run. Any other
+                // crash has not shown the gate works, so it counts as missed.
+                if (/^refusing to write/.test(err.message)) results.push({ id, ran: false, detail: err.message })
+                else results.push({ id, ran: true, caught: false, detail: `probe error: ${err.message}` })
             }
             git(dir, ['checkout', '-q', '--', '.'])
             git(dir, ['clean', '-fdq', '-e', 'node_modules'])
@@ -345,9 +368,14 @@ export function compare(before, after) {
 function main(argv) {
     const { root, rest } = takeRootArg(argv)
     const arg = (name) => rest[rest.indexOf(name) + 1]
+    const localHooks = rest.includes('--local-hooks')
+    const local = [...wiredHooks(root, 'UserPromptSubmit'), ...wiredHooks(root, 'PreToolUse', 'Edit')].filter((h) => h.source === 'local')
+    for (const h of local) {
+        process.stderr.write(`${localHooks ? 'running' : 'skipping (pass --local-hooks to run)'} the repo's hook: ${h.command}\n`)
+    }
     if (rest.includes('--before')) {
-        const before = probeRev(root, arg('--before'))
-        const after = probeRev(root, arg('--after') ?? 'HEAD')
+        const before = probeRev(root, arg('--before'), { localHooks })
+        const after = probeRev(root, arg('--after') ?? 'HEAD', { localHooks })
         const problems = compare(before, after)
         process.stdout.write(`${JSON.stringify({ before, after, problems }, null, 2)}\n`)
         if (problems.length) {
@@ -356,7 +384,7 @@ function main(argv) {
         }
         return
     }
-    const results = probeRev(root, arg('--rev') ?? 'HEAD')
+    const results = probeRev(root, arg('--rev') ?? 'HEAD', { localHooks })
     if (rest.includes('--json')) process.stdout.write(`${JSON.stringify(results, null, 2)}\n`)
     else for (const r of results) process.stdout.write(`${r.id}  ${r.ran ? (r.caught ? 'caught' : 'MISSED') : 'not run'}  ${r.detail ?? ''}\n`)
 }

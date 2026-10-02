@@ -9,7 +9,7 @@
  *
  * What it grades:
  *   1. `layout` is 2.
- *   2. Every `paths` value is a string.
+ *   2. Every `paths` value is a string naming a path inside the repo.
  *   3. Workspace names are unique, each workspace `path` exists, and each
  *      `agent_executable` is yes, caution or human.
  *   4. No `extensions.phases` id repeats a framework phase id.
@@ -25,7 +25,7 @@ import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { parseYaml } from './lib/mini-yaml.mjs'
-import { CONFIG_REL, readConfig, sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
+import { CONFIG_REL, isInside, readConfig, sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
 
 const ELIGIBILITY = new Set(['yes', 'caution', 'human'])
 
@@ -49,6 +49,7 @@ export function gradeConfig(config, { root, phaseIds = [] }) {
     else {
         for (const [key, value] of Object.entries(paths)) {
             if (typeof value !== 'string') problems.push(`paths.${key} must be a string`)
+            else if (!isInside(root, value)) problems.push(`paths.${key} ${JSON.stringify(value)} must be a relative path inside the repo`)
         }
     }
 

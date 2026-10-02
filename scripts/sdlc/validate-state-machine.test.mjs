@@ -4,6 +4,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
+import { cpSync } from 'node:fs'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { loadMachine } from './lib/sdlc-paths.mjs'
@@ -95,6 +97,35 @@ test('an unparseable machine throws, and the validator exits 1 naming the file',
         assert.throws(() => loadMachine(fx.root), /does not parse/)
         const res = validate(fx.root)
         assert.equal(res.status, 1)
+    } finally {
+        fx.cleanup()
+    }
+})
+
+test("with no plugin installed, as in an adopter's CI, a name the repo lacks is not graded", () => {
+    // The shipped copy finds no plugin beside it, so before this rule every repo with a local
+    // skills directory failed on the framework's own owner_skills.
+    const fx = layout2Repo({ config: 'layout: 2\ndomain_routing:\n  web: [web-patterns]\n' })
+    try {
+        cpSync(fileURLToPath(new URL('.', import.meta.url)), join(fx.root, '.sdlc', 'scripts'), {
+            recursive: true,
+            filter: (src) => !src.includes('__fixtures__') && !src.endsWith('.test.mjs'),
+        })
+        write(fx.root, '.sdlc/skills/web-patterns/SKILL.md', '# web\n')
+        const env = { ...process.env }
+        delete env.CLAUDE_PROJECT_DIR
+        delete env.CLAUDE_PLUGIN_ROOT
+        const shipped = join(fx.root, '.sdlc', 'scripts', 'validate-state-machine.mjs')
+        const res = spawnSync(process.execPath, [shipped, '--root', fx.root], { encoding: 'utf8', env })
+        assert.equal(res.status, 0, res.stderr)
+        assert.match(res.stdout, /no plugin installed, so these are not checked: spec-authoring/)
+
+        // With a plugin that lacks the skill, the same name is an error.
+        const plugin = join(fx.root, 'fake-plugin')
+        write(plugin, 'skills/other/SKILL.md', '# other\n')
+        const graded = spawnSync(process.execPath, [shipped, '--root', fx.root], { encoding: 'utf8', env: { ...env, CLAUDE_PLUGIN_ROOT: plugin } })
+        assert.equal(graded.status, 1)
+        assert.match(graded.stderr, /owner_skill 'spec-authoring' does not resolve/)
     } finally {
         fx.cleanup()
     }

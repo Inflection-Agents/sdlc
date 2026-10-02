@@ -172,14 +172,23 @@ function main() {
     }
 
     const skillSet = new Set([...skills, ...pluginSkills])
+    // With no plugin installed, as in an adopter's CI, a name the repo does not hold may be a
+    // plugin skill or a typo, and nothing here can tell which. Those names are not graded.
+    const unchecked = []
+    const resolves = (name) => {
+        if (skillSet.has(name)) return true
+        if (plugin) return false
+        unchecked.push(name)
+        return true
+    }
     if (!skillsArePluginSide) {
         for (const owner of ownerSkills) {
-            if (!skillSet.has(owner)) {
+            if (!resolves(owner)) {
                 errors.push(`owner_skill '${owner}' does not resolve to a skill under ${relName(args.skills)} or the plugin`)
             }
         }
         for (const ds of domainSkills) {
-            if (!skillSet.has(ds)) {
+            if (!resolves(ds)) {
                 errors.push(`domain skill '${ds}' does not resolve to a skill under ${relName(args.skills)} or the plugin`)
             }
         }
@@ -193,6 +202,7 @@ function main() {
 
     console.log('state-machine validation OK')
     if (skillsArePluginSide) console.log('  skills: plugin-side (no local skills/ dir) — referential checks skipped')
+    if (unchecked.length) console.log(`  skills: no plugin installed, so these are not checked: ${unchecked.sort().join(', ')}`)
     console.log(`  phases: ${phases.length}`)
     console.log(`  owner skills: ${[...ownerSkills].sort().join(', ')}`)
     console.log(`  domain skills: ${[...domainSkills].sort().join(', ') || '(none)'}`)
