@@ -115,6 +115,8 @@ How we undo if it goes wrong.
 
 ## spec_followups (optional — see "Optional appended sections" below)
 
+## Disclosed, not reviewed-clean (optional — see "Optional appended sections" below)
+
 ## Changelog (added on first amendment)
 
 ### v2 (YYYY-MM-DD)
@@ -129,14 +131,14 @@ How we undo if it goes wrong.
 Required sections (Problem → Success criteria → Scope → Design → Acceptance criteria → Risks & constraints) appear in the order above. The optional sections, when present, must appear in this order at the end of the body:
 
 ```
-Migration → spec_review_overrides → spec_followups → Changelog → any other appendices
+Migration → spec_review_overrides → spec_followups → Disclosed, not reviewed-clean → Changelog → any other appendices
 ```
 
-`spec_review_overrides` and `spec_followups` are optional appended sections; specs that omit them remain valid.
+`spec_review_overrides`, `spec_followups` and `Disclosed, not reviewed-clean` are optional appended sections; specs that omit them remain valid.
 
 ### Optional appended sections
 
-Both sections below were introduced by SPEC-001 (graded review for specs and PRs). They are **optional** — schema validation passes whether or not they are present. When present, they must appear in the order declared in "Section ordering" above, after `## Migration` and before `## Changelog`.
+The first two sections below were introduced by SPEC-001 (graded review for specs and PRs), and the third by SPEC-007. They are **optional** — schema validation passes whether or not they are present. When present, they must appear in the order declared in "Section ordering" above, after `## Migration` and before `## Changelog`.
 
 #### `## spec_review_overrides` (optional)
 
@@ -146,7 +148,8 @@ Records owner downgrades of `spec-reviewer` findings. Overrides downgrade severi
 |-------|----------|------|-------|
 | `finding_id` | yes | string | Matches `id` from the `spec-reviewer` JSON output (e.g., `F-003`). |
 | `reviewer_severity` | yes | enum | One of `blocker | major | nit | suggestion`. The severity originally assigned by `spec-reviewer`. |
-| `owner_severity` | yes | enum | One of `blocker | major | nit | suggestion`. Must be a lower severity than `reviewer_severity` (this section only downgrades). |
+| `owner_severity` | yes, unless `resolution` is `wontfix` | enum | One of `blocker | major | nit | suggestion`. Must be a lower severity than `reviewer_severity` (this section only downgrades). Omitted when `resolution` is `wontfix`. |
+| `resolution` | no | enum | `wontfix` only. The owner drops the finding outright rather than downgrading it (SPEC-007 > Design > Lever 5). A `wontfix` on a `blocker` or `major` is also listed in `## Disclosed, not reviewed-clean`. |
 | `reason` | yes | string | Free-form justification, visible in the spec. |
 | `override_date` | yes | ISO date | When the override was recorded. |
 
@@ -169,7 +172,22 @@ Records nit and suggestion findings deferred by the orchestrator's `batch_follow
 | `resolved_date` | no | ISO date \| null | Null until resolved; ISO date when resolved. |
 | `resolved_by` | no | string \| null | Null until resolved; commit SHA or guide step id (e.g., `S3`) when resolved. |
 
-Position constraint: appended after `## spec_review_overrides` (or after `## Migration` if `spec_review_overrides` is absent) and before `## Changelog`. See `SPEC-001-tiered-code-review.md` → Design > Spec followups format for the canonical YAML example.
+Position constraint: appended after `## spec_review_overrides` (or after `## Migration` if `spec_review_overrides` is absent) and before `## Disclosed, not reviewed-clean` or `## Changelog`. See `SPEC-001-tiered-code-review.md` → Design > Spec followups format for the canonical YAML example.
+
+#### `## Disclosed, not reviewed-clean` (optional)
+
+Lists every blocker and major still open when a spec review reaches the round cap (`review-primitives.md` > Orchestrator severity→action policy, `disclose_and_accept`; ADR-005), and every blocker or major the owner resolved as `wontfix`. The owner signs off with these in front of them. One entry per finding, as a table or a YAML list, with these fields:
+
+| Field | Required | Type | Notes |
+|-------|----------|------|-------|
+| `id` | yes | string | The finding's stable `id`, so the entry joins to the review log and to any override. |
+| `first_round` | yes | integer | The round the finding was first raised in. |
+| `severity` | yes | enum | `blocker` or `major`. |
+| `criterion` | yes | string | The grounded citation from the finding. |
+| `location` | yes | string | The spec section the finding points at. |
+| `why_not_closed` | yes | string | Why it was not closed: reached at the cap, or resolved `wontfix`, and the reasoning. |
+
+Position constraint: appended after `## spec_followups` (or the latest earlier optional section present) and before `## Changelog`.
 
 ## ADR schema
 

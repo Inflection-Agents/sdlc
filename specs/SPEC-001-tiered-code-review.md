@@ -357,6 +357,12 @@ Entries are append-only at first. The `resolved` boolean and its companion field
 - Also records that the fix loop this field routes into is now bounded: [`ADR-004`](adrs/ADR-004-capped-integration-gate.md) caps the integration gate at three rounds, and a blocker or major surviving round 3 is disclosed in the integration PR body rather than carried into a fourth.
 - Rationale and the full port analysis: [`docs/plans/2026-09-09-enforcement-tiers-design.md`](../docs/plans/2026-09-09-enforcement-tiers-design.md).
 
+### v1.4 (2026-10-02) — a spec-side round cap and `disclose_and_accept`, via SPEC-007
+- Live `review-primitives.md` > Orchestrator severity→action policy gains an optional `round` input, one constant (`SPEC_REVIEW_ROUND_CAP = 4`, ADR-005), and a fifth action, `disclose_and_accept`. The policy returns that action only for `artifact: "spec"` at the cap with a blocker or major left. This extends the set SPEC-001's third success criterion enumerates, on the spec side only. On the PR side, and on any call without `round`, the policy is unchanged, so SPEC-002 > Appendix B's return set stays exhaustive.
+- **This is not an extension-pattern change and does not rely on one**, on the precedent of v1.3. The extension pattern in `review-primitives.md` charters new consequence rows and citation prefixes, and a fifth orchestrator action is neither. Severity grading is untouched.
+- `skills/spec-schema.md` declares the matching optional section, `## Disclosed, not reviewed-clean`, and an optional `resolution: wontfix` on `spec_review_overrides`.
+- See SPEC-007 for the full design and rationale.
+
 ## Appendix A — `pr-reviewer` prompt (draft)
 
 Lives in `.ai/skills/pr-reviewer/SKILL.md` on implementation.
