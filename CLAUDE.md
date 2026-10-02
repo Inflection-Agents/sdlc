@@ -48,7 +48,7 @@ What the skill has you do:
 
 - **Check the guide and the plan-review gate** (`node .sdlc/scripts/validate-guide.mjs specs/tasks/SPEC-NNN/GUIDE.md`, then `node .sdlc/scripts/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml`) — fail-closed, per ADR-002 and ADR-007 — then **arm the goal leash** by writing `.claude/.sdlc-goal-<session_id>` with the run's exit criteria. `stop-handoff.mjs` blocks a premature stop while `status: active`, so a delivery run does not drift back to the user half-done. You own the status: `met` when every criterion genuinely holds, `escalated` when a human must decide. Bounded and fail-open; never mark it `met` to end a run early.
 - **Keep a visible task list for the whole run** — one entry per guide step plus end-to-end validation and the integration gate, updated as each lands. Anyone reading the session must be able to see what is in flight and what remains without asking.
-- **Implement the steps yourself, one at a time.** Branch `claude/SPEC-NNN-S<n>` off the current `feat/spec-NNN` tip → implement inline → the step's `Verify:` commands green → self-review your diff and fix what it finds → PR into `feat/spec-NNN` → merge it → delete the branch → next step. Re-plan the guide in place when it proves wrong, and log every change for the PR's `## Guide changes`. **Nothing lingers**: no open PR, no remote or local branch, no worktree.
+- **Implement the steps yourself, one at a time.** Branch `claude/SPEC-NNN-S<n>` off the current `feat/spec-NNN` tip → implement inline → the step's `Verify:` commands green → self-review your diff and fix what it finds → PR into `feat/spec-NNN` → merge it → delete the branch → next step. Re-plan the guide in place when it proves wrong, and log every change for the PR's `## Guide changes`. **Nothing lingers**: no open PR, no remote or local branch, no step worktree; the spec worktree lives until run exit (see [`docs/worktrees.md`](docs/worktrees.md)).
 - **Sub-agent fan-out is the exception, not the norm** — reserved for a large spec whose steps have disjoint `Changes:` and `After:` closures. When used, `isolation: "worktree"` is REQUIRED for any subagent that writes files, and the merge discipline is unchanged.
 - **No per-step reviewer fan-out.** A step is gated by its `Verify:` commands and your self-review. The registry (`.sdlc/review-constraints.yaml`) is evaluated **in full at the integration gate**, across the whole diff — that is where the rigor is spent.
 - **Validate for real, once, before the gate** — full build, full test suite, the real pipeline where one exists, the app driven in a real browser for user-visible change, performance where it matters. Attach the evidence.
@@ -74,7 +74,7 @@ Rule of thumb:
 - **Foreground-only / research-only agents (no repo writes) → isolation not required.**
 - **In doubt → pass it.** The overhead of a temporary worktree is trivial compared to the cost of untangling concurrency collisions.
 
-The Agent tool automatically cleans up the worktree if the agent makes no changes; otherwise it returns the worktree path + branch in its result so you can inspect and merge.
+Where every worktree goes, and who removes it, is in [`docs/worktrees.md`](docs/worktrees.md).
 
 ### Bookkeeping PRs can auto-merge on a narrow allowlist (optional, not shipped)
 
