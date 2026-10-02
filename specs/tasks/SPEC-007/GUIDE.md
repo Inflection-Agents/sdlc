@@ -7,14 +7,14 @@ spec_version: 1
 
 ### S1: Cap the spec-side loop at four rounds
 - Covers: AC-001, AC-002, AC-003, AC-004
-- Changes: `skills/review-primitives.md`, `skills/spec-authoring/SKILL.md`, `skills/spec-amendment/SKILL.md`, `skills/spec-schema.md`, `specs/SPEC-001-tiered-code-review.md` (Changelog only), `init-payload/.sdlc/contracts/review-primitives.md`
+- Changes: `skills/review-primitives.md`, `skills/spec-authoring/SKILL.md`, `skills/spec-amendment/SKILL.md`, `skills/spec-schema.md`, `specs/SPEC-001-tiered-code-review.md` (Changelog only), `init-payload/.sdlc/contracts/review-primitives.md`, `scripts/sdlc/lib/released-payloads.json`
 - Verify: `rg -n 'disclose_and_accept' skills/review-primitives.md skills/spec-authoring/SKILL.md skills/spec-amendment/SKILL.md`, `rg -n 'Worked trace' skills/review-primitives.md` (two traces: a round-4 spec blocker returning `disclose_and_accept`, and a round-4 PR blocker returning `fix_loop`), `env -u CLAUDE_PROJECT_DIR node --test .sdlc/scripts/prefix-parity.test.mjs .sdlc/scripts/validate-plugin-manifest.test.mjs`, `node .sdlc/scripts/gen-handoffs.mjs --check`
 - Risk: medium
 - Notes: the cap is one constant in the policy block of `review-primitives.md`. `spec-authoring` and `spec-amendment` cite it and copy no rule text (AC-003). `round` is optional, and without it the policy is unchanged, so the PR-side call in SPEC-002 Appendix B stays valid. Declare `## Disclosed, not reviewed-clean` and `resolution: wontfix` in `spec-schema.md` here; S3 enforces the section position.
 
 ### S2: One reviewer per round after the first
 - Covers: AC-012, AC-013
-- Changes: `skills/spec-authoring/SKILL.md`, `skills/spec-amendment/SKILL.md`, `skills/review-primitives.md`, `init-payload/.sdlc/contracts/review-primitives.md`
+- Changes: `skills/spec-authoring/SKILL.md`, `skills/spec-amendment/SKILL.md`, `skills/review-primitives.md`, `init-payload/.sdlc/contracts/review-primitives.md`, `scripts/sdlc/lib/released-payloads.json`
 - Verify: `rg -n 'adversarial' skills/spec-authoring/SKILL.md`, `env -u CLAUDE_PROJECT_DIR node --test .sdlc/scripts/prefix-parity.test.mjs`
 - After: S1
 - Notes: state the per-round count once, in Step 10a, and delete the contradicting line 312 wording. Keep the SPEC-001 AC-010 measurement exception.
@@ -58,7 +58,7 @@ spec_version: 1
 
 ### S8: Reviewer inputs that resolve, and the research protocol
 - Covers: AC-026, AC-027
-- Changes: `skills/spec-authoring/SKILL.md`, `skills/spec-amendment/SKILL.md`, `.sdlc/templates/authoring-decisions.md`, `init-payload/.sdlc/templates/authoring-decisions.md`
+- Changes: `skills/spec-authoring/SKILL.md`, `skills/spec-amendment/SKILL.md`, `.sdlc/templates/authoring-decisions.md`, `init-payload/.sdlc/templates/authoring-decisions.md`, `scripts/sdlc/lib/released-payloads.json`
 - Verify: `diff -rq .sdlc/templates init-payload/.sdlc/templates`, `rg -n 'optional' skills/spec-authoring/SKILL.md`, `node .sdlc/scripts/gen-handoffs.mjs --check`
 - After: S6, S7
 - Notes: `AGENTS.md` is the live instance: absent in this repo, present in every adopter `/sdlc-init` sets up. Mark it optional where Step 10a seeds it.

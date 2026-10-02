@@ -2,7 +2,7 @@
 
 Shared primitives consumed by `pr-reviewer` and `spec-reviewer`. Single source of truth for severity, grounding rules, output schema, and carry-forward semantics. Both reviewer skills (and any Tier 2 PR specialists) MUST reference this file rather than redefining these contracts; drift between the two reviewers is a SPEC-001 contract violation.
 
-This file is content-equivalent to SPEC-001 > Design > Shared primitives + Orchestrator severity→action policy. SPEC-001 remains the spec of record; this file is the operational contract the skills load.
+This file is content-equivalent to SPEC-001 > Design > Shared primitives + Orchestrator severity→action policy, plus the spec-side extensions SPEC-007 adds to that policy (the round cap and `disclose_and_accept`; see SPEC-001 > Changelog v1.4). SPEC-001 remains the spec of record; this file is the operational contract the skills load.
 
 ---
 
@@ -235,6 +235,10 @@ Same iteration-1 nit at `Success criteria > third bullet`. The amendment in iter
 Same routing applies to both reviewers (PR side and spec side). The policy is invoked from `spec-execution` (PR side, per SPEC-002) and from `spec-authoring` / `spec-amendment` (spec side, per SPEC-001).
 
 ```
+SPEC_REVIEW_ROUND_CAP = 4   # ADR-005. The one copy: spec-authoring and spec-amendment cite it.
+
+# `round` is optional. Absent, as on every PR-side call, the policy is exactly the
+# one-argument policy SPEC-002 Appendix B calls as apply_spec_001_policy(all_findings).
 findings = reviewer_output["findings"]
 
 # Guard: any finding whose criterion prefix is not allowed by the grounding
@@ -249,17 +253,31 @@ else:
     nits        = [f for f in findings if f["severity"] == "nit"]
     suggestions = [f for f in findings if f["severity"] == "suggestion"]
 
-    if blockers:                 action = "fix_loop"
+    capped = (reviewer_output["artifact"] == "spec"
+              and round is not None and round >= SPEC_REVIEW_ROUND_CAP)
+
+    if (blockers or majors) and capped: action = "disclose_and_accept"
+    elif blockers:               action = "fix_loop"
     elif majors:                 action = "fix_loop"
     elif nits or suggestions:    action = "batch_followup_and_accept"
     else:                        action = "accept"
 ```
+
+**Worked trace: a round-4 spec blocker.** `artifact: "spec"`, `round: 4`, one finding with
+`severity: "blocker"`. `capped` is true, so the action is `disclose_and_accept` and no round 5 is
+dispatched.
+
+**Worked trace: a round-4 PR blocker.** `artifact: "pr"`, `round: 4` (or no `round`), one finding
+with `severity: "blocker"`. `capped` is false for any `artifact` other than `"spec"`, so the action
+is `fix_loop`. The PR side never returns `disclose_and_accept`; its round cap is ADR-004's, applied
+by `spec-execution`, not by this policy.
 
 Action semantics:
 
 - **`accept`** — merge the PR (PR side) or move the spec to `status: active` (spec side).
 - **`batch_followup_and_accept`** — on the PR side: opens a grooming task containing both nits and suggestions and accepts the PR. On the spec side: appends both severities to the `spec_followups:` section (declared via the spec-schema amendment in SPEC-001 AC-013) and accepts the spec. Suggestions are **not** silently dropped — they ride alongside nits in the follow-up channel.
 - **`fix_loop`** — the artifact author addresses the findings and re-submits; the reviewer re-runs with `previous_output` set.
+- **`disclose_and_accept`** — spec side only, at round `SPEC_REVIEW_ROUND_CAP` with a blocker or major left (ADR-005). No further round is dispatched. Every surviving blocker and major goes into a `## Disclosed, not reviewed-clean` section of the spec body, one entry per finding naming its `id`, the round it was first raised in, its severity, its `criterion`, its `location`, and why it was not closed (`skills/spec-schema.md` > Optional appended sections). Nits and suggestions are handled as under `batch_followup_and_accept`. The owner then signs off with the survivors in front of them.
 - **`escalate`** — an explicit return from this policy that the orchestrator must handle as a branch (see SPEC-002 Appendix B). Triggered when any finding cites a prefix not in the allowed list for the reviewer role, which indicates either a SPEC-001 contract violation or an unrecognized cross-skill signal.
 
 ---
