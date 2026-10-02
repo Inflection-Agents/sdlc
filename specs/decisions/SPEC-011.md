@@ -112,3 +112,58 @@ Phase 1 Step 3's research protocol writes the `## Research` section below.
 **Rejected:** Documenting them as caveats. D-003 makes the spec worktree the normal place delivery runs, so a caveat would be hit on every run.
 **Deliberately deferred:** Nothing.
 **Raised by:** author, from the research
+
+---
+
+## D-008 — Judgment-phase branches stay in the main checkout
+
+**Date:** 2026-10-02
+**Question:** Round 1 of the spec review showed that D-002 ("one worktree per branch of active work") reached only delivery in the draft body. Do `spec/*`, `guide/*` and `sdlc/bookkeeping-*` branches also get worktrees?
+**Decided:** No. An interactive session cuts them one at a time in the main checkout, and they hold documents only. D-002 binds delivery runs, background subagents, and a second session working a repo while another uses its main checkout.
+**Rejected:** A worktree for every branch, which would add spec-authoring, spec-amendment, spec-completion and the bookkeeping lane to scope for branches that never run concurrently with anything.
+**Deliberately deferred:** Nothing.
+**Raised by:** reviewer (round 1), decided by owner
+
+---
+
+## D-009 — `branch-gone` means "its upstream is gone", and prune deletes no branch
+
+**Date:** 2026-10-02
+**Question:** The draft defined `branch-gone` twice, and its "merged into `origin/main`" test is true for a branch with no commits and false for a squash-merged branch (this repo squash-merges). What is the one rule?
+**Decided:** A branch is gone when it has an upstream configured and that upstream's remote-tracking ref no longer exists. A never-pushed branch is never a stray. `--prune` removes worktrees only and deletes no branch, so a wrong classification can cost at most a worktree that can be recreated, never a branch.
+**Rejected:** Ancestry against `origin/main`, for the two reasons above. A merged-PR lookup through `gh`, which adds a network dependency to a hook.
+**Deliberately deferred:** Nothing.
+**Raised by:** reviewer (round 1)
+
+---
+
+## D-010 — The spec worktree is removed at run exit, not when the PR opens
+
+**Date:** 2026-10-02
+**Question:** D-003 said "removes it when the integration PR opens". The panel fix loop (SOP §7.2-7.3) runs after the PR opens and edits the integration branch. When does the worktree go?
+**Decided:** At run exit, SOP §7.4 after the last panel round, or SOP §8 on escalation. This corrects D-003's removal point. Later changes on the open PR re-enter the worktree through SOP §1's resume form.
+**Rejected:** Removal at PR open, which leaves the fix loop with no tree.
+**Deliberately deferred:** Nothing.
+**Raised by:** reviewer (round 1)
+
+---
+
+## D-011 — A run's exit removes only its own spec worktree
+
+**Date:** 2026-10-02
+**Question:** A repo-wide `--prune` at run exit would remove clean worktrees belonging to other sessions or running agents. How far does the run's cleanup reach?
+**Decided:** `--own spec-NNN` removes only `.claude/worktrees/spec-NNN` and lists every other stray. Agent-tool worktrees the run spawned are removed by the spawner when it merges their result, so none remain at exit.
+**Rejected:** A repo-wide prune at exit. Identifying a run's agent worktrees by branch ancestry, which git cannot answer reliably.
+**Deliberately deferred:** Nothing.
+**Raised by:** reviewer (round 1)
+
+---
+
+## D-012 — During a run, a subagent branches from the pushed integration tip
+
+**Date:** 2026-10-02
+**Question:** With the main checkout on `main`, a fan-out subagent or the simplify pass no longer inherits `feat/spec-NNN`, and git refuses to check out `feat/spec-NNN` while the spec worktree holds it. What base does a subagent use?
+**Decided:** The spawner pushes `feat/spec-NNN`, and the subagent works on a branch cut from `origin/feat/spec-NNN`. The spawner merges the result from inside the spec worktree and removes the agent worktree.
+**Rejected:** Checking out `feat/spec-NNN` in the agent's worktree, which git refuses.
+**Deliberately deferred:** Nothing.
+**Raised by:** reviewer (round 1)
