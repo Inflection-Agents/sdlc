@@ -19,7 +19,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, writeFi
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { takeRootArg } from './lib/sdlc-paths.mjs'
+import { assertWriteInside, takeRootArg } from './lib/sdlc-paths.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 export const DEFAULT_PAYLOAD = resolve(HERE, '..', '..', 'init-payload')
@@ -46,7 +46,8 @@ function walk(dir, base = dir, out = []) {
  * comments included. Comment and blank lines are never appended to an existing file.
  * @returns {string[]} the lines added
  */
-export function appendLines(targetFile, payloadText) {
+export function appendLines(targetFile, payloadText, root = null) {
+    if (root) assertWriteInside(root, targetFile)
     if (!existsSync(targetFile)) {
         mkdirSync(dirname(targetFile), { recursive: true })
         writeFileSync(targetFile, payloadText, 'utf8')
@@ -60,6 +61,15 @@ export function appendLines(targetFile, payloadText) {
         writeFileSync(targetFile, `${current}${sep}${add.join('\n')}\n`, 'utf8')
     }
     return add
+}
+
+/** Framework-owned files a formatter must not rewrite, since every sync replaces them. */
+export const PRETTIER_IGNORE = ['.sdlc/state-machine.yaml', '.sdlc/scripts/', '.sdlc/templates/', '.sdlc/contracts/']
+
+/** Add PRETTIER_IGNORE to an existing `.prettierignore`; a repo without one gets none. @returns {string[]} the lines added */
+export function appendPrettierIgnore(root) {
+    const file = join(root, '.prettierignore')
+    return existsSync(file) ? appendLines(file, `${PRETTIER_IGNORE.join('\n')}\n`, root) : []
 }
 
 /** What to write before appended content so it starts after one blank line. */
@@ -77,6 +87,7 @@ export function insertAgentsBlock(root, body) {
     const file = join(root, 'AGENTS.md')
     const current = existsSync(file) ? readFileSync(file, 'utf8') : ''
     if (current.includes(BLOCK_BEGIN)) return false
+    assertWriteInside(root, file)
     const text = body.endsWith('\n') ? body : `${body}\n`
     writeFileSync(file, `${current}${blankLineAfter(current)}${BLOCK_BEGIN}\n${text}${BLOCK_END}\n`, 'utf8')
     return true
@@ -87,6 +98,7 @@ export function ensureClaudeImport(root) {
     const file = join(root, 'CLAUDE.md')
     const current = existsSync(file) ? readFileSync(file, 'utf8') : ''
     if (current.split(/\r?\n/).includes(CLAUDE_IMPORT)) return false
+    assertWriteInside(root, file)
     writeFileSync(file, `${current}${blankLineAfter(current)}${CLAUDE_IMPORT}\n`, 'utf8')
     return true
 }
@@ -109,6 +121,7 @@ export function installPayload(root, { payload = DEFAULT_PAYLOAD, contractsInSki
             report.kept.push(dest)
             continue
         }
+        assertWriteInside(root, target)
         mkdirSync(dirname(target), { recursive: true })
         copyFileSync(join(payload, rel), target)
         report.created.push(dest)
@@ -124,9 +137,11 @@ export function installPayload(root, { payload = DEFAULT_PAYLOAD, contractsInSki
     for (const name of MERGED_ROOT_FILES) {
         const src = join(payload, name)
         if (!existsSync(src)) continue
-        const added = appendLines(join(root, name), readFileSync(src, 'utf8'))
+        const added = appendLines(join(root, name), readFileSync(src, 'utf8'), root)
         if (added.length) report.appended[name] = added
     }
+    const prettier = appendPrettierIgnore(root)
+    if (prettier.length) report.appended['.prettierignore'] = prettier
     report.block = insertAgentsBlock(root, readFileSync(join(payload, 'AGENTS.sdlc-block.md'), 'utf8'))
     report.claudeImport = ensureClaudeImport(root)
     return report

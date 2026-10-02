@@ -28,7 +28,7 @@ import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs'
 import { join, matchesGlob, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { isBuiltInExempt, isHistory, mapEntries, scanText } from './lib/legacy-map.mjs'
+import { frontmatterStatus, isBuiltInExempt, isHistory, mapEntries, scanText } from './lib/legacy-map.mjs'
 import { readConfig, sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
 
 export const BINARY = /\.(?:png|jpe?g|gif|webp|ico|pdf|zip|gz|tgz|woff2?|ttf|eot|mp4|mov|parquet|db|sqlite)$/i
@@ -58,7 +58,8 @@ export function movesFromHistory(root) {
     const moves = new Map()
     let commit
     try {
-        commit = execFileSync('git', ['log', '-1', '--format=%H', '--fixed-strings', '--grep=sdlc: migrate to layout 2'], {
+        // The migration commit's subject, or the same line in a squash merge's body.
+        commit = execFileSync('git', ['log', '-1', '--format=%H', '-E', '--grep=^(\\* )?sdlc: migrate to layout 2$'], {
             cwd: root,
             encoding: 'utf8',
         }).trim()
@@ -66,7 +67,14 @@ export function movesFromHistory(root) {
         return moves
     }
     if (!commit) return moves
-    const diff = execFileSync('git', ['diff', '--name-status', '-M', `${commit}^`, commit], { cwd: root, encoding: 'utf8', maxBuffer: 1 << 26 })
+    let diff
+    try {
+        // A shallow clone (CI checks out depth 1) may not hold the parent: no moves are known then.
+        execFileSync('git', ['rev-parse', '--verify', '--quiet', `${commit}^`], { cwd: root, stdio: 'ignore' })
+        diff = execFileSync('git', ['diff', '--name-status', '-M', `${commit}^`, commit], { cwd: root, encoding: 'utf8', maxBuffer: 1 << 26 })
+    } catch {
+        return moves
+    }
     for (const line of diff.split('\n')) {
         const [kind, from, to] = line.split('\t')
         if (kind?.startsWith('R') && from && to) moves.set(from, to)
@@ -96,7 +104,7 @@ export function scanRepo(root, { only = null, useAllow = true, moves = null } = 
     const tracked = trackedFiles(root)
     const specStatus = (id) => {
         const hit = tracked.find((f) => f.startsWith(`${specsRel}/${id}-`) && f.endsWith('.md'))
-        return hit ? (read(hit).match(/^status:\s*([A-Za-z0-9_-]+)/m)?.[1] ?? null) : null
+        return hit ? frontmatterStatus(read(hit)) : null
     }
     const newToOld = new Map([...(moves ?? movesFromHistory(root))].map(([o, n]) => [n, o]))
     const existsNow = (rel) => existsSync(join(root, rel))

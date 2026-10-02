@@ -106,13 +106,20 @@ BEFORE=$(git rev-parse HEAD)
     ```
 
     Each probe plants a violation and checks the gate still catches it. Exit 1 names the
-    probe that regressed, so fix the reader behind it and go back to step 4.
+    probe that regressed, so fix the reader behind it and go back to step 4. The run probes
+    the plugin's hooks and prints each of the repo's own hook commands from
+    `.claude/settings.json` without running it. Those commands run in a shell with the
+    developer's environment, so show them to the owner, and add `--local-hooks` only after a
+    yes.
 
-6. **The gates.** Run every `run:` step of each workflow that calls an SDLC script, on
-   `$BEFORE` and on the branch tip, and compare the exit codes. A step that only computes
-   scope runs for real, with its changed-file input set to `git ls-files` and
-   `$GITHUB_OUTPUT` pointed at a temp file. Its boolean outputs are then forced to `true`,
-   so every scoped gate runs. Use the same substitution on both commits.
+6. **The gates.** For each workflow step that calls an SDLC script, run only its
+   `node <SDLC script>` lines, never the step's other commands, on `$BEFORE` and on the
+   branch tip, and compare the exit codes. List the exact commands for the owner before
+   running any; a step that mixes a validator with a deploy or publish command runs the
+   validator line alone. A step that only computes scope runs for real, with its
+   changed-file input set to `git ls-files` and `$GITHUB_OUTPUT` pointed at a temp file. Its
+   boolean outputs are then forced to `true`, so every scoped gate runs. Use the same
+   substitution on both commits.
 
 7. **Report.** List what moved, what was appended to the root files, the framework files
    replaced and the modified ones kept, the shadowed skills, the double-wired hooks, and the

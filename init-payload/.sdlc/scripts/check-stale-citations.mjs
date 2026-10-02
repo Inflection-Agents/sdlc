@@ -30,8 +30,8 @@ const read = (p) => readFileSync(p, 'utf8')
 
 /** Paths loaded into an agent's context on every run, where a stale citation acts. */
 const ALWAYS_LOADED = [
-    // Real locations after the plugin restructure. `.ai/skills` and `.claude/agents`
-    // are symlinks the walker skips, so without these the framework's own instruction
+    // Real locations after the plugin restructure. `.claude/skills` and `.claude/agents`
+    // can be symlinks, which the walker skips, so without these the framework's own instruction
     // files silently drop to `report` severity.
     /^skills\//,
     /^agents\//,
@@ -140,8 +140,8 @@ function walk(dir, onFile, depth = 8) {
         const p = join(dir, entry)
         let st
         try {
-            // lstat, never stat: .claude/skills is a symlink to .ai/skills, and a
-            // following walk reports every skill finding twice under two paths.
+            // lstat, never stat: .claude/skills is often a symlink to the skills directory,
+            // and a following walk reports every skill finding twice under two paths.
             st = lstatSync(p)
         } catch {
             continue

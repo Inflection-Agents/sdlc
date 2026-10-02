@@ -137,10 +137,16 @@ function allow(guidance) {
 async function constraintGuidance(rel, root) {
     try {
         const paths = sdlcPaths(root, { quiet: true })
-        // The repo's copy first, then the plugin's: a repo whose scripts directory has no
-        // reviewer-routing.mjs would otherwise get no guidance at all.
+        // The plugin's own copy when this hook runs from the plugin, so a plugin hook never
+        // imports code from the repo. A copy installed by bootstrap.sh into .claude/hooks/
+        // has no plugin beside it and uses the repo's, which is as trusted as the hook itself.
+        const plugin = new URL('../reviewer-routing.mjs', LIB)
         const local = join(paths.scripts, 'reviewer-routing.mjs')
-        const routing = existsSync(local) ? pathToFileURL(local) : new URL('../reviewer-routing.mjs', LIB)
+        const routing = existsSync(fileURLToPath(plugin)) ? plugin : existsSync(local) ? pathToFileURL(local) : null
+        if (!routing) {
+            process.stderr.write('[SDLC guard]: no reviewer-routing.mjs in the plugin or the repo; edit-time constraint guidance is off\n')
+            return null
+        }
         const { loadConstraints, applicableConstraints } = await import(routing.href)
         const hits = applicableConstraints(loadConstraints(paths.constraints), rel)
         if (!hits.length) return null
@@ -152,7 +158,8 @@ async function constraintGuidance(rel, root) {
             `them and cite the id verbatim, so satisfy them now rather than in a fix round:\n` +
             lines.join('\n')
         )
-    } catch {
+    } catch (err) {
+        process.stderr.write(`[SDLC guard]: edit-time constraint guidance failed: ${err.message}\n`)
         return null
     }
 }
@@ -336,7 +343,14 @@ async function main() {
     if (!rel) allow() // target outside the project root → not our concern
 
     // Implementation-code edit with no active task context.
-    const specsRel = relPosix(root, sdlcPaths(root, { quiet: true }).specs) ?? 'specs'
+    // A config that does not parse must not turn the gate off: classify with the default
+    // locations and say why, instead of falling through to the fail-open catch below.
+    let specsRel = 'specs'
+    try {
+        specsRel = relPosix(root, sdlcPaths(root, { quiet: true }).specs) ?? 'specs'
+    } catch (err) {
+        process.stderr.write(`[SDLC guard]: cannot read the SDLC config (${err.message}); gating with the default paths\n`)
+    }
     if (isImplementationCode(rel, specsRel)) {
         if (hasActiveTask(root)) return allow(await constraintGuidance(rel, root)) // active task → fine
 

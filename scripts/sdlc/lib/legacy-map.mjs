@@ -137,9 +137,17 @@ function endsAtBoundary(text, end) {
 
 function matchAt(text, i, entries) {
     for (const e of entries) {
-        if (!text.startsWith(e.from, i)) continue
-        if (e.kind === 'file' && !endsAtBoundary(text, i + e.from.length)) continue
-        return e
+        if (text.startsWith(e.from, i)) {
+            if (e.kind === 'file' && !endsAtBoundary(text, i + e.from.length)) continue
+            return e
+        }
+        // A directory named without its trailing slash (`node --test scripts/sdlc`,
+        // `working-directory: .ai/sdlc`). Only a multi-segment directory, so the prose word
+        // `templates` is never taken for the templates/ directory.
+        const bare = e.kind === 'prefix' ? e.from.slice(0, -1) : null
+        if (bare?.includes('/') && text.startsWith(bare, i) && !PATH_CHAR.test(text[i + bare.length] ?? '')) {
+            return { ...e, from: bare, to: e.to.slice(0, -1) }
+        }
     }
     return null
 }
@@ -345,7 +353,7 @@ export function isHistory(rel, { specsRel = 'specs', specStatus = () => null, re
 export function isBuiltInExempt(rel) {
     if (rel === '.sdlc/config.yaml') return true
     if (/(^|\/)lib\/(legacy-map\.mjs|sdlc-paths\.mjs|released-payloads\.json)$/.test(rel)) return true
-    return /(^|\/)(__tests__|__fixtures__)\//.test(rel) || /\.test\.[cm]?[jt]sx?$/.test(rel)
+    return /(^|\/)(__tests__|__fixtures__)\//.test(rel) || /\.test\.mjs$/.test(rel)
 }
 
 // ─── Payload roles (the released-payload manifest) ──────────────────────────

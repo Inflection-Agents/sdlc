@@ -75,7 +75,7 @@ export function parseScalar(raw) {
         if (!s.endsWith('"') || s.length < 2) throw new Error(`unterminated double-quoted scalar: ${s}`)
         return s
             .slice(1, -1)
-            .replace(/\\(["\\nt])/g, (_, c) => ({ n: '\n', t: '\t', '"': '"', '\\': '\\' })[c])
+            .replace(/\\(["\\nrt])/g, (_, c) => ({ n: '\n', r: '\r', t: '\t', '"': '"', '\\': '\\' })[c])
     }
     if (s.startsWith('[')) {
         if (!s.endsWith(']')) throw new Error(`unterminated flow sequence: ${s}`)
@@ -179,8 +179,12 @@ function emitScalar(v) {
     if (v === null || v === undefined) return '""'
     if (typeof v === 'boolean' || typeof v === 'number') return String(v)
     const s = String(v)
-    if (s !== '' && PLAIN.test(s) && !/^(true|false|null|~|-?\d+)$/.test(s) && !s.endsWith(' ')) return s
-    return `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+    // yes, no, on, off, y and n are booleans to a YAML 1.1 reader such as PyYAML.
+    const reserved = /^(true|false|null|~|-?\d+|y|n|yes|no|on|off)$/i
+    if (s !== '' && PLAIN.test(s) && !reserved.test(s) && !s.endsWith(' ')) return s
+    if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(s)) throw new Error(`cannot write a control character in ${JSON.stringify(s)}`)
+    const escaped = s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t')
+    return `"${escaped}"`
 }
 
 function isScalarList(v) {

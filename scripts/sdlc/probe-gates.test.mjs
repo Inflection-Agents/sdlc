@@ -22,14 +22,14 @@ test('AC-015: P1 to P5 hold across a fixed migration, the unfixed tip regresses,
     const fx = forkedHighGearRepo()
     const r = fx.root
     try {
-        const before = probeRev(r, 'HEAD')
+        const before = probeRev(r, 'HEAD', { localHooks: true })
         assert.equal(result(before, 'P1').caught, true, 'rule 8 fires on layout 1')
         assert.equal(result(before, 'P2').caught, true, 'the local hook routes on layout 1')
         if (hasRg) assert.equal(result(before, 'P4').caught, true, 'the flat archive is hidden')
 
         const m = spawnSync(process.execPath, [MIGRATE, '--root', r, '--apply'], { encoding: 'utf8' })
         assert.equal(m.status, 3, m.stderr)
-        const unfixed = probeRev(r, 'HEAD')
+        const unfixed = probeRev(r, 'HEAD', { localHooks: true })
         const regressed = compare(before, unfixed)
         assert.ok(regressed.some((p) => /^P(2|3|5) /.test(p)), regressed.join('\n'))
 
@@ -37,7 +37,7 @@ test('AC-015: P1 to P5 hold across a fixed migration, the unfixed tip regresses,
         write(r, '.sdlc/scripts/validate-guide.mjs', readFileSync(`${PAYLOAD}.sdlc/scripts/validate-guide.mjs`, 'utf8'))
         git(r, 'add', '-A')
         git(r, 'commit', '-q', '-m', 'fix the readers the scan flagged')
-        const fixed = probeRev(r, 'HEAD')
+        const fixed = probeRev(r, 'HEAD', { localHooks: true })
         assert.deepEqual(compare(before, fixed), [])
         for (const id of hasRg ? ['P6', 'P7'] : ['P7']) {
             assert.equal(result(fixed, id).ran, true, id)

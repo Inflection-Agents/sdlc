@@ -28,7 +28,7 @@ import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { loadManifest, releasedVersions, roleOf } from './gen-released-payloads.mjs'
-import { CONFIG_REL, detectLayout, sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
+import { CONFIG_REL, assertWriteInside, detectLayout, sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const PLUGIN = resolve(HERE, '..', '..')
@@ -102,7 +102,10 @@ export function writeFrameworkVersion(root, version) {
     const next = /^framework_version:.*$/m.test(text)
         ? text.replace(/^framework_version:.*$/m, line)
         : text.replace(/^(layout:.*\n)/m, `$1${line}\n`)
-    if (next !== text) writeFileSync(file, next, 'utf8')
+    if (next !== text) {
+        assertWriteInside(root, file)
+        writeFileSync(file, next, 'utf8')
+    }
     return next !== text
 }
 
@@ -115,6 +118,7 @@ export function applyRefresh(root, plan, { payload = DEFAULT_PAYLOAD, accept = [
             kept.push(file)
             continue
         }
+        assertWriteInside(root, join(root, file))
         mkdirSync(dirname(join(root, file)), { recursive: true })
         writeFileSync(join(root, file), readFileSync(join(payload, source)))
     }
@@ -138,7 +142,13 @@ function main(argv) {
     }
     process.stdout.write(`current: ${plan.filter((p) => p.status === 'current').length} file(s)\n`)
     if (!rest.includes('--apply')) return
-    const kept = applyRefresh(root, plan, { accept })
+    let kept
+    try {
+        kept = applyRefresh(root, plan, { accept })
+    } catch (err) {
+        process.stderr.write(`sync-refresh: ${err.message}\n`)
+        process.exit(1)
+    }
     if (kept.length) {
         process.stderr.write(`\nkept ${kept.length} locally modified file(s); diff each and pass --accept <path> to replace it:\n${kept.map((f) => `  ${f}`).join('\n')}\n`)
         process.exit(2)

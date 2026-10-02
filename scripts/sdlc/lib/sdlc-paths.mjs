@@ -8,8 +8,8 @@
  * process that takes that path prints one deprecation line so an unmigrated repo is not
  * silent about it.
  */
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { parseYaml } from './mini-yaml.mjs'
@@ -166,14 +166,58 @@ export function sdlcPaths(root, { quiet = false } = {}) {
         return layout1Paths(root, plugin)
     }
     const overrides = config?.paths ?? {}
+    // An override that is absolute or climbs out of the repo is ignored, so no reader or
+    // writer is pointed outside the repo by its config. validate-sdlc-config.mjs reports it.
+    const safe = (v) => (typeof v === 'string' && v && isInside(root, v) ? v : undefined)
     const paths = { layout, root }
     for (const [key, rel] of Object.entries(LAYOUT2_DEFAULTS)) {
-        const override = OVERRIDES[key] ? overrides[OVERRIDES[key]] : undefined
+        const override = OVERRIDES[key] ? safe(overrides[OVERRIDES[key]]) : undefined
         paths[key] = resolve(root, override || rel)
     }
-    const doc = overrides.process_doc
+    const doc = safe(overrides.process_doc)
     paths.processDoc = doc ? resolve(root, doc) : pluginProcessDoc(plugin)
     return paths
+}
+
+/** Whether `rel` is a relative path that stays inside `root` once resolved. */
+export function isInside(root, rel) {
+    if (isAbsolute(rel)) return false
+    const r = relative(resolve(root), resolve(root, rel))
+    return r === '' || (!r.startsWith('..') && !isAbsolute(r))
+}
+
+/**
+ * Throw unless writing `abs` stays inside `root`: the target, when it exists, and its
+ * nearest existing ancestor must both resolve, through any symlink, under the repo. A
+ * repo can hold a symlink to a shared file elsewhere, and a write through it would change
+ * that file outside the commit the owner reviews.
+ */
+export function assertWriteInside(root, abs) {
+    const top = realpathSync(root)
+    const under = (p) => {
+        const r = relative(top, p)
+        return r === '' || (!r.startsWith('..') && !isAbsolute(r))
+    }
+    let probe = resolve(abs)
+    let target = true
+    for (;;) {
+        let st = null
+        try {
+            st = lstatSync(probe)
+        } catch {
+            // not there yet: check its parent
+        }
+        if (st) {
+            if (!under(realpathSync(probe))) {
+                throw new Error(`refusing to write ${abs}: ${target ? 'it' : probe} resolves outside ${root}`)
+            }
+            return
+        }
+        const up = dirname(probe)
+        if (up === probe) throw new Error(`refusing to write ${abs}: no existing ancestor`)
+        probe = up
+        target = false
+    }
 }
 
 /** Read a `--root <dir>` argument out of argv, returning the root and the remaining arguments. */

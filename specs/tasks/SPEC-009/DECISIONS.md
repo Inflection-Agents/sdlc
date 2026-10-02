@@ -263,3 +263,54 @@ in chronological order.
 
 **Why:** each defect would have reached an adopter. The high-gear defects reached the real repo's shape: a gate that went quiet, or a hook that stopped helping, with nothing to say so.
 **Reversal path:** revert the fix-up PR. The steps' own changes do not depend on it.
+
+---
+
+## EXECUTIVE DECISION — gate round 1: fixes for the panel's blocker and majors
+
+**Date:** 2026-10-02
+**Question:** Round 1 of the integration panel returned 1 blocker and 24 majors across four reviewers: security, adversarial, the folded lenses, and integration. All four envelopes were valid. Each finding came with a reproduction.
+**Decided:** fix every blocker and major at the root, with a test that fails on the round-1 code (`migrate-hardening.test.mjs`, `containment.test.mjs`, `gate-hardening.test.mjs`, plus cases in the existing tests). By area:
+- **Containment.**
+  - New `isInside` and `assertWriteInside` in `lib/sdlc-paths.mjs`.
+  - A `paths.*` value that is absolute or climbs out of the repo is ignored by the resolver and reported by `validate-sdlc-config.mjs`.
+  - Probes, the refresh, init and the migration refuse a write that would resolve outside the repo through a symlink.
+  - P3 skips a `touches` glob that names a path outside the repo.
+  - `run.mjs` accepts only a bare script name.
+- **The migration.**
+  - The apply is atomic. A failure before the commit, such as a pre-commit hook, resets the repo to its branch and commit, removes what it created, and deletes the branch. Only a committed `.sdlc/config.yaml` means `nothing to migrate`.
+  - It refuses an existing `.sdlc/` or move destination, an `AGENTS.md` that already has an SDLC block, and a root file that is a symlink leaving the repo.
+  - A bare multi-segment directory (`scripts/sdlc`, `.ai/skills`) is rewritten and scanned. The single-word `templates` is not, so prose stays as written.
+  - Spec status uses the one frontmatter reader.
+  - An unmodified released workflow is replaced, so CI gains the 0.4.0 steps.
+  - Table cells split on unescaped pipes only, and a row with the wrong cell count stops the migration.
+  - The emitted config escapes control characters, quotes the YAML 1.1 booleans (`yes`, `no`, `on`, `off`), and must read back as written.
+- **Gates.**
+  - The shipped state-machine gate, with no plugin installed (an adopter's CI), no longer fails on skill names the repo does not hold. It lists them as not checked.
+  - The edit hook gates with default paths when the config does not parse, instead of failing open.
+  - Probes point `CLAUDE_PROJECT_DIR` at their worktree.
+  - `movesFromHistory` survives a depth-1 clone, and matches the migration line exactly.
+  - Init appends to an existing `.prettierignore`.
+  - `run.mjs` honors a caller's `--root`, and keeps the caller's directory when it is inside the repo.
+  - The scan's test exemption is narrowed to `*.test.mjs`, as Design says.
+- **Tests that were vacuous** now fail when the code is broken: the `run.mjs --root` fallback, the stale-citation rules for `.sdlc/` and `paths.process_doc`.
+- **This repo's `scan.allow`** gains `.github/workflows/sdlc-validate.yml`, which scans the plugin source by its real path, `scripts/sdlc`.
+
+**Why:** each finding was reproduced. Several would reach an adopter as a quiet failure: a gate that stops gating, a write outside the repo, or a half-applied migration.
+**Reversal path:** revert the round-1 fix PR.
+
+---
+
+## SPEC DEVIATION — the plugin's edit hook uses the plugin's reviewer-routing.mjs
+
+**Date:** 2026-10-02
+**Spec says:** Design > Validators and hooks: "`pre-tool-use-edit-write.mjs` imports `reviewer-routing.mjs` from `sdlcPaths(root).scripts`."
+**Built instead:** run from the plugin, the hook imports the plugin's own copy. A hook copy that `bootstrap.sh` installed into `.claude/hooks/` has no plugin beside it, so it uses the repo's copy, which is as trusted as that hook. The security review showed that the repo-copy import let any repo with a `.sdlc/config.yaml` run its own JavaScript inside the plugin's hook on the first edit, with no `.claude/settings.json` hook to trigger a trust prompt.
+
+---
+
+## SPEC DEVIATION — gate probes run the repo's own hooks only with --local-hooks
+
+**Date:** 2026-10-02
+**Spec says:** Design > Gate probes: P2 and P3 run every hook wired for the event, the plugin's and the repo's.
+**Built instead:** the repo's hooks are commands from its `.claude/settings.json`, run through `sh -c` with the developer's environment. `probe-gates.mjs` now prints each one, and runs them only with `--local-hooks`. `/sdlc-sync` step 5 shows them to the owner first. Step 6 runs only the `node <SDLC script>` line of each workflow step, never the step's other commands. Comparisons still hold, because both commits are probed with the same flag.
