@@ -31,3 +31,10 @@ in chronological order.
 
 **Merged:** PR #92
 **What changed:** resolveRoot prefers a linked worktree under CLAUDE_PROJECT_DIR/.claude/worktrees/ that contains the start directory (git decides, not the path); check-stale-citations and check-review-constraint-globs skip .claude/worktrees/. Later steps import nestedWorktree() and WORKTREES_REL from lib/sdlc-paths.mjs.
+
+---
+
+## S2 — worktrees.mjs lists and prunes strays
+
+**Merged:** PR #93
+**What changed:** worktrees.mjs reports agent, outside, branch-gone (upstream gone), detached and spec-closed strays from local refs; --fetch prunes remote refs first; --prune removes only clean branch-gone and spec-closed strays under .claude/worktrees/, never forces, never deletes a branch; --own spec-NNN removes only that spec worktree. Exports findStrays() for the S3 nudge.
