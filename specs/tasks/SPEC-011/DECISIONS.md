@@ -53,3 +53,10 @@ in chronological order.
 
 **Merged:** PR #94
 **What changed:** The edit gate grades a target under .claude/worktrees/<name>/ by its path and branch inside that worktree; both hooks read a spec's _index.yaml from its spec worktree via lib/sdlc-paths.mjs specIndexPaths(); the prompt hook nudges once per session from worktrees.mjs --json. Guide change: lib/sdlc-paths.mjs added to S3.
+
+---
+
+## S4 — worktrees.setup in the config schema
+
+**Merged:** PR #95
+**What changed:** validate-sdlc-config.mjs rule 5 accepts worktrees.setup only as one non-empty command string; sdlc-config-schema.md documents it. S6's SOP §1 reads this key.
