@@ -65,3 +65,13 @@ in chronological order.
 **Merged:** PR #61
 **What changed:** every payload validator takes `--root` and resolves its paths through `sdlcPaths`. The `init-payload/scripts/sdlc/` copies include `lib/`.
 **Anything a later step must match:** `check-stale-citations.mjs` exports `blastRadius(rel, alsoLoaded)` and `classify(files, superseded, alsoLoaded)`. `validate-state-machine.mjs` still reads `domain_routing` from the machine file; S4 moves that read to `loadMachine`.
+
+---
+
+## EXECUTIVE DECISION — guide change: S3 adds the nudge marker to this repo's .gitignore
+
+**Date:** 2026-10-02
+**Question:** the once-per-session nudge writes `.claude/.sdlc-layout-nudge-<session>`, and this repo, which stays on layout 1 until S10, lists each hook marker glob in `.gitignore` by name.
+**Decided:** append `.claude/.sdlc-layout-nudge-*` to `.gitignore` in S3. The payload's broader `.claude/.sdlc-*` line lands in S5.
+**Why:** without it, every session in this repo leaves an untracked file behind.
+**Reversal path:** delete the line.

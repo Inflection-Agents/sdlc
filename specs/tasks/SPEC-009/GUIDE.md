@@ -19,7 +19,7 @@ spec_version: 1
 
 ### S3: Hooks resolve through the module
 - Covers: AC-004, AC-005, AC-006
-- Changes: `hooks/*.mjs`, `hooks/__tests__/**`
+- Changes: `hooks/*.mjs`, `hooks/__tests__/**`, `.gitignore` (the nudge marker glob)
 - Verify: `node --test hooks/__tests__/*.test.mjs`
 - Notes: Import `../scripts/sdlc/lib/sdlc-paths.mjs`, which is plugin-internal and exempt from the scan. The edit-write hook takes its `.ai/` prefix from the `legacy-map.mjs` export. The root walk replaces the `specs` plus `scripts` check at `stop-handoff.mjs:141`, `user-prompt-submit.mjs:89` and `pre-tool-use-edit-write.mjs:180`. Track the once-per-session nudge with the per-session marker style the hooks already use (`.claude/.sdlc-handoff-<session>`).
 

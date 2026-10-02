@@ -15,7 +15,7 @@
 // Empty stdout, or a file that never appears, is the failure signal.
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { test } from 'node:test'
@@ -65,6 +65,7 @@ function bareEnv(extra = {}) {
 function makeFakeRepo() {
     const root = mkdtempSync(join(tmpdir(), 'sdlc-consumer-'))
     mkdirSync(join(root, '.claude'), { recursive: true })
+    mkdirSync(join(root, 'specs'), { recursive: true })
     mkdirSync(join(root, '.ai', 'sdlc'), { recursive: true })
     mkdirSync(join(root, 'scripts', 'sdlc'), { recursive: true })
     copyFileSync(join(REPO, '.ai', 'sdlc', 'review-constraints.yaml'), join(root, '.ai', 'sdlc', 'review-constraints.yaml'))
@@ -88,6 +89,8 @@ function makeFakePlugin(hookName) {
     mkdirSync(hooksDir, { recursive: true })
     const hookPath = join(hooksDir, hookName)
     copyFileSync(join(HOOKS, hookName), hookPath)
+    // The hooks import the path resolver from the plugin's scripts/sdlc/lib/ (SPEC-009).
+    cpSync(join(REPO, 'scripts', 'sdlc', 'lib'), join(hooksDir, '..', 'scripts', 'sdlc', 'lib'), { recursive: true })
     return { cache, hookPath }
 }
 
@@ -198,3 +201,120 @@ test('plugin layout: the prompt hook writes the override into the consuming repo
         cleanup(repo, cache)
     }
 })
+
+// ── Layout 2 (SPEC-009 AC-004, AC-005, AC-006) ────────────────────────────────
+
+/**
+ * A layout-2 repo with the hooks installed the way bootstrap.sh installs them: in
+ * .claude/hooks/ with lib/ beside them. It has no top-level scripts/, which is the
+ * shape the old specs-plus-scripts marker could not find.
+ */
+function makeLayout2Repo() {
+    // realpath: the hook resolves its own location through /private on macOS, and the payload paths must match.
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'sdlc-l2-hooks-')))
+    const w = (rel, body) => {
+        mkdirSync(dirname(join(root, rel)), { recursive: true })
+        writeFileSync(join(root, rel), body, 'utf8')
+    }
+    w('.sdlc/config.yaml', 'layout: 2\n')
+    w(
+        '.sdlc/state-machine.yaml',
+        [
+            'version: 1',
+            'phases:',
+            '    - id: spec-authoring',
+            '      entry_triggers:',
+            "          - 'spec out'",
+            "      preconditions: ['an intent']",
+            '      owner_skill: spec-authoring',
+            "      exit_condition: 'active'",
+            '      next_phase: none',
+            '      next_trigger: none',
+            ''
+        ].join('\n')
+    )
+    w(
+        '.sdlc/review-constraints.yaml',
+        'constraints:\n  - id: L2-ROW\n    lens: correctness\n    check: "fixture row"\n    when: { touches: ["apps/**"] }\n'
+    )
+    w('apps/web/x.ts', '// app code\n')
+    mkdirSync(join(root, 'specs'), { recursive: true })
+    cpSync(join(REPO, 'scripts', 'sdlc', 'lib'), join(root, '.sdlc', 'scripts', 'lib'), { recursive: true })
+    for (const mod of ['reviewer-routing.mjs', 'check-review-constraint-globs.mjs']) {
+        copyFileSync(join(REPO, 'scripts', 'sdlc', mod), join(root, '.sdlc', 'scripts', mod))
+    }
+    const hooksDir = join(root, '.claude', 'hooks')
+    mkdirSync(hooksDir, { recursive: true })
+    for (const h of ['pre-tool-use-edit-write.mjs', 'user-prompt-submit.mjs', 'stop-handoff.mjs']) {
+        copyFileSync(join(HOOKS, h), join(hooksDir, h))
+    }
+    cpSync(join(REPO, 'scripts', 'sdlc', 'lib'), join(hooksDir, 'lib'), { recursive: true })
+    return root
+}
+
+/** Like runHook, but returns stderr too: in the default warn mode the gate reports a block there. */
+function runHookFull(hookPath, payload, env) {
+    const res = spawnSync('node', [hookPath], { input: JSON.stringify(payload), encoding: 'utf8', env })
+    assert.equal(res.status, 0, `hook must always exit 0 in warn mode (got ${res.status}): ${res.stderr}`)
+    return { stdout: (res.stdout || '').trim(), stderr: res.stderr || '' }
+}
+
+const WOULD_BLOCK = /would block in enforce mode/
+
+test('layout 2, no top-level scripts/: each hook binds to the repo from a cwd without .claude', () => {
+    const repo = makeLayout2Repo()
+    const cwd = join(repo, 'specs')
+    try {
+        const hooks = join(repo, '.claude', 'hooks')
+        const denied = runHookFull(
+            join(hooks, 'pre-tool-use-edit-write.mjs'),
+            { tool_name: 'Edit', tool_input: { file_path: join(repo, 'apps/web/x.ts') }, session_id: 'l2a', cwd },
+            bareEnv()
+        )
+        assert.match(denied.stderr, WOULD_BLOCK, 'a hook that missed the root lets app code through silently')
+
+        const routed = runHook(join(hooks, 'user-prompt-submit.mjs'), { session_id: 'l2b', prompt: 'spec out a thing', cwd }, bareEnv())
+        assert.match(routed, /spec-authoring/, 'the prompt hook read the layout-2 state machine')
+
+        writeFileSync(
+            join(repo, '.claude', '.sdlc-goal-l2c'),
+            JSON.stringify({ version: 1, spec: 'SPEC-099', statement: 's', exit_criteria: ['layout-2 goal'], status: 'active', armed_at: new Date().toISOString() }),
+            'utf8'
+        )
+        const blocked = runHook(join(hooks, 'stop-handoff.mjs'), { session_id: 'l2c', hook_event_name: 'Stop', cwd }, bareEnv())
+        assert.match(blocked, /layout-2 goal/, 'the stop hook read the layout-2 repo goal file')
+    } finally {
+        cleanup(repo)
+    }
+})
+
+test('layout 2: .sdlc/ is a process artifact except .sdlc/scripts/, and constraints load from the resolved scripts dir', () => {
+    const repo = makeLayout2Repo()
+    try {
+        const hook = join(repo, '.claude', 'hooks', 'pre-tool-use-edit-write.mjs')
+        const edit = (rel, env) =>
+            runHookFull(hook, { tool_name: 'Edit', tool_input: { file_path: join(repo, rel) }, session_id: 'l2d', cwd: repo }, env)
+        assert.doesNotMatch(edit('.sdlc/config.yaml', bareEnv()).stderr, WOULD_BLOCK, 'config is a process artifact')
+        assert.match(edit('.sdlc/scripts/validate-guide.mjs', bareEnv()).stderr, WOULD_BLOCK, '.sdlc/scripts/ stays gated')
+        const guided = edit('apps/web/x.ts', bareEnv({ SDLC_EDIT_GATE_BRANCH: 'claude/SPEC-099-S1' }))
+        assert.match(guided.stdout, /L2-ROW/, 'the registry row came from .sdlc/review-constraints.yaml via .sdlc/scripts/')
+    } finally {
+        cleanup(repo)
+    }
+})
+
+test('layout 1: the prompt hook nudges toward /sdlc-sync once per session', () => {
+    const repo = makeFakeRepo()
+    const { cache, hookPath } = makeFakePlugin('user-prompt-submit.mjs')
+    try {
+        const first = runHook(hookPath, { session_id: 'nudge', prompt: 'hello', cwd: repo }, bareEnv())
+        assert.match(first, /\/sdlc-sync/)
+        const second = runHook(hookPath, { session_id: 'nudge', prompt: 'hello again', cwd: repo }, bareEnv())
+        assert.doesNotMatch(second, /\/sdlc-sync/, 'the nudge repeats within a session')
+        const otherSession = runHook(hookPath, { session_id: 'nudge-2', prompt: 'hello', cwd: repo }, bareEnv())
+        assert.match(otherSession, /\/sdlc-sync/, 'a new session hears it again')
+    } finally {
+        cleanup(repo, cache)
+    }
+})
+
