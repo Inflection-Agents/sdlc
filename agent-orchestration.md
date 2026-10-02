@@ -32,7 +32,7 @@ LEAVE IT OPEN — a human merges
 
 **Why the rigor sits at the end.** Reviewing step 3 in isolation, before anything integrates, costs more and buys less than reviewing the assembled diff once: each per-step reviewer is a fresh context that must re-derive the repo's conventions, and it cannot see cross-step interactions. Concentrating the panel at the gate also lets the constraints registry be evaluated against the *whole* change rather than one step's `Changes:`.
 
-**The persistence leash.** The skill writes `.claude/.sdlc-goal-<session_id>` (spec, statement, exit criteria, `status: active`). While it is active, `stop-handoff.mjs` blocks a premature stop and feeds the criteria back, so a run does not drift back to the user half-done. `met` and `escalated` are the only release words. It is bounded by a hook-owned counter and fails open — see [tooling.md](tooling.md).
+**The persistence leash.** The skill writes `$CLAUDE_PROJECT_DIR/.claude/.sdlc-goal-<session_id>` (spec, statement, exit criteria, `status: active`). While it is active, `stop-handoff.mjs` blocks a premature stop and feeds the criteria back, so a run does not drift back to the user half-done. `met` and `escalated` are the only release words. It is bounded by a hook-owned counter and fails open — see [tooling.md](tooling.md).
 
 **Transparency is not optional.** The run keeps a visible task list — one entry per guide step plus end-to-end validation and the integration gate — updated as each lands, so anyone in the session can see what is in flight and what remains without asking.
 

@@ -4,7 +4,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -158,6 +158,37 @@ test('an unreadable worktrees directory does not silence the prompt hook', () =>
         const res = hook('user-prompt-submit.mjs', fx.root, { prompt: 'execute SPEC-011', session_id: 's7', cwd: fx.root })
         assert.equal(res.status, 0)
         assert.match(res.stdout, /SDLC routing/, 'entry routing still prints')
+    } finally {
+        fx.cleanup()
+    }
+})
+
+// ── Gate round 1 (PR #99) ────────────────────────────────────────────────────
+
+test('a plain git repo gets no worktree nudge and no marker', () => {
+    const tmp = realpathSync(mkdtempSync(join(tmpdir(), 'sdlc-plain-')))
+    try {
+        const git = (...a) => assert.equal(spawnSync('git', a, { cwd: tmp, encoding: 'utf8' }).status, 0)
+        git('init', '-q', '-b', 'main', '.')
+        git('commit', '-q', '--allow-empty', '-m', 'i')
+        git('worktree', 'add', '-q', '--detach', join(tmp, '..', `${tmp.split('/').pop()}-sib`))
+        const res = hook('user-prompt-submit.mjs', tmp, { prompt: 'hello', session_id: 's8', cwd: tmp })
+        assert.equal(res.status, 0)
+        assert.doesNotMatch(res.stdout, /stray worktree/)
+        assert.equal(existsSync(join(tmp, '.claude', '.sdlc-worktree-nudge-s8')), false)
+    } finally {
+        rmSync(tmp, { recursive: true, force: true })
+        rmSync(join(tmp, '..', `${tmp.split('/').pop()}-sib`), { recursive: true, force: true })
+    }
+})
+
+test('an override recorded in the main checkout covers an edit inside a worktree on a non-task branch', () => {
+    const fx = fixture()
+    try {
+        put(fx.root, '.claude/.sdlc-override-s9', 'hotfix the misc tree\n')
+        const res = hook('pre-tool-use-edit-write.mjs', fx.root, { tool_name: 'Edit', tool_input: { file_path: join(fx.root, '.claude/worktrees/misc/src/a.ts') }, cwd: fx.root, session_id: 's9' }, { SDLC_GUARD_MODE: 'enforce' })
+        assert.equal(res.status, 0, res.stderr)
+        assert.match(readFileSync(join(fx.root, '.claude/.sdlc-override-log'), 'utf8'), /\.claude\/worktrees\/misc\/src\/a\.ts/, 'the bypass is logged in the project, by its project path')
     } finally {
         fx.cleanup()
     }

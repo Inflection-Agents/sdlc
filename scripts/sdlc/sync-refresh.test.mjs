@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { applyRefresh, planRefresh } from './sync-refresh.mjs'
+import { applyRefresh, gitignoreToAdd, planRefresh } from './sync-refresh.mjs'
 import { installPayload } from './install-payload.mjs'
 import { loadManifest, roleOf, sha256 } from './gen-released-payloads.mjs'
 import { commitAll, frameworkFileAt, git, layout2Repo } from './__fixtures__/layouts/build.mjs'
@@ -123,6 +123,8 @@ test('AC-013: --apply on a layout-2 repo adds the .claude/worktrees/ ignore line
         assert.equal(once, 'dist/\n.claude/.sdlc-*\n!.claude/.sdlc-override-log\n.claude/worktrees/\n')
         applyRefresh(repo, planRefresh(repo, { manifest: manifestWithCurrentPayload() }), { version: null })
         assert.equal(readFileSync(join(repo, '.gitignore'), 'utf8'), once, 'a second sync writes nothing')
+        writeFileSync(join(repo, '.gitignore'), 'dist/\n')
+        assert.deepEqual(gitignoreToAdd(repo), ['.claude/.sdlc-*', '!.claude/.sdlc-override-log', '.claude/worktrees/'], '--plan names every line --apply will add')
     } finally {
         rmSync(repo, { recursive: true, force: true })
     }

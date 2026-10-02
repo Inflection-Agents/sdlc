@@ -11,7 +11,9 @@
  *   spec-closed  it is `spec-NNN`, and that spec is neither draft nor active, or does not resolve
  *
  * List mode reads only `git worktree list` and local refs, so a hook can run it cheaply.
- * `--prune` removes only clean `branch-gone` and `spec-closed` strays under `.claude/worktrees/`:
+ * A `spec-NNN` worktree of a live spec, read from its own tree first, is never a stray.
+ * `--prune` removes only clean `branch-gone` and `spec-closed` strays under `.claude/worktrees/`
+ * that hold no other worktree, and a `spec-closed` one only when the spec resolved:
  * removing a worktree also deletes its gitignored files, and the other three kinds may still be
  * in use (SPEC-011 > D-015). It never passes `--force` and never deletes a branch.
  *
@@ -79,23 +81,38 @@ function goneBranches(cwd) {
     return gone
 }
 
-function specIsLive(id, root) {
-    for (const file of findById(id, root)) {
-        const fm = parseFrontmatter(readFileSync(file, 'utf8'))
-        if (fm.id === id) return LIVE_SPEC.has(fm.status)
+/**
+ * The spec's status, read from each tree in turn: the spec worktree's own checkout first, then
+ * the main checkout. The main checkout can be on a branch that predates the spec, so it alone
+ * cannot say a spec is closed. Null when no tree has the spec.
+ */
+function specStatus(id, trees) {
+    for (const tree of trees) {
+        for (const file of findById(id, tree)) {
+            const fm = parseFrontmatter(readFileSync(file, 'utf8'))
+            if (fm.id === id) return fm.status ?? null
+        }
     }
-    return false
+    return null
 }
 
-/** Why a linked worktree is a stray, or null when it is not. */
+/**
+ * Why a linked worktree is a stray, or null when it is not, as `{ reason, removable }`. A
+ * `spec-NNN` worktree of a live spec is never a stray, whatever its branch: it belongs to a
+ * delivery run, and only that run's `--own` exit removes it. A spec that resolves nowhere is
+ * reported, but never removable.
+ */
 export function strayReason(wt, { base, gone, root }) {
-    if (!real(wt.path).startsWith(base)) return 'outside'
     const name = basename(wt.path)
-    if (/^agent-/.test(name)) return 'agent'
-    if (wt.branch && gone.has(wt.branch)) return 'branch-gone'
-    if (wt.detached || !wt.branch) return 'detached'
+    const inside = real(wt.path).startsWith(base)
+    if (/^agent-/.test(name)) return { reason: 'agent', removable: false }
+    if (!inside) return { reason: 'outside', removable: false }
     const spec = name.match(/^spec-(\d{3})$/)
-    if (spec && !specIsLive(`SPEC-${spec[1]}`, root)) return 'spec-closed'
+    const status = spec ? specStatus(`SPEC-${spec[1]}`, [wt.path, root]) : undefined
+    if (spec && LIVE_SPEC.has(status)) return null
+    if (wt.branch && gone.has(wt.branch)) return { reason: 'branch-gone', removable: true }
+    if (wt.detached || !wt.branch) return { reason: 'detached', removable: false }
+    if (spec) return { reason: 'spec-closed', removable: status !== null }
     return null
 }
 
@@ -104,7 +121,7 @@ export function strayReason(wt, { base, gone, root }) {
  * checkout, the first entry, is never a stray, and spec status is read from it.
  */
 export function findStrays(cwd) {
-    return straysOf(listWorktrees(cwd))
+    return straysOf(listWorktrees(cwd)).map(({ keep, ...s }) => s)
 }
 
 function straysOf(all) {
@@ -114,8 +131,9 @@ function straysOf(all) {
     return all
         .slice(1)
         .filter((wt) => !wt.prunable)
-        .map((wt) => ({ path: wt.path, branch: wt.branch, reason: strayReason(wt, ctx) }))
-        .filter((s) => s.reason)
+        .map((wt) => ({ path: wt.path, branch: wt.branch, why: strayReason(wt, ctx) }))
+        .filter((s) => s.why)
+        .map(({ why, ...s }) => ({ ...s, reason: why.reason, ...(why.removable ? {} : { keep: true }) }))
 }
 
 function isClean(path) {
@@ -126,33 +144,43 @@ function isClean(path) {
 /**
  * Remove what may be removed and report the rest. With `own`, only `.claude/worktrees/<own>`
  * is a candidate, whether or not it is a stray; without it, the clean REMOVABLE strays are.
- * Returns `{ removed, kept }`, each a list of `{ path, branch, reason, dirty? }`.
+ * Returns `{ removed, kept }`, each a list of `{ path, branch, reason, why? }`, where `why` says
+ * why a candidate was kept (`dirty`, `holds another worktree`, or git's refusal).
  */
 export function prune(cwd, { own = null } = {}) {
     const all = listWorktrees(cwd)
     const main = all[0].path
     const strays = straysOf(all)
     const ownPath = own ? real(join(main, WORKTREES_REL, own)) : null
+    const live = all.slice(1).filter((wt) => !wt.prunable)
     const candidates = own
-        ? all.slice(1).filter((wt) => real(wt.path) === ownPath).map((wt) => ({ path: wt.path, branch: wt.branch, reason: 'own' }))
-        : strays.filter((s) => REMOVABLE.has(s.reason))
+        ? live.filter((wt) => real(wt.path) === ownPath).map((wt) => ({ path: wt.path, branch: wt.branch, reason: 'own' }))
+        : strays.filter((s) => REMOVABLE.has(s.reason) && !s.keep)
     const removed = []
     const kept = strays.filter((s) => !candidates.some((c) => real(c.path) === real(s.path)))
     for (const c of candidates) {
-        if (!isClean(c.path)) {
-            kept.push({ ...c, dirty: true })
+        // `git worktree remove` deletes the whole directory, so it would take any worktree
+        // registered inside this one with it, uncommitted work included.
+        const holds = all.slice(1).some((wt) => wt !== c && real(wt.path).startsWith(real(c.path) + sep))
+        if (holds) {
+            kept.push({ ...c, why: 'holds another worktree' })
             continue
         }
+        if (!isClean(c.path)) {
+            kept.push({ ...c, why: 'dirty' })
+            continue
+        }
+        // No --force, ever; and no `git worktree prune`, which would deregister every other
+        // worktree whose directory is missing (a hand-moved one included).
         const res = git(main, ['worktree', 'remove', c.path])
         if (res.status === 0) removed.push(c)
-        else kept.push({ ...c, dirty: true, error: res.stderr.trim() })
+        else kept.push({ ...c, why: res.stderr.trim().split('\n').pop() || 'git refused' })
     }
-    git(main, ['worktree', 'prune'])
     return { removed, kept }
 }
 
 function formatStray(s) {
-    return `${s.reason.padEnd(12)} ${s.path}  ${s.branch ?? '(detached)'}${s.dirty ? '  [dirty, kept]' : ''}`
+    return `${s.reason.padEnd(12)} ${s.path}  ${s.branch ?? '(detached)'}${s.why ? `  [kept: ${s.why}]` : ''}`
 }
 
 function main(argv) {

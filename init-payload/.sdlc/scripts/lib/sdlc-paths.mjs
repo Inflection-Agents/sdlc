@@ -89,9 +89,13 @@ export function nestedWorktree(project, start = process.cwd()) {
     const base = real(join(project, WORKTREES_REL)) + sep
     const from = real(start)
     if (!from.startsWith(base)) return null
-    const res = spawnSync('git', ['-C', from, 'rev-parse', '--show-toplevel'], { encoding: 'utf8' })
+    // A linked worktree of this project shares its git directory; an unrelated repository that
+    // happens to sit under .claude/worktrees/ does not, and never becomes a gate's root.
+    const res = spawnSync('git', ['-C', from, 'rev-parse', '--show-toplevel', '--path-format=absolute', '--git-common-dir'], { encoding: 'utf8' })
     if (res.status !== 0) return null
-    const top = real(res.stdout.trim())
+    const [top, common] = res.stdout.trim().split('\n').map(real)
+    const own = spawnSync('git', ['-C', project, 'rev-parse', '--path-format=absolute', '--git-common-dir'], { encoding: 'utf8' })
+    if (own.status !== 0 || real(own.stdout.trim()) !== common) return null
     return top.startsWith(base) ? top : null
 }
 

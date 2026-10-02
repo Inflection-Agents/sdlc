@@ -114,6 +114,15 @@ export function writeFrameworkVersion(root, version) {
     return next !== text
 }
 
+/** The payload `.gitignore` lines the repo lacks, which `--apply` adds. */
+export function gitignoreToAdd(root, payload = DEFAULT_PAYLOAD) {
+    const source = join(payload, '.gitignore')
+    if (!existsSync(source)) return []
+    const target = join(root, '.gitignore')
+    const have = new Set(existsSync(target) ? readFileSync(target, 'utf8').split(/\r?\n/) : [])
+    return readFileSync(source, 'utf8').split('\n').filter((l) => l.trim() && !l.startsWith('#') && !have.has(l))
+}
+
 /** Merge the payload `.gitignore` lines the repo lacks. @returns {string[]} the lines added */
 export function mergeGitignore(root, payload = DEFAULT_PAYLOAD) {
     const source = join(payload, '.gitignore')
@@ -154,6 +163,8 @@ function main(argv) {
         if (files.length) process.stdout.write(`${status} (${files.length}):\n${files.map((f) => `  ${f}`).join('\n')}\n`)
     }
     process.stdout.write(`current: ${plan.filter((p) => p.status === 'current').length} file(s)\n`)
+    const ignores = gitignoreToAdd(root)
+    if (ignores.length) process.stdout.write(`.gitignore lines to add (${ignores.length}):\n${ignores.map((l) => `  ${l}`).join('\n')}\n`)
     if (!rest.includes('--apply')) return
     let kept
     try {
