@@ -75,3 +75,10 @@ in chronological order.
 
 **Merged:** PR #96
 **What changed:** init-payload/.gitignore gains .claude/worktrees/; sync-refresh.mjs applyRefresh merges missing .gitignore lines through install-payload appendLines, idempotently. Guide change: no payload copy of the plugin-only sync-refresh.mjs.
+
+---
+
+## S6 — docs/worktrees.md, and every rule cites it
+
+**Merged:** PR #97
+**What changed:** docs/worktrees.md states every rule; SOP §1 creates or re-enters .claude/worktrees/spec-NNN and runs worktrees.setup; §7.4 and §8 remove it from CLAUDE_PROJECT_DIR and run worktrees --fetch --prune --own; subagents branch from origin/feat/spec-NNN; nothing-lingers narrowed to step worktrees in five places; goal paths absolute.
