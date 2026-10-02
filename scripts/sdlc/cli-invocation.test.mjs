@@ -119,3 +119,35 @@ test('check-stale-citations.mjs still produces output through a symlinked path',
     const res = viaSymlink('check-stale-citations.mjs', [], '')
     assert.notEqual(res.stdout.trim() + res.stderr.trim(), '', 'the gate must not run silently')
 })
+
+// SPEC-007's gates (PR #86 review). Each one must fail loudly through a symlinked path.
+
+test('validate-spec.mjs still rejects a bad spec through a symlinked path', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'sdlc-vspec-'))
+    try {
+        const spec = join(dir, 'SPEC-100-x.md')
+        writeFileSync(spec, '---\nid: SPEC-100\n---\n\n## Problem\n\nx\n', 'utf8')
+        const res = viaSymlink('validate-spec.mjs', [spec], '')
+        assert.equal(res.status, 1, 'a spec missing sections must not exit 0')
+        assert.match(res.stdout, /Required section/)
+    } finally {
+        rmSync(dir, { recursive: true, force: true })
+    }
+})
+
+test('review-log.mjs still refuses a usage error through a symlinked path', () => {
+    const res = viaSymlink('review-log.mjs', ['append'], '')
+    assert.equal(res.status, 2)
+    assert.match(res.stderr, /usage/)
+})
+
+test('gen-spec-index.mjs --check still produces output through a symlinked path', () => {
+    const res = viaSymlink('gen-spec-index.mjs', ['--check'], '')
+    assert.notEqual(res.stdout.trim() + res.stderr.trim(), '', 'the gate must not run silently')
+})
+
+test('stamp-envelope.mjs still rejects garbage through a symlinked path', () => {
+    const res = viaSymlink('stamp-envelope.mjs', ['-'], '{not json')
+    assert.equal(res.status, 3, 'a silent exit 0 here would read as a clean accept')
+    assert.match(res.stderr, /CONTRACT VIOLATION/)
+})

@@ -32,8 +32,13 @@ The dispatching skill seeds you with concrete paths, not descriptions:
 - the spec file under review, and for an amendment, what changed
 - `skills/spec-schema.md` — required sections and frontmatter
 - `skills/spec-authoring/SKILL.md` — for `spec-authoring:<anchor>` citations
+- the authoring decision ledger, `specs/decisions/SPEC-NNN.md`, when the spec has one. It is the
+  author's record, not an owner ruling: do not reopen a question it records as decided at nit or
+  suggestion severity, but still raise a blocker or major it touches, citing the entry, so the
+  owner rules on it
 - the intent this spec formalizes
-- the `AGENTS.md` SDLC block and `.sdlc/config.yaml` `workspaces` — for workspace-coverage checks
+- `.sdlc/config.yaml` `workspaces`, plus the `AGENTS.md` SDLC block when the repo has one — for
+  workspace-coverage checks
 - every ADR the design references, plus any it may contradict
 
 An input you were not given is one you do not have. Say what was missing rather than inferring it —

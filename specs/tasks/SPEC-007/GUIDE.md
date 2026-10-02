@@ -7,14 +7,14 @@ spec_version: 1
 
 ### S1: Cap the spec-side loop at four rounds
 - Covers: AC-001, AC-002, AC-003, AC-004
-- Changes: `skills/review-primitives.md`, `skills/spec-authoring/SKILL.md`, `skills/spec-amendment/SKILL.md`, `skills/spec-schema.md`, `specs/SPEC-001-tiered-code-review.md` (Changelog only), `init-payload/.sdlc/contracts/review-primitives.md`
+- Changes: `skills/review-primitives.md`, `skills/spec-authoring/SKILL.md`, `skills/spec-amendment/SKILL.md`, `skills/spec-schema.md`, `specs/SPEC-001-tiered-code-review.md` (Changelog only), `init-payload/.sdlc/contracts/review-primitives.md`, `scripts/sdlc/lib/released-payloads.json`
 - Verify: `rg -n 'disclose_and_accept' skills/review-primitives.md skills/spec-authoring/SKILL.md skills/spec-amendment/SKILL.md`, `rg -n 'Worked trace' skills/review-primitives.md` (two traces: a round-4 spec blocker returning `disclose_and_accept`, and a round-4 PR blocker returning `fix_loop`), `env -u CLAUDE_PROJECT_DIR node --test .sdlc/scripts/prefix-parity.test.mjs .sdlc/scripts/validate-plugin-manifest.test.mjs`, `node .sdlc/scripts/gen-handoffs.mjs --check`
 - Risk: medium
 - Notes: the cap is one constant in the policy block of `review-primitives.md`. `spec-authoring` and `spec-amendment` cite it and copy no rule text (AC-003). `round` is optional, and without it the policy is unchanged, so the PR-side call in SPEC-002 Appendix B stays valid. Declare `## Disclosed, not reviewed-clean` and `resolution: wontfix` in `spec-schema.md` here; S3 enforces the section position.
 
 ### S2: One reviewer per round after the first
 - Covers: AC-012, AC-013
-- Changes: `skills/spec-authoring/SKILL.md`, `skills/spec-amendment/SKILL.md`, `skills/review-primitives.md`, `init-payload/.sdlc/contracts/review-primitives.md`
+- Changes: `skills/spec-authoring/SKILL.md`, `skills/spec-amendment/SKILL.md`, `skills/review-primitives.md`, `init-payload/.sdlc/contracts/review-primitives.md`, `scripts/sdlc/lib/released-payloads.json`
 - Verify: `rg -n 'adversarial' skills/spec-authoring/SKILL.md`, `env -u CLAUDE_PROJECT_DIR node --test .sdlc/scripts/prefix-parity.test.mjs`
 - After: S1
 - Notes: state the per-round count once, in Step 10a, and delete the contradicting line 312 wording. Keep the SPEC-001 AC-010 measurement exception.
@@ -28,7 +28,7 @@ spec_version: 1
 
 ### S4: Content-addressed finding ids
 - Covers: AC-014, AC-015, AC-016, AC-017
-- Changes: `skills/review-envelope.schema.json`, `init-payload/.sdlc/contracts/review-envelope.schema.json`, `scripts/sdlc/validate-review-envelope.mjs`, `scripts/sdlc/validate-review-envelope.test.mjs`, `init-payload/.sdlc/scripts/validate-review-envelope.mjs`, `scripts/sdlc/lib/released-payloads.json`, `skills/review-primitives.md`, `init-payload/.sdlc/contracts/review-primitives.md`, `skills/spec-schema.md`, `skills/spec-reviewer/SKILL.md`, `skills/pr-reviewer/SKILL.md`, `agents/*.md`, `skills/*/examples/*.md`, `specs/SPEC-001-tiered-code-review.md` (Changelog only)
+- Changes: `skills/review-envelope.schema.json`, `init-payload/.sdlc/contracts/review-envelope.schema.json`, `scripts/sdlc/validate-review-envelope.mjs`, `scripts/sdlc/validate-review-envelope.test.mjs`, `init-payload/.sdlc/scripts/validate-review-envelope.mjs`, `scripts/sdlc/lib/released-payloads.json`, `skills/review-primitives.md`, `init-payload/.sdlc/contracts/review-primitives.md`, `skills/spec-schema.md`, `skills/spec-reviewer/SKILL.md`, `skills/pr-reviewer/SKILL.md`, `agents/*.md`, `skills/*/examples/*.md`, `specs/SPEC-001-tiered-code-review.md` (Changelog only), `scripts/sdlc/lib/finding-id.mjs`, `init-payload/.sdlc/scripts/lib/finding-id.mjs`, `scripts/sdlc/validate-spec.mjs`, `scripts/sdlc/validate-spec.test.mjs`, `init-payload/.sdlc/scripts/validate-spec.mjs`, `skills/spec-authoring/SKILL.md`, `skills/spec-amendment/SKILL.md`, `skills/spec-execution/SKILL.md`, `skills/spec-execution/SOP.md`
 - Verify: `env -u CLAUDE_PROJECT_DIR node --test .sdlc/scripts/validate-review-envelope.test.mjs .sdlc/scripts/prefix-parity.test.mjs .sdlc/scripts/reviewer-routing.test.mjs`, `node .sdlc/scripts/gen-released-payloads.mjs --check`
 - After: S1
 - Risk: high
@@ -36,7 +36,7 @@ spec_version: 1
 
 ### S5: The durable review log, projection and suppression
 - Covers: AC-005, AC-018, AC-019, AC-020
-- Changes: `scripts/sdlc/review-log.mjs`, `scripts/sdlc/review-log.test.mjs`, `init-payload/.sdlc/scripts/review-log.mjs`, `scripts/sdlc/lib/released-payloads.json`, `skills/review-primitives.md`, `init-payload/.sdlc/contracts/review-primitives.md`, `skills/spec-authoring/SKILL.md`, `skills/spec-amendment/SKILL.md`, `skills/spec-schema.md`, `.github/workflows/sdlc-validate.yml`
+- Changes: `scripts/sdlc/review-log.mjs`, `scripts/sdlc/review-log.test.mjs`, `init-payload/.sdlc/scripts/review-log.mjs`, `scripts/sdlc/lib/released-payloads.json`, `skills/review-primitives.md`, `init-payload/.sdlc/contracts/review-primitives.md`, `skills/spec-authoring/SKILL.md`, `skills/spec-amendment/SKILL.md`, `skills/spec-schema.md`, `.github/workflows/sdlc-validate.yml`, `specs/SPEC-001-tiered-code-review.md` (Changelog only)
 - Verify: `env -u CLAUDE_PROJECT_DIR node --test .sdlc/scripts/review-log.test.mjs`, `node .sdlc/scripts/gen-released-payloads.mjs --check`
 - After: S4
 - Risk: medium
@@ -51,14 +51,14 @@ spec_version: 1
 
 ### S7: The spec index
 - Covers: AC-024, AC-025
-- Changes: `scripts/sdlc/gen-spec-index.mjs`, `scripts/sdlc/gen-spec-index.test.mjs`, `init-payload/.sdlc/scripts/gen-spec-index.mjs`, `scripts/sdlc/lib/released-payloads.json`, `specs/spec-index.json`, `skills/spec-schema.md`, `.github/workflows/sdlc-validate.yml`, `init-payload/.github/workflows/sdlc-validate.yml`
+- Changes: `scripts/sdlc/gen-spec-index.mjs`, `scripts/sdlc/gen-spec-index.test.mjs`, `init-payload/.sdlc/scripts/gen-spec-index.mjs`, `scripts/sdlc/lib/released-payloads.json`, `specs/spec-index.json`, `skills/spec-schema.md`, `.github/workflows/sdlc-validate.yml`, `init-payload/.github/workflows/sdlc-validate.yml`, `skills/spec-completion/SKILL.md`
 - Verify: `env -u CLAUDE_PROJECT_DIR node --test .sdlc/scripts/gen-spec-index.test.mjs`, `node .sdlc/scripts/gen-spec-index.mjs --check`, `node .sdlc/scripts/gen-released-payloads.mjs --check`
 - After: S3
 - Notes: reuse the frontmatter parsing `archive-specs.mjs` and `complete-spec.mjs` already have. Index archived specs too, with their `path` under `specs/archive/`.
 
 ### S8: Reviewer inputs that resolve, and the research protocol
 - Covers: AC-026, AC-027
-- Changes: `skills/spec-authoring/SKILL.md`, `skills/spec-amendment/SKILL.md`, `.sdlc/templates/authoring-decisions.md`, `init-payload/.sdlc/templates/authoring-decisions.md`
+- Changes: `skills/spec-authoring/SKILL.md`, `skills/spec-amendment/SKILL.md`, `.sdlc/templates/authoring-decisions.md`, `init-payload/.sdlc/templates/authoring-decisions.md`, `scripts/sdlc/lib/released-payloads.json`
 - Verify: `diff -rq .sdlc/templates init-payload/.sdlc/templates`, `rg -n 'optional' skills/spec-authoring/SKILL.md`, `node .sdlc/scripts/gen-handoffs.mjs --check`
 - After: S6, S7
 - Notes: `AGENTS.md` is the live instance: absent in this repo, present in every adopter `/sdlc-init` sets up. Mark it optional where Step 10a seeds it.

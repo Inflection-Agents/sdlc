@@ -2,7 +2,7 @@
 
 Shared primitives consumed by `pr-reviewer` and `spec-reviewer`. Single source of truth for severity, grounding rules, output schema, and carry-forward semantics. Both reviewer skills (and any Tier 2 PR specialists) MUST reference this file rather than redefining these contracts; drift between the two reviewers is a SPEC-001 contract violation.
 
-This file is content-equivalent to SPEC-001 > Design > Shared primitives + Orchestrator severity→action policy. SPEC-001 remains the spec of record; this file is the operational contract the skills load.
+This file is content-equivalent to SPEC-001 > Design > Shared primitives + Orchestrator severity→action policy, plus the spec-side extensions SPEC-007 adds to that policy (the round cap and `disclose_and_accept`, and the owner rulings read from the review log; see SPEC-001 > Changelog v1.4 and v1.6). SPEC-001 remains the spec of record; this file is the operational contract the skills load.
 
 ---
 
@@ -116,7 +116,7 @@ Both reviewers emit the same JSON envelope. Illustrative pseudo-JSON (unions are
   "tier": "1 | 2",
   "findings": [
     {
-      "id": "F-001",
+      "id": "F-<8 hex: content-addressed, set by stamp-envelope>",
       "severity": "blocker | major | nit | suggestion",
       "criterion": "<grounded citation per grounding rules>",
       "location": "<file:line | spec section name>",
@@ -138,6 +138,7 @@ Per-artifact field constraints:
 
 - **`artifact: "pr"`** — `pr_number` is non-null; `verification` is a populated object (not null); `tier_2_dispatch_recommended` MAY contain specialist names per Appendix B of SPEC-001.
 - **`artifact: "spec"`** — `pr_number` is `null`; `verification` is `null`; `tier_2_dispatch_recommended` is `[]`.
+- **`id`** — content-addressed (ADR-006, SPEC-007 Lever 4): `F-` and the first 8 hex digits of `sha256(location_key ‖ NUL ‖ criterion ‖ NUL ‖ finding)`. `location_key` is a PR finding's `file:line` with the line dropped, because lines move between rounds, or a spec finding's `location` as written. `criterion` falls back to the `citation` alias. The same defect raised in two rounds therefore carries the same id, and rewording a finding gives it a new one. A reviewer cannot hash by hand, so it may omit `id` or write anything there: the orchestrator runs `stamp-envelope` (the validator's `--stamp` mode), which sets every id from the finding's own fields, and the validator rejects an id that does not match its content. `id`, `location`, `criterion` (or `citation`) and `finding` are all required.
 - **`tier: 2`** — only valid when `artifact: "pr"`. Tier 2 outputs MUST NOT re-raise findings already present in the Tier 1 output they were given.
 - **`location`** — for PR findings, format is `file:line` (or `file` if the finding is whole-file). For spec findings, format is the spec section heading text (e.g., `"Success criteria > third bullet"`).
 
@@ -235,7 +236,27 @@ Same iteration-1 nit at `Success criteria > third bullet`. The amendment in iter
 Same routing applies to both reviewers (PR side and spec side). The policy is invoked from `spec-execution` (PR side, per SPEC-002) and from `spec-authoring` / `spec-amendment` (spec side, per SPEC-001).
 
 ```
+SPEC_REVIEW_ROUND_CAP = 4   # ADR-005. The one copy: spec-authoring and spec-amendment cite it.
+
+# `round` and `review_log` are optional. Absent, as on every PR-side call, the policy is exactly
+# the one-argument policy SPEC-002 Appendix B calls as apply_spec_001_policy(all_findings).
 findings = reviewer_output["findings"]
+
+# Owner rulings (spec side, SPEC-007 Lever 5). Read from specs/review-logs/SPEC-NNN.json and from
+# no other file; `review-log.mjs apply` is the deterministic implementation of this step.
+RANK = {"suggestion": 0, "nit": 1, "major": 2, "blocker": 3}
+min_severity = lambda a, b: a if RANK[a] <= RANK[b] else b
+
+if review_log is not None:
+    # A ruling holds for its id at any severity. A later round that raises the finding above the
+    # ruling's `ruled_severity` does not change its routing; `review-log check` fails on it until
+    # the owner rules again, so the raise is never silent.
+    ruled = {e["id"]: e for e in review_log["findings"]
+             if e["resolution"] in ("overridden", "wontfix")}
+    findings = [f for f in findings if ruled.get(f["id"], {}).get("resolution") != "wontfix"]
+    findings = [{**f, "severity": min_severity(f["severity"], ruled[f["id"]]["owner_severity"])}
+                if f["id"] in ruled else f
+                for f in findings]
 
 # Guard: any finding whose criterion prefix is not allowed by the grounding
 # rules for this reviewer role short-circuits the policy.
@@ -249,17 +270,40 @@ else:
     nits        = [f for f in findings if f["severity"] == "nit"]
     suggestions = [f for f in findings if f["severity"] == "suggestion"]
 
-    if blockers:                 action = "fix_loop"
+    capped = (reviewer_output["artifact"] == "spec"
+              and round is not None and round >= SPEC_REVIEW_ROUND_CAP)
+
+    if (blockers or majors) and capped: action = "disclose_and_accept"
+    elif blockers:               action = "fix_loop"
     elif majors:                 action = "fix_loop"
     elif nits or suggestions:    action = "batch_followup_and_accept"
     else:                        action = "accept"
 ```
+
+**Worked trace: a round-4 spec blocker.** `artifact: "spec"`, `round: 4`, one finding with
+`severity: "blocker"`. `capped` is true, so the action is `disclose_and_accept` and no round 5 is
+dispatched.
+
+**Worked trace: an owner ruling.** `artifact: "spec"`, `round: 2`, findings `F-1a2b3c4d`
+(`major`) and `F-5e6f7a8b` (`blocker`). The log records `F-1a2b3c4d` as `overridden` with
+`owner_severity: nit`, and `F-5e6f7a8b` as `wontfix`. The ruling step drops `F-5e6f7a8b` and routes
+`F-1a2b3c4d` as a `nit`, so the action is `batch_followup_and_accept`. Had the reviewer raised
+`F-1a2b3c4d` as a `suggestion` that round, it would route as a `suggestion`: a ruling only lowers. Had the reviewer raised `F-5e6f7a8b` above the
+severity the owner ruled it at, it would still be dropped, and `review-log check` would fail until the
+owner ruled on it again; a `wontfix` on a blocker or major also needs a `## Disclosed, not
+reviewed-clean` entry.
+
+**Worked trace: a round-4 PR blocker.** `artifact: "pr"`, `round: 4` (or no `round`), one finding
+with `severity: "blocker"`. `capped` is false for any `artifact` other than `"spec"`, so the action
+is `fix_loop`. The PR side never returns `disclose_and_accept`; its round cap is ADR-004's, applied
+by `spec-execution`, not by this policy.
 
 Action semantics:
 
 - **`accept`** — merge the PR (PR side) or move the spec to `status: active` (spec side).
 - **`batch_followup_and_accept`** — on the PR side: opens a grooming task containing both nits and suggestions and accepts the PR. On the spec side: appends both severities to the `spec_followups:` section (declared via the spec-schema amendment in SPEC-001 AC-013) and accepts the spec. Suggestions are **not** silently dropped — they ride alongside nits in the follow-up channel.
 - **`fix_loop`** — the artifact author addresses the findings and re-submits; the reviewer re-runs with `previous_output` set.
+- **`disclose_and_accept`** — spec side only, at round `SPEC_REVIEW_ROUND_CAP` with a blocker or major left (ADR-005). No further round is dispatched. Every surviving blocker and major goes into a `## Disclosed, not reviewed-clean` section of the spec body, one entry per finding naming its `id`, the round it was first raised in, its severity, its `criterion`, its `location`, and why it was not closed (`skills/spec-schema.md` > Optional appended sections). Nits and suggestions are handled as under `batch_followup_and_accept`. The owner then signs off with the survivors in front of them.
 - **`escalate`** — an explicit return from this policy that the orchestrator must handle as a branch (see SPEC-002 Appendix B). Triggered when any finding cites a prefix not in the allowed list for the reviewer role, which indicates either a SPEC-001 contract violation or an unrecognized cross-skill signal.
 
 ---
@@ -288,7 +332,7 @@ SPEC-001 success criteria require that two reviewers configured differently grad
 
 ## Prompt variants (SPEC-001 AC-014)
 
-Two reviewer prompt variants are concretely defined so the AC-010 measurement protocol is reproducible without further design work. The variants apply to `spec-reviewer`; the same pattern (default + adversarial) can be lifted to `pr-reviewer` if measurement on the PR side requires it.
+Two reviewer prompt variants are concretely defined so the AC-010 measurement protocol is reproducible without further design work. How many reviewers a spec-review round dispatches, and with which variant, is set once in `spec-authoring` Step 10a > **Reviewers per round**: both variants in round 1, `default` alone after it, both again whenever this protocol runs. The variants apply to `spec-reviewer`; the same pattern (default + adversarial) can be lifted to `pr-reviewer` if measurement on the PR side requires it.
 
 The full `spec-reviewer` prompt body (with INPUTS / GROUNDING / GAP CATALOG / SEVERITY / CARRY-FORWARD / OUTPUT / DECISION sections) lives in `skills/spec-reviewer/SKILL.md` (TASK-004). The two variants below specify **only the framing/severity-bias instructions** that wrap the shared prompt body. The reviewer concatenates the appropriate variant block at the top of the shared body when invoked.
 

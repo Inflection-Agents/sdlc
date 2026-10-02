@@ -357,6 +357,22 @@ Entries are append-only at first. The `resolved` boolean and its companion field
 - Also records that the fix loop this field routes into is now bounded: [`ADR-004`](adrs/ADR-004-capped-integration-gate.md) caps the integration gate at three rounds, and a blocker or major surviving round 3 is disclosed in the integration PR body rather than carried into a fourth.
 - Rationale and the full port analysis: [`docs/plans/2026-09-09-enforcement-tiers-design.md`](../docs/plans/2026-09-09-enforcement-tiers-design.md).
 
+### v1.4 (2026-10-02) — a spec-side round cap and `disclose_and_accept`, via SPEC-007
+- Live `review-primitives.md` > Orchestrator severity→action policy gains an optional `round` input, one constant (`SPEC_REVIEW_ROUND_CAP = 4`, ADR-005), and a fifth action, `disclose_and_accept`. The policy returns that action only for `artifact: "spec"` at the cap with a blocker or major left. This extends the set SPEC-001's third success criterion enumerates, on the spec side only. On the PR side, and on any call without `round`, the policy is unchanged, so SPEC-002 > Appendix B's return set stays exhaustive.
+- **This is not an extension-pattern change and does not rely on one**, on the precedent of v1.3. The extension pattern in `review-primitives.md` charters new consequence rows and citation prefixes, and a fifth orchestrator action is neither. Severity grading is untouched.
+- `skills/spec-schema.md` declares the matching optional section, `## Disclosed, not reviewed-clean`, and an optional `resolution: wontfix` on `spec_review_overrides`.
+- See SPEC-007 for the full design and rationale.
+
+### v1.5 (2026-10-02) — content-addressed finding ids, via SPEC-007
+- Live `review-envelope.schema.json` now requires `id`, `location` and `finding` on every finding, beside `severity` and a grounded `criterion` or `citation`. `id` is `F-` and 8 hex digits of `sha256(location_key ‖ NUL ‖ criterion ‖ NUL ‖ finding)` (ADR-006). `validate-review-envelope.mjs` recomputes it and rejects a mismatch, and its `--stamp` mode sets ids from the findings' own fields before validating. The ordinal `F-001` form this spec's examples used is retired.
+- This is a breaking change to the envelope both reviewers emit, made under SPEC-007's own scope and not by the extension pattern, on the precedent of v1.3. Severity grading and the routing policy are unchanged.
+- See SPEC-007 for the full design and rationale.
+
+### v1.6 (2026-10-02) — owner rulings read from the review log, via SPEC-007
+- Live `review-primitives.md` > Orchestrator severity→action policy gains an optional `review_log` input and one step before severity routing: drop a finding the log records as `wontfix`, and route a finding it records as `overridden` at the lower of the reviewer's severity and the owner's `owner_severity`. A ruling holds for its id at any severity; `review-log.mjs check` fails while a later round has raised the finding above the severity the owner ruled at (`ruled_severity`), until the owner rules again. The policy reads the ruling from `specs/review-logs/SPEC-NNN.json` and from no other file. Without `review_log`, as on every PR-side call, the policy is unchanged.
+- An override still downgrades only, and stays visible in the spec body's `spec_review_overrides`. `review-log.mjs` records a ruling only when that entry already shows it and the spec's owner records it.
+- See SPEC-007 for the full design and rationale.
+
 ## Appendix A — `pr-reviewer` prompt (draft)
 
 Lives in `.ai/skills/pr-reviewer/SKILL.md` on implementation.

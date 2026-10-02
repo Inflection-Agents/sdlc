@@ -15,7 +15,7 @@
  *   node .sdlc/scripts/resolve.mjs ADR-004 --print  # -> path plus file contents
  */
 import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
-import { join, relative, resolve as resolvePath } from 'node:path'
+import { basename, dirname, join, relative, resolve as resolvePath } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { resolveRoot, sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
@@ -79,6 +79,9 @@ function walk(dir, onFile, depth = 6) {
     }
 }
 
+/** Per-spec sidecar directories (SPEC-007 Levers 5 and 6), never a hit for the id they are named by. */
+const SIDECAR_DIRS = new Set(['decisions', 'review-logs'])
+
 export function findById(id, root = resolveRoot()) {
     const hits = []
     const seen = new Set()
@@ -86,7 +89,8 @@ export function findById(id, root = resolveRoot()) {
     const specsRel = relative(root, sdlcPaths(root, { quiet: true }).specs) || 'specs'
     for (const r of rootsFor(id)) {
         walk(join(root, r.replace(/^specs/, specsRel)), (p, name) => {
-            if (name.endsWith('.md') && matchesId(id, name) && !seen.has(p)) {
+            // A spec's ledger (decisions/SPEC-NNN.md) carries its id but is not the spec.
+            if (name.endsWith('.md') && matchesId(id, name) && !SIDECAR_DIRS.has(basename(dirname(p))) && !seen.has(p)) {
                 seen.add(p)
                 hits.push(p)
             }

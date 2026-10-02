@@ -87,6 +87,22 @@ Before proposing solutions, understand what exists:
 - Check recent git history in affected areas — any in-flight work that could collide?
 - If domain skills exist for the affected workspaces, read them for technology-specific context
 
+**Research protocol.** Answer this fixed list in one fan-out (parallel tool calls in one message, or
+one `Explore` agent), not by iterative grep across the session:
+
+1. Which files, scripts, skills and agents implement the affected area today?
+2. Which specs and ADRs govern it, and what is each one's status (`node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs resolve <id>`)?
+3. Which `active` specs in `specs/spec-index.json` declare the same workspaces (the collision check, Step 2)?
+4. Does every file, symbol, script, command and field the design will name exist, and where?
+5. What changed in the affected paths recently (`git log -n 20 -- <paths>`), and which open PRs touch them?
+
+Write every answer to the `## Research` section of the decision ledger, `specs/decisions/SPEC-NNN.md`,
+as one row per question asked: the question, the command or path that answered it, the git ref it was
+checked against, and the result. **Record a search that found nothing as a row too**, for example
+"grepped `depends_on` across `skills/` and `agents/`, 0 hits, at `db3675b`". A negative result costs
+the most to re-derive, and the reviewer reads this section before it reopens one. A claim in the spec
+body then cites the row's command and ref, as the citation rule below requires.
+
 Every non-trivial factual claim reported to the owner, and every such claim that makes it into the spec body, must carry an inline citation — the exact command, file path, or file:line that grounds it — written into the artifact itself. A claim is **non-trivial** (and requires a citation) if it contains: (1) a numeral or count; (2) a file, symbol, script, or command name asserted to exist or not exist; (3) an assertion of current system state ("X is unused," "Y is dead," "Z is enabled," "none/all/every..."); (4) a claim about what another spec, ADR, or invariant says or requires; (5) a claim that something exists, is merged, or has landed — which must name the git ref it was checked against, since "not on `main`" and "does not exist anywhere" are different claims and must not be conflated; or (6) a status field (e.g. `status: deferred`, `status: superseded`) cited as if it also states the reason or cause behind that status — the evidence/rationale field beside it is a separate claim and must be checked independently, not inferred from the status value alone. Connective prose, section transitions, restatements of the user's own stated intent, and narration about this spec-authoring process itself (a review round's findings, a peer session's report, a revision's own history) are exempt — these assert no repo or system state, so there is nothing for an external command to check them against. A claim meeting this test with no citation is not made — investigate first.
 
 Before citing any spec or ADR as current: (1) check its `status` field — `active`/`draft` may be current as-is; `superseded`/`cancelled`/`deprecated`/`archived` is **stale**, continue to step 2; every other value (`done`/`completed`/`snapshot`, or any non-canonical status) is **closed but current** — immutable to further editing, but its contract is in force, so cite it freely rather than treating closed as stale. (2) For a stale record, check its own `superseded_by` field, if it carries one, and follow it to the target, then **re-run step 1 on the target** — a superseded record's successor can itself be superseded, so repeat until reaching a non-stale terminal or a dead end. (3) At any point where the record carries no `superseded_by`, reverse-search: `grep -l '^supersedes: <this-id>' specs/SPEC-*.md specs/adrs/ADR-*.md` to find what replaced it; if nothing is found, treat the topic as having no current successor and say so explicitly rather than silently citing a stale record as current.
@@ -130,6 +146,8 @@ The user picks an approach (or a hybrid, or rejects all and gives new direction)
 - **What's in scope** and what's explicitly out?
 - **What are the measurable success criteria?**
 - **What are the key design decisions** (potential ADRs)?
+
+**Write each decision into the ledger as it is made.** Create `specs/decisions/SPEC-NNN.md` from `.sdlc/templates/authoring-decisions.md` once the id is known (Step 6's open-PR check applies), and add one entry for every question in Steps 2-5 that was open: what was decided, what was rejected and why, what was left ambiguous on purpose, and who raised it. `spec-reviewer` sees only the artifacts Step 10a seeds it with, so a decision that lives only in this conversation is one the reviewer will reopen. A question with an obvious answer is not an entry.
 
 **Checkpoint:** Summarize the agreed design in 5-10 bullet points. Ask: "Does this capture what we're building? If yes, I'll formalize this into a spec."
 
@@ -290,33 +308,53 @@ After Step 10 produces a draft the owner is broadly comfortable with, and BEFORE
 
 **Why this step exists (and why it does not replace Step 10):** The owner's walkthrough confirms intent and framing. The `spec-reviewer` checks the spec against the schema, the authoring conventions, the originating intent, ADRs, and upstream/downstream specs for the 9 gap categories enumerated in `spec-reviewer/SKILL.md`. The two are complementary: the owner catches "this is not what I meant"; the reviewer catches "this AC is untestable" or "this contradicts SPEC-042". Skipping either loses coverage.
 
-**Dispatch, do not invoke.** Call the `Agent` tool with `subagent_type: spec-reviewer`. Both
-variants — `default` and `adversarial` — go in ONE message so they run concurrently against the
-same draft.
+**Run the mechanical checks first.** Before every dispatch, round 1 and each later round, run:
+
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-spec specs/SPEC-NNN-<short-description>.md
+```
+
+Do not dispatch `spec-reviewer` until it exits `0`. It decides the defects a script can decide (a
+missing or empty required section, bad frontmatter, an unresolved ADR or `depends_on`, thin scope, a
+placeholder, sections out of order), so no reviewer round is spent on them. Fix what it reports and run
+it again; its findings use the review envelope and are never sent to the reviewer.
+
+**Dispatch, do not invoke.** Call the `Agent` tool with `subagent_type: spec-reviewer`.
+
+**Reviewers per round.** Round 1 dispatches two reviewers, `variant: "default"` and
+`variant: "adversarial"`, in ONE message so they run concurrently against the same draft. Every later
+round dispatches one, `variant: "default"`. The one exception is the SPEC-001 AC-010 measurement
+protocol (`review-primitives.md` > Measurement protocol), which dispatches both variants in whichever
+round it runs against. This paragraph is the only statement of the rule; `spec-amendment` cites it.
 
 **The authoring context must never grade its own spec.** You wrote this; findings you produce in
 this turn are a self-review wearing a reviewer's output format, and the two are byte-identical in
 the artifact. The agent has no `Edit`/`Write` and a clean context, which is the whole of what makes
 its verdict worth having. If you are about to write findings inline, stop and dispatch.
 
-Seed each dispatch with these inputs (all paths concrete; do not invent them):
+Seed each dispatch with these inputs (all paths concrete; do not invent them). An input marked
+**optional** may not exist in this repo or for this spec. When one is absent, say so in the dispatch
+prompt ("no `AGENTS.md` in this repo") so the reviewer knows it was not given the file, rather than
+leaving it out silently or naming a path that does not resolve. Every other input must resolve.
 
 - `spec_file`: `specs/SPEC-NNN-<short-description>.md` — the draft just written.
-- `spec_schema`: `skills/spec-schema.md` — for required-section and frontmatter checks.
-- `authoring`: `skills/spec-authoring/SKILL.md` — this skill, for `spec-authoring:<anchor>` citations.
-- `intent`: the relevant excerpt from `specs/intents.md` (the intent this spec formalizes). If invoked outside the intent-triage handoff, the owner provides the intent excerpt or confirms there is none.
-- `project`: the `AGENTS.md` SDLC block and `.sdlc/config.yaml` `workspaces` — for workspace coverage checks.
-- `adrs`: every ADR file referenced in the spec's Design section, plus any existing ADR the design may contradict (use judgment; when uncertain, include the candidate).
-- `upstream_specs`: every spec listed in this spec's `depends_on` (none on a greenfield spec; include all if present).
-- `downstream_specs`: every spec that declares this spec in its `depends_on` (use `specs/spec-index.json` to find them).
-- `variant`: omit (defaults to `"default"`). The `"adversarial"` variant is reserved for the AC-010 measurement protocol.
+- `spec_schema`: `skills/spec-schema.md` at the plugin root (`${CLAUDE_PLUGIN_ROOT}/skills/spec-schema.md`; in the framework repo, the repo root) — for required-section and frontmatter checks.
+- `authoring`: `skills/spec-authoring/SKILL.md` at the plugin root, as above — this skill, for `spec-authoring:<anchor>` citations.
+- `decisions`: `specs/decisions/SPEC-NNN.md` — the authoring decision ledger from Phase 1 (Step 5), including its `## Research` section (Step 3).
+- `intent` (**optional**): the relevant excerpt from `specs/intents.md` (the intent this spec formalizes). Absent when the spec was invoked outside the intent-triage handoff and the owner confirms there is no intent.
+- `project`: `.sdlc/config.yaml` `workspaces`, for workspace coverage checks, plus (**optional**) the `AGENTS.md` SDLC block. `/sdlc-init` writes `AGENTS.md` in every adopting repo; the framework repo has none.
+- `adrs` (**optional**: none when the Design cites no ADR and contradicts none): every ADR file referenced in the spec's Design section, plus any existing ADR the design may contradict (use judgment; when uncertain, include the candidate).
+- `upstream_specs` (**optional**: none on a spec with no `depends_on`): every spec listed in this spec's `depends_on`.
+- `downstream_specs` (**optional**: none when no spec depends on this one): every spec that declares this spec in its `depends_on` (the `depends_on` field of `specs/spec-index.json`).
+- `previous_output` (**optional**: absent in round 1): from `review-log project`, as **Record every round in the review log** below describes.
+- `variant`: as **Reviewers per round** above sets it for this round.
 
 **Present findings to the owner.** The reviewer emits JSON per the shared envelope in [`review-primitives.md`](../review-primitives.md) > Output schema. Render the findings to the owner as a graded list: blocker → major → nit → suggestion, each with its `criterion` (the grounded citation), `location` (the spec section), `finding` (one sentence), and `suggested_fix` if present.
 
 **Validate every returned envelope before folding it:**
 
 ```bash
-node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-review-envelope <envelope.json>
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs stamp-envelope <envelope.json>
 ```
 
 Exit `0` folds the findings. `2` is an abstention and escalates — never accept it, even with
@@ -325,25 +363,54 @@ clean review. This is also where a self-review is caught: an envelope with `revi
 carrying blockers, or carrying none at all, is rejected — an empty envelope is a verdict of
 "nothing wrong", so an inline one is a self-accept.
 
-**Apply the routing policy.** Severity → action is defined in [`review-primitives.md`](../review-primitives.md) > Orchestrator severity→action policy — do not duplicate it here. In summary: blockers/majors route to `fix_loop`; nits/suggestions route to `batch_followup_and_accept` (appended to `spec_followups:` per SPEC-001 Design > Spec followups format); empty findings list routes to `accept`. Run the policy on the reviewer's output and proceed accordingly:
+**Record every round in the review log.** `specs/review-logs/SPEC-NNN.json` is the one record of
+every finding raised against this spec, keyed by its content-addressed `id` (SPEC-007 > Lever 5). It
+is the only file the routing policy reads an owner's ruling from.
 
-- **`fix_loop`** (any blocker or major exists): loop with the author to fix each finding, OR loop with the owner to override severity via `spec_review_overrides:` (see below). Re-DISPATCH `spec-reviewer` after edits — a fix round is graded by a fresh agent, never inline — passing the previous output as `previous_output` so nit/suggestion findings on unchanged sections carry forward per the contract in `review-primitives.md`. Continue looping until there are no remaining un-overridden blockers or majors.
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs review-log append specs/SPEC-NNN-<x>.md <envelope.json> --round <n>   # after the validator exits 0
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs review-log apply  specs/SPEC-NNN-<x>.md <envelope.json> > routed.json  # route on this, not on the raw envelope
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs review-log project specs/SPEC-NNN-<x>.md > previous_output.json         # the next round's previous_output
+```
+
+Append each returned envelope, both of round 1's and the single reviewer's in every later round.
+`--round` is the policy's round, counted from 1 within this review. An amendment is a new review of
+the same spec: it passes `--review v<N>-amendment` and restarts `--round` at 1, and the log keeps
+one numbered history across all of them.
+`apply` drops a finding the owner marked `wontfix` and routes an `overridden` one at the owner's
+severity, never above the reviewer's, so run the policy on its output. Seed each round after the
+first with `previous_output` from `project`, never from a hand-carried envelope; the carry-forward
+rule in `review-primitives.md` is unchanged.
+
+**Apply the routing policy.** Severity → action is defined in [`review-primitives.md`](../review-primitives.md) > Orchestrator severity→action policy — do not duplicate it here. In summary: blockers/majors route to `fix_loop`; nits/suggestions route to `batch_followup_and_accept` (appended to `spec_followups:` per SPEC-001 Design > Spec followups format); empty findings list routes to `accept`; and at the spec-side round cap (`SPEC_REVIEW_ROUND_CAP` in that policy, ADR-005), a remaining blocker or major routes to `disclose_and_accept`. Count rounds from 1 at the first dispatch and pass the count as the policy's `round`. Run the policy on the reviewer's output and proceed accordingly:
+
+- **`fix_loop`** (any blocker or major exists): loop with the author to fix each finding, OR loop with the owner to override severity via `spec_review_overrides:` (see below). Re-DISPATCH `spec-reviewer` after edits — a fix round is graded by a fresh agent, never inline — passing `previous_output` from `review-log project` so nit/suggestion findings on unchanged sections carry forward per the contract in `review-primitives.md`. Continue looping until there are no remaining un-overridden blockers or majors, or until the policy returns `disclose_and_accept`.
 - **`batch_followup_and_accept`** (only nits/suggestions remain): append the findings to a `spec_followups:` section in the spec body (after `Migration` and `spec_review_overrides`, per SPEC-001 Design > Spec followups format), then proceed to the sign-off gate.
 - **`accept`** (empty findings list): proceed directly to the sign-off gate.
+- **`disclose_and_accept`** (the round cap is reached with a blocker or major left): dispatch no further round. Write each surviving blocker and major into a `## Disclosed, not reviewed-clean` section of the spec body, as the policy's action semantics in `review-primitives.md` specify, handle the nits and suggestions as under `batch_followup_and_accept`, and proceed to the sign-off gate, where the owner signs off with the survivors in front of them.
 
 **Owner override format.** When the owner judges a finding's severity is too high — e.g., the reviewer raised a `major` for an ambiguity the owner believes is intentional and will be sharpened in the first step — the owner downgrades severity by appending a `spec_review_overrides:` entry to the spec body. The section lives after `Migration` and before any other appendix, per SPEC-001 Design > Owner override format. Example entry:
 
 ```yaml
 ## spec_review_overrides
 
-- finding_id: F-003
+- finding_id: F-3f9a1c2e
   reviewer_severity: major
   owner_severity: nit
   reason: "Spec is intentionally ambiguous in this domain; will sharpen after the first step."
   override_date: 2026-05-18
 ```
 
-**Overrides downgrade severity only — they never silence the finding.** The original reviewer output stays in the spec's review log (per SPEC-002 telemetry). The routing policy reads the *override* severity but the review log shows both the reviewer's call and the owner's. An override that attempts to remove a finding from the output, or to mark a finding as resolved without addressing it, is a SPEC-001 contract violation.
+**Overrides downgrade severity only — they never silence the finding.** The original reviewer output stays in the spec's review log, `specs/review-logs/SPEC-NNN.json`. The routing policy reads the *override* severity from that log, which shows both the reviewer's call and the owner's. An override that attempts to remove a finding from the output, or to mark a finding as resolved without addressing it, is a SPEC-001 contract violation.
+
+**Record the owner's ruling in the log, after the spec body.** Once the `spec_review_overrides` entry is in the spec, record it:
+
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs review-log resolve specs/SPEC-NNN-<x>.md <finding_id> --resolution overridden --owner-severity <sev> \
+    --recorded-by <owner> --reason "<the entry's reason>"
+```
+
+Only the owner may drop a finding outright. That is `--resolution wontfix`, paired with a spec-body entry carrying `resolution: wontfix` and a reason, and for a blocker or major also an entry in `## Disclosed, not reviewed-clean`. The command refuses, and writes nothing, when `--recorded-by` is not the spec's `owner` or the spec body does not already show the same ruling, so the log never runs ahead of the spec. Neither the author nor a reviewer records a ruling.
 
 When the routing policy returns `accept` or `batch_followup_and_accept` (after any overrides), proceed to the sign-off gate. The owner's sign-off remains the authority — the reviewer's output is informational and grounded; the owner approves.
 

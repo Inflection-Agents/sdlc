@@ -41,6 +41,7 @@ linear_project: PRJ-XYZ         # Linear project id, for bidirectional linking
 | `created` | yes | no | ISO date. |
 | `updated` | yes | yes | ISO date. Updated on every material change. |
 | `workspaces` | no | yes | Array of workspace names from `.sdlc/config.yaml` `workspaces`. Omit for single-app repos. Informs each guide step's `Workspace:`. |
+| `depends_on` | no | yes | Array of spec ids this spec builds on, such as `[SPEC-001]`. Each must resolve to a spec file. The reviewer reads them as `upstream_specs`, and the spec index records them so a downstream spec can be found. |
 | `integration_strategy` | — | — | **Retired by ADR-003.** The integration branch `feat/spec-NNN` is now unconditional: every spec cuts one, and nothing reaches `main` except by merging it. The field is ignored where it still appears on an older spec; `direct` mode no longer exists. |
 | `tags` | no | yes | Array of strings. |
 | `linear_project` | no | yes | Set when the Linear project is created. |
@@ -115,6 +116,8 @@ How we undo if it goes wrong.
 
 ## spec_followups (optional — see "Optional appended sections" below)
 
+## Disclosed, not reviewed-clean (optional — see "Optional appended sections" below)
+
 ## Changelog (added on first amendment)
 
 ### v2 (YYYY-MM-DD)
@@ -129,14 +132,14 @@ How we undo if it goes wrong.
 Required sections (Problem → Success criteria → Scope → Design → Acceptance criteria → Risks & constraints) appear in the order above. The optional sections, when present, must appear in this order at the end of the body:
 
 ```
-Migration → spec_review_overrides → spec_followups → Changelog → any other appendices
+Migration → spec_review_overrides → spec_followups → Disclosed, not reviewed-clean → Changelog → any other appendices
 ```
 
-`spec_review_overrides` and `spec_followups` are optional appended sections; specs that omit them remain valid.
+`spec_review_overrides`, `spec_followups` and `Disclosed, not reviewed-clean` are optional appended sections; specs that omit them remain valid.
 
 ### Optional appended sections
 
-Both sections below were introduced by SPEC-001 (graded review for specs and PRs). They are **optional** — schema validation passes whether or not they are present. When present, they must appear in the order declared in "Section ordering" above, after `## Migration` and before `## Changelog`.
+The first two sections below were introduced by SPEC-001 (graded review for specs and PRs), and the third by SPEC-007. They are **optional** — schema validation passes whether or not they are present. When present, they must appear in the order declared in "Section ordering" above, after `## Migration` and before `## Changelog`.
 
 #### `## spec_review_overrides` (optional)
 
@@ -144,9 +147,10 @@ Records owner downgrades of `spec-reviewer` findings. Overrides downgrade severi
 
 | Field | Required | Type | Notes |
 |-------|----------|------|-------|
-| `finding_id` | yes | string | Matches `id` from the `spec-reviewer` JSON output (e.g., `F-003`). |
+| `finding_id` | yes | string | Matches `id` from the `spec-reviewer` JSON output (e.g., `F-3f9a1c2e`; content-addressed, so it stays the same across rounds). |
 | `reviewer_severity` | yes | enum | One of `blocker | major | nit | suggestion`. The severity originally assigned by `spec-reviewer`. |
-| `owner_severity` | yes | enum | One of `blocker | major | nit | suggestion`. Must be a lower severity than `reviewer_severity` (this section only downgrades). |
+| `owner_severity` | yes, unless `resolution` is `wontfix` | enum | One of `blocker | major | nit | suggestion`. Must be a lower severity than `reviewer_severity` (this section only downgrades). Omitted when `resolution` is `wontfix`. |
+| `resolution` | no | enum | `wontfix` only. The owner drops the finding outright rather than downgrading it (SPEC-007 > Design > Lever 5). A `wontfix` on a `blocker` or `major` is also listed in `## Disclosed, not reviewed-clean`. |
 | `reason` | yes | string | Free-form justification, visible in the spec. |
 | `override_date` | yes | ISO date | When the override was recorded. |
 
@@ -158,7 +162,7 @@ Records nit and suggestion findings deferred by the orchestrator's `batch_follow
 
 | Field | Required | Type | Notes |
 |-------|----------|------|-------|
-| `finding_id` | yes | string | Matches `id` from the `spec-reviewer` JSON output (e.g., `F-007`). |
+| `finding_id` | yes | string | Matches `id` from the `spec-reviewer` JSON output (e.g., `F-7c01d4b9`). |
 | `source_review` | yes | string | Identifier for the review run that produced the finding (e.g., `"spec-reviewer iter-2, 2026-05-18T14:22:00Z"`). |
 | `severity` | yes | enum | One of `nit | suggestion`. `blocker` and `major` are never deferred via this section. |
 | `criterion` | yes | string | The grounded citation from the original finding (e.g., `"spec-authoring:wording"`). |
@@ -169,7 +173,22 @@ Records nit and suggestion findings deferred by the orchestrator's `batch_follow
 | `resolved_date` | no | ISO date \| null | Null until resolved; ISO date when resolved. |
 | `resolved_by` | no | string \| null | Null until resolved; commit SHA or guide step id (e.g., `S3`) when resolved. |
 
-Position constraint: appended after `## spec_review_overrides` (or after `## Migration` if `spec_review_overrides` is absent) and before `## Changelog`. See `SPEC-001-tiered-code-review.md` → Design > Spec followups format for the canonical YAML example.
+Position constraint: appended after `## spec_review_overrides` (or after `## Migration` if `spec_review_overrides` is absent) and before `## Disclosed, not reviewed-clean` or `## Changelog`. See `SPEC-001-tiered-code-review.md` → Design > Spec followups format for the canonical YAML example.
+
+#### `## Disclosed, not reviewed-clean` (optional)
+
+Lists every blocker and major still open when a spec review reaches the round cap (`review-primitives.md` > Orchestrator severity→action policy, `disclose_and_accept`; ADR-005), and every blocker or major the owner resolved as `wontfix`. The owner signs off with these in front of them. One entry per finding, as a table or a YAML list, with these fields:
+
+| Field | Required | Type | Notes |
+|-------|----------|------|-------|
+| `id` | yes | string | The finding's stable `id`, so the entry joins to the review log and to any override. |
+| `first_round` | yes | integer | The round the finding was first raised in. |
+| `severity` | yes | enum | `blocker` or `major`. |
+| `criterion` | yes | string | The grounded citation from the finding. |
+| `location` | yes | string | The spec section the finding points at. |
+| `why_not_closed` | yes | string | Why it was not closed: reached at the cap, or resolved `wontfix`, and the reasoning. |
+
+Position constraint: appended after `## spec_followups` (or the latest earlier optional section present) and before `## Changelog`.
 
 ## ADR schema
 
@@ -239,12 +258,16 @@ specs/
 │   └── ADR-002-linear-over-jira.md
 ├── baselines/
 │   └── SPEC-042.md              # per-spec baseline metric files
+├── decisions/
+│   └── SPEC-001.md              # authoring decision ledger, written in spec-authoring Phase 1
 ├── bugs/
 │   ├── BUG-001-login-timeout.md
 │   └── BUG-002-null-ref-dashboard.md
 ├── gaps/
 │   ├── GAP-001-auth-edge-case.md
 │   └── GAP-002-pipeline-schema-ambiguity.md
+├── review-logs/
+│   └── SPEC-001.json            # every spec-review finding, its rounds and resolution
 ├── tasks/
 │   └── SPEC-001/
 │       ├── GUIDE.md             # the delivery guide (guide-schema.md)
@@ -254,6 +277,7 @@ specs/
 ├── templates/
 │   ├── spec.md
 │   ├── adr.md
+│   ├── authoring-decisions.md
 │   ├── bug.md
 │   ├── decisions.md
 │   ├── gap.md
@@ -267,7 +291,10 @@ Subdirectories:
 - `adrs/` — Architectural Decision Records referenced by specs.
 - `baselines/` — per-spec baseline metric files for success-criteria comparison (e.g., `SPEC-042.md` captures pre-change metrics that the spec's success criteria are measured against). Introduced by SPEC-001.
 - `bugs/` — bug specs (`BUG-NNN-*.md`).
+- `decisions/` — one authoring decision ledger per spec (`SPEC-NNN.md`), created from `.sdlc/templates/authoring-decisions.md` during `spec-authoring` Phase 1 and seeded to `spec-reviewer`. It records each question that was open before the spec body existed: what was decided, what was rejected, and what was left ambiguous on purpose. It is not the per-run `tasks/SPEC-NNN/DECISIONS.md`. Introduced by SPEC-007.
+- `archive/decisions/`, `archive/review-logs/` — a terminal spec's ledger and review log, moved there with the spec by `archive-specs.mjs` and restored with it.
 - `gaps/` — gap artifacts (`GAP-NNN-*.md`). Each file records a specification gap discovered during implementation, its resolution, and downstream impact. Introduced by SPEC-004.
+- `review-logs/` — one JSON file per reviewed spec (`SPEC-NNN.json`), written by `review-log.mjs` and never by hand. It holds every finding raised in any spec-review round: its content-addressed `id`, `first_round`, every round it recurred in (`rounds`), and a `resolution` of `open`, `fixed`, `overridden` or `wontfix`. An `overridden` or `wontfix` entry also carries `reason`, `recorded_by`, a date and `ruled_severity` (the severity the owner ruled at), and an `overridden` entry carries `owner_severity`. A ruling holds for its id at any severity, as the routing policy requires, but `review-log.mjs check` fails while a later round has raised the finding above `ruled_severity`, until the owner rules on it again. A `wontfix` on a blocker or major must be named by a list item in `## Disclosed, not reviewed-clean`; an HTML comment does not count. Within one round, a finding's `severity` is the highest any of that round's reviewers raised. Each `rounds[]` entry records the global `round`, the `review` it belongs to (`authoring`, or `v<N>-amendment`) and that review's own `review_round`, which is the policy's round. The routing policy reads owner rulings from this file only, and `review-log.mjs check` holds every ruling to the same rules `resolve` enforces. Introduced by SPEC-007.
 - `tasks/SPEC-NNN/` — each spec's delivery guide and its companions. See `guide-schema.md`.
 - `templates/` — copy-and-fill templates for new specs, ADRs, bugs, gaps, guides, kickoff prompts, and per-run decision logs.
 
@@ -371,7 +398,9 @@ Gap files follow this section order. All three sections must be present:
 
 ## spec-index.json
 
-Auto-generated on every PR that touches `specs/`. Agents read this instead of scanning the directory.
+Generated by `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs gen-spec-index` and committed. Agents read this instead of scanning the directory. CI runs it with `--check`, which fails when the committed file differs from what the corpus generates, so regenerate it in the same commit as any change to a spec's frontmatter, its acceptance criteria, or its position (archiving moves `path`). Archived records are indexed at their `specs/archive/` path. The file carries no timestamp, so the same corpus always produces the same bytes.
+
+`owner`, `workspaces` and `depends_on` were added by SPEC-007: `spec-authoring` reads `workspaces` for its collision check and `depends_on` to find a spec's `downstream_specs`. `acceptance_criteria_count` counts every checkbox under `## Acceptance criteria`, with or without an `AC-NNN` id, and `acceptance_criteria_done` the ticked ones.
 
 ```json
 {
@@ -383,7 +412,10 @@ Auto-generated on every PR that touches `specs/`. Agents read this instead of sc
       "version": 1,
       "path": "specs/SPEC-001-user-auth.md",
       "initiative": "INI-003",
+      "owner": "franklin",
+      "workspaces": ["dealer-app"],
       "tags": ["auth", "security"],
+      "depends_on": ["SPEC-000"],
       "acceptance_criteria_count": 5,
       "acceptance_criteria_done": 3,
       "gaps": [

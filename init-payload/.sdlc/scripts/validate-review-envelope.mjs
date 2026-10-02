@@ -30,9 +30,14 @@
  * deliberately NOT a general JSON-Schema engine; if the schema grows a construct
  * beyond these, this file must grow with it.
  *
+ * Every finding's `id` is content-addressed (ADR-006): the validator recomputes it from the
+ * finding's own `location`, `criterion` and `finding` and rejects a mismatch, so identity is
+ * verified rather than self-declared. A reviewer cannot hash by hand, so callers stamp first.
+ *
  * Usage:
- *   node .sdlc/scripts/validate-review-envelope.mjs <envelope.json>
- *   … | node .sdlc/scripts/validate-review-envelope.mjs -      # read stdin
+ *   node .sdlc/scripts/validate-review-envelope.mjs --stamp <envelope.json>   # set ids in place, then validate
+ *   node .sdlc/scripts/validate-review-envelope.mjs <envelope.json>           # validate as written
+ *   … | node .sdlc/scripts/validate-review-envelope.mjs [--stamp] -           # read stdin; --stamp prints the stamped envelope
  *
  * Exit codes (distinct so a caller can branch without parsing prose):
  *   0  valid AND assessed          → fold findings through the severity→action policy
@@ -40,11 +45,14 @@
  *   3  malformed / ungrounded      → contract violation: re-dispatch or escalate
  *   1  usage / internal error
  */
-import { existsSync, readFileSync, realpathSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { findingId, hashable, stampEnvelope } from './lib/finding-id.mjs'
 import { resolveRoot, sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
+
+export { findingId, stampEnvelope }
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -162,7 +170,9 @@ export function validateEnvelope(env, schema = loadSchema()) {
                     return
                 }
                 for (const req of item.required ?? []) {
-                    if (f[req] === undefined) errors.push(`${at} missing required \`${req}\``)
+                    if (f[req] !== undefined) continue
+                    const hint = req === 'id' ? '; run stamp-envelope, which sets ids from the findings\' own fields' : ''
+                    errors.push(`${at} missing required \`${req}\`${hint}`)
                 }
                 // The grounded-citation anyOf: `criterion` OR `citation`. Requiring
                 // `criterion` alone would fail-validate every real envelope that emits
@@ -178,6 +188,17 @@ export function validateEnvelope(env, schema = loadSchema()) {
                 for (const [name, sub] of Object.entries(item.properties ?? {})) {
                     const err = checkProperty(`${at}.${name}`, f[name], sub)
                     if (err) errors.push(err)
+                }
+                // The id hashes these fields NUL-separated, so a NUL inside one could move a field
+                // boundary and make two different findings hash alike.
+                for (const k of ['location', 'criterion', 'citation', 'finding']) {
+                    if (typeof f[k] === 'string' && f[k].includes('\0')) errors.push(`${at}.${k} contains a NUL character`)
+                }
+                if (hashable(f) && typeof f.id === 'string') {
+                    const want = findingId(f, env.artifact)
+                    if (f.id !== want) {
+                        errors.push(`${at}.id is "${f.id}" but its content hashes to "${want}"; run stamp-envelope to set ids from the findings' own fields`)
+                    }
                 }
                 // Rule 3: a finding that routes to a fix loop must be grounded in an
                 // allowed prefix, or the fix loop is opened on an unciteable claim.
@@ -243,7 +264,10 @@ function readInput(arg) {
 }
 
 function main() {
-    const [arg] = takeRootArg(process.argv.slice(2)).rest
+    const rest = takeRootArg(process.argv.slice(2)).rest
+    const stamp = rest.includes('--stamp')
+    const [arg] = rest.filter((a) => a !== '--stamp')
+    const fromStdin = !arg || arg === '-'
     let env
     try {
         env = JSON.parse(readInput(arg))
@@ -254,6 +278,13 @@ function main() {
                 `or escalate. It must NOT be folded as "no findings".`
         )
         process.exit(EXIT_MALFORMED)
+    }
+
+    if (stamp) {
+        env = stampEnvelope(env)
+        const text = `${JSON.stringify(env, null, 2)}\n`
+        if (fromStdin) process.stdout.write(text)
+        else writeFileSync(arg, text, 'utf8')
     }
 
     let ok, abstained, errors
@@ -282,7 +313,9 @@ function main() {
         process.exit(EXIT_ABSTAINED)
     }
     const n = env.findings.length
-    console.log(`✓ envelope valid (assessed, ${n} finding${n === 1 ? '' : 's'}) — fold via the severity→action policy.`)
+    // With --stamp on stdin, stdout carries the stamped envelope, so the verdict goes to stderr.
+    const say = stamp && fromStdin ? console.error : console.log
+    say(`✓ envelope valid (assessed, ${n} finding${n === 1 ? '' : 's'}) — fold via the severity→action policy.`)
     process.exit(EXIT_VALID)
 }
 

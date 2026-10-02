@@ -59,6 +59,22 @@ jobs:
               # structure of your state machine.
               run: node .sdlc/scripts/validate-state-machine.mjs
 
+            - name: Live specs pass the mechanical spec checks
+              # SPEC-007 Lever 2: an active spec with a missing section, bad frontmatter, an
+              # unresolved ADR or depends_on, thin scope or a placeholder fails; a draft or a
+              # closed spec is reported as a warning, because nobody may edit a closed one.
+              run: node .sdlc/scripts/validate-spec.mjs --ci
+
+            - name: Spec review logs agree with their specs
+              # SPEC-007 Lever 5: every overridden or wontfix ruling in specs/review-logs/ is backed
+              # by the spec: the owner recorded it, and the spec body shows it. No logs is a pass.
+              run: node .sdlc/scripts/review-log.mjs check
+
+            - name: The spec index matches the corpus
+              # SPEC-007 Lever 7: specs/spec-index.json is generated, not hand-edited. Regenerate it
+              # with gen-spec-index.mjs in the commit that changes a spec, ADR, bug or gap.
+              run: node .sdlc/scripts/gen-spec-index.mjs --check
+
             - name: Delivery guides are complete and current
               # Every spec AC covered, every step verifiable, guide and index in step, and an
               # approved guide's KICKOFF.md within 3,800 characters (ADR-007). An unmatched glob

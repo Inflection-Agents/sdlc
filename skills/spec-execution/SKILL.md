@@ -173,7 +173,7 @@ routing is registry data (ADR-001): `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run
 Two rules that are not negotiable:
 
 - **Independence is structural here.** Every verdict comes from a separately dispatched reviewer,
-  and every envelope is validated (`node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-review-envelope <file>`).
+  and every envelope is validated (`node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs stamp-envelope <file>`).
   Step-level self-review (§4, rule 2) is the deliberate exception, bought back in full at this gate.
   A malformed, ungrounded or absent envelope is never a clean review.
 - **Leave the PR open.** The human reviews and merges it. You never merge to `main`, never push to

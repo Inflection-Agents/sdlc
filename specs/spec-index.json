@@ -1,0 +1,278 @@
+{
+  "specs": [
+    {
+      "id": "SPEC-001",
+      "title": "Graded review for specs and PRs",
+      "status": "completed",
+      "version": "1.2",
+      "path": "specs/SPEC-001-tiered-code-review.md",
+      "initiative": "INI-001",
+      "owner": "franklin",
+      "workspaces": [],
+      "tags": [
+        "review",
+        "throughput",
+        "pr-reviewer",
+        "spec-reviewer",
+        "orchestration"
+      ],
+      "depends_on": [],
+      "acceptance_criteria_count": 14,
+      "acceptance_criteria_done": 0,
+      "gaps": []
+    },
+    {
+      "id": "SPEC-002",
+      "title": "Spec execution orchestration — wave-based loop with tiered review",
+      "status": "completed",
+      "version": 1,
+      "path": "specs/SPEC-002-spec-execution-orchestration.md",
+      "initiative": "INI-001",
+      "owner": "franklin",
+      "workspaces": [],
+      "tags": [
+        "orchestration",
+        "spec-execution",
+        "waves",
+        "reviewer-router",
+        "worktrees"
+      ],
+      "depends_on": [
+        "SPEC-001"
+      ],
+      "acceptance_criteria_count": 13,
+      "acceptance_criteria_done": 0,
+      "gaps": []
+    },
+    {
+      "id": "SPEC-003",
+      "title": "Onboarding simplification — Phase 1 (docs + bootstrap fix)",
+      "status": "superseded",
+      "version": 1,
+      "path": "specs/SPEC-003-onboarding-phase-1.md",
+      "initiative": "INI-002",
+      "owner": "franklin",
+      "workspaces": [],
+      "tags": [
+        "onboarding",
+        "docs",
+        "bootstrap",
+        "refresh"
+      ],
+      "depends_on": [],
+      "acceptance_criteria_count": 13,
+      "acceptance_criteria_done": 0,
+      "gaps": []
+    },
+    {
+      "id": "SPEC-004",
+      "title": "Artifact completeness ports from the reference implementation",
+      "status": "completed",
+      "version": 1,
+      "path": "specs/SPEC-004-artifact-completeness-ports.md",
+      "initiative": "INI-003",
+      "owner": "franklin",
+      "workspaces": [],
+      "tags": [
+        "evidence",
+        "gap-capture",
+        "spec-completion",
+        "workspace-enforcement",
+        "port-back"
+      ],
+      "depends_on": [],
+      "acceptance_criteria_count": 14,
+      "acceptance_criteria_done": 0,
+      "gaps": []
+    },
+    {
+      "id": "SPEC-005",
+      "title": "Conditional integration-branch strategy for spec-execution",
+      "status": "completed",
+      "version": 1,
+      "path": "specs/archive/specs/SPEC-005-conditional-integration-branch.md",
+      "initiative": "INI-001",
+      "owner": "franklin",
+      "workspaces": [],
+      "tags": [
+        "integration-branch",
+        "orchestration",
+        "conditional",
+        "extends-spec-002"
+      ],
+      "depends_on": [
+        "SPEC-002"
+      ],
+      "acceptance_criteria_count": 10,
+      "acceptance_criteria_done": 0,
+      "gaps": []
+    },
+    {
+      "id": "SPEC-006",
+      "title": "Enforced plan-review gate and registry-driven reviewer routing",
+      "status": "completed",
+      "version": 1,
+      "path": "specs/SPEC-006-plan-review-gate-and-reviewer-routing.md",
+      "initiative": "INI-001",
+      "owner": "franklin",
+      "workspaces": [],
+      "tags": [
+        "sdlc",
+        "plan-review",
+        "reviewer-routing",
+        "review-primitives",
+        "port-back"
+      ],
+      "depends_on": [
+        "SPEC-001",
+        "SPEC-002"
+      ],
+      "acceptance_criteria_count": 17,
+      "acceptance_criteria_done": 0,
+      "gaps": []
+    },
+    {
+      "id": "SPEC-007",
+      "title": "Spec-review convergence: cap the loop, mechanize the checks, make findings durable",
+      "status": "active",
+      "version": 1,
+      "path": "specs/SPEC-007-spec-review-convergence.md",
+      "initiative": "INI-001",
+      "owner": "franklin",
+      "workspaces": [],
+      "tags": [
+        "spec-authoring",
+        "spec-review",
+        "convergence",
+        "throughput",
+        "review-primitives"
+      ],
+      "depends_on": [
+        "SPEC-001"
+      ],
+      "acceptance_criteria_count": 27,
+      "acceptance_criteria_done": 0,
+      "gaps": []
+    },
+    {
+      "id": "SPEC-008",
+      "title": "Delivery guide replaces task decomposition",
+      "status": "completed",
+      "version": 1,
+      "path": "specs/SPEC-008-delivery-guide-replaces-decomposition.md",
+      "initiative": "INI-001",
+      "owner": "franklin",
+      "workspaces": [],
+      "tags": [
+        "task-decomposition",
+        "spec-execution",
+        "spec-authoring",
+        "throughput",
+        "state-machine"
+      ],
+      "depends_on": [],
+      "acceptance_criteria_count": 20,
+      "acceptance_criteria_done": 0,
+      "gaps": [
+        {
+          "id": "GAP-001",
+          "status": "open",
+          "resolution": "workaround",
+          "created": "2026-09-30"
+        }
+      ]
+    },
+    {
+      "id": "SPEC-009",
+      "title": "One .sdlc/ folder: consolidate the adopter footprint and migrate existing repos on /sdlc-sync",
+      "status": "completed",
+      "version": 2,
+      "path": "specs/SPEC-009-sdlc-folder-consolidation.md",
+      "initiative": "INI-002",
+      "owner": "franklin",
+      "workspaces": [],
+      "tags": [
+        "onboarding",
+        "install",
+        "layout",
+        "migration",
+        "sdlc-sync",
+        "sdlc-init"
+      ],
+      "depends_on": [],
+      "acceptance_criteria_count": 23,
+      "acceptance_criteria_done": 0,
+      "gaps": []
+    }
+  ],
+  "adrs": [
+    {
+      "id": "ADR-001",
+      "title": "Reviewer routing is registry data, not engine code",
+      "status": "accepted",
+      "spec": "SPEC-006",
+      "path": "specs/adrs/ADR-001-reviewer-routing-is-registry-data.md"
+    },
+    {
+      "id": "ADR-002",
+      "title": "The plan-review gate is enforced in _index.yaml, two-stage, fail-closed",
+      "status": "accepted",
+      "spec": "SPEC-006",
+      "path": "specs/adrs/ADR-002-plan-review-gate-in-index-yaml.md"
+    },
+    {
+      "id": "ADR-003",
+      "title": "Goal-oriented single-executor delivery: the spec-execution skill is the engine; the execute-spec Workflow is retired",
+      "status": "accepted",
+      "spec": "none",
+      "path": "specs/adrs/ADR-003-goal-oriented-single-executor-delivery.md"
+    },
+    {
+      "id": "ADR-004",
+      "title": "The integration gate is capped at three rounds",
+      "status": "accepted",
+      "spec": "none",
+      "path": "specs/adrs/ADR-004-capped-integration-gate.md"
+    },
+    {
+      "id": "ADR-005",
+      "title": "The spec-side review loop is capped at four rounds",
+      "status": "proposed",
+      "spec": "SPEC-007",
+      "path": "specs/adrs/ADR-005-capped-spec-review-loop.md"
+    },
+    {
+      "id": "ADR-006",
+      "title": "A review finding's identity is derived from its content, not its position",
+      "status": "proposed",
+      "spec": "SPEC-007",
+      "path": "specs/adrs/ADR-006-content-addressed-finding-identity.md"
+    },
+    {
+      "id": "ADR-007",
+      "title": "A delivery guide, approved with the spec, replaces the task-decomposition phase",
+      "status": "accepted",
+      "spec": "SPEC-008",
+      "path": "specs/adrs/ADR-007-delivery-guide-replaces-decomposition.md"
+    },
+    {
+      "id": "ADR-008",
+      "title": "Adopter repos keep SDLC files under .sdlc/, project context in root AGENTS.md, and resolve paths through one module",
+      "status": "accepted",
+      "spec": "SPEC-009",
+      "path": "specs/adrs/ADR-008-sdlc-folder-layout.md"
+    }
+  ],
+  "bugs": [],
+  "gaps": [
+    {
+      "id": "GAP-001",
+      "title": "No delivery path from a bug spec straight to a guide",
+      "status": "open",
+      "resolution": "workaround",
+      "created": "2026-09-30",
+      "spec": "SPEC-008",
+      "path": "specs/gaps/GAP-001-bug-fix-delivery-path.md"
+    }
+  ]
+}

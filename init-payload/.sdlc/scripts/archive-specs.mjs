@@ -233,8 +233,43 @@ function ensureFence(dir) {
 
 function move(from, to) {
     ensureFence(ARCHIVE)
-    ensureFence(dirname(to))
+    // Only an archive destination is fenced. A restore lands in the live corpus, and a `*`
+    // fence there (specs/.ignore) would hide every live spec from search.
+    if (dirname(to).startsWith(ARCHIVE)) ensureFence(dirname(to))
+    else mkdirSync(dirname(to), { recursive: true })
     git(['mv', from, to])
+}
+
+/**
+ * Per-spec files outside `specs/tasks/` that move with their spec: the authoring decision
+ * ledger and the review log (SPEC-007 Levers 5 and 6). Each pair is [live path, archived path].
+ */
+export const SIDECARS = [
+    ['decisions', '.md'],
+    ['review-logs', '.json'],
+]
+function sidecars(id) {
+    return SIDECARS.map(([dir, ext]) => [join(SPECS, dir, `${id}${ext}`), join(ARCHIVE, dir, `${id}${ext}`)])
+}
+
+/**
+ * Sidecars on the wrong side of the boundary, given which ids end up archived. A spec's
+ * ledger and log follow it, so the live corpus never keeps either for an archived spec.
+ * Returns `{ id, from, to }` moves.
+ */
+function misplacedSidecars(archivedIds, liveIds) {
+    const moves = []
+    for (const id of archivedIds) {
+        for (const [live, arch] of sidecars(id)) {
+            if (existsSync(live)) moves.push({ id, from: live, to: arch })
+        }
+    }
+    for (const id of liveIds) {
+        for (const [live, arch] of sidecars(id)) {
+            if (existsSync(arch)) moves.push({ id, from: arch, to: live })
+        }
+    }
+    return moves
 }
 
 function main(argv) {
@@ -245,16 +280,29 @@ function main(argv) {
     const dryRun = argv.includes('--dry-run')
 
     const live = scanLive()
-    const knownIds = new Set([...live, ...scanArchived()].map((s) => s.id).filter(Boolean))
+    // One scan: the restore and boundary sets below compare these objects by identity.
+    const archived = scanArchived()
+    const knownIds = new Set([...live, ...archived].map((s) => s.id).filter(Boolean))
     const protections = { citedIds: collectCitedIds(ROOT, knownIds), adrBoundIds: collectAdrBoundIds(ROOT) }
     const toArchive = archivable(live, protections)
     // A spec whose status went back to draft/active is restored by the same run.
-    const toRestore = scanArchived().filter((s) => s.status && LIVE_STATUSES.has(s.status))
+    const toRestore = archived.filter((s) => s.status && LIVE_STATUSES.has(s.status))
+    const moving = new Set([...toArchive, ...toRestore].map((s) => s.id))
+    // A companion shares its spec's id but never moves on its own, so it says nothing about
+    // where that spec's sidecars belong; counting it would put one id on both sides.
+    const ids = (list) => list.filter((s) => !s.companion).map((s) => s.id)
+    const endsArchived = ids([...archived.filter((s) => !toRestore.includes(s)), ...toArchive])
+    const endsLive = ids([...live.filter((s) => !toArchive.includes(s)), ...toRestore])
+    const sidecarMoves = misplacedSidecars(endsArchived, endsLive)
+    const rel = (p) => p.slice(ROOT.length + 1)
 
     if (check) {
         const problems = [
             ...toArchive.map((s) => `misplaced (should be archived): specs/${s.file} [${s.status}]`),
-            ...toRestore.map((s) => `misplaced (should be live): specs/archive/specs/${s.file} [${s.status}]`)
+            ...toRestore.map((s) => `misplaced (should be live): specs/archive/specs/${s.file} [${s.status}]`),
+            ...sidecarMoves
+                .filter(({ id }) => !moving.has(id))
+                .map(({ from, to }) => `misplaced (should be at ${rel(to)}): ${rel(from)}`)
         ]
         if (problems.length) {
             process.stderr.write(
@@ -267,9 +315,29 @@ function main(argv) {
         return
     }
 
-    if (!toArchive.length && !toRestore.length) {
+    if (!toArchive.length && !toRestore.length && !sidecarMoves.length) {
         process.stdout.write('nothing to archive or restore.\n')
         return
+    }
+
+    // `git mv` refuses an untracked source, and failing midway leaves a partial move staged.
+    if (!dryRun) {
+        const sources = [
+            ...[...toArchive, ...toRestore].map((s) => s.path),
+            ...sidecarMoves.map(({ from }) => from),
+        ]
+        const untracked = sources.filter((p) => {
+            try {
+                git(['ls-files', '--error-unmatch', '--', p])
+                return false
+            } catch {
+                return true
+            }
+        })
+        if (untracked.length) {
+            process.stderr.write(`archive-specs: commit these first; git mv cannot move an untracked file:\n  ${untracked.map(rel).join('\n  ')}\n`)
+            process.exit(1)
+        }
     }
 
     for (const s of toArchive) {
@@ -285,6 +353,11 @@ function main(argv) {
         if (existsSync(tasks)) move(tasks, tasksTarget)
     }
 
+    for (const { from, to } of sidecarMoves) {
+        if (dryRun) process.stdout.write(`move     ${rel(from)} -> ${rel(to)}\n`)
+        else move(from, to)
+    }
+
     for (const s of toRestore) {
         const target = join(SPECS, s.file)
         const tasks = join(ARCHIVE_TASKS, s.id)
@@ -298,10 +371,10 @@ function main(argv) {
     }
 
     if (dryRun) {
-        process.stdout.write(`\n${toArchive.length} to archive, ${toRestore.length} to restore.\n`)
+        process.stdout.write(`\n${toArchive.length} to archive, ${toRestore.length} to restore, ${sidecarMoves.length} sidecar(s) to move.\n`)
         return
     }
-    process.stdout.write(`archived ${toArchive.length} spec(s), restored ${toRestore.length}.\n`)
+    process.stdout.write(`archived ${toArchive.length} spec(s), restored ${toRestore.length}, moved ${sidecarMoves.length} sidecar(s).\n`)
 }
 
 /**

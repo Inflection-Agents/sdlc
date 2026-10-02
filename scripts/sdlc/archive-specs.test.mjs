@@ -119,6 +119,170 @@ test('ensureFence is exercised: archiving writes a .ignore beside what it moves'
     }
 })
 
+test('AC-023: a spec\'s decision ledger and review log move with it, and come back with it', async () => {
+    const { execFileSync, spawnSync } = await import('node:child_process')
+    const { cpSync, mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync, rmSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const { tmpdir } = await import('node:os')
+
+    const repo = mkdtempSync(join(tmpdir(), 'sdlc-sidecar-'))
+    try {
+        const git = (args) => execFileSync('git', args, { cwd: repo, encoding: 'utf8' })
+        const script = join(repo, 'scripts', 'sdlc', 'archive-specs.mjs')
+        const run = (...a) => spawnSync('node', [script, ...a], { cwd: repo, encoding: 'utf8', env: { ...process.env, CLAUDE_PROJECT_DIR: repo } })
+        git(['init', '-q', '.'])
+        git(['config', 'user.email', 't@t'])
+        git(['config', 'user.name', 't'])
+        mkdirSync(join(repo, 'scripts', 'sdlc'), { recursive: true })
+        writeFileSync(script, readFileSync(join(import.meta.dirname, 'archive-specs.mjs'), 'utf8'))
+        cpSync(join(import.meta.dirname, 'lib'), join(repo, 'scripts', 'sdlc', 'lib'), { recursive: true })
+        const spec = join(repo, 'specs', 'SPEC-010-demo.md')
+        mkdirSync(join(repo, 'specs', 'decisions'), { recursive: true })
+        mkdirSync(join(repo, 'specs', 'review-logs'), { recursive: true })
+        writeFileSync(spec, '---\nid: SPEC-010\nstatus: completed\n---\n\nbody\n')
+        writeFileSync(join(repo, 'specs', 'decisions', 'SPEC-010.md'), '# ledger\n')
+        writeFileSync(join(repo, 'specs', 'review-logs', 'SPEC-010.json'), '{}\n')
+        git(['add', '-A'])
+        git(['commit', '-qm', 'init'])
+
+        assert.equal(run('--check').status, 1, 'the completed spec is misplaced')
+        assert.equal(run().status, 0)
+        assert.ok(existsSync(join(repo, 'specs', 'archive', 'decisions', 'SPEC-010.md')), 'ledger archived')
+        assert.ok(existsSync(join(repo, 'specs', 'archive', 'review-logs', 'SPEC-010.json')), 'log archived')
+        assert.ok(!existsSync(join(repo, 'specs', 'decisions', 'SPEC-010.md')), 'live corpus keeps no ledger')
+        assert.ok(!existsSync(join(repo, 'specs', 'review-logs', 'SPEC-010.json')), 'live corpus keeps no log')
+        assert.equal(readFileSync(join(repo, 'specs', 'archive', 'decisions', '.ignore'), 'utf8').trim(), '*')
+        assert.equal(run('--check').status, 0)
+        git(['commit', '-qam', 'archive'])
+
+        // A ledger left live for an already-archived spec is misplaced, and the next run moves it.
+        writeFileSync(join(repo, 'specs', 'decisions', 'SPEC-010.md'), '# stray\n')
+        git(['add', '-A'])
+        git(['commit', '-qm', 'stray'])
+        rmSync(join(repo, 'specs', 'archive', 'decisions', 'SPEC-010.md'))
+        git(['commit', '-qam', 'drop archived copy'])
+        const stray = run('--check')
+        assert.equal(stray.status, 1)
+        assert.match(stray.stderr, /specs\/decisions\/SPEC-010\.md/)
+        assert.equal(run().status, 0)
+        assert.ok(existsSync(join(repo, 'specs', 'archive', 'decisions', 'SPEC-010.md')))
+        git(['commit', '-qam', 'tidy'])
+
+        // Reverting the status restores the spec and both sidecars, and fences nothing live.
+        const archived = join(repo, 'specs', 'archive', 'specs', 'SPEC-010-demo.md')
+        writeFileSync(archived, readFileSync(archived, 'utf8').replace('status: completed', 'status: active'))
+        git(['commit', '-qam', 'reopen'])
+        assert.equal(run().status, 0)
+        assert.ok(existsSync(spec))
+        assert.ok(existsSync(join(repo, 'specs', 'decisions', 'SPEC-010.md')))
+        assert.ok(existsSync(join(repo, 'specs', 'review-logs', 'SPEC-010.json')))
+        assert.ok(!existsSync(join(repo, 'specs', '.ignore')), 'a restore never fences the live specs dir')
+        assert.ok(!existsSync(join(repo, 'specs', 'decisions', '.ignore')))
+    } finally {
+        rmSync(repo, { recursive: true, force: true })
+    }
+})
+
+test('a spec being restored keeps a ledger that is already live, and does not archive it', async () => {
+    const { execFileSync, spawnSync } = await import('node:child_process')
+    const { cpSync, mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync, rmSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const { tmpdir } = await import('node:os')
+
+    const repo = mkdtempSync(join(tmpdir(), 'sdlc-restore-'))
+    try {
+        const git = (args) => execFileSync('git', args, { cwd: repo, encoding: 'utf8' })
+        const script = join(repo, 'scripts', 'sdlc', 'archive-specs.mjs')
+        git(['init', '-q', '.'])
+        git(['config', 'user.email', 't@t'])
+        git(['config', 'user.name', 't'])
+        mkdirSync(join(repo, 'scripts', 'sdlc'), { recursive: true })
+        writeFileSync(script, readFileSync(join(import.meta.dirname, 'archive-specs.mjs'), 'utf8'))
+        cpSync(join(import.meta.dirname, 'lib'), join(repo, 'scripts', 'sdlc', 'lib'), { recursive: true })
+        mkdirSync(join(repo, 'specs', 'archive', 'specs'), { recursive: true })
+        mkdirSync(join(repo, 'specs', 'decisions'), { recursive: true })
+        // Reopened (status active) while archived, and its ledger was already written live.
+        writeFileSync(join(repo, 'specs', 'archive', 'specs', 'SPEC-011-demo.md'), '---\nid: SPEC-011\nstatus: active\n---\n\nbody\n')
+        writeFileSync(join(repo, 'specs', 'decisions', 'SPEC-011.md'), '# ledger\n')
+        git(['add', '-A'])
+        git(['commit', '-qm', 'init'])
+
+        const res = spawnSync('node', [script], { cwd: repo, encoding: 'utf8', env: { ...process.env, CLAUDE_PROJECT_DIR: repo } })
+        assert.equal(res.status, 0, res.stderr)
+        assert.ok(existsSync(join(repo, 'specs', 'SPEC-011-demo.md')), 'spec restored')
+        assert.ok(existsSync(join(repo, 'specs', 'decisions', 'SPEC-011.md')), 'the live ledger stays live')
+        assert.ok(!existsSync(join(repo, 'specs', 'archive', 'decisions', 'SPEC-011.md')), 'and is not archived')
+    } finally {
+        rmSync(repo, { recursive: true, force: true })
+    }
+})
+
+async function sidecarRepo(prefix, files) {
+    const { execFileSync, spawnSync } = await import('node:child_process')
+    const { cpSync, mkdtempSync, mkdirSync, writeFileSync, readFileSync } = await import('node:fs')
+    const { dirname, join } = await import('node:path')
+    const { tmpdir } = await import('node:os')
+    const repo = mkdtempSync(join(tmpdir(), prefix))
+    const git = (args) => execFileSync('git', args, { cwd: repo, encoding: 'utf8' })
+    const script = join(repo, 'scripts', 'sdlc', 'archive-specs.mjs')
+    git(['init', '-q', '.'])
+    git(['config', 'user.email', 't@t'])
+    git(['config', 'user.name', 't'])
+    mkdirSync(dirname(script), { recursive: true })
+    writeFileSync(script, readFileSync(join(import.meta.dirname, 'archive-specs.mjs'), 'utf8'))
+    cpSync(join(import.meta.dirname, 'lib'), join(repo, 'scripts', 'sdlc', 'lib'), { recursive: true })
+    for (const [rel, body] of Object.entries(files)) {
+        mkdirSync(dirname(join(repo, rel)), { recursive: true })
+        writeFileSync(join(repo, rel), body)
+    }
+    git(['add', '-A'])
+    git(['commit', '-qm', 'init'])
+    const run = (...a) => spawnSync('node', [script, ...a], { cwd: repo, encoding: 'utf8', env: { ...process.env, CLAUDE_PROJECT_DIR: repo } })
+    return { repo, git, run }
+}
+
+test('a companion that stays live does not make the sidecars move back and forth', async () => {
+    const { existsSync, rmSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const { repo, git, run } = await sidecarRepo('sdlc-companion-', {
+        'specs/SPEC-050-x.md': '---\nid: SPEC-050\nstatus: completed\n---\n',
+        'specs/SPEC-050-x-appendix.md': '---\nparent_spec: SPEC-050\n---\n',
+        'specs/decisions/SPEC-050.md': '# ledger\n',
+    })
+    try {
+        assert.equal(run().status, 0)
+        assert.ok(existsSync(join(repo, 'specs', 'archive', 'decisions', 'SPEC-050.md')))
+        git(['add', '-A'])
+        git(['commit', '-qm', 'archive'])
+        const check = run('--check')
+        assert.equal(check.status, 0, check.stderr)
+        assert.match(run().stdout, /nothing to archive or restore/)
+    } finally {
+        rmSync(repo, { recursive: true, force: true })
+    }
+})
+
+test('an untracked sidecar stops the run before anything moves', async () => {
+    const { existsSync, rmSync, writeFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const { repo, git, run } = await sidecarRepo('sdlc-untracked-', {
+        'specs/SPEC-051-x.md': '---\nid: SPEC-051\nstatus: completed\n---\n',
+    })
+    try {
+        const { mkdirSync } = await import('node:fs')
+        mkdirSync(join(repo, 'specs', 'review-logs'), { recursive: true })
+        writeFileSync(join(repo, 'specs', 'review-logs', 'SPEC-051.json'), '{}\n')
+        const res = run()
+        assert.equal(res.status, 1)
+        assert.match(res.stderr, /untracked/)
+        assert.ok(existsSync(join(repo, 'specs', 'SPEC-051-x.md')), 'the spec did not move')
+        assert.equal(git(['status', '--porcelain', '--', 'specs/SPEC-051-x.md']).trim(), '', 'nothing is staged')
+        assert.match(run('--dry-run').stdout, /1 sidecar\(s\) to move/)
+    } finally {
+        rmSync(repo, { recursive: true, force: true })
+    }
+})
+
 // ── Clause 1 must read the skill tree WHERE IT ACTUALLY LIVES ─────────────────
 // This framework authors its skills at `skills/`; a repo that adopted the framework
 // receives them at `.ai/skills/` and has no top-level `skills/`. A scanner that only
