@@ -107,3 +107,10 @@ heading goes in the moment it happens, not batched at the end.
 
 **Merged:** PR #85
 **What changed:** Step 10a and Step 6c mark every input that can be absent as optional and say how to report it; Step 3 gains the five-question research protocol writing to the ledger's ## Research table, negative results included.
+
+---
+
+## Simplify pass, and a defect it found
+
+**Merged:** ec59439 (fast-forwarded onto `feat/spec-007`, per SOP §6.1), then a fix PR.
+**What changed:** The simplify pass removed duplication in the six new or changed scripts, with no behaviour change: 417 of 417 tests passed before and after. It also reported a defect in S6's archiver code. `main()` called `scanArchived()` three times, and each call builds new objects, so `toRestore.includes(s)` was always false. A spec being restored therefore counted as both archived and live, and a ledger or review log it already had in the live corpus was moved into the archive while the spec moved out. The fix scans the archive once. A regression test reproduces the defect before the fix and passes after it.

@@ -280,13 +280,15 @@ function main(argv) {
     const dryRun = argv.includes('--dry-run')
 
     const live = scanLive()
-    const knownIds = new Set([...live, ...scanArchived()].map((s) => s.id).filter(Boolean))
+    // One scan: the restore and boundary sets below compare these objects by identity.
+    const archived = scanArchived()
+    const knownIds = new Set([...live, ...archived].map((s) => s.id).filter(Boolean))
     const protections = { citedIds: collectCitedIds(ROOT, knownIds), adrBoundIds: collectAdrBoundIds(ROOT) }
     const toArchive = archivable(live, protections)
     // A spec whose status went back to draft/active is restored by the same run.
-    const toRestore = scanArchived().filter((s) => s.status && LIVE_STATUSES.has(s.status))
+    const toRestore = archived.filter((s) => s.status && LIVE_STATUSES.has(s.status))
     const moving = new Set([...toArchive, ...toRestore].map((s) => s.id))
-    const endsArchived = [...scanArchived().filter((s) => !toRestore.includes(s)), ...toArchive].map((s) => s.id)
+    const endsArchived = [...archived.filter((s) => !toRestore.includes(s)), ...toArchive].map((s) => s.id)
     const endsLive = [...live.filter((s) => !toArchive.includes(s)), ...toRestore].map((s) => s.id)
     const sidecarMoves = misplacedSidecars(endsArchived, endsLive)
     const rel = (p) => p.slice(ROOT.length + 1)

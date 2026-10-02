@@ -183,6 +183,40 @@ test('AC-023: a spec\'s decision ledger and review log move with it, and come ba
     }
 })
 
+test('a spec being restored keeps a ledger that is already live, and does not archive it', async () => {
+    const { execFileSync, spawnSync } = await import('node:child_process')
+    const { cpSync, mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync, rmSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const { tmpdir } = await import('node:os')
+
+    const repo = mkdtempSync(join(tmpdir(), 'sdlc-restore-'))
+    try {
+        const git = (args) => execFileSync('git', args, { cwd: repo, encoding: 'utf8' })
+        const script = join(repo, 'scripts', 'sdlc', 'archive-specs.mjs')
+        git(['init', '-q', '.'])
+        git(['config', 'user.email', 't@t'])
+        git(['config', 'user.name', 't'])
+        mkdirSync(join(repo, 'scripts', 'sdlc'), { recursive: true })
+        writeFileSync(script, readFileSync(join(import.meta.dirname, 'archive-specs.mjs'), 'utf8'))
+        cpSync(join(import.meta.dirname, 'lib'), join(repo, 'scripts', 'sdlc', 'lib'), { recursive: true })
+        mkdirSync(join(repo, 'specs', 'archive', 'specs'), { recursive: true })
+        mkdirSync(join(repo, 'specs', 'decisions'), { recursive: true })
+        // Reopened (status active) while archived, and its ledger was already written live.
+        writeFileSync(join(repo, 'specs', 'archive', 'specs', 'SPEC-011-demo.md'), '---\nid: SPEC-011\nstatus: active\n---\n\nbody\n')
+        writeFileSync(join(repo, 'specs', 'decisions', 'SPEC-011.md'), '# ledger\n')
+        git(['add', '-A'])
+        git(['commit', '-qm', 'init'])
+
+        const res = spawnSync('node', [script], { cwd: repo, encoding: 'utf8', env: { ...process.env, CLAUDE_PROJECT_DIR: repo } })
+        assert.equal(res.status, 0, res.stderr)
+        assert.ok(existsSync(join(repo, 'specs', 'SPEC-011-demo.md')), 'spec restored')
+        assert.ok(existsSync(join(repo, 'specs', 'decisions', 'SPEC-011.md')), 'the live ledger stays live')
+        assert.ok(!existsSync(join(repo, 'specs', 'archive', 'decisions', 'SPEC-011.md')), 'and is not archived')
+    } finally {
+        rmSync(repo, { recursive: true, force: true })
+    }
+})
+
 // ── Clause 1 must read the skill tree WHERE IT ACTUALLY LIVES ─────────────────
 // This framework authors its skills at `skills/`; a repo that adopted the framework
 // receives them at `.ai/skills/` and has no top-level `skills/`. A scanner that only
