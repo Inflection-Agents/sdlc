@@ -128,6 +128,13 @@ The reference implementation has `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` with pr
 ### `[backlog]` Worktree isolation rule as a standalone doc
 Referenced in SPEC-002 with the 2026-04-24 stash-incident justification. Belongs as a top-level rule (e.g., in `agent-orchestration.md` or a sibling doc) so consumers find it without reading SPEC-002. Small; can ship with the SPEC-002 work.
 
+### `[backlog]` Prescribe when to create worktrees, where they go, and when they are removed
+Raised by the owner, 2026-10-01: "we're not prescriptive on when to create worktrees and where the worktrees are created. So, we end up with a sprawl." The evidence comes from high-gear-apps:
+- `git -C ~/_code/high-gear-apps worktree list` shows 23 worktrees in 3 kinds of location: 19 under `.claude/worktrees/`, 3 sibling directories in `~/_code/` (`hga-v0.1.109-plan`, `hga-sec-intent`, `high-gear-apps-spec167`), and the main checkout.
+- `.gitignore` lists both `.worktrees/` and `.claude/worktrees/` (lines 59 and 60).
+
+Related to the item above, which is narrower, and may absorb it. Also related to SPEC-009: the worktree location is a layout decision. SPEC-009's guide is at the 10-step limit, so this needs its own spec.
+
 ### `[backlog]` `.ai/project.md` workspace dependency graph + change propagation pattern
 The reference implementation's `project.md` ballooned to 406 lines and includes a workspace dependency graph and explicit "when X changes, also verify Y" propagation rules. Upstream `templates/project.md` is generic. Port as an *optional* monorepo extension — single-app consumers don't need it.
 

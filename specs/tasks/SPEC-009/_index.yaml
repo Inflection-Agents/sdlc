@@ -1,0 +1,46 @@
+spec: SPEC-009
+title: "One .sdlc/ folder: consolidate the adopter footprint and migrate existing repos on /sdlc-sync"
+created: 2026-10-01
+updated: 2026-10-01
+
+# Plan-review verdict (ADR-002). The owner sets approved: true in the same sign-off that makes
+# SPEC-009 active.
+plan_review:
+  status: approve-ready
+  approved: true
+  reviewed: 2026-10-01
+
+steps:
+  - id: S1
+    status: pending
+  - id: S2
+    status: pending
+  - id: S3
+    status: pending
+  - id: S4
+    status: pending
+  - id: S5
+    status: pending
+  - id: S6
+    status: pending
+  - id: S7
+    status: pending
+  - id: S8
+    status: pending
+  - id: S9
+    status: pending
+  - id: S10
+    status: pending
+
+decisions:
+  - id: D1
+    status: decided
+    decided: SPEC-003 is closed through spec-completion before S1 starts (owner, 2026-10-01).
+
+phase:
+  current: spec-authoring
+  next_action: spec-execution
+  next_trigger: 'execute SPEC-009'
+  exit_condition_met: true
+  handoff_surfaced: true
+  updated: 2026-10-01
