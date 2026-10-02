@@ -75,3 +75,11 @@ test('emitYaml round-trips the config shape', () => {
     }
     assert.deepEqual(parseYaml(emitYaml(value)), { ...value, workspaces: [{ ...value.workspaces[0], notes: '' }] })
 })
+
+test('a string a full YAML reader would type is quoted, and reads back as written', () => {
+    const v = { a: '1.0', b: '0x1F', c: '1e3', d: '.inf', e: '2026-10-02', f: 'yes', g: '1.', h: 'v1.0', i: 'apps/web' }
+    const text = emitYaml(v)
+    for (const k of ['a', 'b', 'c', 'd', 'e', 'f', 'g']) assert.match(text, new RegExp(`^${k}: "`, 'm'), k)
+    for (const k of ['h', 'i']) assert.match(text, new RegExp(`^${k}: [^"]`, 'm'), k)
+    assert.deepEqual(parseYaml(text), v)
+})

@@ -125,6 +125,25 @@ test("with no plugin installed, as in an adopter's CI, a name the repo lacks is 
         const typo = spawnSync(process.execPath, [shipped, '--root', fx.root], { encoding: 'utf8', env })
         assert.equal(typo.status, 1)
         assert.match(typo.stderr, /domain skill 'web-reviewr' does not resolve/)
+        // An extension phase is the repo's own too, so its owner skill must exist locally.
+        write(fx.root, '.sdlc/config.yaml', [
+            'layout: 2',
+            'domain_routing:',
+            '  web: [web-patterns]',
+            'extensions:',
+            '  phases:',
+            '    - id: roadmap-sync',
+            "      entry_triggers: ['sync the roadmap']",
+            "      preconditions: ['a roadmap']",
+            '      owner_skill: roadmap-synk',
+            "      exit_condition: 'synced'",
+            '      next_phase: none',
+            '      next_trigger: none',
+            '',
+        ].join('\n'))
+        const ext = spawnSync(process.execPath, [shipped, '--root', fx.root], { encoding: 'utf8', env })
+        assert.equal(ext.status, 1)
+        assert.match(ext.stderr, /owner_skill 'roadmap-synk' does not resolve/)
         write(fx.root, '.sdlc/config.yaml', 'layout: 2\ndomain_routing:\n  web: [web-patterns]\n')
 
         // With a plugin that lacks the skill, the same name is an error.

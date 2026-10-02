@@ -5,7 +5,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { chmodSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync } from 'node:fs'
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, readlinkSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -172,17 +172,22 @@ test('a phase field holding a newline is written so the config reads back as wri
 
 test('files git does not track are refused before anything moves, so a failed apply cannot lose them', () => {
     for (const [rel, body, ignore, reason] of [
-        ['scripts/sdlc/my-wip-gate.mjs', '// wip\n', null, /untracked or ignored files sit in a directory the migration moves/],
-        ['.ai/sdlc/cache/x.json', '{}\n', 'cache/', /untracked or ignored files sit in a directory the migration moves/],
-        ['CLAUDE.md', '# mine\n', null, /CLAUDE\.md exists but is not committed/],
-        ['.prettierignore', 'dist/\n', null, /\.prettierignore exists but is not committed/],
+        ['scripts/sdlc/my-wip-gate.mjs', '// wip\n', null, /scripts\/sdlc\/my-wip-gate\.mjs: untracked or ignored, in a directory the migration moves/],
+        ['.ai/sdlc/cache/x.json', '{}\n', 'cache/', /\.ai\/sdlc\/cache\/x\.json: untracked or ignored/],
+        ['CLAUDE.md', '# mine\n', null, /CLAUDE\.md: exists but is not committed/],
+        ['.prettierignore', 'dist/\n', null, /\.prettierignore: exists but is not committed/],
     ]) {
         const fx = fixture()
         try {
             if (ignore) write(fx.root, '.git/info/exclude', `${ignore}\n`)
             write(fx.root, rel, body)
+            const dry = migrate(fx.root, '--dry-run')
+            assert.equal(dry.status, 0, `${rel}: the dry run still shows the plan`)
+            assert.match(dry.stdout, /Blocks --apply/)
+            assert.match(dry.stdout, reason)
             const res = migrate(fx.root, '--apply')
             assert.equal(res.status, 1, rel)
+            assert.match(res.stderr, /cannot apply until these are resolved/)
             assert.match(res.stderr, reason)
             assert.equal(read(fx.root, rel), body, `${rel} is untouched`)
             assert.equal(git(fx.root, 'rev-parse', '--abbrev-ref', 'HEAD').trim(), 'main')
@@ -197,7 +202,7 @@ test('a root file the repo ignores is refused, since the migration could not com
     try {
         const res = migrate(fx.root, '--apply')
         assert.equal(res.status, 1)
-        assert.match(res.stderr, /CLAUDE\.md is gitignored/)
+        assert.match(res.stderr, /CLAUDE\.md: gitignored/)
     } finally {
         fx.cleanup()
     }
@@ -292,6 +297,97 @@ test("a sentence-final bare directory is rewritten, and a longer name is not", (
     try {
         assert.equal(migrate(fx.root, '--apply').status, 0)
         assert.equal(read(fx.root, 'docs/notes.md'), 'The validators live in .sdlc/scripts. See scripts/sdlcx too.\n')
+    } finally {
+        fx.cleanup()
+    }
+})
+
+test('a relative link that moves is repointed so it still names its target, moved or not', () => {
+    const fx = fixture({ 'docs/registry-guide.md': '# guide\n' })
+    try {
+        symlinkSync('../../docs/registry-guide.md', join(fx.root, '.ai', 'sdlc', 'GUIDE.md'))
+        symlinkSync('review-constraints.yaml', join(fx.root, '.ai', 'sdlc', 'registry.yaml'))
+        git(fx.root, 'add', '-A')
+        git(fx.root, 'commit', '-q', '-m', 'links')
+        const res = migrate(fx.root, '--apply')
+        assert.equal(res.status, 0, res.stderr)
+        assert.equal(readlinkSync(join(fx.root, '.sdlc', 'GUIDE.md')), '../docs/registry-guide.md')
+        assert.equal(read(fx.root, '.sdlc/GUIDE.md'), '# guide\n')
+        assert.equal(readlinkSync(join(fx.root, '.sdlc', 'registry.yaml')), 'review-constraints.yaml')
+        assert.equal(git(fx.root, 'status', '--porcelain').trim(), '')
+    } finally {
+        fx.cleanup()
+    }
+})
+
+test("a local .claude/skills link is repointed but not committed, and a rollback puts it back", () => {
+    const fx = fixture()
+    try {
+        mkdirSync(join(fx.root, '.claude'), { recursive: true })
+        symlinkSync('../.ai/sdlc', join(fx.root, '.claude', 'skills'))
+        write(fx.root, '.git/info/exclude', '.claude/\n')
+        write(fx.root, '.git/hooks/pre-commit', '#!/bin/sh\nexit 1\n')
+        chmodSync(join(fx.root, '.git/hooks/pre-commit'), 0o755)
+        const failed = migrate(fx.root, '--apply')
+        assert.equal(failed.status, 1)
+        assert.equal(readlinkSync(join(fx.root, '.claude', 'skills')), '../.ai/sdlc', 'the rollback restores the local link')
+        rmSync(join(fx.root, '.git/hooks/pre-commit'))
+        const ok = migrate(fx.root, '--apply')
+        assert.equal(ok.status, 0, ok.stderr)
+        assert.match(ok.stdout, /\.claude\/skills: \.\.\/\.ai\/sdlc -> \.\.\/\.sdlc \(local link, not committed\)/)
+        assert.equal(readlinkSync(join(fx.root, '.claude', 'skills')), '../.sdlc')
+    } finally {
+        fx.cleanup()
+    }
+})
+
+test('a framework file an ignore rule matches (a lib/ rule) is still committed', () => {
+    const fx = fixture({ '.gitignore': 'node_modules/\nlib/\ndist/\n' })
+    try {
+        const res = migrate(fx.root, '--apply')
+        assert.equal(res.status, 0, res.stderr)
+        assert.match(git(fx.root, 'ls-files', '.sdlc/scripts/lib'), /sdlc-paths\.mjs/)
+    } finally {
+        fx.cleanup()
+    }
+})
+
+test('a migrated repo in a subdirectory of a larger repo reruns as nothing to migrate', () => {
+    const base = mkdtempSync(join(tmpdir(), 'sdlc-mono-'))
+    const fx = pluginInit030Repo()
+    try {
+        cpSync(fx.root, join(base, 'app'), { recursive: true, filter: (src) => !src.includes(`${join(fx.root, '.git')}`) })
+        write(base, 'README.md', 'monorepo\n')
+        git(base, 'init', '-q', '-b', 'main')
+        git(base, '-c', 'user.email=t@t', '-c', 'user.name=t', 'add', '-A')
+        git(base, '-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-q', '-m', 'mono')
+        git(base, 'config', 'user.email', 't@t')
+        git(base, 'config', 'user.name', 't')
+        const first = migrate(join(base, 'app'), '--apply')
+        assert.equal(first.status, 0, first.stderr)
+        const again = migrate(join(base, 'app'), '--dry-run')
+        assert.equal(again.status, 0, again.stderr)
+        assert.match(again.stdout, /nothing to migrate/)
+    } finally {
+        fx.cleanup()
+        rmSync(base, { recursive: true, force: true })
+    }
+})
+
+test('a failure before git add removes the files the run created and nothing else', async () => {
+    const { planMigration, applyMigration } = await import('./migrate-layout.mjs')
+    const fx = fixture({ 'notes/keep.md': 'keep\n' })
+    try {
+        const plan = planMigration(fx.root)
+        // A write whose parent is a file fails after .sdlc/config.yaml and other writes landed.
+        plan.writes.set('README.md/impossible', 'x')
+        write(fx.root, 'README.md', '# readme\n')
+        git(fx.root, 'add', '-A')
+        git(fx.root, 'commit', '-q', '-m', 'readme')
+        assert.throws(() => applyMigration(fx.root, plan), /rolled back/)
+        assert.equal(existsSync(join(fx.root, '.sdlc')), false)
+        assert.equal(read(fx.root, 'notes/keep.md'), 'keep\n')
+        assert.equal(git(fx.root, 'status', '--porcelain').trim(), '')
     } finally {
         fx.cleanup()
     }
