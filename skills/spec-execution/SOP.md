@@ -9,7 +9,7 @@ behind a visible task list, each landing on that branch before the next starts �
 once → open one integration PR and review it hard → leave it open for the human.
 
 > This SOP ships generic. Replace the placeholder commands in §3 and §6 with this repo's real ones
-> (the workspace table in `.ai/project.md` is the source), and delete the rows that do not apply.
+> (each workspace's `test` and `build` in `.sdlc/config.yaml` are the source), and delete the rows that do not apply.
 
 ---
 
@@ -99,7 +99,7 @@ ceremony — those live at the integration gate now.
 | data / transform layer  | build + test the models the step touched; re-run the generator check if a generator ran |
 | infrastructure          | the stack's unit tests + a plan/synth that must produce no unintended diff              |
 | database migrations     | apply to a local/dev database and run the step's own probes                             |
-| docs / specs only       | the relevant `scripts/sdlc/*.mjs` validator                                             |
+| docs / specs only       | the relevant `.sdlc/scripts/*.mjs` validator                                             |
 
 Whole-pipeline runs, the browser, and performance measurement are **not** per-step work — §6.
 
@@ -227,7 +227,7 @@ This is where all the rigor now lives.
 Collect every lens that fires across the whole diff — this is the one place
 `review-constraints.yaml` is evaluated in full — and read the highest `Risk:` in the guide as the
 panel's intensity hint (the registry can only raise it). Resolve each lens to its reviewer with
-`node scripts/sdlc/reviewer-routing.mjs <lens>` (ADR-001: routing is registry data).
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs reviewer-routing <lens>` (ADR-001: routing is registry data).
 
 **Fold by resolved agent, per [`../review-primitives.md`](../review-primitives.md) > Panel fold
 rule.** That section is the single statement of the rule; this one does not restate it.
@@ -251,7 +251,7 @@ talk itself out of; an absent tool is not. A registry `agent:` that names no fil
 `reviewer-routing.test.mjs`, so the routing cannot silently point at nothing.
 
 **Every verdict comes from a dispatched reviewer, never from you.** Validate each returned envelope
-with `node scripts/sdlc/validate-review-envelope.mjs <file>` — exit `0` fold the findings, `2`
+with `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-review-envelope <file>` — exit `0` fold the findings, `2`
 abstained (escalate), `3` malformed or absent (re-dispatch or escalate). A malformed envelope is
 never a clean review. Severity → action is `review-primitives.md`; do not freehand it.
 

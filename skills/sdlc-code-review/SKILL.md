@@ -20,7 +20,7 @@ Review PRs against the spec, not just code quality. Every PR traces to a guide s
 - `receiving-code-review` — handling feedback: verify before implementing, push back when wrong
 - `verification-before-completion` — no approval claims without running verification
 
-**Domain skills:** Check `.ai/project.md` → Workspace skills table. When reviewing a PR for a workspace that has domain skills listed, apply those domain-specific conventions in addition to the standard code review. For example, a dbt PR should be reviewed against dbt-craftsman style rules (CTE ordering, naming, macros), not just generic code standards.
+**Domain skills:** Check each workspace's `skills` in `.sdlc/config.yaml`. When reviewing a PR for a workspace that has domain skills listed, apply those domain-specific conventions in addition to the standard code review. For example, a dbt PR should be reviewed against dbt-craftsman style rules (CTE ordering, naming, macros), not just generic code standards.
 
 ## Critical gates
 
@@ -87,9 +87,9 @@ Check:
 
 Enforce the following checks — these are blockers, not advisories:
 
-- **`monorepo:workspace-scope`** — PR modifies files outside the step's `Workspace:`. Every modified file path must fall within the workspace's root directory as defined in `.ai/project.md`.
+- **`monorepo:workspace-scope`** — PR modifies files outside the step's `Workspace:`. Every modified file path must fall within the workspace's root directory as defined by its `path` in `.sdlc/config.yaml`.
 - **`monorepo:verify-coverage`** — PR fails any command in the step's `Verify:`, which must include each consuming workspace's command. Run all of them, not just the primary workspace's.
-- **`monorepo:boundary`** — Import-graph violation: a file in workspace A imports from workspace B against the dependency graph in `.ai/project.md`. Distinct from file-touch violations (`monorepo:workspace-scope`) — this is about import semantics, not file location.
+- **`monorepo:boundary`** — Import-graph violation: a file in workspace A imports from workspace B against the dependency graph in `AGENTS.md`. Distinct from file-touch violations (`monorepo:workspace-scope`) — this is about import semantics, not file location.
 
 Three non-overlapping prefixes, all blockers (severity assigned in SPEC-004 AC-006). Use the matching prefix when raising the finding.
 

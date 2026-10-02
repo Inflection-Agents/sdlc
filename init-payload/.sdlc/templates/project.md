@@ -187,6 +187,6 @@ Package manager: **[pnpm / npm / yarn]**
 ## Specs and ADRs
 
 - Spec index: `specs/spec-index.json`
-- Templates: `specs/templates/`
+- Templates: `.sdlc/templates/`
 - ADRs: `specs/adrs/`
 - Bug specs: `specs/bugs/`

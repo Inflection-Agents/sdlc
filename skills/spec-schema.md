@@ -40,7 +40,7 @@ linear_project: PRJ-XYZ         # Linear project id, for bidirectional linking
 | `owner` | yes | yes | GitHub username. The human accountable for this spec's intent. |
 | `created` | yes | no | ISO date. |
 | `updated` | yes | yes | ISO date. Updated on every material change. |
-| `workspaces` | no | yes | Array of workspace names from `.ai/project.md`. Omit for single-app repos. Informs each guide step's `Workspace:`. |
+| `workspaces` | no | yes | Array of workspace names from `.sdlc/config.yaml` `workspaces`. Omit for single-app repos. Informs each guide step's `Workspace:`. |
 | `integration_strategy` | — | — | **Retired by ADR-003.** The integration branch `feat/spec-NNN` is now unconditional: every spec cuts one, and nothing reaches `main` except by merging it. The field is ignored where it still appears on an older spec; `direct` mode no longer exists. |
 | `tags` | no | yes | Array of strings. |
 | `linear_project` | no | yes | Set when the Linear project is created. |
@@ -49,7 +49,7 @@ linear_project: PRJ-XYZ         # Linear project id, for bidirectional linking
 frontmatter — it lives in the `plan_review:` block of the spec's `specs/tasks/SPEC-NNN/_index.yaml`
 (owned by `guide-schema.md`), since the plan being attested is the spec *and* its delivery guide. That
 block is what a delivery run checks before it starts, and fails closed on
-(`node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml`).
+(`node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs plan-gate specs/tasks/SPEC-NNN/_index.yaml`).
 
 ## Body structure
 
@@ -192,8 +192,8 @@ changes the SDLC *itself* — retiring an execution model, moving where a gate l
 has no owning spec, and inventing one would misattribute it. Such an ADR sets `spec: none`
 and is authored directly, then reviewed by an independent panel like any other change.
 
-**Scope.** The route covers the framework's own artifacts: `specs/**`, `.ai/**`, `.claude/**`,
-`scripts/sdlc/**`, `.github/workflows/**`, `bootstrap.sh`, and the root docs — process
+**Scope.** The route covers the framework's own artifacts: `specs/**`, `.sdlc/**`, `.claude/**`,
+`${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/**`, `.github/workflows/**`, `bootstrap.sh`, and the root docs — process
 machinery, including the code that enforces process. A change touching *product* code needs a
 spec. (An earlier draft of this paragraph listed only the doc paths, which would not have
 admitted ADR-003, the very change that defined the route — the allowlist is written to match
@@ -224,7 +224,7 @@ What follows from this decision — good and bad.
 > `specs/archive/` and is hidden from default search, while staying tracked in git —
 > unless a live skill cites it or a non-archived ADR binds it, which holds it in the
 > live corpus on purpose.
-> Resolve any id with `node scripts/sdlc/resolve.mjs SPEC-NNN`, or search with
+> Resolve any id with `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs resolve SPEC-NNN`, or search with
 > `rg --no-ignore`. See [`.ignore`](.ignore) for why position beats a status label.
 
 ## Directory layout
@@ -273,7 +273,7 @@ Subdirectories:
 
 ### `DECISIONS.md` — the per-run decision log
 
-One file per spec run, at `specs/tasks/SPEC-NNN/DECISIONS.md`, created from `templates/decisions.md`
+One file per spec run, at `specs/tasks/SPEC-NNN/DECISIONS.md`, created from `.sdlc/templates/decisions.md`
 when `spec-execution` cuts the integration branch. Append-only, chronological.
 
 Three heading forms, and no others:

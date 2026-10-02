@@ -69,14 +69,14 @@ Every finding MUST cite its source in the `criterion` field of the output schema
 
 #### PR-side canonical prefix table
 
-This is the **single, canonical** allowed-prefix set for `pr-reviewer` (Tier 1) and all Tier 2 PR specialists. It is the contract that the envelope validator (`scripts/sdlc/validate-review-envelope.mjs` `PR_SIDE_PREFIXES` — which rejects an ungrounded blocking finding at runtime) and the review envelope schema (`review-envelope.schema.json` `criterion`) align to; `scripts/sdlc/prefix-parity.test.mjs` fails if any of the three drift. Every allowed PR-side prefix and its meaning:
+This is the **single, canonical** allowed-prefix set for `pr-reviewer` (Tier 1) and all Tier 2 PR specialists. It is the contract that the envelope validator (`.sdlc/scripts/validate-review-envelope.mjs` `PR_SIDE_PREFIXES` — which rejects an ungrounded blocking finding at runtime) and the review envelope schema (`review-envelope.schema.json` `criterion`) align to; `.sdlc/scripts/prefix-parity.test.mjs` fails if any of the three drift. Every allowed PR-side prefix and its meaning:
 
 | Prefix | Form | Meaning |
 |---|---|---|
 | `ac:` | `ac:AC-NNN` | Finding grounds in a specific spec acceptance criterion that the step under review covers (criterion fails / is untestable / contradicts another). |
 | `adr:` | `adr:ADR-NNN` | Deviation from a cited Architecture Decision Record. |
 | `std:` | `std:<section-anchor>` | Deviation from `sdlc-code-standards` (anchor refers to a heading slug in that skill). |
-| `monorepo:` | `monorepo:boundary` | Blocker: import-graph violation — a file in workspace A imports from workspace B against the dependency graph in `.ai/project.md` (distinct from file-touch violations, which use `monorepo:workspace-scope`). |
+| `monorepo:` | `monorepo:boundary` | Blocker: import-graph violation — a file in workspace A imports from workspace B against the dependency graph in `AGENTS.md` (distinct from file-touch violations, which use `monorepo:workspace-scope`). |
 | `monorepo:` | `monorepo:workspace-scope` | Blocker: PR touches files outside the step's `Workspace:`. |
 | `monorepo:` | `monorepo:verify-coverage` | Blocker: PR fails any command in the step's `Verify:`, which includes each consuming workspace's command. |
 | `task:` | `task:blocks:<id>` | Finding grounds in a contract in a step's `Notes:` that later step `<id>` must match. |
@@ -149,7 +149,7 @@ sequence, and sets `lens` on every finding so a later round can be scoped to the
 it. Lenses that resolve to their own specialist keep their own dispatch, because a specialist's
 tools and reading depth differ.
 
-Resolve every firing lens with `node scripts/sdlc/reviewer-routing.mjs <lens>`. **Name no reviewer
+Resolve every firing lens with `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs reviewer-routing <lens>`. **Name no reviewer
 anywhere else.** Which lenses fold is registry data — a one-line `agent:` edit in
 `review-constraints.yaml`. A list of agent names in a skill is the lens→reviewer map ADR-001
 deleted, and it has already drifted here once: a skill named `security-reviewer` for the security

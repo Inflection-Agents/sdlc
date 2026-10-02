@@ -24,11 +24,11 @@ Creating a domain skill touches these files:
 | File | What to add |
 |------|------------|
 | `skills/[name]/SKILL.md` | The skill itself |
-| `.ai/project.md` → Workspace skills | Map the skill to its workspace |
-| `.ai/project.md` → Workspace interfaces | Add/update if the skill reveals boundary contracts |
-| `.ai/project.md` → Change propagation patterns | Add/update if the skill introduces cross-workspace patterns |
-| `.ai/project.md` → Agent eligibility | Update if the skill changes whether this workspace's work can run unattended or needs a human `Run by:` step |
-| `.ai/project.md` → Per-workspace conventions | Add/update if conventions differ from the default |
+| `.sdlc/config.yaml` → the workspace's `skills` | Map the skill to its workspace |
+| `AGENTS.md` SDLC block → Workspace interfaces | Add/update if the skill reveals boundary contracts |
+| `AGENTS.md` SDLC block → Change propagation patterns | Add/update if the skill introduces cross-workspace patterns |
+| `.sdlc/config.yaml` → the workspace's `agent_executable` | Update if the skill changes whether this workspace's work can run unattended or needs a human `Run by:` step |
+| `AGENTS.md` SDLC block → Per-workspace conventions | Add/update if conventions differ from the default |
 
 Missing any of these means the skill exists but SDLC process skills won't find it, apply it, or write guide steps correctly for its workspace.
 
@@ -47,7 +47,7 @@ Interview the user or read the codebase:
 ### Step 2: Check existing skills
 
 Read the current state:
-- `.ai/project.md` — is this workspace already mapped? Are there existing skills?
+- `.sdlc/config.yaml` `workspaces` — is this workspace already mapped? Are there existing skills?
 - `skills/` — scan for any existing skills for this workspace
 - Other workspace skills — read 1-2 existing domain skills to understand the format and depth
 
@@ -138,20 +138,24 @@ description: [WHEN to use — triggering conditions and symptoms only.]
 
 **If neither is installed:** at minimum, review the skill with someone who works in this workspace daily. Better: manually test by asking Claude to do a task in the workspace and checking whether it follows the skill's conventions.
 
-### Step 6: Update project.md — Workspace skills table
+### Step 6: Add the skill to the workspace in `.sdlc/config.yaml`
 
-Add the skill to the workspace skills mapping:
+Add the skill's name to the workspace's `skills` list, in the order the skills apply:
 
-```markdown
-| Workspace | Domain skills | Purpose |
-|-----------|--------------|---------|
-| dbt | dbt-cartographer, dbt-craftsman | Model navigation, dbt change patterns |
-| dealer-app | nextjs-app-patterns | App Router, server components ← NEW |
+```yaml
+workspaces:
+  - name: dealer-app
+    path: apps/dealer-app
+    agent_executable: yes
+    skills: [nextjs-app-patterns]   # ← NEW
 ```
 
-**This is the critical wiring.** Without this row, SDLC skills (code-standards, code-review, spec-authoring's guide step) will never find or apply the domain skill.
+**This is the critical wiring.** Without it, SDLC skills (code-standards, code-review,
+spec-authoring's guide step) never find or apply the domain skill. If the skill should also
+route prompts that name the workspace, add it to `domain_routing` in the same file. Run
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-sdlc-config` afterwards.
 
-### Step 7: Update project.md — Workspace interfaces
+### Step 7: Update the AGENTS.md SDLC block — Workspace interfaces
 
 If the skill reveals or clarifies how this workspace interacts with others, add or update the Workspace interfaces section:
 
@@ -166,7 +170,7 @@ If the skill reveals or clarifies how this workspace interacts with others, add 
 
 Skip this step if the workspace interfaces are already documented and the new skill doesn't change them.
 
-### Step 8: Update project.md — Change propagation patterns
+### Step 8: Update the AGENTS.md SDLC block — Change propagation patterns
 
 If the skill introduces or clarifies cross-workspace change patterns, add them:
 
@@ -178,17 +182,19 @@ If the skill introduces or clarifies cross-workspace change patterns, add them:
 
 Skip this step if existing patterns already cover the relevant flows.
 
-### Step 9: Update project.md — Agent eligibility
+### Step 9: Check the workspace's `agent_executable` in `.sdlc/config.yaml`
 
-If the new skill changes whether this workspace's work can run unattended (e.g., the skill reveals that it needs database access a delivery run does not have), update the agent eligibility table:
+If the new skill changes whether this workspace's work can run unattended (for example, the
+skill reveals that it needs database access a delivery run does not have), set the
+workspace's `agent_executable` to `human`, and say why in its `notes`:
 
-```markdown
-| Workspace | Routing | Notes |
-|-----------|---------|-------|
-| [workspace] | human (deferred) | Requires database credentials (per [skill-name]) |
+```yaml
+  - name: dbt
+    agent_executable: human
+    notes: "eligibility: requires database credentials (per dbt-craftsman)"
 ```
 
-### Step 10: Update project.md — Per-workspace conventions
+### Step 10: Update the AGENTS.md SDLC block — Per-workspace conventions
 
 If the workspace has conventions that differ from the project default (different language, testing framework, formatting), add or update the per-workspace conventions table.
 
@@ -198,10 +204,10 @@ After all updates, verify:
 
 - [ ] Skill file exists at `skills/[name]/SKILL.md`
 - [ ] `description` field says WHEN to use (triggering conditions), not WHAT it does
-- [ ] Skill is listed in `.ai/project.md` → Workspace skills table
+- [ ] Skill is listed in the workspace's `skills` in `.sdlc/config.yaml`
 - [ ] Workspace interfaces are documented (or confirmed unchanged)
 - [ ] Change propagation patterns are documented (or confirmed unchanged)
-- [ ] Agent eligibility is correct for this workspace
+- [ ] The workspace's `agent_executable` in `.sdlc/config.yaml` is correct
 - [ ] Per-workspace conventions are documented (or confirmed as same as default)
 - [ ] No SDLC process duplication in the skill (TDD, commit format, PR structure)
 - [ ] Skill doesn't reference `superpowers:` prefix (use companion skills note instead)
@@ -224,10 +230,10 @@ After all updates, verify:
 - [ ] No SDLC process duplication
 
 ### project.md wiring
-- [ ] Workspace skills table updated
+- [ ] The workspace's `skills` in `.sdlc/config.yaml` updated
 - [ ] Workspace interfaces: updated / confirmed unchanged
 - [ ] Change propagation patterns: updated / confirmed unchanged
-- [ ] Agent eligibility: updated / confirmed unchanged
+- [ ] `agent_executable`: updated / confirmed unchanged
 - [ ] Per-workspace conventions: updated / confirmed unchanged
 
 ### Verification

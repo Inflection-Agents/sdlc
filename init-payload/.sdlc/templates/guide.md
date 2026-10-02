@@ -4,7 +4,7 @@ spec_version: 1
 ---
 
 <!-- Delivery guide. Schema: skills/guide-schema.md. Check with:
-     node scripts/sdlc/validate-guide.mjs specs/tasks/SPEC-NNN/GUIDE.md
+     node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-guide specs/tasks/SPEC-NNN/GUIDE.md
      Keep it short: the executor already holds the spec. More than 10 steps means split the spec. -->
 
 ## Steps

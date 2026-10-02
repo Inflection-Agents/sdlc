@@ -22,8 +22,9 @@ in the plugin and updates on its own.
 
 ## Phase 1 — Scaffold
 
-**On a repo that is already on layout 1** (it has `.ai/` or `scripts/sdlc/` and no
-`.sdlc/config.yaml`), stop: that repo is migrated by `/sdlc-sync`, not initialized.
+**On a repo that is already on layout 1** (it has `.ai/`, or validators in a top-level
+`scripts` directory, and no `.sdlc/config.yaml`), stop: that repo is migrated by
+`/sdlc-sync`, not initialized.
 
 Install the layout-2 payload (ADR-008) with the plugin's installer:
 

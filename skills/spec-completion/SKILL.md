@@ -182,7 +182,7 @@ Assemble everything into a completion report:
 ### Verdict: [Ready to complete / Blocked / Needs discussion]
 ```
 
-The completion report shape is defined in `templates/completion-report.md` (canonical). The skill produces this template at completion time.
+The completion report shape is defined in `.sdlc/templates/completion-report.md` (canonical). The skill produces this template at completion time.
 
 ## Step 8: Get user sign-off
 
@@ -216,8 +216,8 @@ After user approval:
 5. **Move the closed spec out of the default search path:**
 
    ```bash
-   node scripts/sdlc/archive-specs.mjs --dry-run   # read the plan first
-   node scripts/sdlc/archive-specs.mjs             # git mv spec + its specs/tasks/SPEC-NNN/ tree
+   node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs archive-specs --dry-run   # read the plan first
+   node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs archive-specs             # git mv spec + its specs/tasks/SPEC-NNN/ tree
    ```
 
    A terminal status is what makes a spec archivable, so this belongs in the same commit
@@ -226,7 +226,7 @@ After user approval:
 
    Nothing is deleted. The spec and its `specs/tasks/SPEC-NNN/` tree move under
    `specs/archive/`, stay tracked in git, and remain addressable by id
-   (`node scripts/sdlc/resolve.mjs SPEC-NNN`). The repo-root `.ignore` explains why
+   (`node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs resolve SPEC-NNN`). The repo-root `.ignore` explains why
    position beats a status label.
 
    **A no-op here is a legitimate outcome.** Two denylist clauses hold a spec in the live

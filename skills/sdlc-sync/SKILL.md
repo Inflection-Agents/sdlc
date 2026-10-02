@@ -1,6 +1,6 @@
 ---
 name: sdlc-sync
-description: Use after updating the sdlc plugin to refresh the repo-local half, or to move a repo off the old layout: "sync the SDLC", "update the SDLC scripts", "pull the new validators", "migrate to .sdlc/", or when a plugin update mentions new gates. On layout 1 (.ai/ and scripts/sdlc/) it migrates the repo to .sdlc/ on a branch; on layout 2 it refreshes the framework-owned files without touching configuration.
+description: Use after updating the sdlc plugin to refresh the repo-local half, or to move a repo off the old layout: "sync the SDLC", "update the SDLC scripts", "pull the new validators", "migrate to .sdlc/", or when a plugin update mentions new gates. On layout 1 (.ai/ and a top-level scripts directory) it migrates the repo to .sdlc/ on a branch; on layout 2 it refreshes the framework-owned files without touching configuration.
 ---
 
 # SDLC sync
@@ -13,13 +13,11 @@ nothing else.
 
 ## Which layout
 
-```bash
-test -f .sdlc/config.yaml && echo "layout 2" || { test -d specs && { test -d .ai || test -d scripts/sdlc; } && echo "layout 1"; }
-```
-
-- **Layout 2** (`.sdlc/config.yaml` exists): go to "Refresh".
-- **Layout 1** (`specs/` next to `.ai/` or `scripts/sdlc/`): go to "Migrate".
-- **Neither**: the repo is not on the SDLC yet. Use `/sdlc-init`.
+- **Layout 2**: `.sdlc/config.yaml` exists. Go to "Refresh".
+- **Otherwise**, run the migration's dry run (step 1 of "Migrate"). On a layout-1 repo, with
+  `.ai/` or the validators in a top-level `scripts` directory, it prints the plan. On a repo
+  that is on neither layout it refuses and says so. That repo is not on the SDLC yet, so
+  use `/sdlc-init`.
 
 ## What it will and will not touch
 
@@ -85,7 +83,7 @@ BEFORE=$(git rev-parse HEAD)
     - a `join(root, '.ai', ...)` or `'specs', 'sdlc-state-machine.yaml'` path built from segments;
     - a `domain_routing` reader that does not go through `loadMachine`;
     - a schema that requires `domain_routing`;
-    - an escaped regex such as `/^\.ai\//`;
+    - a regular expression that matches the old `.ai/` prefix;
     - a skill that edits a workspace table now in `config.yaml`;
     - a relative path whose target moved.
 

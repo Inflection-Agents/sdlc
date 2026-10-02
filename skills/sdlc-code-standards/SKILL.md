@@ -18,7 +18,7 @@ Non-negotiable coding principles for all implementation work. These apply whethe
 - `verification-before-completion` — no completion claims without fresh evidence
 - `finishing-a-development-branch` — structured branch completion with test gates
 
-**Domain skills:** Check `.ai/project.md` → Workspace skills table. If your work targets a workspace with domain skills listed, apply those domain-specific conventions ALONGSIDE this skill. Domain skills define technology-specific patterns (e.g., dbt CTE ordering, Next.js component patterns). This skill defines universal principles (TDD, DRY, YAGNI). Both apply. Domain conventions take precedence when they conflict with generic examples in this skill.
+**Domain skills:** Check each workspace's `skills` in `.sdlc/config.yaml`. If your work targets a workspace with domain skills listed, apply those domain-specific conventions ALONGSIDE this skill. Domain skills define technology-specific patterns (e.g., dbt CTE ordering, Next.js component patterns). This skill defines universal principles (TDD, DRY, YAGNI). Both apply. Domain conventions take precedence when they conflict with generic examples in this skill.
 
 ## The Standards
 
@@ -204,9 +204,9 @@ If you catch yourself doing any of these, stop and correct:
 
 ## Monorepo discipline
 
-If `.ai/project.md` defines workspaces:
+If `.sdlc/config.yaml` lists workspaces:
 
-- **Respect import boundaries.** Apps never import from each other. Shared never imports from apps. Check `.ai/project.md` for the exact rules.
+- **Respect import boundaries.** Apps never import from each other. Shared never imports from apps. Check `AGENTS.md` for the exact rules.
 - **Use workspace-scoped commands.** `pnpm --filter @org/app test`, not `pnpm test`. Run only what's needed, but run ALL consumers of changed shared code.
 - **Follow per-workspace conventions.** TypeScript conventions apply to app workspaces. SQL/dbt conventions apply to data workspaces. Don't apply React patterns to dbt or SQL patterns to Next.js.
 - **Shared code changes are high-blast-radius.** Before changing shared code, check what consumes it. Your PR must pass tests in all consuming workspaces, not just the one you're focused on.

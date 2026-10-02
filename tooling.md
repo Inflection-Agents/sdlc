@@ -8,7 +8,7 @@ Current and target tooling architecture for the AI-native SDLC.
 | ----------- | ---------------------------------------- | ----------------------------------------------------------- | --------------------------- |
 | Intent/spec | Confluence (separate, weakly linked)     | Schema-enforced markdown in repo with CI validation         | Schema-enforced markdown in repo |
 | Work graph  | Jira (over-flexible, custom fields)      | Event-sourced graph with typed edges                        | Linear (issues + relations) |
-| Process spine | Tribal knowledge / wiki                | Executable state machine + phase memory + enforcement hooks | `specs/sdlc-state-machine.yaml` + per-spec `phase:` block + `.claude/hooks/` (Node) |
+| Process spine | Tribal knowledge / wiki                | Executable state machine + phase memory + enforcement hooks | `.sdlc/state-machine.yaml` + per-spec `phase:` block + `.claude/hooks/` (Node) |
 | Orchestration | Humans assign + chase                   | One agent delivering against a stated goal, with a machine-readable floor | `spec-execution` skill + goal leash (`.claude/hooks/stop-handoff.mjs`) |
 | Execution   | Humans only                              | Agents as first-class assignees with run telemetry          | One executor, serial burn-down onto `feat/spec-NNN`, tracked on a visible task list (worktree-isolated subagents by exception) |
 | Review      | Human PR review                          | LLM multi-lens panel, routed by change surface              | Self-review per guide step, then a routed adversarial panel on the integration PR (lenses from `review-constraints.yaml`); human merges it |
@@ -71,14 +71,14 @@ Claude Code connects to Linear via MCP, making the agent a direct participant in
 
 The reviewer of record for code is an **LLM multi-lens panel**, not a human.
 
-- **Routed by change surface:** lenses = `baseLenses(workspace) ∪ {constraints in [`review-constraints.yaml`](.ai/sdlc/review-constraints.yaml) whose `when` matches the change}`. Matched constraint severity resolves the review tier. The registry is evaluated **in full at the integration gate**, across the whole diff — per-task matching on a narrowly declared `touches` set is unreliable in both directions.
-- **One reviewer-output schema:** [`review-envelope.schema.json`](skills/review-envelope.schema.json) (severity blocker/major/nit/suggestion, altitude, grounded criteria). Every envelope is validated by [`scripts/sdlc/validate-review-envelope.mjs`](scripts/sdlc/validate-review-envelope.mjs) before anything routes on it — exit 0 fold, 2 abstained, 3 malformed/ungrounded; the latter two escalate and never read as a clean accept.
+- **Routed by change surface:** lenses = `baseLenses(workspace) ∪ {constraints in [`review-constraints.yaml`](.sdlc/review-constraints.yaml) whose `when` matches the change}`. Matched constraint severity resolves the review tier. The registry is evaluated **in full at the integration gate**, across the whole diff — per-task matching on a narrowly declared `touches` set is unreliable in both directions.
+- **One reviewer-output schema:** [`review-envelope.schema.json`](skills/review-envelope.schema.json) (severity blocker/major/nit/suggestion, altitude, grounded criteria). Every envelope is validated by [`.sdlc/scripts/validate-review-envelope.mjs`](.sdlc/scripts/validate-review-envelope.mjs) before anything routes on it — exit 0 fold, 2 abstained, 3 malformed/ungrounded; the latter two escalate and never read as a clean accept.
 - **Contract:** [`review-primitives.md`](skills/review-primitives.md) — severity spine, grounding rules, severity→action policy.
 - **Cheap gates first, expensive review once:** a step is gated by its own `Verify:` commands plus the executor's self-review; the independent panel is spent once, on the assembled integration diff, where it can see cross-task interactions. Humans gate the inputs and merge the integration PR.
 
 ## Process spine (decided)
 
-- **State machine:** [`specs/sdlc-state-machine.yaml`](specs/sdlc-state-machine.yaml) is the single source of truth for phases, triggers, exit conditions, and per-workspace domain-skill routing. The `.ai/sdlc.md` narrative and skill `## Handoff` footers are generated/validated from it (`scripts/sdlc/gen-handoffs.mjs`, `validate-state-machine.mjs`).
+- **State machine:** [`.sdlc/state-machine.yaml`](.sdlc/state-machine.yaml) is the single source of truth for phases, triggers, exit conditions, and per-workspace domain-skill routing. The `${CLAUDE_PLUGIN_ROOT}/docs/sdlc.md` narrative and skill `## Handoff` footers are generated/validated from it (`${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/gen-handoffs.mjs`, `validate-state-machine.mjs`).
 - **Phase memory:** each `specs/tasks/SPEC-NNN/_index.yaml` may carry an additive `phase:` block (`{current, next_action, next_trigger, exit_condition_met, updated}`) so the process is resumable.
 - **Reference hooks (Node, advisory by default):** `.claude/hooks/` — prompt→phase classifier, phase-exit handoff **and the delivery goal leash**, edit-without-task guard, review-identity guard. Wired via `.claude/settings.json` so they travel with the repo.
 
@@ -90,7 +90,7 @@ Schema-enforced markdown in the repo. See [spec-schema.md](skills/spec-schema.md
 - **Body:** Required sections (Problem, Success criteria, Scope, Design, Acceptance criteria, Risks)
 - **Validation:** CI check on every PR touching `specs/` — frontmatter, status transitions, reference resolution
 - **Index:** Auto-generated `spec-index.json` — agents read this instead of scanning the directory
-- **Templates:** `templates/spec.md`, `templates/adr.md`, `templates/bug.md`
+- **Templates:** `.sdlc/templates/spec.md`, `.sdlc/templates/adr.md`, `.sdlc/templates/bug.md`
 - **Why not an external tool:** Specs must version with the code they describe. A spec updated in the same PR as the code change is reviewable, atomic, and doesn't require sync between systems.
 
 ## Future tooling candidates

@@ -43,7 +43,7 @@ LEAVE IT OPEN — a human merges
 - **Nothing lingers.** After a step: no open PR, no remote branch, no local branch, no worktree.
 - **Worktree isolation for any subagent that writes files.** Fan-out is the exception (a large spec whose steps have disjoint `Changes:` and `After:` closures); when used, `isolation: "worktree"` is mandatory and the merge discipline is unchanged.
 - **Bounded `Changes:`.** Every step declares the paths it may change; `validate-guide.mjs` rejects a step without them. A diff that leaves them is a `task:scope` finding → re-plan the guide in place, never hand-resolve a conflict.
-- **Independence is structural at the gate.** Every verdict comes from a separately dispatched reviewer with no `Edit`/`Write`, and every envelope is validated (`scripts/sdlc/validate-review-envelope.mjs`). Step-level self-review is the deliberate exception, bought back in full here.
+- **Independence is structural at the gate.** Every verdict comes from a separately dispatched reviewer with no `Edit`/`Write`, and every envelope is validated (`.sdlc/scripts/validate-review-envelope.mjs`). Step-level self-review is the deliberate exception, bought back in full here.
 - **Review of record is the LLM panel.** Humans gate the inputs (spec and guide) and merge the integration PR. See [roles.md](roles.md).
 
 ## Codification: how agents learn the process
@@ -51,25 +51,24 @@ LEAVE IT OPEN — a human merges
 The SDLC is codified in the repo so any agent can understand it. Three-tier architecture:
 
 ```
-.ai/
-├── sdlc.md       ← agent-agnostic process definition (phase model, shared by all agents)
-├── CLAUDE.md     ← local orchestrator config (MCP, Linear, running a delivery, the spine)
-└── AGENTS.md     ← generic executor brief (read the spec and the step, stay within Changes:, open a PR with evidence)
+${CLAUDE_PLUGIN_ROOT}/docs/sdlc.md             ← agent-agnostic process definition (phase model, shared by all agents)
+CLAUDE.md                                      ← local orchestrator config (MCP, Linear, running a delivery, the spine)
+${CLAUDE_PLUGIN_ROOT}/docs/executor-brief.md   ← generic executor brief (read the spec and the step, stay within Changes:, open a PR with evidence)
 ```
 
-**`.ai/sdlc.md`** is the portable core. It defines:
+**`${CLAUDE_PLUGIN_ROOT}/docs/sdlc.md`** is the portable core. It defines:
 - The spec system (how to find and read specs, frontmatter fields, acceptance criteria)
 - The work tracker conventions (Linear labels, issue naming, run logging)
 - The delivery lifecycle (read spec and guide → implement a step → verify → PR → log)
 - Boundaries (what agents must NOT do, when to escalate)
 
-**`.ai/CLAUDE.md`** adds local-orchestrator capabilities:
+**`CLAUDE.md`** adds local-orchestrator capabilities:
 - MCP integrations (Linear, Slack, etc.)
 - Running a delivery through `spec-execution` and handling its escalations
 - The spine: state machine, per-spec phase memory, reference hooks
 - Phase-by-phase responsibilities (intent, spec drafting and the delivery guide, completion)
 
-**`.ai/AGENTS.md`** is the **executor brief** — the agent-agnostic instructions a dispatched, worktree-isolated subagent follows (the exception, not the normal path; during a normal serial run the orchestrator implements each step itself, per the `spec-execution` skill and its SOP, not this brief):
+**`${CLAUDE_PLUGIN_ROOT}/docs/executor-brief.md`** is the **executor brief** — the agent-agnostic instructions a dispatched, worktree-isolated subagent follows (the exception, not the normal path; during a normal serial run the orchestrator implements each step itself, per the `spec-execution` skill and its SOP, not this brief):
 - Read the spec, its guide step and the linked ADRs before writing code
 - Stay strictly within the step's `Changes:`
 - Self-verify (the step's `Verify:` commands) and self-review the diff before opening a PR
@@ -78,18 +77,20 @@ The SDLC is codified in the repo so any agent can understand it. Three-tier arch
 ### Agent portability
 
 If you switch from Claude Code to another local agent (e.g., Gemini CLI):
-1. `.ai/sdlc.md` stays unchanged — it's the process
-2. Rename or duplicate `.ai/CLAUDE.md` to match the new agent's config file convention
-3. `.ai/AGENTS.md` stays unchanged — the executor brief is agent-agnostic
+1. `${CLAUDE_PLUGIN_ROOT}/docs/sdlc.md` stays unchanged — it's the process
+2. Point the new agent's config file at `AGENTS.md`, as `CLAUDE.md` does with `@AGENTS.md`
+3. `${CLAUDE_PLUGIN_ROOT}/docs/executor-brief.md` stays unchanged — the executor brief is agent-agnostic
 
 The process knowledge is in `sdlc.md`. The agent-specific wiring is in the config files. Swap the wiring, keep the process.
 
 ### When you start a new repo
 
-Copy `.ai/` from the SDLC templates into your repo. Update:
-- `AGENTS.md`: project structure, setup commands, test commands (the brief any executor reads)
+Run `/sdlc-init`. It installs the `.sdlc/` tree and the SDLC block in `AGENTS.md`. Then update:
+- the SDLC block in `AGENTS.md`: project structure and conventions (the context any executor reads)
+- `.sdlc/config.yaml` `workspaces`: paths, setup and test commands, agent eligibility, domain skills
 - `CLAUDE.md`: MCP server details, local orchestrator wiring
-- `sdlc.md`: generally stays as-is unless you customize the process
+
+The process doc and the executor brief ship with the plugin and stay as they are.
 
 ## Owner decisions and human-run steps
 
@@ -109,9 +110,9 @@ There is no cloud executor and no separate execution backend to configure.
 
 The spec is the brief, and the short delivery guide in `specs/tasks/SPEC-NNN/GUIDE.md` is the plan: step order, the ACs each step covers, the paths it may change and the commands that verify it. The executor already holds the spec, so the guide does not restate it (ADR-007). Linear is the live status board.
 
-## The executor brief (`.ai/AGENTS.md`)
+## The executor brief (`${CLAUDE_PLUGIN_ROOT}/docs/executor-brief.md`)
 
-`.ai/AGENTS.md` is the generic brief every dispatched executor reads for context about the codebase. It's how an executor understands your project without interactive exploration, and it carries the standing rules an executor must obey (stay within the step's `Changes:`, self-verify, open a PR to the integration branch with AC evidence).
+`${CLAUDE_PLUGIN_ROOT}/docs/executor-brief.md` is the generic brief every dispatched executor reads for context about the codebase. It's how an executor understands your project without interactive exploration, and it carries the standing rules an executor must obey (stay within the step's `Changes:`, self-verify, open a PR to the integration branch with AC evidence).
 
 ```markdown
 # AGENTS.md
@@ -167,7 +168,7 @@ The spec plus one guide step is everything an executor needs. The step names wha
 - Covers: AC-003, AC-004          ← the spec ACs this step delivers; evidence goes in the PR body
 - Changes: `src/api/**`           ← the paths it may change; the self-review audits the diff against it
 - Verify: `npm test -- api`       ← the commands that gate the step
-- Workspace: api                  ← when .ai/project.md defines workspaces
+- Workspace: api                  ← when .sdlc/config.yaml lists workspaces
 - After: S1                       ← optional: the earlier steps it needs
 - Notes: <a contract a later step must match, or a pointer to a brief>
 ```
