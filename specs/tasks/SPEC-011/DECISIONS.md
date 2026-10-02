@@ -60,3 +60,11 @@ in chronological order.
 
 **Merged:** PR #95
 **What changed:** validate-sdlc-config.mjs rule 5 accepts worktrees.setup only as one non-empty command string; sdlc-config-schema.md documents it. S6's SOP §1 reads this key.
+
+---
+
+## EXECUTIVE DECISION — guide change: S5 has no payload copy of sync-refresh.mjs
+
+**Date:** 2026-10-02
+**Question:** S5's `Changes:` listed `init-payload/.sdlc/scripts/sync-refresh.mjs`, but that script is plugin-only (its header says "Usage (plugin-only)", and `git ls-files` shows no payload copy), because `/sdlc-sync` runs the plugin's copy against the adopter.
+**Decided:** drop the payload path from S5's `Changes:`. The `.gitignore` merge reaches adopters through the plugin's `sync-refresh.mjs` and the payload's `.gitignore`. No AC, scope or design changes. AC-014 covers the payload copies of the scripts that have one.

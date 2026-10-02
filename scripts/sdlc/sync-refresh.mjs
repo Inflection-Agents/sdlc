@@ -14,7 +14,9 @@
  * `.sdlc/state-machine.yaml` is framework-owned and is always refreshed, because the
  * adopter's own routing and phases live in `config.yaml`. In `config.yaml` only the
  * `framework_version` line changes; every other byte is kept. `review-constraints.yaml`,
- * the `AGENTS.md` content and `specs/` are never read for writing.
+ * the `AGENTS.md` content and `specs/` are never read for writing. `.gitignore` gets the payload
+ * lines it lacks and nothing else, through the same merge `/sdlc-init` uses (SPEC-011: the
+ * `.claude/worktrees/` line must reach a repo that is already on layout 2).
  *
  * Usage (plugin-only):
  *   node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/sync-refresh.mjs --root . --plan
@@ -28,6 +30,7 @@ import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { loadManifest, releasedVersions, roleOf } from './gen-released-payloads.mjs'
+import { appendLines } from './install-payload.mjs'
 import { CONFIG_REL, assertWriteInside, detectLayout, sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -111,6 +114,13 @@ export function writeFrameworkVersion(root, version) {
     return next !== text
 }
 
+/** Merge the payload `.gitignore` lines the repo lacks. @returns {string[]} the lines added */
+export function mergeGitignore(root, payload = DEFAULT_PAYLOAD) {
+    const source = join(payload, '.gitignore')
+    if (!existsSync(source)) return []
+    return appendLines(join(root, '.gitignore'), readFileSync(source, 'utf8'), root)
+}
+
 /** Carry out `plan`. Modified files are replaced only when listed in `accept`. @returns {string[]} modified files left as they were */
 export function applyRefresh(root, plan, { payload = DEFAULT_PAYLOAD, accept = [], version = pluginVersion() } = {}) {
     const kept = []
@@ -124,6 +134,7 @@ export function applyRefresh(root, plan, { payload = DEFAULT_PAYLOAD, accept = [
         mkdirSync(dirname(join(root, file)), { recursive: true })
         writeFileSync(join(root, file), readFileSync(join(payload, source)))
     }
+    mergeGitignore(root, payload)
     if (version) writeFrameworkVersion(root, version)
     return kept
 }

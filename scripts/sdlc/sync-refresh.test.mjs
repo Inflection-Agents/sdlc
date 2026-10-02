@@ -108,3 +108,22 @@ test('a workflow the repo deleted is not added back', () => {
         fx.cleanup()
     }
 })
+
+test('AC-013: --apply on a layout-2 repo adds the .claude/worktrees/ ignore line, once', () => {
+    const repo = mkdtempSync(join(tmpdir(), 'sdlc-refresh-gi-'))
+    try {
+        git(repo, 'init', '-q', '-b', 'main')
+        installPayload(repo)
+        // A repo set up before SPEC-011: its .gitignore has the hooks' lines and not the worktree one.
+        writeFileSync(join(repo, '.gitignore'), 'dist/\n.claude/.sdlc-*\n!.claude/.sdlc-override-log\n')
+        commitAll(repo, 'pre-SPEC-011 adopter')
+        const plan = planRefresh(repo, { manifest: manifestWithCurrentPayload() })
+        applyRefresh(repo, plan, { version: null })
+        const once = readFileSync(join(repo, '.gitignore'), 'utf8')
+        assert.equal(once, 'dist/\n.claude/.sdlc-*\n!.claude/.sdlc-override-log\n.claude/worktrees/\n')
+        applyRefresh(repo, planRefresh(repo, { manifest: manifestWithCurrentPayload() }), { version: null })
+        assert.equal(readFileSync(join(repo, '.gitignore'), 'utf8'), once, 'a second sync writes nothing')
+    } finally {
+        rmSync(repo, { recursive: true, force: true })
+    }
+})

@@ -84,7 +84,7 @@ test('existing root files get only what they lack, and every other byte is kept'
         assert.ok(a.indexOf(BLOCK_BEGIN) > agents.length - 1)
         assert.equal(readFileSync(join(fx.root, 'CLAUDE.md'), 'utf8'), `${claude}\n@AGENTS.md\n`)
         assert.equal(readFileSync(join(fx.root, '.ignore'), 'utf8'), 'node_modules/\nspecs/archive/\n!.sdlc/\n')
-        assert.equal(readFileSync(join(fx.root, '.gitignore'), 'utf8'), 'dist/\n.claude/.sdlc-*\n!.claude/.sdlc-override-log\n')
+        assert.equal(readFileSync(join(fx.root, '.gitignore'), 'utf8'), 'dist/\n.claude/.sdlc-*\n!.claude/.sdlc-override-log\n.claude/worktrees/\n')
         assert.equal(readFileSync(join(fx.root, '.gitattributes'), 'utf8'), '* text=auto eol=lf\n*.sh text eol=lf\n*.mjs text eol=lf\n')
     } finally {
         fx.cleanup()
