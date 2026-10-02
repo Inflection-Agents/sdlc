@@ -202,7 +202,7 @@ After user approval:
    - `status: active` → `status: completed`
    - Update `updated` date
 
-2. **Update spec-index.json** (or let CI regenerate it)
+2. **Regenerate spec-index.json** with `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs gen-spec-index` after the archive move below, in the same commit. CI's `--check` fails on a stale index.
 
 3. **Update Linear:**
    - Mark the Linear project as completed

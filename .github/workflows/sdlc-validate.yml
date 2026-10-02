@@ -48,6 +48,11 @@ jobs:
               # with the same ruling in the spec body's spec_review_overrides. No logs is a pass.
               run: node .sdlc/scripts/review-log.mjs check
 
+            - name: The spec index matches the corpus
+              # SPEC-007 Lever 7: specs/spec-index.json is generated, not hand-edited. Regenerate it
+              # with gen-spec-index.mjs in the commit that changes a spec, ADR, bug or gap.
+              run: node .sdlc/scripts/gen-spec-index.mjs --check
+
             - name: Delivery guides are complete and current
               # Every spec AC covered, every step verifiable, guide and index in step, and an
               # approved guide's KICKOFF.md within 3,800 characters (ADR-007). An unmatched glob

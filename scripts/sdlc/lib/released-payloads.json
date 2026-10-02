@@ -41,6 +41,9 @@
       "d4d5078de57fa6efaced1330ef4d06e4142e379e0e91912c3699a0b75520a22e": "0.3.0",
       "82a4e9ccf5885a41595b30574c10b0164e755c9d0ceede33ebcc0b4b7e6a4e60": "0.4.0"
     },
+    "scripts/gen-spec-index.mjs": {
+      "964a8881aa24d0bdc4deb0c5ecf84659fbe7ad8945b755fa40c9fc88dc0b3b24": "0.4.0"
+    },
     "scripts/lib/finding-id.mjs": {
       "cf35638bb9c2b05c7bff29f1e455e5f71cde76cedffcfa9b9f0d2a2f1ce758b2": "0.4.0"
     },
@@ -205,7 +208,8 @@
       "d888d3d815747be7674043ad15adb33fff8ea4e7c19727a4555d8fd45324db80": "0.3.0",
       "9e3fe3c94c886df6faadce01cb99ec65855657941009531e911961737650af4b": "0.3.0",
       "bf4c76f6e563c42d9447a6d77ebe513059adfdda4f1a334a2735f8e34c45eb71": "0.4.0",
-      "d3228d97eb23debb3e2ac975ce9dfdd2d422f8a316519ea895a2d0ea5e62a1e8": "0.4.0"
+      "d3228d97eb23debb3e2ac975ce9dfdd2d422f8a316519ea895a2d0ea5e62a1e8": "0.4.0",
+      "4bf3f0d5300c9da38e44879f1a7cc652d8e96509447cc67bba8e4251c9b98ca6": "0.4.0"
     }
   }
 }
