@@ -2,3 +2,5 @@
 # The bypass log is the exception: an edit-gate bypass must stay visible, never silent.
 .claude/.sdlc-*
 !.claude/.sdlc-override-log
+# Every worktree goes under .claude/worktrees/ (docs/worktrees.md, SPEC-011): another checkout of this repo, never committed.
+.claude/worktrees/

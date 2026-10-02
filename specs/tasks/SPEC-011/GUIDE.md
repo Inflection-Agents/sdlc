@@ -35,7 +35,7 @@ spec_version: 1
 
 ### S5: The worktree ignore line reaches new and existing repos
 - Covers: AC-013
-- Changes: `init-payload/.gitignore`, `scripts/sdlc/sync-refresh.mjs`, `scripts/sdlc/sync-refresh.test.mjs`, `init-payload/.sdlc/scripts/sync-refresh.mjs`, `scripts/sdlc/install-payload.test.mjs`, `scripts/sdlc/lib/released-payloads.json`
+- Changes: `init-payload/.gitignore`, `scripts/sdlc/sync-refresh.mjs`, `scripts/sdlc/sync-refresh.test.mjs`, `scripts/sdlc/install-payload.test.mjs`, `scripts/sdlc/lib/released-payloads.json`
 - Verify: `env -u CLAUDE_PROJECT_DIR -u CLAUDE_PLUGIN_ROOT node --test .sdlc/scripts/sync-refresh.test.mjs .sdlc/scripts/install-payload.test.mjs`, `node .sdlc/scripts/gen-released-payloads.mjs --check`
 - Notes: reuse `install-payload.mjs` > `appendLines` for the merge, so a second sync writes nothing. The merge is the one root-file change on the layout-2 refresh path (SPEC-011 > Design, ADR-009).
 
