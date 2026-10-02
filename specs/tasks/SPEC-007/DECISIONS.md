@@ -63,3 +63,10 @@ heading goes in the moment it happens, not batched at the end.
 **Date:** 2026-10-02
 **Question:** S5 adds a `review_log` input and a ruling step to the routing policy in `review-primitives.md`. That file states it is content-equivalent to SPEC-001 plus the extensions SPEC-001's Changelog records, so a policy change with no Changelog entry would make the statement false. S5's `Changes:` did not list SPEC-001.
 **Decided:** add `specs/SPEC-001-tiered-code-review.md` (Changelog only) to S5's `Changes:` and record the step as SPEC-001 v1.6, as S1 did for v1.4 and S4 for v1.5. No AC, scope or design changes.
+
+---
+
+## S5 — The durable review log, projection and suppression
+
+**Merged:** PR #82
+**What changed:** review-log.mjs appends stamped rounds, records owner-only paired rulings, projects previous_output and applies rulings before routing; the policy gains the review_log step. Guide change: SPEC-001 Changelog v1.6.
