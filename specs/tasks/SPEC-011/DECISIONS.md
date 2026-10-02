@@ -24,3 +24,10 @@ in chronological order.
 **Date:** 2026-10-02
 **Question:** SPEC-011 introduces the spec-worktree procedure, and it lands only in S6. Does this run adopt it?
 **Decided:** no. The run follows the SOP as it stands at the run's start and works in the main checkout, as `KICKOFF.md` instructs. Changing procedure mid-run would mean an S1-S5 checkout and an S6 checkout that differ.
+
+---
+
+## S1 — A nested worktree is its own root, and the walkers skip it
+
+**Merged:** PR #92
+**What changed:** resolveRoot prefers a linked worktree under CLAUDE_PROJECT_DIR/.claude/worktrees/ that contains the start directory (git decides, not the path); check-stale-citations and check-review-constraint-globs skip .claude/worktrees/. Later steps import nestedWorktree() and WORKTREES_REL from lib/sdlc-paths.mjs.
