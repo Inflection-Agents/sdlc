@@ -97,6 +97,13 @@
     },
     "templates/task.md": {
       "284c4c33b334b1b38e3b8d308f205af2381e0aa14f23b19c4e2af47e44e48218": "0.1.0"
+    },
+    "workflows/sdlc-spec-completion.yml": {
+      "8f095d3ad44aedde1e08428e634bfebf6a8282b537b7456d99d375380a4daaff": "0.1.0"
+    },
+    "workflows/sdlc-validate.yml": {
+      "71c6bd634541cb8d0798eed55d0849453e381fc4255515bd17d25b1b90d07adb": "0.1.0",
+      "9253e29902caedbf9aa64450086d6815519135438fb4c43f721cac5cbe646096": "0.3.0"
     }
   }
 }

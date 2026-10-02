@@ -36,5 +36,6 @@ test('roleOf maps both payload layouts to one role', () => {
     assert.equal(roleOf('init-payload/templates/spec.md'), 'templates/spec.md')
     assert.equal(roleOf('init-payload/.ai/skills/review-primitives.md'), 'contracts/review-primitives.md')
     assert.equal(roleOf('init-payload/sdlc-state-machine.yaml'), 'state-machine')
-    assert.equal(roleOf('init-payload/.github/workflows/sdlc-validate.yml'), null)
+    assert.equal(roleOf('init-payload/.github/workflows/sdlc-validate.yml'), 'workflows/sdlc-validate.yml')
+    assert.equal(roleOf('init-payload/README.md'), null)
 })
