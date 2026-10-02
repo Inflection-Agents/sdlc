@@ -100,3 +100,10 @@ heading goes in the moment it happens, not batched at the end.
 
 **Merged:** PR #84
 **What changed:** gen-spec-index.mjs writes specs/spec-index.json (documented shape plus owner, workspaces, depends_on; archived records at their archive path); CI runs --check in both workflows. Guide change: spec-completion regenerates the index after archiving.
+
+---
+
+## S8 — Reviewer inputs that resolve, and the research protocol
+
+**Merged:** PR #85
+**What changed:** Step 10a and Step 6c mark every input that can be absent as optional and say how to report it; Step 3 gains the five-question research protocol writing to the ledger's ## Research table, negative results included.

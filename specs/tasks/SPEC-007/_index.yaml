@@ -21,7 +21,7 @@ steps:
   - id: S7
     status: done
   - id: S8
-    status: pending
+    status: done
 
 decisions: []
 
