@@ -1,0 +1,202 @@
+# SPEC-011 — authoring decision ledger
+
+Written during `spec-authoring` Phase 1, as each decision is made and before the spec body exists.
+`spec-authoring` Step 10a seeds this file to `spec-reviewer`, so the reviewer can see what was open,
+what was decided, and what was left ambiguous on purpose, and does not reopen a settled question on
+every round.
+
+Lives at `specs/decisions/SPEC-011.md`. Append-only, in chronological order. One entry per question
+that was open. A question with an obvious answer is not a decision and does not belong here.
+
+**Name acceptance criteria by what they require, not by number.** This ledger is written before the
+spec's AC list exists, and that list is renumbered as review rounds add and remove criteria.
+
+Phase 1 Step 3's research protocol writes the `## Research` section below.
+
+---
+
+## Research
+
+| Question | Command or path | Ref | Result |
+|----------|-----------------|-----|--------|
+| Which files state worktree rules today? | `rg -n -i worktree skills agents docs hooks scripts/sdlc CLAUDE.md init-payload agent-orchestration.md` | `c0ac336` | `CLAUDE.md` (8 lines), `skills/spec-execution/SOP.md` (10), `agent-orchestration.md` (7), `skills/spec-execution/SKILL.md` (3), `docs/executor-brief.md` (3), `docs/sdlc.md` (2), `docs/setup.md` (1). All are about subagent isolation and "nothing lingers". |
+| Does any file say where a worktree goes? | same search, read each hit | `c0ac336` | 0 hits. No file names a location, a naming scheme, or who removes a worktree that kept changes. |
+| Does any file govern session or hand-made worktrees? | same search | `c0ac336` | 0 hits. Every rule is scoped to a subagent `isolation: "worktree"` or to a step. |
+| Which specs and ADRs govern the area? | `rg -l -i worktree specs` | `c0ac336` | SPEC-002 (completed: subagent isolation, the 2026-04-24 stash incident), ADR-003 (accepted: fan-out is the exception), SPEC-009 and ADR-008 (completed and accepted: the `.sdlc/` layout; neither names a worktree location). |
+| Which active specs share workspaces? | `specs/spec-index.json`, `status: active` or `draft` | `c0ac336` | SPEC-007 only (active, monitoring), `workspaces: []`. Its `Changes:` overlap is `skills/spec-execution/SOP.md` in the past, nothing in flight. |
+| How many worktrees does high-gear-apps have? | `git -C ~/_code/high-gear-apps worktree list` | `a81e3e51` | 3: the main checkout and 2 under `.claude/worktrees/` (`agent-a4ca2563…` detached, `agent-a5a3eda5…` on `claude/admin-authz-containment`). The intent recorded 23 on 2026-10-01, so the sprawl was cleaned by hand. |
+| Where did the sprawl sit? | `specs/intents.md` > the intent; `~/_code/high-gear-apps/.gitignore:59-60` | `c0ac336`, `a81e3e51` | Three locations: `.claude/worktrees/` (19), sibling directories in `~/_code/` (3), the main checkout. `.gitignore` lists both `.worktrees/` and `.claude/worktrees/`. |
+| Are the `~/_code/high-gear-apps-*` directories worktrees? | `git -C <dir> rev-parse --git-common-dir` | live | No. `high-gear-apps-ui-update` and `high-gear-apps-validation` each have their own `.git`, so they are separate clones. |
+| Where does the Agent tool put a subagent worktree? | this session's simplify pass | live | `.claude/worktrees/agent-<id>`, on a branch `worktree-agent-<id>`, removed only when the agent made no change. |
+| How does a script pick its repo root? | `scripts/sdlc/lib/sdlc-paths.mjs:71-76` | `c0ac336` | `CLAUDE_PROJECT_DIR` wins when set. A script run inside a nested worktree resolves to the main checkout. `probe-gates.mjs:75` works around it by setting `CLAUDE_PROJECT_DIR` to the worktree. |
+| Which scripts walk the repo from its root? | `rg -n "walk\(ROOT\|readdirSync\(root" scripts/sdlc/*.mjs` | `c0ac336` | `check-stale-citations.mjs:178` walks `ROOT` and skips only `.git` and `node_modules` (line 139). `check-review-constraint-globs.mjs:57` skips `node_modules`, `.git`, `dist`, `build`, `.next`. Neither skips `.claude/worktrees/`. `scan-legacy-paths.mjs:37` uses `git ls-files`, which does not list a nested worktree's files. |
+| How does the edit gate treat `.claude/`? | `hooks/pre-tool-use-edit-write.mjs:20,249` | `c0ac336` | Every path under `.claude/` is a process artifact and exempt. An edit inside `.claude/worktrees/<name>/src/…` therefore bypasses the gate. |
+| How does a hook nudge once per session? | `hooks/user-prompt-submit.mjs:245-265` | `c0ac336` | A per-session marker file `.claude/.sdlc-layout-nudge-<session_id>`. The new nudge can follow the same shape. |
+| How does an adopter's `.gitignore` get new lines? | `init-payload/.gitignore`; `scripts/sdlc/install-payload.mjs:6-9,32` | `c0ac336` | `.gitignore` is a merged root file: install adds only the missing lines. It carries `.claude/.sdlc-*` today and no worktree entry. |
+| Is SPEC-010 free? | `rg -n SPEC-010`; `gh pr list --state all` | `c0ac336` | No. SPEC-009 (`:129`) and ADR-008 (`:63`) reserve it for ending the payload copy. This spec is SPEC-011, and no PR claims that id. |
+| Next ADR number? | `ls specs/adrs` | `c0ac336` | ADR-008 is the highest, so this spec's ADR is ADR-009. |
+
+---
+
+## D-001 — The rules cover every worktree creator
+
+**Date:** 2026-10-02
+**Question:** Govern only what the SDLC itself creates (subagent isolation, the simplify pass), or also session worktrees and hand-run `git worktree add`?
+**Decided:** All three creators: Agent-tool subagents, session worktrees (`EnterWorktree`, the `using-git-worktrees` skill), and hand-run `git worktree add`.
+**Rejected:** Agent-spawned only, which leaves the sibling-directory worktrees the intent recorded unguided. Agents and sessions but not manual, which leaves the same gap.
+**Deliberately deferred:** Separate clones (`~/_code/high-gear-apps-ui-update`). They are not worktrees, so git cannot list them and this spec does not govern them.
+**Raised by:** owner
+
+---
+
+## D-002 — One worktree per branch of active work
+
+**Date:** 2026-10-02
+**Question:** Create a worktree only when two writers share one checkout at once, or for every branch of active work?
+**Decided:** One worktree per branch of active work, even when the work is serial.
+**Rejected:** Concurrent writers only (the author's recommendation). The owner chose isolation over fewer worktrees. Developer's choice with rules only on location, which keeps the "when" unprescribed, and the intent's complaint is that it is unprescribed.
+**Deliberately deferred:** Nothing.
+**Raised by:** owner
+
+---
+
+## D-003 — During delivery, one worktree per spec
+
+**Date:** 2026-10-02
+**Question:** Under D-002, does a delivery run get one worktree for `feat/spec-NNN` or one per step branch?
+**Decided:** One per spec. `spec-execution` creates `.claude/worktrees/spec-NNN` on `feat/spec-NNN` at run start, cuts, commits and merges every step branch inside it, and removes it when the integration PR opens or the run escalates. A background subagent keeps its own Agent-tool worktree as today.
+**Rejected:** One per step branch: 8 to 11 create-and-remove cycles a spec (SPEC-007 cut 8 step branches and 3 fix branches). Per spec plus nested subagent worktrees: the Agent tool chooses its own path, so nesting cannot be prescribed.
+**Deliberately deferred:** Nothing.
+**Raised by:** owner
+
+---
+
+## D-004 — Every worktree goes under `.claude/worktrees/`
+
+**Date:** 2026-10-02
+**Question:** Where do worktrees go: `.claude/worktrees/`, `.worktrees/` at the root, or sibling directories?
+**Decided:** `.claude/worktrees/`. Spec worktrees are named `spec-NNN`, session and hand-made ones `<branch-slug>`, and the Agent tool's keep their `agent-<id>` names. `/sdlc-init` and `/sdlc-sync` gitignore the directory.
+**Rejected:** `.worktrees/`, because the Agent tool still writes to `.claude/worktrees/` and cannot be redirected, which would make two locations. Sibling directories, because they scatter across `~/_code` and a repo-local check cannot see them as belonging to the repo.
+**Deliberately deferred:** Nothing.
+**Raised by:** owner
+
+---
+
+## D-005 — Strays are found by a script and nudged by an advisory hook
+
+**Date:** 2026-10-02
+**Question:** Catch leftovers with a blocking Stop hook, an advisory hook, or documentation only?
+**Decided:** A `worktrees.mjs` script lists strays and `--prune` removes the clean ones, reporting dirty ones only. The session-start prompt hook runs it and nudges once per session, and `spec-execution` runs `--prune` at exit.
+**Rejected:** A blocking Stop hook, which would block a session over leftovers the developer may want to keep. Documentation only, which is today's state, and the sprawl happened under it.
+**Deliberately deferred:** CI enforcement. CI cannot see a developer's local worktrees.
+**Raised by:** owner
+
+---
+
+## D-006 — The rules live in one new doc with an ADR
+
+**Date:** 2026-10-02
+**Question:** Put the rule text in a new `docs/worktrees.md`, or fold it into `agent-orchestration.md` and the SOP?
+**Decided:** A new `docs/worktrees.md` with ADR-009. `CLAUDE.md`, `agent-orchestration.md`, the `spec-execution` skill and SOP, and the executor brief cite it instead of restating it. This also covers the backlog intent "Worktree isolation rule as a standalone doc".
+**Rejected:** Folding into existing files, which keeps the rule near delivery but leaves session and manual worktrees with no home.
+**Deliberately deferred:** Nothing.
+**Raised by:** owner, on the author's recommendation
+
+---
+
+## D-007 — A nested worktree must not be mistaken for the main checkout
+
+**Date:** 2026-10-02
+**Question:** D-004 puts worktrees inside the repo. Research found three places that would then act on the wrong tree: root resolution (`CLAUDE_PROJECT_DIR` wins), repo walkers that do not skip `.claude/worktrees/`, and the edit gate, which exempts all of `.claude/`. Fix them in this spec, or document them as caveats?
+**Decided:** Fix all three in this spec. Root resolution prefers a linked worktree under `.claude/worktrees/` when the working directory is inside one. The walkers skip `.claude/worktrees/`. The edit gate classifies a path inside a worktree by its path relative to that worktree.
+**Rejected:** Documenting them as caveats. D-003 makes the spec worktree the normal place delivery runs, so a caveat would be hit on every run.
+**Deliberately deferred:** Nothing.
+**Raised by:** author, from the research
+
+---
+
+## D-008 — Judgment-phase branches stay in the main checkout
+
+**Date:** 2026-10-02
+**Question:** Round 1 of the spec review showed that D-002 ("one worktree per branch of active work") reached only delivery in the draft body. Do `spec/*`, `guide/*` and `sdlc/bookkeeping-*` branches also get worktrees?
+**Decided:** No. An interactive session cuts them one at a time in the main checkout, and they hold documents only. D-002 binds delivery runs, background subagents, and a second session working a repo while another uses its main checkout.
+**Rejected:** A worktree for every branch, which would add spec-authoring, spec-amendment, spec-completion and the bookkeeping lane to scope for branches that never run concurrently with anything.
+**Deliberately deferred:** Nothing.
+**Raised by:** reviewer (round 1), decided by owner
+
+---
+
+## D-009 — `branch-gone` means "its upstream is gone", and prune deletes no branch
+
+**Date:** 2026-10-02
+**Question:** The draft defined `branch-gone` twice, and its "merged into `origin/main`" test is true for a branch with no commits and false for a squash-merged branch (this repo squash-merges). What is the one rule?
+**Decided:** A branch is gone when it has an upstream configured and that upstream's remote-tracking ref no longer exists. A never-pushed branch is never a stray. `--prune` removes worktrees only and deletes no branch, so a wrong classification can cost at most a worktree that can be recreated, never a branch.
+**Rejected:** Ancestry against `origin/main`, for the two reasons above. A merged-PR lookup through `gh`, which adds a network dependency to a hook.
+**Deliberately deferred:** Nothing.
+**Raised by:** reviewer (round 1)
+
+---
+
+## D-010 — The spec worktree is removed at run exit, not when the PR opens
+
+**Date:** 2026-10-02
+**Question:** D-003 said "removes it when the integration PR opens". The panel fix loop (SOP §7.2-7.3) runs after the PR opens and edits the integration branch. When does the worktree go?
+**Decided:** At run exit, SOP §7.4 after the last panel round, or SOP §8 on escalation. This corrects D-003's removal point. Later changes on the open PR re-enter the worktree through SOP §1's resume form.
+**Rejected:** Removal at PR open, which leaves the fix loop with no tree.
+**Deliberately deferred:** Nothing.
+**Raised by:** reviewer (round 1)
+
+---
+
+## D-011 — A run's exit removes only its own spec worktree
+
+**Date:** 2026-10-02
+**Question:** A repo-wide `--prune` at run exit would remove clean worktrees belonging to other sessions or running agents. How far does the run's cleanup reach?
+**Decided:** `--own spec-NNN` removes only `.claude/worktrees/spec-NNN` and lists every other stray. Agent-tool worktrees the run spawned are removed by the spawner when it merges their result, so none remain at exit.
+**Rejected:** A repo-wide prune at exit. Identifying a run's agent worktrees by branch ancestry, which git cannot answer reliably.
+**Deliberately deferred:** Nothing.
+**Raised by:** reviewer (round 1)
+
+---
+
+## D-012 — During a run, a subagent branches from the pushed integration tip
+
+**Date:** 2026-10-02
+**Question:** With the main checkout on `main`, a fan-out subagent or the simplify pass no longer inherits `feat/spec-NNN`, and git refuses to check out `feat/spec-NNN` while the spec worktree holds it. What base does a subagent use?
+**Decided:** The spawner pushes `feat/spec-NNN`, and the subagent works on a branch cut from `origin/feat/spec-NNN`. The spawner merges the result from inside the spec worktree and removes the agent worktree.
+**Rejected:** Checking out `feat/spec-NNN` in the agent's worktree, which git refuses.
+**Deliberately deferred:** Nothing.
+**Raised by:** reviewer (round 1)
+
+---
+
+## D-013 — A leftover Agent-tool worktree is a stray that is reported, never pruned
+
+**Date:** 2026-10-02
+**Question:** Round 2 found that an Agent-tool worktree that kept changes is on an unpushed `worktree-agent-<id>` branch, so D-009's `branch-gone` rule can never catch it, and that is where 19 of the 23 recorded worktrees sat. Accept the blind spot, or detect it?
+**Decided:** Detect it, as a fifth stray kind, `agent`: any `agent-<id>` worktree that still exists. `--prune` never removes one, because it may belong to a subagent that is still running and so can look clean. The spawner is told on each session's first prompt until it removes it.
+**Rejected:** Accepting the blind spot, which leaves the largest source of the recorded sprawl unreported. Pruning clean agent worktrees, which can delete a running agent's tree.
+**Deliberately deferred:** Nothing.
+**Raised by:** reviewer (round 2)
+
+---
+
+## D-014 — A repo can name one setup command for a new spec worktree
+
+**Date:** 2026-10-02
+**Question:** Round 3 found that a new worktree holds tracked files only, so every `Verify:` command in high-gear-apps would run without `node_modules/` or its env files. Where does the bootstrap go?
+**Decided:** An optional `worktrees.setup` command in `.sdlc/config.yaml`, which SOP §1 runs inside a newly added spec worktree. Unset means nothing runs. A failing command fails the run's start.
+**Rejected:** Symlinking `node_modules/` from the main checkout, which shares one mutable tree between two checkouts on different branches. Leaving it to each step's `Verify:` commands, which would repeat the install on every step.
+**Deliberately deferred:** Which files a repo copies. The repo writes that into its own command.
+**Raised by:** reviewer (round 3)
+
+---
+
+## D-015 — `--prune` removes only worktrees whose work is over
+
+**Date:** 2026-10-02
+**Question:** Round 4 showed that `git worktree remove` deletes a tree's gitignored files, which `git status --porcelain` does not report, so the `--prune` the nudge prints would delete `.env.local` and `node_modules/` from live `outside` worktrees that the migration says to move. Which strays may `--prune` remove?
+**Decided:** Only `branch-gone` and `spec-closed` strays under `.claude/worktrees/`, whose work is over. `outside`, `detached` and `agent` strays are reported and never removed. This narrows D-009's claim that a wrong classification costs at most a recreatable worktree: removal can also cost gitignored files, so removal is limited to the two kinds where the work is finished.
+**Rejected:** Pruning every clean stray and naming the risk, which keeps the destructive default the nudge advertises.
+**Deliberately deferred:** Nothing.
+**Raised by:** reviewer (round 4), fixed after the cap and disclosed in the spec body
