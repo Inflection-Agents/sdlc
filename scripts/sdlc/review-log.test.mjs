@@ -107,8 +107,8 @@ test('AC-005: a refused ruling writes nothing', () => {
 test('AC-018: apply drops a wontfix and routes an override at the owner severity, from the log alone', () => {
     let log = appendRound(emptyLog('SPEC-100'), env(A, B, C), 1)
     log = resolveFinding(log, spec({ overrides: override(A, 'nit') }), { id: idOf(A), resolution: 'overridden', recordedBy: 'franklin', reason: 'r', ownerSeverity: 'nit' })
-    log = resolveFinding(log, spec({ overrides: wontfix(C), disclosed: idOf(C) }), { id: idOf(C), resolution: 'wontfix', recordedBy: 'franklin', reason: 'r' })
-    const routed = applyRulings(env(A, B, C), log)
+    log = resolveFinding(log, spec({ overrides: wontfix(C), disclosed: `- ${idOf(C)}` }), { id: idOf(C), resolution: 'wontfix', recordedBy: 'franklin', reason: 'r' })
+    const routed = applyRulings(env(A, B, C), log).envelope
     assert.deepEqual(routed.findings.map((f) => [f.id, f.severity]), [[idOf(A), 'nit'], [idOf(B), 'nit']])
     assert.equal(routed.findings[0].reviewer_severity, 'major')
 })
@@ -119,7 +119,7 @@ test('SC-4: an override never raises a finding above the reviewer severity', () 
     // the same id later raised as a suggestion: routing at the owner's nit would raise it
     const later = stampEnvelope(env(A))
     later.findings[0].severity = 'suggestion'
-    assert.equal(applyRulings(later, log).findings[0].severity, 'suggestion')
+    assert.equal(applyRulings(later, log).envelope.findings[0].severity, 'suggestion')
 })
 
 test('AC-020: previous_output is projected from the latest round of the log', () => {
@@ -163,18 +163,89 @@ const asSeverity = (f, severity) => {
     return e
 }
 
-test('a ruling covers only the severity it was made at: raised higher, the finding routes and its entry reopens', () => {
+test('a ruling holds for its id at any severity, and a raise above it fails check until the owner rules again', () => {
     let log = appendRound(emptyLog('SPEC-100'), env(B), 1)
     log = ruleWontfix(log, B)
     assert.equal(log.findings[0].ruled_severity, 'nit')
     const blocker = asSeverity(B, 'blocker')
-    assert.deepEqual(applyRulings(blocker, log).findings.map((f) => f.severity), ['blocker'], 'a nit-level wontfix never drops a blocker')
+    const routed = applyRulings(blocker, log)
+    assert.deepEqual(routed.envelope.findings, [], 'AC-018: a wontfix is dropped before routing')
+    assert.deepEqual(routed.stale, [idOf(B)], 'and the raise is reported')
     const next = appendRound(log, blocker, 2)
-    const e = next.findings[0]
-    assert.equal(e.resolution, 'open')
-    assert.equal(e.superseded_ruling.resolution, 'wontfix')
-    assert.deepEqual(checkLog(next, spec({ overrides: wontfix(B) })), [])
-    assert.deepEqual(applyRulings(asSeverity(B, 'nit'), log).findings, [], 'at the ruled severity it is still dropped')
+    assert.equal(next.findings[0].resolution, 'wontfix')
+    const problems = checkLog(next, spec({ overrides: wontfix(B), disclosed: `- ${idOf(B)}` })).join('\n')
+    assert.match(problems, /raised .* to blocker after the owner ruled on it at nit/)
+})
+
+test('an override routes at the owner severity even when raised, and check reports the raise', () => {
+    let log = appendRound(emptyLog('SPEC-100'), env(A), 1)
+    log = resolveFinding(log, spec({ overrides: override(A, 'nit') }), { id: idOf(A), resolution: 'overridden', recordedBy: 'franklin', reason: 'r', ownerSeverity: 'nit' })
+    const routed = applyRulings(asSeverity(A, 'blocker'), log)
+    assert.deepEqual(routed.envelope.findings.map((f) => f.severity), ['nit'])
+    assert.deepEqual(routed.stale, [idOf(A)])
+    assert.match(checkLog(appendRound(log, asSeverity(A, 'blocker'), 2), spec({ overrides: override(A, 'nit') })).join('\n'), /must rule on it again/)
+})
+
+test('the spec body must record the severity the owner ruled at, for an override and for a wontfix', () => {
+    const log = appendRound(emptyLog('SPEC-100'), env(C), 1)
+    const atNit = `- finding_id: ${idOf(C)}\n  reviewer_severity: nit\n  resolution: wontfix\n  reason: "x"\n  override_date: 2026-10-02`
+    assert.throws(() => resolveFinding(log, spec({ overrides: atNit, disclosed: `- ${idOf(C)}` }), { id: idOf(C), resolution: 'wontfix', recordedBy: 'franklin', reason: 'r' }), /reviewer_severity nit .* ruled on it at blocker/)
+    const majorAsNit = `- finding_id: ${idOf(A)}\n  reviewer_severity: blocker\n  owner_severity: nit\n  reason: "x"\n  override_date: 2026-10-02`
+    const logA = appendRound(emptyLog('SPEC-100'), env(A), 1)
+    assert.throws(() => resolveFinding(logA, spec({ overrides: majorAsNit }), { id: idOf(A), resolution: 'overridden', recordedBy: 'franklin', reason: 'r', ownerSeverity: 'nit' }), /reviewer_severity blocker .* ruled on it at major/)
+})
+
+test('an HTML comment or a fenced block is not a disclosure', () => {
+    const log = appendRound(emptyLog('SPEC-100'), env(C), 1)
+    const rule = (disclosed) => resolveFinding(log, spec({ overrides: wontfix(C), disclosed }), { id: idOf(C), resolution: 'wontfix', recordedBy: 'franklin', reason: 'r' })
+    assert.throws(() => rule(`<!-- ${idOf(C)} -->`), /Disclosed, not reviewed-clean/)
+    assert.throws(() => rule(`\`\`\`\n- ${idOf(C)}\n\`\`\``), /Disclosed, not reviewed-clean/)
+    assert.equal(rule(`- ${idOf(C)}: out of reach`).findings[0].resolution, 'wontfix')
+})
+
+test('a severity name must be one of the four, never an inherited key', () => {
+    const log = appendRound(emptyLog('SPEC-100'), env(A), 1)
+    assert.throws(() => resolveFinding(log, spec({ overrides: override(A, 'nit') }), { id: idOf(A), resolution: 'overridden', recordedBy: 'franklin', reason: 'r', ownerSeverity: 'constructor' }), /--owner-severity/)
+    const ruled = resolveFinding(log, spec({ overrides: override(A, 'nit') }), { id: idOf(A), resolution: 'overridden', recordedBy: 'franklin', reason: 'r', ownerSeverity: 'nit' })
+    ruled.findings[0].ruled_severity = '__proto__'
+    assert.match(checkLog(ruled, spec({ overrides: override(A, 'nit') })).join('\n'), /ruled_severity/)
+})
+
+test('review labels are authoring or v<N>-amendment, and an ended review cannot resume', () => {
+    let log = appendRound(emptyLog('SPEC-100'), env(A), 1)
+    assert.throws(() => appendRound(log, env(A), 1, 'd', 'x'), /--review must be/)
+    log = appendRound(log, env(B), 1, 'd', 'v2-amendment')
+    assert.throws(() => appendRound(log, env(B), 1), /review "authoring" has already ended/)
+    log = appendRound(log, env(B), 1, 'd', 'v3-amendment')
+    assert.throws(() => appendRound(log, env(B), 1, 'd', 'v2-amendment'), /already ended/)
+})
+
+test('an envelope with no artifact_id is refused, and one round keeps the highest severity raised', () => {
+    const { artifact_id, ...anon } = env(A)
+    assert.throws(() => appendRound(emptyLog('SPEC-100'), anon, 1), /artifact_id is absent/)
+    let log = appendRound(emptyLog('SPEC-100'), asSeverity(A, 'blocker'), 1)
+    log = appendRound(log, asSeverity(A, 'major'), 1)
+    assert.equal(log.findings[0].severity, 'blocker')
+    log = appendRound(log, asSeverity(A, 'major'), 2)
+    assert.equal(log.findings[0].severity, 'major', 'a new round records what that round raised')
+})
+
+test('check finds the spec by its frontmatter id, under a configured specs path and beside a companion', () => {
+    const fx = layout2Repo()
+    try {
+        write(fx.root, '.sdlc/config.yaml', 'layout: 2\npaths:\n  specs: design\n')
+        const specFile = write(fx.root, 'design/SPEC-100-x.md', spec({ overrides: override(A, 'nit') }))
+        write(fx.root, 'design/SPEC-100-a-appendix.md', '---\nparent_spec: SPEC-100\n---\n')
+        const envFile = write(fx.root, 'r.json', JSON.stringify(env(A)))
+        const run = (...a) => spawnSync(process.execPath, [SCRIPT, '--root', fx.root, ...a], { encoding: 'utf8', env: { ...process.env, CLAUDE_PROJECT_DIR: '' } })
+        assert.equal(run('append', specFile, envFile, '--round', '1').status, 0)
+        assert.equal(run('resolve', specFile, idOf(A), '--resolution', 'overridden', '--owner-severity', 'nit', '--recorded-by', 'franklin', '--reason', 'r').status, 0)
+        assert.ok(existsSync(join(fx.root, 'design/review-logs/SPEC-100.json')))
+        const res = run('check')
+        assert.equal(res.status, 0, res.stdout + res.stderr)
+    } finally {
+        fx.cleanup()
+    }
 })
 
 test('check holds a hand-written log to every rule resolve enforces', () => {
@@ -189,7 +260,7 @@ test('check holds a hand-written log to every rule resolve enforces', () => {
     const noSeverity = structuredClone(forged)
     Object.assign(noSeverity.findings[0], { recorded_by: 'franklin' })
     delete noSeverity.findings[0].ruled_severity
-    assert.match(checkLog(noSeverity, spec({ overrides: wontfix(C), disclosed: idOf(C) })).join('\n'), /ruled_severity/)
+    assert.match(checkLog(noSeverity, spec({ overrides: wontfix(C), disclosed: `- ${idOf(C)}` })).join('\n'), /ruled_severity/)
     assert.match(checkLog({ ...log, spec: 'SPEC-999' }, spec(), 'SPEC-100').join('\n'), /named for SPEC-100/)
 })
 

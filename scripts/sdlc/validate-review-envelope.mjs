@@ -170,7 +170,9 @@ export function validateEnvelope(env, schema = loadSchema()) {
                     return
                 }
                 for (const req of item.required ?? []) {
-                    if (f[req] === undefined) errors.push(`${at} missing required \`${req}\``)
+                    if (f[req] !== undefined) continue
+                    const hint = req === 'id' ? '; run stamp-envelope, which sets ids from the findings\' own fields' : ''
+                    errors.push(`${at} missing required \`${req}\`${hint}`)
                 }
                 // The grounded-citation anyOf: `criterion` OR `citation`. Requiring
                 // `criterion` alone would fail-validate every real envelope that emits
@@ -195,7 +197,7 @@ export function validateEnvelope(env, schema = loadSchema()) {
                 if (hashable(f) && typeof f.id === 'string') {
                     const want = findingId(f, env.artifact)
                     if (f.id !== want) {
-                        errors.push(`${at}.id is "${f.id}" but its content hashes to "${want}"; run with --stamp to set ids from the findings' own fields`)
+                        errors.push(`${at}.id is "${f.id}" but its content hashes to "${want}"; run stamp-envelope to set ids from the findings' own fields`)
                     }
                 }
                 // Rule 3: a finding that routes to a fix loop must be grounded in an

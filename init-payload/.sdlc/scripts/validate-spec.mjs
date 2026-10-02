@@ -27,6 +27,7 @@ import { join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { findById } from './resolve.mjs'
+import { fenceTracker } from './lib/fence.mjs'
 import { findingId } from './lib/finding-id.mjs'
 import { parseFrontmatter, sectionLines } from './validate-guide.mjs'
 import { sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
@@ -47,7 +48,6 @@ const REQUIRED_FIELDS = {
     updated: /^\d{4}-\d{2}-\d{2}$/,
 }
 const LIST_FIELDS = ['workspaces', 'tags', 'depends_on']
-const FENCE = /^\s*(```|~~~)/
 
 /** Body lines outside fenced code, with their 1-based line numbers. */
 function bodyLines(text) {
@@ -58,13 +58,9 @@ function bodyLines(text) {
         start = end === -1 ? 0 : end + 1
     }
     const out = []
-    let inFence = false
+    const fenced = fenceTracker()
     for (let i = start; i < lines.length; i += 1) {
-        if (FENCE.test(lines[i])) {
-            inFence = !inFence
-            continue
-        }
-        if (!inFence) out.push({ n: i + 1, text: lines[i] })
+        if (!fenced(lines[i])) out.push({ n: i + 1, text: lines[i] })
     }
     return out
 }
@@ -97,16 +93,16 @@ function headingFor(lines, name) {
  * content is a fenced block (a diagram) has content even though `sectionLines` drops fences.
  */
 function hasContent(text, heading) {
-    let inFence = false
+    const fenced = fenceTracker()
     let inSection = false
     for (const line of String(text).split('\n')) {
+        const inFence = fenced(line)
         if (!inFence && /^## /.test(line)) {
             if (inSection) return false
             inSection = line.replace(/^##\s+/, '').trimEnd() === heading
             continue
         }
-        if (FENCE.test(line)) inFence = !inFence
-        if (inSection && line.trim() !== '' && !/^#{3,}\s/.test(line)) return true
+        if (inSection && line.trim() !== '' && (inFence || !/^#{3,}\s/.test(line))) return true
     }
     return false
 }
@@ -118,7 +114,7 @@ function blockListKeys(text) {
     const keys = []
     for (let i = 1; i < lines.length && lines[i].trim() !== '---'; i += 1) {
         const m = lines[i].replace(/\r$/, '').match(/^([A-Za-z_]+)\s*:\s*$/)
-        if (m && /^\s+-\s/.test(lines[i + 1] ?? '')) keys.push(m[1])
+        if (m && /^\s*-\s/.test(lines[i + 1] ?? '')) keys.push(m[1])
     }
     return keys
 }
@@ -142,8 +138,8 @@ function subsectionItems(lines, name) {
  */
 export function checkSpec(text, { root, resolveId = (id) => findById(id, root).length > 0 }) {
     const findings = []
-    const add = (severity, criterion, location, finding) =>
-        findings.push({ id: findingId({ location, criterion, finding }, 'spec'), severity, criterion, location, finding, altitude: 'implementation' })
+    const add = (severity, criterion, location, finding, extra = {}) =>
+        findings.push({ id: findingId({ location, criterion, finding }, 'spec'), severity, criterion, location, finding, altitude: 'implementation', ...extra })
 
     // Frontmatter.
     const fm = parseFrontmatter(text)
@@ -204,7 +200,10 @@ export function checkSpec(text, { root, resolveId = (id) => findById(id, root).l
     for (const { n, text: line } of lines) {
         if (/^## /.test(line)) where = sectionName(line)
         const prose = line.replace(/(`+).*?\1/g, '')
-        if (PLACEHOLDERS.some((re) => re.test(prose))) add('major', 'spec-authoring:step-9-self-review-mandatory', where, `A placeholder marker is left in the prose at line ${n}: "${line.trim().slice(0, 80)}".`)
+        // The line number goes in suggested_fix, which is not hashed.
+        if (PLACEHOLDERS.some((re) => re.test(prose))) {
+            add('major', 'spec-authoring:step-9-self-review-mandatory', where, `A placeholder marker is left in the prose: "${line.trim().slice(0, 80)}".`, { suggested_fix: `Replace the marker at line ${n} with the decision, or flag it as needing input.` })
+        }
     }
 
     // References that must resolve.
