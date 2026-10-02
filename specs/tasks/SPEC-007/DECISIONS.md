@@ -93,3 +93,10 @@ heading goes in the moment it happens, not batched at the end.
 **Date:** 2026-10-02
 **Question:** `spec-completion` Step 9 said to update `spec-index.json` "or let CI regenerate it". S7 makes CI check the index instead of regenerating it, so a completion that followed that line would turn CI red. And because archiving changes a spec's `path`, the index must be regenerated after the archive move.
 **Decided:** add `skills/spec-completion/SKILL.md` to S7's `Changes:` and make Step 9 regenerate the index after the archive move, in the same commit. No AC, scope or design changes.
+
+---
+
+## S7 — The spec index
+
+**Merged:** PR #84
+**What changed:** gen-spec-index.mjs writes specs/spec-index.json (documented shape plus owner, workspaces, depends_on; archived records at their archive path); CI runs --check in both workflows. Guide change: spec-completion regenerates the index after archiving.
