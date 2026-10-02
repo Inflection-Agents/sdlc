@@ -5,7 +5,7 @@
 // Dependency-free (Node built-ins only — a minimal YAML reader is inlined).
 //
 // The lens→reviewer binding is DATA on the constraint that already owns the lens:
-// each `.ai/sdlc/review-constraints.yaml` constraint may name its own `agent:`.
+// each `.sdlc/review-constraints.yaml` constraint may name its own `agent:`.
 // A lens with no such constraint folds into the generic `task-reviewer`.
 //
 // This module was re-homed out of the retired `execute-spec` Workflow (ADR-003)

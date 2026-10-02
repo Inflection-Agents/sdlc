@@ -57,7 +57,7 @@ test('unsupported or malformed input throws instead of being skipped', () => {
 })
 
 test("this repo's state machine parses, with its phase ids", () => {
-    const file = fileURLToPath(new URL('../../../specs/sdlc-state-machine.yaml', import.meta.url))
+    const file = fileURLToPath(new URL('../../../.sdlc/state-machine.yaml', import.meta.url))
     const machine = parseYaml(readFileSync(file, 'utf8'))
     const ids = machine.phases.map((p) => p.id)
     assert.ok(ids.includes('spec-authoring') && ids.includes('spec-execution'))

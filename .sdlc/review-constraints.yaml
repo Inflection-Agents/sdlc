@@ -23,8 +23,8 @@
 # no per-task evaluation pass any more (ADR-003).
 #
 # Lens → reviewer routing is DATA, not code (ADR-001): each task-scope constraint's optional
-# `agent:` field is the single source of truth, resolved by scripts/sdlc/reviewer-routing.mjs
-# (`node scripts/sdlc/reviewer-routing.mjs <lens>`). Defaults: a constraint with no `agent:` ⇒ the
+# `agent:` field is the single source of truth, resolved by reviewer-routing.mjs
+# (`node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs reviewer-routing <lens>`). Defaults: a constraint with no `agent:` ⇒ the
 # generic `task-reviewer`; a `scope: integration` constraint ⇒ the `integration-reviewer` at the
 # gate (integration lenses carry no `agent:`). Adding a specialist for a lens is a one-line
 # `agent:` edit here — no code change. Cite findings by the constraint `cite` prefix

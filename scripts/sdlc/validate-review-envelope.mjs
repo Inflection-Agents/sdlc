@@ -73,7 +73,7 @@ export const SCHEMA_FILE = SCHEMA_CANDIDATES.find((p) => existsSync(p)) ?? SCHEM
 /**
  * The canonical PR-side allowed-citation prefixes, owned by
  * `review-primitives.md` > PR-side canonical prefix table. Kept in lockstep with
- * that table and the schema by `scripts/sdlc/prefix-parity.test.mjs`.
+ * that table and the schema by `prefix-parity.test.mjs`.
  */
 export const PR_SIDE_PREFIXES = ['ac:', 'adr:', 'std:', 'inv:', 'design:', 'lens:', 'monorepo:', 'task:', 'spec:']
 

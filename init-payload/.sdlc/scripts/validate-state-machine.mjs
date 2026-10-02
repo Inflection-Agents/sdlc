@@ -4,7 +4,7 @@
 //
 // Generic reference implementation shipped by the AI-native SDLC framework.
 // Dependency-free (Node built-ins only — a minimal YAML reader is inlined so no
-// npm package is required). Single source of truth: specs/sdlc-state-machine.yaml.
+// npm package is required). Single source of truth: the state machine, .sdlc/state-machine.yaml.
 //
 // It asserts:
 //   1. Structural well-formedness of `phases[]` — every phase has the stable

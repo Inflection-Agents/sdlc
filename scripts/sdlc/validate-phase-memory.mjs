@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // validate-phase-memory.mjs — validator for the optional `phase:` block in
 // specs/tasks/SPEC-NNN/_index.yaml (the phase-memory contract documented in the
-// header of specs/sdlc-state-machine.yaml).
+// header of the state machine, .sdlc/state-machine.yaml).
 //
 // Generic reference implementation shipped by the AI-native SDLC framework.
 // Dependency-free (Node built-ins only — a minimal YAML reader is inlined).
@@ -9,7 +9,7 @@
 // The block is ADDITIVE and OPTIONAL: an `_index.yaml` with no `phase:` block is
 // accepted. When a `phase:` block IS present:
 //   - `current` and `next_action` must each be a valid state-machine phase id
-//     (a `phases[].id` in specs/sdlc-state-machine.yaml) or the sentinel `none`;
+//     (a `phases[].id` in the state machine, extensions included) or the sentinel `none`;
 //     an unrecognized phase id is REJECTED. A RETIRED id (listed under the machine's
 //     top-level `retired_phases:`) is accepted with a warning: an `_index.yaml` written
 //     before the phase was removed must not turn CI red (ADR-007).

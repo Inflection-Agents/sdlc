@@ -3,7 +3,7 @@
  * Run a repo-local SDLC script by name, on either layout.
  *
  * Skills give every repo-local script command in this form, so one command works in a
- * repo still on layout 1 (`scripts/sdlc/`), a migrated one (`.sdlc/scripts/`), and this
+ * repo still on layout 1, a migrated one (`.sdlc/scripts/`), and this
  * repo. When the repo has no copy of the script, which is the case for a script added after
  * the repo's last `/sdlc-sync`, the plugin's own copy runs against the repo with `--root`,
  * and one line on stderr says so. The exit code is the script's own.

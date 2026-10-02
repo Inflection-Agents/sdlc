@@ -370,11 +370,11 @@ Amending means the spec is still fundamentally right — you're adjusting, not r
 | Leaving the old kickoff prompt | The prompt names the steps and ACs. Rewrite it at re-approval, within 3,800 characters. |
 
 <!-- sdlc:handoff:start -->
-<!-- GENERATED from specs/sdlc-state-machine.yaml by scripts/sdlc/gen-handoffs.mjs — do not edit between markers; re-run the generator. -->
+<!-- GENERATED from .sdlc/state-machine.yaml by ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/gen-handoffs.mjs — do not edit between markers; re-run the generator. -->
 
 ## Handoff
 
-This phase is **spec-amendment** in the SDLC state machine (`specs/sdlc-state-machine.yaml`, the single source of truth). The fields below are generated from that file — do not hand-edit them here.
+This phase is **spec-amendment** in the SDLC state machine (`.sdlc/state-machine.yaml`, the single source of truth). The fields below are generated from that file — do not hand-edit them here.
 
 **Entry triggers:**
 
@@ -389,7 +389,7 @@ This phase is **spec-amendment** in the SDLC state machine (`specs/sdlc-state-ma
 - an active spec is found to be wrong, incomplete, or in need of change mid-flight
 - a spec is amendable IFF its status is active or draft — every other status (done, superseded, deprecated, cancelled) is CLOSED and immutable; route a change to a closed spec to a new spec (spec-authoring) or a bug spec under specs/bugs/ instead
 
-**Exit condition:** spec is amended (version bumped), spec-reviewer re-signs off, the guide is updated in the same commit (Covers: re-mapped, spec_version bumped) and passes scripts/sdlc/validate-guide.mjs, KICKOFF.md is rewritten, and the owner re-approves plan_review; an active spec with no guide hands off to "write the guide for SPEC-NNN" instead
+**Exit condition:** spec is amended (version bumped), spec-reviewer re-signs off, the guide is updated in the same commit (Covers: re-mapped, spec_version bumped) and passes .sdlc/scripts/validate-guide.mjs, KICKOFF.md is rewritten, and the owner re-approves plan_review; an active spec with no guide hands off to "write the guide for SPEC-NNN" instead
 
 **Next step:** `spec-execution` — trigger: "execute SPEC-NNN"
 <!-- sdlc:handoff:end -->

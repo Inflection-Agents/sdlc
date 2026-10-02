@@ -171,11 +171,11 @@ Intent-triage owns the backlog. Spec-authoring owns the deep dive. The handoff i
 When spec-authoring produces a spec, intent-triage updates the intent: status → `done`, spec → `SPEC-NNN`. On hand-off, set the selected intent's status to `in-progress` ("Starting spec-authoring for intent #N"); the canonical handoff fields are in the generated `## Handoff` footer below.
 
 <!-- sdlc:handoff:start -->
-<!-- GENERATED from specs/sdlc-state-machine.yaml by scripts/sdlc/gen-handoffs.mjs — do not edit between markers; re-run the generator. -->
+<!-- GENERATED from .sdlc/state-machine.yaml by ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/gen-handoffs.mjs — do not edit between markers; re-run the generator. -->
 
 ## Handoff
 
-This phase is **intent-triage** in the SDLC state machine (`specs/sdlc-state-machine.yaml`, the single source of truth). The fields below are generated from that file — do not hand-edit them here.
+This phase is **intent-triage** in the SDLC state machine (`.sdlc/state-machine.yaml`, the single source of truth). The fields below are generated from that file — do not hand-edit them here.
 
 **Entry triggers:**
 

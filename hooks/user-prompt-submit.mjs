@@ -11,7 +11,7 @@
 // all DETERMINISTIC (no per-prompt model call):
 //
 //   1. SDLC entry routing. A deterministic keyword classifier reads the
-//      `entry_triggers` table from specs/sdlc-state-machine.yaml (the single
+//      `entry_triggers` table from `.sdlc/state-machine.yaml` (the single
 //      source of truth — this hook does NOT duplicate the trigger lists). On a
 //      prompt whose text contains an entry_trigger AND no task is active for
 //      the referenced spec, it injects routing context naming the matched
@@ -53,7 +53,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-// The path resolver (SPEC-009, ADR-008). The plugin ships it at scripts/sdlc/lib/, and
+// The path resolver (SPEC-009, ADR-008). The plugin ships it in its own lib/ beside scripts, and
 // bootstrap.sh copies it to lib/ beside a repo-local hook. A hook that cannot find it
 // throws, so the failure shows instead of the hook quietly checking nothing.
 const LIB = (() => {
@@ -64,6 +64,7 @@ const LIB = (() => {
     throw new Error(`${fileURLToPath(import.meta.url)}: cannot find lib/sdlc-paths.mjs in the plugin or beside the hook`)
 })()
 const { isSdlcRoot, loadMachine, sdlcPaths } = await import(new URL('sdlc-paths.mjs', LIB).href)
+const { LAYOUT1, LAYOUT1_AI_PREFIX } = await import(new URL('legacy-map.mjs', LIB).href)
 
 const ALLOW = 0
 
@@ -238,8 +239,7 @@ function detectOverride(prompt) {
     return reason.length > 0 ? reason : null
 }
 
-const LAYOUT_NUDGE =
-    'SDLC: this repo is on layout 1 (`.ai/` and `scripts/sdlc/`). Run `/sdlc-sync` to migrate it to `.sdlc/` (ADR-008).'
+const LAYOUT_NUDGE = `SDLC: this repo is on layout 1 (${LAYOUT1_AI_PREFIX} and ${LAYOUT1.scripts}/). Run /sdlc-sync to migrate it to .sdlc/ (ADR-008).`
 
 /**
  * The once-per-session layout-1 nudge, or null. The per-session marker file is what

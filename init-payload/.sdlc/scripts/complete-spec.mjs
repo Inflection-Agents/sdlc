@@ -7,7 +7,7 @@
  * with the human at the integration PR, where it is already being read.
  *
  * The narrower scope is also a fact about this repo: there is no index generator to
- * re-run, and `.ai/CLAUDE.md` states the framework does not ship the auto-merge lane
+ * re-run, and `CLAUDE.md` states the framework does not ship the auto-merge lane
  * a writing workflow would need. A writer here would open bookkeeping PRs nobody
  * merges, which is the manual chore it exists to remove, relocated.
  *

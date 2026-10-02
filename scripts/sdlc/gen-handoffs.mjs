@@ -5,9 +5,9 @@
 // Generic reference implementation shipped by the AI-native SDLC framework.
 // Dependency-free (Node built-ins only — a minimal YAML reader is inlined).
 //
-// From the single source of truth `specs/sdlc-state-machine.yaml`, it
+// From the single source of truth, the state machine (`.sdlc/state-machine.yaml`), it
 // generates/refreshes:
-//   (a) the phase-narrative section of `.ai/sdlc.md`, and
+//   (a) the phase-narrative section of the process doc (`docs/sdlc.md`), and
 //   (b) a standardized `## Handoff` footer (Entry triggers / Preconditions /
 //       Exit condition / Next step + trigger) on each phase OWNER-skill SKILL.md.
 //
@@ -15,7 +15,7 @@
 // idempotent and hand-edits OUTSIDE the markers are preserved:
 //
 //     <!-- sdlc:handoff:start -->  …  <!-- sdlc:handoff:end -->   (per-skill footer)
-//     <!-- sdlc:phases:start -->   …  <!-- sdlc:phases:end -->    (.ai/sdlc.md narrative)
+//     <!-- sdlc:phases:start -->   …  <!-- sdlc:phases:end -->    (process doc narrative)
 //
 // NEVER hand-edit inside the markers — re-run this generator instead.
 //
@@ -25,8 +25,8 @@
 // even though `pr-reviewer` is the `review` phase owner_skill.
 //
 // Usage:
-//   node scripts/sdlc/gen-handoffs.mjs            # write the generated regions in place
-//   node scripts/sdlc/gen-handoffs.mjs --check    # report drift only (no write)
+//   node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/gen-handoffs.mjs            # write the generated regions in place
+//   node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/gen-handoffs.mjs --check    # report drift only (no write)
 //
 // Exits 0 on success. With --check, exits 1 if any region is out of date.
 import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
@@ -54,7 +54,7 @@ export const DEFAULT_SDLC_DOC = PATHS.processDoc
 // The machine's path as the generated text names it, so the text follows the layout.
 const MACHINE_LABEL = relative(REPO_ROOT, DEFAULT_MACHINE_PATH)
 const DOC_LABEL = DEFAULT_SDLC_DOC ? relative(REPO_ROOT, DEFAULT_SDLC_DOC) : 'the process doc'
-const GENERATOR_LABEL = 'scripts/sdlc/gen-handoffs.mjs'
+const GENERATOR_LABEL = '${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/gen-handoffs.mjs'
 
 const GENERATED_WARNING = `<!-- GENERATED from ${MACHINE_LABEL} by ${GENERATOR_LABEL} — do not edit between markers; re-run the generator. -->`
 

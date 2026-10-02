@@ -25,16 +25,6 @@ function migrate(root, ...args) {
 const read = (root, rel) => readFileSync(join(root, rel), 'utf8')
 const status = (root) => git(root, 'status', '--porcelain', '--untracked-files=no')
 
-/** Files the payload ships. Their layout-1 text is the framework's to fix (S9, S10), not the adopter's. */
-function shippedByPayload(rel) {
-    if (rel === '.sdlc/state-machine.yaml') return true
-    for (const dir of ['scripts', 'templates', 'contracts']) {
-        const name = rel.match(new RegExp(`^\\.sdlc/${dir}/(.+)$`))?.[1]
-        if (name && existsSync(join(PAYLOAD, '.sdlc', dir, name))) return true
-    }
-    return false
-}
-
 test('AC-010: --dry-run prints the whole plan and writes nothing, on both fixtures', () => {
     for (const build of [pluginInit030Repo, forkedHighGearRepo]) {
         const fx = build()
@@ -170,8 +160,7 @@ test('AC-013: the scan reports what a text rewrite cannot fix, and a fixed branc
         const r = fx.root
         const res = migrate(r, '--apply')
         assert.equal(res.status, 3)
-        const own = scanRepo(r, {}).filter((h) => !shippedByPayload(h.file))
-        const forms = new Set(own.map((h) => `${h.file} ${h.form}`))
+        const forms = new Set(scanRepo(r, {}).map((h) => `${h.file} ${h.form}`))
         for (const want of [
             '.claude/hooks/user-prompt-submit.mjs quoted-segments',
             '.claude/hooks/user-prompt-submit.mjs quoted-.ai',
@@ -195,7 +184,7 @@ test('AC-013: the scan reports what a text rewrite cannot fix, and a fixed branc
         write(r, '.sdlc/scripts/validate-guide.mjs', read(PAYLOAD, '.sdlc/scripts/validate-guide.mjs'))
         git(r, 'add', '-A')
         git(r, 'commit', '-q', '-m', 'fix scan hits')
-        assert.deepEqual(scanRepo(r, {}).filter((h) => !shippedByPayload(h.file)), [])
+        assert.deepEqual(scanRepo(r, {}), [], 'the whole repo scans clean, the files the payload ships included')
         const again = migrate(r, '--apply')
         assert.equal(again.status, 0)
         assert.match(again.stdout, /nothing to migrate/)

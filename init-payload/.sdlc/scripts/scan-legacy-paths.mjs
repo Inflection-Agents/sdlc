@@ -5,8 +5,8 @@
  * The migration rewrites every slash-form path it can. What it cannot fix with a text
  * edit is flagged here instead, because a reader that misses its file usually goes
  * silent rather than failing:
- * - quoted path segments (`join(root, 'specs', 'sdlc-state-machine.yaml')`);
- * - a quoted `.ai` literal in code;
+ * - a layout-1 path built from quoted segments in a `join` call;
+ * - a quoted literal naming the layout-1 agent-config folder, in code;
  * - a `'..'` join in a file whose directory depth changed;
  * - code that reads `domain_routing` without going through `loadMachine`;
  * - a schema that requires `domain_routing`;

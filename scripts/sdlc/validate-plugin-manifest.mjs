@@ -17,7 +17,7 @@
  *   5. every agents/*.md carries `name` and `tools` frontmatter.
  *
  * Usage:
- *   node scripts/sdlc/validate-plugin-manifest.mjs
+ *   node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/validate-plugin-manifest.mjs
  */
 import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'

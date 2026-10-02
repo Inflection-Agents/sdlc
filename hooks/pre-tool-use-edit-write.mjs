@@ -50,7 +50,7 @@ import { appendFileSync, existsSync, readFileSync } from 'node:fs'
 import { dirname, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-// The path resolver (SPEC-009, ADR-008). The plugin ships it at scripts/sdlc/lib/, and
+// The path resolver (SPEC-009, ADR-008). The plugin ships it in its own lib/ beside scripts, and
 // bootstrap.sh copies it to lib/ beside a repo-local hook. A hook that cannot find it
 // throws, so the failure shows instead of the hook quietly checking nothing.
 const LIB = (() => {
@@ -225,7 +225,7 @@ function relPosix(root, abs) {
 /**
  * Is this a PROCESS-ARTIFACT path (exempt from the gate)? Everything under `.sdlc/`
  * counts except `.sdlc/scripts/`, which is validator code and stays gated, the way
- * `scripts/sdlc/` is on layout 1.
+ * the layout-1 validators directory is.
  */
 function isProcessArtifact(rel, specsRel = 'specs') {
     if (!rel) return false

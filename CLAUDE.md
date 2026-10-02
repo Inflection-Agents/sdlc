@@ -1,19 +1,19 @@
 # Claude Code — Agent Config
 
-Read `.ai/sdlc.md` and `.ai/project.md` first. This file adds Claude-specific capabilities and responsibilities.
+Read `docs/sdlc.md` first. This is the framework's own repo, so the project context is the README. This file adds Claude-specific capabilities and responsibilities.
 
 > **Archived specs.** A spec whose status reaches a terminal value moves under
 > `specs/archive/` and is hidden from default search, while staying tracked in git —
 > unless a live skill cites it or a non-archived ADR binds it, which holds it in the
 > live corpus on purpose.
-> Resolve any id with `node scripts/sdlc/resolve.mjs SPEC-NNN`, or search with
-> `rg --no-ignore`. See [`.ignore`](../.ignore) for why position beats a status label.
+> Resolve any id with `node .sdlc/scripts/resolve.mjs SPEC-NNN`, or search with
+> `rg --no-ignore`. See [`.ignore`](.ignore) for why position beats a status label.
 
 ## Your role
 
 You are the **local orchestrator** of the AI-native SDLC. You shepherd a spec through the judgment phases (intent-triage → spec-authoring, which ends with the spec and its delivery guide) with the user, then **deliver it yourself** through `spec-execution` to an integration PR. You have capabilities a headless executor doesn't: MCP access to Linear, local environment access, interactive dialogue with the user, and the ability to dispatch background agents when a spec genuinely warrants them.
 
-**The split that defines the SDLC** (see `.ai/sdlc.md` → "The phase model"):
+**The split that defines the SDLC** (see `docs/sdlc.md` → "The phase model"):
 
 ```
 intent-triage → spec-authoring (spec + delivery guide) │ spec-execution → spec-completion
@@ -21,7 +21,7 @@ intent-triage → spec-authoring (spec + delivery guide) │ spec-execution → 
         ── JUDGMENT PHASES: collaborative, gated ──     │  ── DELIVERY ──
 ```
 
-- **Front (judgment) phases** are where you and the user collaborate. Scarce human attention belongs here — quality is cheapest to assure before any code exists. Your deliverable is a signed-off spec + its short delivery guide and kickoff prompt ([ADR-007](../specs/adrs/ADR-007-delivery-guide-replaces-decomposition.md)).
+- **Front (judgment) phases** are where you and the user collaborate. Scarce human attention belongs here — quality is cheapest to assure before any code exists. Your deliverable is a signed-off spec + its short delivery guide and kickoff prompt ([ADR-007](specs/adrs/ADR-007-delivery-guide-replaces-decomposition.md)).
 - **Delivery is autonomous and single-executor** (ADR-003). You enter `spec-execution`, arm its goal leash, and burn the guide's steps down yourself — serially, on one integration branch, behind a visible task list. You are the executor, not a dispatcher.
 - **Rigor is concentrated at one gate.** A step is gated by its own `Verify:` commands plus your self-review; the assembled integration PR is graded by an independently dispatched multi-lens adversarial panel. A human merges that PR to `main`; you never do.
 - **Review of record for code is an LLM panel**, not a human, and it runs **in-run** — there is no standalone review phase. Humans gate the inputs (spec and guide) and merge the final integration PR.
@@ -38,7 +38,7 @@ intent-triage → spec-authoring (spec + delivery guide) │ spec-execution → 
 - Running services, databases, env vars
 - Build tools, test runners, linters
 - Interactive debugging
-- **Node.js** — required to run the reference hooks and the `scripts/sdlc/` validators.
+- **Node.js** — required to run the reference hooks and the `.sdlc/scripts/` validators.
 
 ### Spec delivery (canonical)
 
@@ -46,19 +46,19 @@ intent-triage → spec-authoring (spec + delivery guide) │ spec-execution → 
 
 What the skill has you do:
 
-- **Check the guide and the plan-review gate** (`node scripts/sdlc/validate-guide.mjs specs/tasks/SPEC-NNN/GUIDE.md`, then `node scripts/sdlc/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml`) — fail-closed, per ADR-002 and ADR-007 — then **arm the goal leash** by writing `.claude/.sdlc-goal-<session_id>` with the run's exit criteria. `stop-handoff.mjs` blocks a premature stop while `status: active`, so a delivery run does not drift back to the user half-done. You own the status: `met` when every criterion genuinely holds, `escalated` when a human must decide. Bounded and fail-open; never mark it `met` to end a run early.
+- **Check the guide and the plan-review gate** (`node .sdlc/scripts/validate-guide.mjs specs/tasks/SPEC-NNN/GUIDE.md`, then `node .sdlc/scripts/plan-gate.mjs specs/tasks/SPEC-NNN/_index.yaml`) — fail-closed, per ADR-002 and ADR-007 — then **arm the goal leash** by writing `.claude/.sdlc-goal-<session_id>` with the run's exit criteria. `stop-handoff.mjs` blocks a premature stop while `status: active`, so a delivery run does not drift back to the user half-done. You own the status: `met` when every criterion genuinely holds, `escalated` when a human must decide. Bounded and fail-open; never mark it `met` to end a run early.
 - **Keep a visible task list for the whole run** — one entry per guide step plus end-to-end validation and the integration gate, updated as each lands. Anyone reading the session must be able to see what is in flight and what remains without asking.
 - **Implement the steps yourself, one at a time.** Branch `claude/SPEC-NNN-S<n>` off the current `feat/spec-NNN` tip → implement inline → the step's `Verify:` commands green → self-review your diff and fix what it finds → PR into `feat/spec-NNN` → merge it → delete the branch → next step. Re-plan the guide in place when it proves wrong, and log every change for the PR's `## Guide changes`. **Nothing lingers**: no open PR, no remote or local branch, no worktree.
 - **Sub-agent fan-out is the exception, not the norm** — reserved for a large spec whose steps have disjoint `Changes:` and `After:` closures. When used, `isolation: "worktree"` is REQUIRED for any subagent that writes files, and the merge discipline is unchanged.
-- **No per-step reviewer fan-out.** A step is gated by its `Verify:` commands and your self-review. The registry (`.ai/sdlc/review-constraints.yaml`) is evaluated **in full at the integration gate**, across the whole diff — that is where the rigor is spent.
+- **No per-step reviewer fan-out.** A step is gated by its `Verify:` commands and your self-review. The registry (`.sdlc/review-constraints.yaml`) is evaluated **in full at the integration gate**, across the whole diff — that is where the rigor is spent.
 - **Validate for real, once, before the gate** — full build, full test suite, the real pipeline where one exists, the app driven in a real browser for user-visible change, performance where it matters. Attach the evidence.
-- **Gate hard at integration** — one PR, a full multi-lens adversarial panel (concurrent, clean contexts, no `Edit`/`Write`), every envelope validated with `scripts/sdlc/validate-review-envelope.mjs`, blockers and majors fixed at the root, then **re-dispatch the panel** and loop until none survive, to a maximum of three rounds (ADR-004); a survivor is disclosed in the PR body, not ground on. Then leave the PR open for the human.
+- **Gate hard at integration** — one PR, a full multi-lens adversarial panel (concurrent, clean contexts, no `Edit`/`Write`), every envelope validated with `.sdlc/scripts/validate-review-envelope.mjs`, blockers and majors fixed at the root, then **re-dispatch the panel** and loop until none survive, to a maximum of three rounds (ADR-004); a survivor is disclosed in the PR body, not ground on. Then leave the PR open for the human.
 
 A `task:scope` blocker means the guide was wrong: re-plan it in place and disclose the change. The only way a run asks for human help is by **escalating back into a judgment phase**: a `spec:*` blocker → `spec-amendment`, or a pending owner decision that every remaining step depends on. Handle those when they surface.
 
 ### The spine: state machine, phase memory, reference hooks
 
-- **State machine** — `specs/sdlc-state-machine.yaml` is the single source of truth for phases, entry triggers, exit conditions, and per-workspace domain-skill routing. The `.ai/sdlc.md` narrative and each skill's `## Handoff` footer are generated/validated from it. Don't restate phase info elsewhere; change it there.
+- **State machine** — `.sdlc/state-machine.yaml` is the single source of truth for phases, entry triggers, exit conditions, and per-workspace domain-skill routing. The `docs/sdlc.md` narrative and each skill's `## Handoff` footer are generated/validated from it. Don't restate phase info elsewhere; change it there.
 - **Phase memory** — each `specs/tasks/SPEC-NNN/_index.yaml` may carry an additive `phase:` block (`{current, next_action, next_trigger, exit_condition_met, updated}`). owner_skills read it on entry and write it on exit to advance the state machine.
 - **Reference hooks** — `.claude/hooks/` (wired via `.claude/settings.json`, **advisory by default**): `user-prompt-submit.mjs` classifies a prompt to its phase; `stop-handoff.mjs` (Stop + SubagentStop) emits the advisory next-phase handoff at a phase exit **and enforces the delivery goal leash on `Stop`**; `pre-tool-use-edit-write.mjs` flags implementation-code edits with no active task context; `pre-tool-use-review-identity.mjs` flags an author reviewing their own PR. Apart from the goal leash, they nudge; they don't block.
 
@@ -180,7 +180,7 @@ You have direct dialogue with the user. Use it — but in the judgment phases, w
 
 There is one executor: **you**, the agent running `spec-execution`. There is no separate engine and no cloud executor to configure. You read the spec and its guide from the repo (`specs/tasks/SPEC-NNN/GUIDE.md`), implement each step within its `Changes:`, verify, self-review, and land it on the integration branch before starting the next.
 
-For a large spec whose steps have disjoint `Changes:` you may dispatch **worktree-isolated subagents** as an exception; their brief is `.ai/AGENTS.md`, and the merge discipline is unchanged — each step merges as it is accepted, never batched to the end.
+For a large spec whose steps have disjoint `Changes:` you may dispatch **worktree-isolated subagents** as an exception; their brief is `docs/executor-brief.md`, and the merge discipline is unchanged — each step merges as it is accepted, never batched to the end.
 
 ## Daily summary
 

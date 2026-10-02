@@ -11,11 +11,14 @@
  * It covers every commit that touched `init-payload/` up to and including the latest
  * commit that changed the plugin version, so the manifest only changes at a release.
  * The repo has no release tags; the version comes from `.claude-plugin/plugin.json` at
- * each commit. Regenerate it in every release commit (docs/RELEASING.md).
+ * each commit. Regenerate it in every release commit (docs/RELEASING.md). While that
+ * commit is being made, the working tree's `plugin.json` is ahead of the last bump, so the
+ * manifest then covers every commit to HEAD plus the working tree's payload under the new
+ * version. After the commit the same rule gives the same file, so `--check` stays green.
  *
  * Usage (plugin source only):
- *   node scripts/sdlc/gen-released-payloads.mjs           # write lib/released-payloads.json
- *   node scripts/sdlc/gen-released-payloads.mjs --check   # exit 1 when the file is stale
+ *   node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/gen-released-payloads.mjs           # write lib/released-payloads.json
+ *   node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/gen-released-payloads.mjs --check   # exit 1 when the file is stale
  */
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -23,28 +26,16 @@ import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { payloadRoleOf } from './lib/legacy-map.mjs'
+
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = resolve(HERE, '..', '..')
 export const MANIFEST = join(HERE, 'lib', 'released-payloads.json')
 
 const git = (args, opts = {}) => execFileSync('git', args, { cwd: REPO, maxBuffer: 1 << 28, ...opts })
 
-/**
- * The adopter-side role of a payload path, on either payload layout, or null for a file
- * the migration never classifies (workflows, stubs, the README).
- */
-export function roleOf(payloadRel) {
-    const p = payloadRel.replace(/^init-payload\//, '')
-    let m
-    if ((m = p.match(/^(?:scripts\/sdlc|\.sdlc\/scripts)\/(.+\.mjs)$/))) return m[1].includes('.test.') ? null : `scripts/${m[1]}`
-    if ((m = p.match(/^(?:templates|\.sdlc\/templates)\/([^/]+\.md)$/))) return `templates/${m[1]}`
-    if ((m = p.match(/^(?:\.ai\/skills|\.sdlc\/contracts)\/(review-primitives\.md|review-envelope\.schema\.json)$/))) {
-        return `contracts/${m[1]}`
-    }
-    if (p === 'sdlc-state-machine.yaml' || p === '.sdlc/state-machine.yaml') return 'state-machine'
-    if ((m = p.match(/^\.github\/workflows\/([^/]+\.ya?ml)$/))) return `workflows/${m[1]}`
-    return null
-}
+/** The adopter-side role of a payload path (see legacy-map.mjs payloadRoleOf). */
+export const roleOf = payloadRoleOf
 
 export const sha256 = (buf) => createHash('sha256').update(buf).digest('hex')
 
@@ -63,8 +54,15 @@ export function buildManifest() {
     }
     const bump = git(['log', '-1', '--format=%H', '-G', '"version"', '--', '.claude-plugin/plugin.json'], { encoding: 'utf8' }).trim()
     if (!bump) throw new Error('no commit sets a version in .claude-plugin/plugin.json')
-    const commits = git(['rev-list', '--reverse', bump, '--', 'init-payload/'], { encoding: 'utf8' }).split('\n').filter(Boolean)
+    const working = JSON.parse(readFileSync(join(REPO, '.claude-plugin', 'plugin.json'), 'utf8')).version
+    const releasing = working !== versionAt(bump)
+    const upTo = releasing ? 'HEAD' : bump
+    const commits = git(['rev-list', '--reverse', upTo, '--', 'init-payload/'], { encoding: 'utf8' }).split('\n').filter(Boolean)
     const roles = {}
+    const add = (role, bytes, version) => {
+        roles[role] ??= {}
+        roles[role][sha256(bytes)] ??= version
+    }
     for (const commit of commits) {
         const version = versionAt(commit)
         if (!version) continue
@@ -72,15 +70,18 @@ export function buildManifest() {
         for (const line of listing) {
             const [meta, path] = line.split('\t')
             const role = roleOf(path)
-            if (!role) continue
-            const blob = meta.split(' ')[2]
-            const hash = sha256(git(['cat-file', 'blob', blob]))
-            roles[role] ??= {}
-            roles[role][hash] ??= version
+            if (role) add(role, git(['cat-file', 'blob', meta.split(' ')[2]]), version)
+        }
+    }
+    if (releasing) {
+        const tracked = git(['ls-files', '--', 'init-payload/'], { encoding: 'utf8' }).split('\n').filter(Boolean)
+        for (const path of tracked) {
+            const role = roleOf(path)
+            if (role && existsSync(join(REPO, path))) add(role, readFileSync(join(REPO, path)), working)
         }
     }
     const sorted = Object.fromEntries(Object.keys(roles).sort().map((r) => [r, roles[r]]))
-    return { through: bump, roles: sorted }
+    return { through_version: releasing ? working : versionAt(bump), roles: sorted }
 }
 
 export const serialize = (manifest) => `${JSON.stringify(manifest, null, 2)}\n`
@@ -101,10 +102,10 @@ function main(argv) {
     if (argv.includes('--check')) {
         const current = existsSync(MANIFEST) ? readFileSync(MANIFEST, 'utf8') : ''
         if (current !== text) {
-            process.stderr.write('released-payloads.json is stale: run node scripts/sdlc/gen-released-payloads.mjs\n')
+            process.stderr.write('released-payloads.json is stale: run gen-released-payloads.mjs and commit the result\n')
             process.exit(1)
         }
-        process.stdout.write(`released-payloads.json OK (${Object.keys(manifest.roles).length} roles, through ${manifest.through.slice(0, 7)})\n`)
+        process.stdout.write(`released-payloads.json OK (${Object.keys(manifest.roles).length} roles, through ${manifest.through_version})\n`)
         return
     }
     writeFileSync(MANIFEST, text)
