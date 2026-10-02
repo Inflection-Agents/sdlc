@@ -154,7 +154,8 @@
     "scripts/validate-sdlc-config.mjs": {
       "425ff40950df02d5615a2fff13cb1dbef940134b25fe791d83cf581bc605ff00": "0.3.0",
       "32d907e207a8bc5849df91054914bd4c2255234536477610bff380ea81a46e24": "0.4.0",
-      "ae7f6bec97c4d0765a35d9f1015ba8760cd7cbd4971bf8ca05d40073be0ed0aa": "0.4.0"
+      "ae7f6bec97c4d0765a35d9f1015ba8760cd7cbd4971bf8ca05d40073be0ed0aa": "0.4.0",
+      "d97b54b3bbe73798aa8c6346dceb40dc2042f208354769968d98d3a063ee50d4": "0.4.0"
     },
     "scripts/validate-spec.mjs": {
       "189020876d0474d96328d4c20c3d3ba6517353a74cf8de99194593e2279446bf": "0.4.0",
