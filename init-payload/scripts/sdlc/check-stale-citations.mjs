@@ -16,14 +16,16 @@
  * A line that names the successor is acknowledged, not stale.
  *
  * Usage:
- *   node scripts/sdlc/check-stale-citations.mjs            # fail on always-loaded hits
- *   node scripts/sdlc/check-stale-citations.mjs --strict   # fail on reported hits too
+ *   node .sdlc/scripts/check-stale-citations.mjs            # fail on always-loaded hits
+ *   node .sdlc/scripts/check-stale-citations.mjs --strict   # fail on reported hits too
  */
 import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
-import { dirname, join, relative, resolve } from 'node:path'
+import { join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
+import { LAYOUT1_AI_PATTERN } from './lib/legacy-map.mjs'
+import { sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
+
 const read = (p) => readFileSync(p, 'utf8')
 
 /** Paths loaded into an agent's context on every run, where a stale citation acts. */
@@ -34,8 +36,10 @@ const ALWAYS_LOADED = [
     /^skills\//,
     /^agents\//,
     /^hooks\//,
+    // Layout 2 (ADR-008): config, contracts, forked skills and agent files. Scripts are code.
+    /^\.sdlc\/(?!scripts\/)/,
     // Pre-restructure locations, still real in a repo that has not moved.
-    /^\.ai\//,
+    LAYOUT1_AI_PATTERN,
     /^\.claude\/(agents|hooks|skills)\//,
     /^(AGENTS|CLAUDE|GEMINI)\.md$/
 ]
@@ -53,11 +57,11 @@ const SELF_RECORD = /^specs\/adrs\//
  * `report` — history: spec bodies, tests, plans, docs.
  * `skip` — the ADR corpus itself, which is where supersession is recorded.
  */
-export function blastRadius(rel) {
+export function blastRadius(rel, alsoLoaded = []) {
     const p = String(rel).replace(/\\/g, '/')
     if (SELF_RECORD.test(p)) return 'skip'
     if (IS_TEST.test(p)) return 'report'
-    if (ALWAYS_LOADED.some((re) => re.test(p))) return 'fail'
+    if (ALWAYS_LOADED.some((re) => re.test(p)) || alsoLoaded.includes(p)) return 'fail'
     return 'report'
 }
 
@@ -109,11 +113,11 @@ export function supersededIds(docs) {
  * whatever the corpus happens to contain. A gate whose failure branch has never run
  * is a gate nobody has tested.
  */
-export function classify(files, superseded) {
+export function classify(files, superseded, alsoLoaded = []) {
     const failures = []
     const reports = []
     for (const { path, text } of files) {
-        const radius = blastRadius(path)
+        const radius = blastRadius(path, alsoLoaded)
         if (radius === 'skip') continue
         const lines = String(text).split('\n')
         for (const [staleId, successorId] of superseded) {
@@ -149,9 +153,14 @@ function walk(dir, onFile, depth = 8) {
 }
 
 function main(argv) {
-    const strict = argv.includes('--strict')
+    const { root: ROOT, rest } = takeRootArg(argv)
+    const strict = rest.includes('--strict')
+    const paths = sdlcPaths(ROOT)
+    // The process doc is always loaded wherever it lives (paths.process_doc).
+    const doc = paths.processDoc && relative(ROOT, paths.processDoc).replace(/\\/g, '/')
+    const alsoLoaded = doc && !doc.startsWith('..') ? [doc] : []
 
-    const adrDir = join(ROOT, 'specs', 'adrs')
+    const adrDir = join(paths.specs, 'adrs')
     const docs = existsSync(adrDir)
         ? readdirSync(adrDir)
               .filter((f) => f.endsWith('.md'))
@@ -167,7 +176,7 @@ function main(argv) {
 
     const files = []
     walk(ROOT, (p) => files.push({ path: relative(ROOT, p).replace(/\\/g, '/'), text: read(p) }))
-    const { failures, reports } = classify(files, superseded)
+    const { failures, reports } = classify(files, superseded, alsoLoaded)
 
     for (const r of reports) process.stdout.write(`  report  ${r}\n`)
     if (reports.length) {

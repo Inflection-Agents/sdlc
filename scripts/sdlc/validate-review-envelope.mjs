@@ -31,8 +31,8 @@
  * beyond these, this file must grow with it.
  *
  * Usage:
- *   node scripts/sdlc/validate-review-envelope.mjs <envelope.json>
- *   … | node scripts/sdlc/validate-review-envelope.mjs -      # read stdin
+ *   node .sdlc/scripts/validate-review-envelope.mjs <envelope.json>
+ *   … | node .sdlc/scripts/validate-review-envelope.mjs -      # read stdin
  *
  * Exit codes (distinct so a caller can branch without parsing prose):
  *   0  valid AND assessed          → fold findings through the severity→action policy
@@ -43,6 +43,8 @@
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { resolveRoot, sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -56,15 +58,14 @@ export const EXIT_MALFORMED = 3
  * It ships in the PLUGIN, so an adopting repo has no local copy — and this validator
  * decides at the integration gate whether findings fold or the review is a contract
  * violation. Pointing it at a single repo-relative path made every adopter's every
- * envelope exit 3. Both `skills/` and `.ai/skills/` resolve in the framework repo
- * because one is a symlink to the other, which is exactly why the single-path version
- * looked correct here and was broken everywhere else.
+ * envelope exit 3. The repo's own copy is found through the resolver, which knows
+ * where each layout keeps it, and the framework repo's `skills/` copy is the last resort.
  */
 const SCHEMA_CANDIDATES = [
     process.env.REVIEW_ENVELOPE_SCHEMA,
     process.env.CLAUDE_PLUGIN_ROOT && join(process.env.CLAUDE_PLUGIN_ROOT, 'skills', 'review-envelope.schema.json'),
-    join(__dirname, '..', '..', 'skills', 'review-envelope.schema.json'),
-    join(__dirname, '..', '..', '.ai', 'skills', 'review-envelope.schema.json')
+    sdlcPaths(resolveRoot(), { quiet: true }).envelopeSchema,
+    join(__dirname, '..', '..', 'skills', 'review-envelope.schema.json')
 ].filter(Boolean)
 
 export const SCHEMA_FILE = SCHEMA_CANDIDATES.find((p) => existsSync(p)) ?? SCHEMA_CANDIDATES.at(-1)
@@ -242,7 +243,7 @@ function readInput(arg) {
 }
 
 function main() {
-    const arg = process.argv[2]
+    const [arg] = takeRootArg(process.argv.slice(2)).rest
     let env
     try {
         env = JSON.parse(readInput(arg))

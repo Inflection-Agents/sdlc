@@ -200,6 +200,13 @@ test('rule 8: a step without Workspace fails when .ai/project.md defines workspa
     assert.deepEqual(check({ '.ai/project.md': project.replace('| web | apps/web |\n', '') }), [], 'a header-only table defines no workspace')
 })
 
+test('rule 8 on layout 2: workspaces come from .sdlc/config.yaml (SPEC-009 AC-008)', () => {
+    const withWs = 'layout: 2\nworkspaces:\n  - name: web\n    path: apps/web\n    agent_executable: yes\n'
+    const problems = check({ '.sdlc/config.yaml': withWs })
+    assert.ok(problems.some((p) => p.startsWith('rule 8:') && p.includes('S1')), problems.join('\n'))
+    assert.deepEqual(check({ '.sdlc/config.yaml': 'layout: 2\nworkspaces: []\n' }), [], 'an empty list defines no workspace')
+})
+
 test('rule 9: an approved guide with no KICKOFF.md fails', () => {
     const problems = check({ 'specs/tasks/SPEC-900/_index.yaml': approved })
     assert.ok(problems.some((p) => p.startsWith('rule 9:') && p.includes('missing')), problems.join('\n'))

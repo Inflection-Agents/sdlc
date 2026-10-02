@@ -15,13 +15,14 @@
  * status, or any unchecked box all return `completable: false` with a reason.
  *
  * Usage:
- *   node scripts/sdlc/complete-spec.mjs SPEC-003    # exit 0 completable, 1 not
+ *   node .sdlc/scripts/complete-spec.mjs SPEC-003    # exit 0 completable, 1 not
  */
 import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
+import { sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
+
 const read = (p) => readFileSync(p, 'utf8')
 
 /** Statuses this gate may act on. Everything else is terminal or not yet started. */
@@ -110,8 +111,9 @@ function frontmatterStatus(text) {
 }
 
 /** Find a spec file by id, live or archived. */
-function findSpec(id) {
-    for (const dir of [join(ROOT, 'specs'), join(ROOT, 'specs', 'archive', 'specs')]) {
+function findSpec(id, root) {
+    const specs = sdlcPaths(root).specs
+    for (const dir of [specs, join(specs, 'archive', 'specs')]) {
         if (!existsSync(dir)) continue
         const esc = String(id).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
         const hit = readdirSync(dir).find((f) => new RegExp(`^${esc}[-.]`, 'i').test(f) && f.endsWith('.md'))
@@ -121,13 +123,14 @@ function findSpec(id) {
 }
 
 function main(argv) {
-    const id = argv.find((a) => !a.startsWith('--'))
+    const { root, rest } = takeRootArg(argv)
+    const id = rest.find((a) => !a.startsWith('--'))
     if (!id) {
-        process.stderr.write('usage: node scripts/sdlc/complete-spec.mjs <SPEC-NNN>\n')
+        process.stderr.write('usage: node .sdlc/scripts/complete-spec.mjs <SPEC-NNN> [--root <dir>]\n')
         process.exit(2)
     }
 
-    const path = findSpec(id)
+    const path = findSpec(id, root)
     if (!path) {
         process.stderr.write(`complete-spec: no spec file found for ${id}\n`)
         process.exit(2)

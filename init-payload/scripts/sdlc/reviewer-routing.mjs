@@ -14,23 +14,22 @@
 // integration gate instead of an engine resolving it per task.
 //
 // Usage:
-//   node scripts/sdlc/reviewer-routing.mjs <lens>      # print the reviewer for one lens
-//   node scripts/sdlc/reviewer-routing.mjs --list      # print the whole lens → reviewer table
-//   node scripts/sdlc/reviewer-routing.mjs --registry <path> <lens>
+//   node .sdlc/scripts/reviewer-routing.mjs <lens>      # print the reviewer for one lens
+//   node .sdlc/scripts/reviewer-routing.mjs --list      # print the whole lens → reviewer table
+//   node .sdlc/scripts/reviewer-routing.mjs --registry <path> <lens>
 //
 // Exits 0 always (an unmapped lens is a valid answer: `task-reviewer`), 1 only
 // when the registry cannot be read.
 import { readFileSync, realpathSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT = resolve(__dirname, '..', '..')
 import { parseRegistryTouches } from './check-review-constraint-globs.mjs'
+import { resolveRoot, sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
 
 // Outside skills on purpose: that tree ships in the plugin and is overwritten
 // on update, and this file holds the adopting repo's own invariants.
-export const DEFAULT_REGISTRY = join(REPO_ROOT, '.ai', 'sdlc', 'review-constraints.yaml')
+export const DEFAULT_REGISTRY = sdlcPaths(resolveRoot(), { quiet: true }).constraints
 
 /** The reviewer a lens with no registered specialist folds into. */
 export const GENERIC_REVIEWER = 'task-reviewer'
@@ -288,8 +287,9 @@ export const applicableConstraintsFor = (rows, relPaths) => {
 }
 
 function main(argv) {
-    const args = [...argv]
-    let registry = DEFAULT_REGISTRY
+    const { root, rest } = takeRootArg(argv)
+    const args = [...rest]
+    let registry = sdlcPaths(root, { quiet: true }).constraints
     const rIdx = args.indexOf('--registry')
     if (rIdx !== -1) {
         registry = args[rIdx + 1]

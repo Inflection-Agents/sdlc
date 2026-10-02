@@ -20,16 +20,17 @@
 //      domain skill resolves to a real skill.
 //
 // Usage:
-//   node scripts/sdlc/validate-state-machine.mjs
-//   node scripts/sdlc/validate-state-machine.mjs --machine <path> --skills <dir>
+//   node .sdlc/scripts/validate-state-machine.mjs
+//   node .sdlc/scripts/validate-state-machine.mjs --machine <path> --skills <dir>
 //
 // Exits 0 when valid, 1 (with diagnostics on stderr) when invalid.
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT = resolve(__dirname, '..', '..')
+import { sdlcPaths, takeRootArg } from './lib/sdlc-paths.mjs'
+
+let REPO_ROOT
 
 const STABLE_PHASE_FIELDS = [
     'id',
@@ -41,11 +42,14 @@ const STABLE_PHASE_FIELDS = [
     'next_trigger'
 ]
 
-function parseArgs(argv) {
+function parseArgs(rawArgv) {
+    const { root, rest: argv } = takeRootArg(rawArgv)
+    REPO_ROOT = root
+    const paths = sdlcPaths(root)
     const args = {
-        machine: join(REPO_ROOT, 'specs', 'sdlc-state-machine.yaml'),
-        // Skills live under skills/ (the .claude/skills symlink points here).
-        skills: join(REPO_ROOT, 'skills')
+        machine: paths.machine,
+        // The resolver's skills dir; in this repo the framework's own skills/ is searched too.
+        skills: paths.skills ?? join(root, 'skills')
     }
     for (let i = 0; i < argv.length; i += 1) {
         const flag = argv[i]
@@ -307,4 +311,14 @@ function relName(abs) {
     return rel || abs
 }
 
-main()
+function isMain(metaUrl) {
+    const entry = process.argv[1]
+    if (!entry) return false
+    try {
+        return realpathSync(entry) === realpathSync(fileURLToPath(metaUrl))
+    } catch {
+        return resolve(entry) === fileURLToPath(metaUrl)
+    }
+}
+
+if (isMain(import.meta.url)) main()

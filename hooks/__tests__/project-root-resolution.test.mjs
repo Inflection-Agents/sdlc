@@ -15,7 +15,7 @@
 // Empty stdout, or a file that never appears, is the failure signal.
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { test } from 'node:test'
@@ -68,6 +68,8 @@ function makeFakeRepo() {
     mkdirSync(join(root, '.ai', 'sdlc'), { recursive: true })
     mkdirSync(join(root, 'scripts', 'sdlc'), { recursive: true })
     copyFileSync(join(REPO, '.ai', 'sdlc', 'review-constraints.yaml'), join(root, '.ai', 'sdlc', 'review-constraints.yaml'))
+    // reviewer-routing imports the path resolver from lib/ (SPEC-009), so the fixture carries it too.
+    cpSync(join(REPO, 'scripts', 'sdlc', 'lib'), join(root, 'scripts', 'sdlc', 'lib'), { recursive: true })
     for (const mod of ['reviewer-routing.mjs', 'check-review-constraint-globs.mjs']) {
         copyFileSync(join(REPO, 'scripts', 'sdlc', mod), join(root, 'scripts', 'sdlc', mod))
     }

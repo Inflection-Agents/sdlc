@@ -33,22 +33,21 @@
  * once a repo has replaced them with its own, and wire that form into CI.
  *
  * Usage:
- *   node scripts/sdlc/check-review-constraint-globs.mjs [--enforce] [--registry <path>] [--root <dir>]
+ *   node .sdlc/scripts/check-review-constraint-globs.mjs [--enforce] [--registry <path>] [--root <dir>]
  *
  * Exit 0 when every glob resolves (or in warn mode), 1 on an unresolvable glob
  * under --enforce.
  */
 import { globSync, readFileSync, realpathSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { basename, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
+import { isSdlcRoot, resolveRoot, sdlcPaths } from './lib/sdlc-paths.mjs'
 
-export const REPO_ROOT = process.env.REVIEW_CONSTRAINTS_ROOT ?? resolve(__dirname, '..', '..')
+export const REPO_ROOT = process.env.REVIEW_CONSTRAINTS_ROOT ?? resolveRoot()
 // Outside skills on purpose: that tree ships in the plugin and is overwritten
 // on update, and this file holds the adopting repo's own invariants.
-export const REGISTRY_REL = '.ai/sdlc/review-constraints.yaml'
-export const REGISTRY_FILE = process.env.REVIEW_CONSTRAINTS_FILE ?? join(REPO_ROOT, REGISTRY_REL)
+export const REGISTRY_FILE = process.env.REVIEW_CONSTRAINTS_FILE ?? sdlcPaths(REPO_ROOT, { quiet: true }).constraints
 
 /** Path segments never worth counting as a match when resolving a glob. */
 const IGNORED_SEGMENTS = ['node_modules', '.git', 'dist', 'build', '.next']
@@ -182,10 +181,17 @@ function main(argv) {
         // Resolve globs against the registry's OWN repo, not this one — otherwise
         // pointing the checker at another repo reports every row dead (or alive)
         // off the wrong tree.
-        root = resolve(dirname(registry), '..', '..')
+        const dir = dirname(resolve(registry))
+        const found = resolveRoot(dir)
+        // With no repo marker above it, assume the registry sits at its standard depth:
+        // .sdlc/review-constraints.yaml (one level) or .ai/sdlc/review-constraints.yaml (two).
+        root = isSdlcRoot(found) ? found : basename(dir) === '.sdlc' ? dirname(dir) : resolve(dir, '..', '..')
     }
     const rootIdx = argv.indexOf('--root')
-    if (rootIdx !== -1) root = resolve(argv[rootIdx + 1])
+    if (rootIdx !== -1) {
+        root = resolve(argv[rootIdx + 1])
+        if (rIdx === -1) registry = sdlcPaths(root).constraints
+    }
     const enforce = argv.includes('--enforce') || process.env.REVIEW_GLOBS_MODE === 'enforce'
 
     let text

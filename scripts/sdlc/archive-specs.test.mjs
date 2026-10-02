@@ -88,7 +88,7 @@ test('a companion is never archived on its own', () => {
 
 test('ensureFence is exercised: archiving writes a .ignore beside what it moves', async () => {
     const { execFileSync } = await import('node:child_process')
-    const { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync, rmSync } = await import('node:fs')
+    const { cpSync, mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync, rmSync } = await import('node:fs')
     const { join } = await import('node:path')
     const { tmpdir } = await import('node:os')
 
@@ -103,6 +103,7 @@ test('ensureFence is exercised: archiving writes a .ignore beside what it moves'
         for (const f of ['archive-specs.mjs']) {
             writeFileSync(join(repo, 'scripts', 'sdlc', f), readFileSync(join(import.meta.dirname, f), 'utf8'))
         }
+        cpSync(join(import.meta.dirname, 'lib'), join(repo, 'scripts', 'sdlc', 'lib'), { recursive: true })
         writeFileSync(join(repo, 'specs', 'SPEC-009-demo.md'), '---\nid: SPEC-009\nstatus: completed\n---\n\nbody\n')
         git(['add', '-A'])
         git(['commit', '-qm', 'init'])

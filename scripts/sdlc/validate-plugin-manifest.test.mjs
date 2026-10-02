@@ -186,7 +186,12 @@ test('every payload validator is byte-identical to the one this repo runs', asyn
     const payload = join(root, 'init-payload', 'scripts', 'sdlc')
     if (!existsSync(payload)) return
 
-    for (const f of readdirSync(payload).filter((f) => f.endsWith('.mjs'))) {
+    // lib/ too: every payload validator imports the path resolver from it (SPEC-009).
+    const shipped = [
+        ...readdirSync(payload).filter((f) => f.endsWith('.mjs')),
+        ...(existsSync(join(payload, 'lib')) ? readdirSync(join(payload, 'lib')).map((f) => `lib/${f}`) : [])
+    ]
+    for (const f of shipped.filter((f) => f.endsWith('.mjs'))) {
         const live = join(root, 'scripts', 'sdlc', f)
         assert.ok(existsSync(live), `init-payload ships ${f}, which no longer exists in scripts/sdlc/`)
         assert.equal(
@@ -194,6 +199,9 @@ test('every payload validator is byte-identical to the one this repo runs', asyn
             readFileSync(live, 'utf8'),
             `init-payload/scripts/sdlc/${f} has drifted from scripts/sdlc/${f}`
         )
+    }
+    for (const f of readdirSync(join(root, 'scripts', 'sdlc', 'lib')).filter((f) => !f.endsWith('.test.mjs'))) {
+        assert.ok(shipped.includes(`lib/${f}`), `scripts/sdlc/lib/${f} is not in the payload, so adopter validators cannot import it`)
     }
 })
 
