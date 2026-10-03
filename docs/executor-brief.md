@@ -12,7 +12,7 @@ Your step PR is gated by **its own `Verify:` commands plus your self-review** â€
 
 ## Your environment
 
-- You run in an **isolated git worktree** off the current integration tip, with a clone of this repo and the project toolchain available.
+- You run in an **isolated git worktree**. Before your first edit, run `git checkout -b claude/SPEC-NNN-S<n> origin/feat/spec-NNN`, the branch your prompt names. The edit gate grades your worktree by its branch, so the tool's default branch would be gated. A clone of this repo and the project toolchain are available. Where worktrees go and who removes them: [`docs/worktrees.md`](worktrees.md).
 - The spec and its delivery guide live in the **repo** (`specs/` and `specs/tasks/SPEC-NNN/`). Delivery status lives in `_index.yaml`, which the orchestrator updates â€” you need not.
 - Work strictly within your step; do not assume access to another step's files or in-flight state.
 

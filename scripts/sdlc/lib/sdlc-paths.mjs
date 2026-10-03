@@ -8,6 +8,7 @@
  * process that takes that path prints one deprecation line so an unmigrated repo is not
  * silent about it.
  */
+import { spawnSync } from 'node:child_process'
 import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -67,13 +68,81 @@ export function isSdlcRoot(dir) {
     return existsSync(join(dir, CONFIG_REL)) || isLayout1Root(dir)
 }
 
+/** Where worktrees live inside a repo (SPEC-011, ADR-009). */
+export const WORKTREES_REL = '.claude/worktrees'
+
+function real(p) {
+    try {
+        return realpathSync.native(p)
+    } catch {
+        return resolve(p)
+    }
+}
+
 /**
- * The repo root for `start`. `CLAUDE_PROJECT_DIR` wins when set. Otherwise walk up to the
- * first directory with `.sdlc/config.yaml`, or with `specs/` next to `.ai/` or
- * `scripts/sdlc/` (the layout-1 marker). With neither, `start` itself.
+ * The linked worktree under `<project>/.claude/worktrees/` that contains `start`, or null.
+ * Git answers, not the path: `rev-parse --show-toplevel` from `start` names the checkout the
+ * directory belongs to, and only one sitting under the project's worktrees directory counts.
+ * The git call runs only when `start` is already under that directory.
+ */
+export function nestedWorktree(project, start = process.cwd()) {
+    const base = real(join(project, WORKTREES_REL)) + sep
+    const from = real(start)
+    if (!from.startsWith(base)) return null
+    // A linked worktree of this project shares its git directory; an unrelated repository that
+    // happens to sit under .claude/worktrees/ does not, and never becomes a gate's root.
+    const res = spawnSync('git', ['-C', from, 'rev-parse', '--show-toplevel', '--path-format=absolute', '--git-common-dir'], { encoding: 'utf8' })
+    if (res.status !== 0) return null
+    const [top, common] = res.stdout.trim().split('\n').map(real)
+    const own = spawnSync('git', ['-C', project, 'rev-parse', '--path-format=absolute', '--git-common-dir'], { encoding: 'utf8' })
+    if (own.status !== 0 || real(own.stdout.trim()) !== common) return null
+    return top.startsWith(base) ? top : null
+}
+
+/**
+ * Every spec's `_index.yaml` the hooks should read, as `{ specId, indexPath }`. A spec whose
+ * delivery runs in `.claude/worktrees/spec-nnn` is read from there, because the run commits its
+ * status flips and phase block on `feat/spec-nnn`, which the main checkout does not have
+ * checked out (SPEC-011 > Design > A nested worktree is its own tree, item 4).
+ */
+export function specIndexPaths(root) {
+    const specs = sdlcPaths(root, { quiet: true }).specs
+    const specsRel = relative(root, specs) || 'specs'
+    const found = new Map()
+    const add = (base) => {
+        const tasks = join(base, specsRel, 'tasks')
+        if (!existsSync(tasks)) return
+        for (const name of readdirSync(tasks)) {
+            if (!/^SPEC-\d{3,}$/i.test(name)) continue
+            const indexPath = join(tasks, name, '_index.yaml')
+            if (existsSync(indexPath)) found.set(name.toUpperCase(), indexPath)
+        }
+    }
+    add(root)
+    const wts = join(root, WORKTREES_REL)
+    if (existsSync(wts)) {
+        for (const name of readdirSync(wts)) {
+            const m = name.match(/^spec-(\d{3,})$/i)
+            if (!m || !existsSync(join(wts, name, '.git'))) continue
+            const indexPath = join(wts, name, specsRel, 'tasks', `SPEC-${m[1]}`, '_index.yaml')
+            if (existsSync(indexPath)) found.set(`SPEC-${m[1]}`, indexPath)
+        }
+    }
+    return [...found].map(([specId, indexPath]) => ({ specId, indexPath }))
+}
+
+/**
+ * The repo root for `start`. When `CLAUDE_PROJECT_DIR` is set, a linked worktree under its
+ * `.claude/worktrees/` that contains `start` wins, and otherwise `CLAUDE_PROJECT_DIR` does
+ * (SPEC-011 narrows SPEC-009 here, so a script run inside a spec worktree acts on that
+ * worktree). Without it, walk up to the first directory with `.sdlc/config.yaml`, or with
+ * `specs/` next to `.ai/` or `scripts/sdlc/` (the layout-1 marker). With neither, `start` itself.
  */
 export function resolveRoot(start = process.cwd()) {
-    if (process.env.CLAUDE_PROJECT_DIR) return resolve(process.env.CLAUDE_PROJECT_DIR)
+    if (process.env.CLAUDE_PROJECT_DIR) {
+        const project = resolve(process.env.CLAUDE_PROJECT_DIR)
+        return nestedWorktree(project, start) ?? project
+    }
     let dir = resolve(start)
     for (;;) {
         if (isSdlcRoot(dir)) return dir

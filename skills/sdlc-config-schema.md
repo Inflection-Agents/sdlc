@@ -34,6 +34,8 @@ extensions:
   exempt: []
 scan:
   allow: []
+worktrees:
+  setup: ""
 ```
 
 ## Fields
@@ -53,6 +55,7 @@ scan:
 | `domain_routing` | no | Workspace name to skill chain. The prompt hook routes a prompt that names the workspace's path through the chain. |
 | `extensions.phases` | no | Phases the adopter adds to the framework state machine, in the machine's own phase shape. An id must not repeat a framework phase id. |
 | `extensions.exempt` | no | Skill names the adopter adds to the machine's `exempt:` list. |
+| `worktrees.setup` | no | One shell command `spec-execution` runs inside a newly added spec worktree (`.claude/worktrees/spec-NNN`), before the first step, to restore what a fresh worktree lacks: gitignored dependencies and env files, for example `pnpm install --frozen-lockfile && cp ../../../.env.local apps/web/`. Empty or unset runs nothing. A failing command fails the run's start. The value runs as a shell command with the developer's credentials, so review a change to it the way you would review a build script. See `docs/worktrees.md` (SPEC-011). |
 | `scan.allow` | no | Globs where `scan-legacy-paths.mjs` accepts a layout-1 path named on purpose, such as release notes. |
 
 The framework's state machine (`.sdlc/state-machine.yaml`) carries neither `domain_routing` nor

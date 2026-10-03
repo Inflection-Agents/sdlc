@@ -100,3 +100,26 @@ test('a layout-1 repo has nothing to grade and exits 0 saying so', () => {
 test('gradeConfig rejects a non-mapping config', () => {
     assert.deepEqual(gradeConfig(['x'], { root: '/' }), ['the config is not a mapping'])
 })
+
+test('AC-015: worktrees.setup accepts one command string and rejects anything else', () => {
+    assert.deepEqual(gradeConfig({ layout: 2, worktrees: { setup: 'pnpm install --frozen-lockfile' } }, { root: '/' }), [])
+    assert.deepEqual(gradeConfig({ layout: 2, worktrees: {} }, { root: '/' }), [])
+    assert.deepEqual(gradeConfig({ layout: 2, worktrees: { setup: '' } }, { root: '/' }), [], 'empty means unset, as the schema example shows')
+    for (const bad of [{ setup: ['pnpm', 'install'] }, { setup: 42 }]) {
+        assert.deepEqual(gradeConfig({ layout: 2, worktrees: bad }, { root: '/' }), ['`worktrees.setup` must be one command string'], JSON.stringify(bad))
+    }
+    assert.deepEqual(gradeConfig({ layout: 2, worktrees: ['x'] }, { root: '/' }), ['`worktrees` must be a mapping'])
+})
+
+test('AC-015: the CLI exits non-zero on a non-string worktrees.setup', () => {
+    const fx = layout2Repo({ config: 'layout: 2\nworktrees:\n  setup: [pnpm, install]\n' })
+    try {
+        const env = { ...process.env }
+        delete env.CLAUDE_PROJECT_DIR
+        const res = spawnSync(process.execPath, [SCRIPT, '--root', fx.root], { encoding: 'utf8', env })
+        assert.notEqual(res.status, 0)
+        assert.match(res.stdout + res.stderr, /worktrees\.setup/)
+    } finally {
+        fx.cleanup()
+    }
+})

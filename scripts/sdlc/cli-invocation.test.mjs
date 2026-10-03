@@ -151,3 +151,14 @@ test('stamp-envelope.mjs still rejects garbage through a symlinked path', () => 
     assert.equal(res.status, 3, 'a silent exit 0 here would read as a clean accept')
     assert.match(res.stderr, /CONTRACT VIOLATION/)
 })
+
+test('worktrees.mjs still fails loudly outside a repo through a symlinked path (SPEC-011)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'sdlc-wt-nogit-'))
+    try {
+        const res = viaSymlink('worktrees.mjs', ['--root', dir], '')
+        assert.equal(res.status, 2, 'a silent exit 0 here would read as "no strays"')
+        assert.match(res.stderr, /not a git repository/)
+    } finally {
+        rmSync(dir, { recursive: true, force: true })
+    }
+})

@@ -32,7 +32,7 @@ LEAVE IT OPEN — a human merges
 
 **Why the rigor sits at the end.** Reviewing step 3 in isolation, before anything integrates, costs more and buys less than reviewing the assembled diff once: each per-step reviewer is a fresh context that must re-derive the repo's conventions, and it cannot see cross-step interactions. Concentrating the panel at the gate also lets the constraints registry be evaluated against the *whole* change rather than one step's `Changes:`.
 
-**The persistence leash.** The skill writes `.claude/.sdlc-goal-<session_id>` (spec, statement, exit criteria, `status: active`). While it is active, `stop-handoff.mjs` blocks a premature stop and feeds the criteria back, so a run does not drift back to the user half-done. `met` and `escalated` are the only release words. It is bounded by a hook-owned counter and fails open — see [tooling.md](tooling.md).
+**The persistence leash.** The skill writes `$CLAUDE_PROJECT_DIR/.claude/.sdlc-goal-<session_id>` (spec, statement, exit criteria, `status: active`). While it is active, `stop-handoff.mjs` blocks a premature stop and feeds the criteria back, so a run does not drift back to the user half-done. `met` and `escalated` are the only release words. It is bounded by a hook-owned counter and fails open — see [tooling.md](tooling.md).
 
 **Transparency is not optional.** The run keeps a visible task list — one entry per guide step plus end-to-end validation and the integration gate — updated as each lands, so anyone in the session can see what is in flight and what remains without asking.
 
@@ -40,8 +40,8 @@ LEAVE IT OPEN — a human merges
 
 - **Nothing reaches `main` except by merging `feat/spec-NNN`.** No step PR targets `main`; no direct commits. The agent never merges or pushes to `main` and never self-approves.
 - **Serial by default; step N merges before step N+1 starts.** Every later step branches off that tip, so an unmerged step means the next is built on a base missing it.
-- **Nothing lingers.** After a step: no open PR, no remote branch, no local branch, no worktree.
-- **Worktree isolation for any subagent that writes files.** Fan-out is the exception (a large spec whose steps have disjoint `Changes:` and `After:` closures); when used, `isolation: "worktree"` is mandatory and the merge discipline is unchanged.
+- **Nothing lingers.** After a step: no open PR, no remote branch, no local branch, no step worktree. The spec worktree lives until run exit ([`docs/worktrees.md`](docs/worktrees.md)).
+- **Worktree isolation for any subagent that writes files.** Fan-out is the exception (a large spec whose steps have disjoint `Changes:` and `After:` closures); when used, `isolation: "worktree"` is mandatory and the merge discipline is unchanged. Where worktrees go and who removes them: [`docs/worktrees.md`](docs/worktrees.md).
 - **Bounded `Changes:`.** Every step declares the paths it may change; `validate-guide.mjs` rejects a step without them. A diff that leaves them is a `task:scope` finding → re-plan the guide in place, never hand-resolve a conflict.
 - **Independence is structural at the gate.** Every verdict comes from a separately dispatched reviewer with no `Edit`/`Write`, and every envelope is validated (`.sdlc/scripts/validate-review-envelope.mjs`). Step-level self-review is the deliberate exception, bought back in full here.
 - **Review of record is the LLM panel.** Humans gate the inputs (spec and guide) and merge the integration PR. See [roles.md](roles.md).

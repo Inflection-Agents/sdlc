@@ -6,3 +6,4 @@
 .claude/.sdlc-override*
 .claude/.sdlc-handoff-*
 .claude/.sdlc-layout-nudge-*
+.claude/.sdlc-worktree-nudge-*
