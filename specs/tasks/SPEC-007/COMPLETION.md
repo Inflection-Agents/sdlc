@@ -25,10 +25,24 @@ SPEC-007 stays `active`, in monitoring, until its behavioral guardrail has a fir
 | SC-3 | franklin | the same window as SC-2 | count round-1 findings in each window spec's review log whose `criterion` names a check `validate-spec` performs; the target is 0 |
 | behavioral-guardrail | franklin | baseline: the first spec run end to end under the new loop; then the two specs delivered after it | metric: `spec:*` findings in the spec's integration-gate envelopes plus `GAP-NNN` files filed during its delivery. Threshold: either window spec above the baseline. Rollback: revert the `round` input and the `disclose_and_accept` branch in `review-primitives.md` > Orchestrator severity→action policy. The trigger is owner-evaluated, a deviation the spec declares in Risks & constraints. |
 
+### Window measurements
+
+**Baseline: SPEC-011** (completed 2026-10-06; spec review in 4 rounds, integration gate in 3 rounds, PR #99).
+
+- **SC-2.** First-appearance findings per reviewer dispatched, from `specs/review-logs/SPEC-011.json`:
+  - round 1: 31 findings / 2 reviewers = 15.5
+  - round 2: 10 findings / 1 reviewer = 10.0
+  - round 3: 8 findings / 1 reviewer = 8.0
+  - round 4: 4 findings / 1 reviewer = 4.0
+
+  The series is non-increasing and decreases strictly, so SPEC-011 passes. This is the first multi-round review of the two SC-2 needs.
+- **SC-3.** Of the 31 round-1 findings, 0 name a check `validate-spec.mjs` performs (Lever 2). The criteria are `spec-schema:*` substance (design, risks, success criteria, migration), `spec-authoring:step-9-self-review-mandatory`, and ADR-003, ADR-008 and SPEC-009 conflicts. None is a missing section, bad frontmatter, an unresolved ADR file, thin scope, a placeholder or section order. SPEC-011 passes.
+- **Guardrail baseline.** `spec:*` findings in the integration-gate envelopes = 4 (all nits: two grading F-3e582b60, two on Design text that drifted from the shipped code) + `GAP-NNN` files filed during delivery = 0, so the baseline is **4**. Each of the next two specs fails the guardrail if its count is above 4.
+
 ### Verdict: Blocked (monitoring)
 
 Two things stand between this spec and `completed`:
 1. **First exposure.** Step 5a requires a realized measurement of the guardrail on the first real exposure. That exposure is the next spec authored and delivered under this loop. Its review log and integration-gate envelopes supply the baseline.
 2. **The trigger substitution.** The spec's Risks & constraints says that closing SPEC-007 requires the owner to record, explicitly, that owner evaluation at `spec-completion` stands in for an automatic trigger.
 
-Re-run `close out SPEC-007` after the baseline spec completes.
+The baseline landed with SPEC-011 (see Window measurements). Re-run `close out SPEC-007` after the next spec completes, which supplies the second multi-round review for SC-2 and the first guardrail comparison.
