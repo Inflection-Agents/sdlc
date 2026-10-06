@@ -52,18 +52,18 @@ The SDLC is codified in the repo so any agent can understand it. Three-tier arch
 
 ```
 ${CLAUDE_PLUGIN_ROOT}/docs/sdlc.md             ← agent-agnostic process definition (phase model, shared by all agents)
-CLAUDE.md                                      ← local orchestrator config (MCP, Linear, running a delivery, the spine)
+CLAUDE.md                                      ← local orchestrator config (MCP, running a delivery, the spine)
 ${CLAUDE_PLUGIN_ROOT}/docs/executor-brief.md   ← generic executor brief (read the spec and the step, stay within Changes:, open a PR with evidence)
 ```
 
 **`${CLAUDE_PLUGIN_ROOT}/docs/sdlc.md`** is the portable core. It defines:
 - The spec system (how to find and read specs, frontmatter fields, acceptance criteria)
-- The work tracker conventions (Linear labels, issue naming, run logging)
+- Where work is tracked (the repo is the only system of record)
 - The delivery lifecycle (read spec and guide → implement a step → verify → PR → log)
 - Boundaries (what agents must NOT do, when to escalate)
 
 **`CLAUDE.md`** adds local-orchestrator capabilities:
-- MCP integrations (Linear, Slack, etc.)
+- MCP integrations (as configured)
 - Running a delivery through `spec-execution` and handling its escalations
 - The spine: state machine, per-spec phase memory, reference hooks
 - Phase-by-phase responsibilities (intent, spec drafting and the delivery guide, completion)
@@ -108,7 +108,7 @@ There is no cloud executor and no separate execution backend to configure.
 
 **The context that implements the spec should be the context that already understands the repo.** One executor carries its knowledge of conventions, boundaries and test commands across every step in the spec instead of paying to rebuild it in a fresh agent per step. What the retired engine bought with determinism — uniform ceremony on every task — is what made a spec unclearable in a day; what replaces it is judgment above a machine-readable floor, with the expensive, independent scrutiny spent once, on the assembled change, where it can see the interactions.
 
-The spec is the brief, and the short delivery guide in `specs/tasks/SPEC-NNN/GUIDE.md` is the plan: step order, the ACs each step covers, the paths it may change and the commands that verify it. The executor already holds the spec, so the guide does not restate it (ADR-007). Linear is the live status board.
+The spec is the brief, and the short delivery guide in `specs/tasks/SPEC-NNN/GUIDE.md` is the plan: step order, the ACs each step covers, the paths it may change and the commands that verify it. The executor already holds the spec, so the guide does not restate it (ADR-007). Step status in `_index.yaml` is the live status board.
 
 ## The executor brief (`${CLAUDE_PLUGIN_ROOT}/docs/executor-brief.md`)
 

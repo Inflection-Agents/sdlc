@@ -327,19 +327,15 @@ in `_index.yaml`, and `validate-guide.mjs` must exit 0 with it set. Write the `p
 `exit_condition_met: true` and `updated`, then set `handoff_surfaced: true` after surfacing the
 handoff.
 
-## Step 8: Commit and update Linear
+## Step 8: Commit
 
 **Commit everything together** — the spec change, `GUIDE.md`, `_index.yaml` and `KICKOFF.md` in one commit:
 - Message: `SPEC-NNN v[new]: [amendment summary] (N steps rewritten, M new, K cancelled)`
 - If the change is large enough for a PR: branch `amend/SPEC-NNN-v[new]-short-description`
 
-**Update Linear:**
-- Update the Linear project description to reference the new spec version
-- Add a comment on the Linear project: "Spec amended to v[new]: [summary]"
-
 ## Step 9: Resume work
 
-After the amendment is committed and Linear is updated:
+After the amendment is committed:
 
 1. The owner starts (or resumes) delivery by pasting the rewritten `KICKOFF.md`
 2. `spec-execution` re-checks `validate-guide.mjs` and `plan-gate.mjs` and continues at the first

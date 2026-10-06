@@ -71,7 +71,6 @@ The single source of truth for the phases is [`.sdlc/state-machine.yaml`](.sdlc/
 |-----|---------|
 | [Spec Schema](skills/spec-schema.md) | Spec, ADR, and bug spec formats, frontmatter schema, validation |
 | [Guide Schema](skills/guide-schema.md) | Delivery guide, `_index.yaml` step and decision statuses, plan-review and phase-memory blocks, the 3,800-character kickoff prompt |
-| [Sync](sync.md) | Repo ↔ Linear sync: ownership model, sync rules, phased mechanism |
 | [Agent Orchestration](agent-orchestration.md) | Goal-oriented single-executor delivery; the worktree-isolated subagent exception |
 | [Work Graph](work-graph.md) | Data model — node types, edges, events |
 | [Triage](triage.md) | Bug/defect lifecycle from signal to fix |
@@ -137,7 +136,7 @@ receives no future release without a manual diff.
 
 ## Current Stack
 
-- **Work graph:** Linear (issues + relations + cycles)
+- **Work graph:** the repo itself (`specs/`, `specs/intents.md`, each spec's `_index.yaml`) plus GitHub PRs and issues
 - **Specs:** Schema-enforced markdown in repo (YAML frontmatter + required sections, CI-validated)
 - **Process spine:** `.sdlc/state-machine.yaml` + per-spec `phase:` memory + reference hooks (Node) under `.claude/hooks/`
 - **Delivery:** goal-oriented single-executor `spec-execution` — the local agent implements the spec itself, serially, on one integration branch, with worktree-isolated subagents only as an exception — see [agent-orchestration.md](agent-orchestration.md)

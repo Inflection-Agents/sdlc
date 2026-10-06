@@ -186,7 +186,6 @@ workspaces: [dealer-app, shared] # workspace members affected (see .sdlc/config.
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
 tags: [relevant, tags]
-linear_project:                # set after Linear project is created
 ---
 ```
 
@@ -479,11 +478,9 @@ guide (one specced before guides existed, or one whose amendment landed before i
 ### Step 12: After approval
 
 1. Update `status: draft` → `status: active`, and set `plan_review.approved: true` in the same commit
-2. Create the Linear project linked to the initiative
-3. Set `linear_project` field in the spec frontmatter
-4. If this spec came from `specs/intents.md`: update the intent's status to `done` and set its `Spec` field to `SPEC-NNN`
-5. Commit and push the status change
-6. Announce: "Spec is active. Ready for delivery." and show the owner `KICKOFF.md`, the prompt that
+2. If this spec came from `specs/intents.md`: update the intent's status to `done` and set its `Spec` field to `SPEC-NNN`
+3. Commit and push the status change
+4. Announce: "Spec is active. Ready for delivery." and show the owner `KICKOFF.md`, the prompt that
    starts the run.
 
 **Next:** The owner pastes `KICKOFF.md` to start `spec-execution`.
