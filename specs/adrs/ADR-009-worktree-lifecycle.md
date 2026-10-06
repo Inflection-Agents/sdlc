@@ -1,7 +1,7 @@
 ---
 id: ADR-009
 title: "One worktree per branch of active work, all under .claude/worktrees/, removed by the creator and found by a script"
-status: proposed
+status: accepted
 spec: SPEC-011
 date: 2026-10-02
 author: franklin

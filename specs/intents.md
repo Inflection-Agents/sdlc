@@ -134,10 +134,10 @@ The reference implementations run multiple local agents (Claude Code, Gemini CLI
 ### `[backlog]` Three role-specific entry points with consistent shape
 The reference implementation has `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` with prescriptive role framing ("You are the orchestrator", "You are a task executor"). Upstream has the first two but no consistent template. Decide: do we ship `GEMINI.md` upstream, or do we ship a single agent-entry-point template that the consumer instantiates per agent?
 
-### `[active]` Worktree isolation rule as a standalone doc → absorbed by [SPEC-011](SPEC-011-worktree-lifecycle.md) (`docs/worktrees.md`)
+### `[completed]` Worktree isolation rule as a standalone doc → absorbed by SPEC-011 (`docs/worktrees.md`)
 Referenced in SPEC-002 with the 2026-04-24 stash-incident justification. Belongs as a top-level rule (e.g., in `agent-orchestration.md` or a sibling doc) so consumers find it without reading SPEC-002. Small; can ship with the SPEC-002 work.
 
-### `[active]` Prescribe when to create worktrees, where they go, and when they are removed → [SPEC-011](SPEC-011-worktree-lifecycle.md)
+### `[completed]` Prescribe when to create worktrees, where they go, and when they are removed → SPEC-011
 Raised by the owner, 2026-10-01: "we're not prescriptive on when to create worktrees and where the worktrees are created. So, we end up with a sprawl." The evidence comes from high-gear-apps:
 - `git -C ~/_code/high-gear-apps worktree list` shows 23 worktrees in 3 kinds of location: 19 under `.claude/worktrees/`, 3 sibling directories in `~/_code/` (`hga-v0.1.109-plan`, `hga-sec-intent`, `high-gear-apps-spec167`), and the main checkout.
 - `.gitignore` lists both `.worktrees/` and `.claude/worktrees/` (lines 59 and 60).
@@ -180,6 +180,9 @@ These are success criteria from `status: completed` specs that couldn't be verif
 ### `[deferred-verify]` SPEC-007 behavioral guardrail, SC-2 and SC-3 (spec stays `active`, monitoring)
 **Owner:** franklin. **Trigger:** the `spec-completion` of the first spec reviewed and delivered end to end under the new loop (the baseline), then of each of the two specs delivered after it. **Method:** see `specs/tasks/SPEC-007/COMPLETION.md` > Deferred verifications. Compute SC-2 and SC-3 from each spec's `specs/review-logs/SPEC-NNN.json`, and the guardrail from its integration-gate `spec:*` findings plus the GAP files filed during its delivery. Closing SPEC-007 also needs the owner to record that owner evaluation stands in for the automatic trigger, as the spec's Risks & constraints declares.
 
+### `[deferred-verify]` SPEC-011 SC-2: a delivery run leaves no worktrees behind unless it says why
+**Owner:** franklin. **Trigger:** the `spec-completion` of the next spec delivered under SOP §1 (the SPEC-011 run itself started in the main checkout, before the rules existed). **Method:** after the run's §7.4 or §8 exit, `git worktree list --porcelain` has no `.claude/worktrees/spec-NNN` entry and no Agent-tool worktree the run spawned, unless the exit report names it as dirty and kept. Pass: no unexplained entry.
+
 ---
 
 ## Cross-cutting captures (not yet bucketed)
@@ -191,6 +194,14 @@ PR #86 merged with three majors disclosed under "Disclosed, not fixed" after the
 3. `lib/fence.mjs` accepts at most 3 spaces of indent before a fence, so a fence inside a nested list item is read as prose. This regressed in #89.
 
 The accepted nits are listed in `specs/tasks/SPEC-007/DECISIONS.md` > Gate round 3. These fixes are small and should land before a second spec runs under the new loop, because two of them weaken the ruling controls that SC-4 relies on.
+
+### `[next]` SPEC-011 gate survivors: three ways a live spec worktree can be deleted
+PR #99 merged with three majors disclosed under "Disclosed, not fixed" after the ADR-004 cap. Each lets `--prune` or the SOP §1 resume delete a live spec worktree with its gitignored files, and each was reproduced:
+1. `worktrees.mjs` > `specStatus`: a terminal status in any source wins, so a stale main checkout that says `done` overrides a reopened spec that is `active` on `origin/main`. Fix: trust the default branch when it resolves the spec, and otherwise let the worktree's own live status win.
+2. `worktrees.mjs` > `statusOnDefaultBranch`: short ref names let a pushed tag named `origin/HEAD` shadow the remote ref. Fix: use `refs/remotes/origin/HEAD`, `refs/remotes/origin/main` and `refs/heads/main`.
+3. SOP §1 and `docs/worktrees.md`: with `.claude/worktrees` a symlink, the reuse `grep` misses a live worktree and the resume's `git worktree remove` deletes it. Fix: run the remove only when the directory is missing.
+
+The accepted round-3 nits are listed in `specs/tasks/SPEC-011/DECISIONS.md` > Gate round 3 and in PR #99. These should land before the next delivery run, because that run is the one SC-2 measures.
 
 ### `[completed]` Conditional integration-branch strategy → SPEC-005
 SPEC-002 currently requires `feat/spec-NNN` as the *only* merge target with direct task PRs to main forbidden (hard rule, AC-010). User surfaced this is overkill for small specs and the bootstrap dispatch itself violated it pragmatically. Proposal: add optional `integration_strategy: branch | direct` to spec frontmatter; when unspecified, orchestrator computes (branch if `breaking` tag, multi-workspace, ≥5 tasks, or any task `blocks:` crosses workspace boundary; else direct). Lands as `spec-amendment` on SPEC-002 + cascade update to spec-execution skill. Why deferred: not blocking, and benefits from being applied to a real next spec to validate the heuristic. **Why:** explicit author control with sensible default; preserves SPEC-002's safety when needed without forcing ceremony on small specs.
