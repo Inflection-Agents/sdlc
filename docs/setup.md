@@ -25,9 +25,9 @@ This script:
 3. Installs the `.sdlc/` tree (ADR-008): `config.yaml`, the review-constraints registry, the state machine, the validators + gates in `.sdlc/scripts/`, and the templates. It adds the SDLC block to `AGENTS.md`, `@AGENTS.md` to `CLAUDE.md`, and the needed lines to `.ignore`, `.gitignore` and `.gitattributes`
 4. Copies the skills into `.sdlc/skills/` and links `.claude/skills` → `../.sdlc/skills`, then copies the reference hooks (with their `lib/`) into `.claude/hooks/` and the reviewer agents into `.claude/agents/`
 5. Wires the hooks into `.claude/settings.json` (advisory by default — and never clobbers an existing settings.json; it prints merge guidance instead)
-6. Prints next steps (the MCP + Linear-label setup below, and the customizations to fill in)
+6. Prints next steps (the agent setup below, and the customizations to fill in)
 
-It does NOT set up MCP or create Linear labels — those are the manual steps in §3 and §5 below.
+It does NOT install your agents. That is the manual step in §3 below.
 
 ## 3. Configure your AI agents
 
@@ -36,8 +36,7 @@ The SDLC is agent-agnostic. You can use Claude Code, Gemini CLI, or both. We rec
 ### A. Claude Code (local orchestrator)
 
 1. **Install:** `npm install -g @anthropic-ai/claude-code` (or `brew install claude-code` on macOS).
-2. **Linear MCP:** `claude mcp add linear -- npx @anthropic-ai/linear-mcp-server`. Generate a Linear API key at: Settings → API → Personal API keys.
-3. **Superpowers (recommended):** `/plugin install superpowers@claude-plugins-official` from inside Claude Code. Adds the brainstorming + verification-before-completion behavioral skills.
+2. **Superpowers (recommended):** `/plugin install superpowers@claude-plugins-official` from inside Claude Code. Adds the brainstorming + verification-before-completion behavioral skills.
 
 ### B. Gemini CLI (local orchestrator, optional)
 
@@ -71,13 +70,7 @@ The autonomous half of the SDLC runs on a small spine of machine-checkable piece
 
 There is **no execution engine to install.** A deterministic `execute-spec` Workflow script used to sit here; it was measured and retired (ADR-003). `spec-execution` is itself the engine.
 
-## 5. Linear labels
-
-Create these labels in your Linear workspace (if they don't already exist):
-- `claude-code` — for work the delivery run implements (the default)
-- `human` — for work requiring a human decision or a human-run step
-
-## 6. Verify
+## 5. Verify
 
 ```bash
 # Node is present (hooks + validators need it)
@@ -88,14 +81,11 @@ node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-state-machine
 
 # Phase-memory blocks in _index.yaml files conform to the contract
 node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-phase-memory
-
-# Claude Code can reach Linear
-claude "list my Linear teams"
 ```
 
 `.sdlc/scripts/` also ships `gen-handoffs.mjs` (regenerates skill `## Handoff` footers from the state machine; run with `--check` in CI). See `.sdlc/scripts/README.md` for the full list, including forthcoming validators.
 
-## 7. Directory structure
+## 6. Directory structure
 
 ```
 AGENTS.md            ← project context in the SDLC block (read this first); CLAUDE.md imports it
@@ -125,15 +115,15 @@ specs/
 
 The process definition and the executor brief ship with the plugin: `${CLAUDE_PLUGIN_ROOT}/docs/sdlc.md` and `${CLAUDE_PLUGIN_ROOT}/docs/executor-brief.md`.
 
-## 8. Daily workflow
+## 7. Daily workflow
 
 1. **Start a session:** `claude` or `gemini`.
-2. **Check work:** the orchestrator reads Linear for the specs assigned to you.
+2. **Check work:** the orchestrator reads `specs/intents.md` and the active specs' `_index.yaml` files.
 3. **Judgment phases (with the user):** intent-triage → spec-authoring, which ends with the spec and its delivery guide approved together. This is where human attention goes.
 4. **Delivery (autonomous):** once the spec is `active` with its guide approved, paste its `KICKOFF.md` (or say "implement SPEC-NNN"). The run arms its goal leash, tracks a visible task list, burns the guide's steps down serially onto `feat/spec-NNN`, validates end-to-end once, and opens one integration PR graded by an adversarial panel. A human merges it to `main`.
 5. **For spec changes mid-flight:** the run escalates `spec:*` back to `spec-amendment`; update the spec in a PR.
 
-## 9. Troubleshooting
+## 8. Troubleshooting
 
 | Problem | Fix |
 |---------|-----|
@@ -142,6 +132,4 @@ The process definition and the executor brief ship with the plugin: `${CLAUDE_PL
 | State-machine / phase-memory validation fails | Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-state-machine` and `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-phase-memory` and fix the reported drift. |
 | A delivery run refuses to start | It needs a spec with `status: active`, a delivery guide that passes `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs validate-guide specs/tasks/SPEC-NNN/GUIDE.md`, and an approved `plan_review:` block — check with `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs plan-gate specs/tasks/SPEC-NNN/_index.yaml`. A spec specced before guides existed needs "write the guide for SPEC-NNN" first. |
 | A session won't stop / keeps being blocked | A delivery goal leash is armed. Finish the run and set `status: met` in `$CLAUDE_PROJECT_DIR/.claude/.sdlc-goal-<session_id>`, set `status: escalated` if you are blocked on a human, or delete that file to disarm it. |
-| Claude Code can't reach Linear | Check MCP config: `claude mcp list` — is `linear` listed? |
 | CI fails on spec validation | Check frontmatter against schema in `skills/spec-schema.md` |
-| Linear labels missing | Ensure `claude-code` and `human` exist in your Linear workspace. |

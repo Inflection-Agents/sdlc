@@ -29,7 +29,7 @@ not just a personal one.
 
 Intents live in `specs/intents.md` at the repo root. This is the backlog of raw ideas — the intake buffer before specs exist.
 
-**Do NOT use Linear for raw intents.** Linear is for work that's been scoped. Intents are pre-scope. Putting unstructured ideas into a project tracker creates noise for stakeholders and pressure to prematurely define things.
+**Do NOT put raw intents in an issue tracker.** Intents are pre-scope. Putting unstructured ideas into a tracker creates noise for stakeholders and pressure to define them too early.
 
 ## Modes
 

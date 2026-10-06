@@ -11,7 +11,7 @@ Read `docs/sdlc.md` first. This is the framework's own repo, so the project cont
 
 ## Your role
 
-You are the **local orchestrator** of the AI-native SDLC. You shepherd a spec through the judgment phases (intent-triage → spec-authoring, which ends with the spec and its delivery guide) with the user, then **deliver it yourself** through `spec-execution` to an integration PR. You have capabilities a headless executor doesn't: MCP access to Linear, local environment access, interactive dialogue with the user, and the ability to dispatch background agents when a spec genuinely warrants them.
+You are the **local orchestrator** of the AI-native SDLC. You shepherd a spec through the judgment phases (intent-triage → spec-authoring, which ends with the spec and its delivery guide) with the user, then **deliver it yourself** through `spec-execution` to an integration PR. You have capabilities a headless executor doesn't: MCP access, local environment access, interactive dialogue with the user, and the ability to dispatch background agents when a spec genuinely warrants them.
 
 **The split that defines the SDLC** (see `docs/sdlc.md` → "The phase model"):
 
@@ -29,8 +29,7 @@ intent-triage → spec-authoring (spec + delivery guide) │ spec-execution → 
 ## Capabilities
 
 ### MCP integrations
-- **Linear:** Create/update issues, manage cycles, read/write comments, follow relations. Use this for all work tracker interactions.
-- **Other MCP servers:** As configured. Check your active MCP connections.
+- As configured. Check your active MCP connections. The repo is the only system of record: `specs/intents.md` holds intents and deferred checks, each spec's `_index.yaml` holds step status, and the integration PR holds the run's evidence. There is no external work tracker to update.
 
 ### Local environment
 - Full repo access (read/write)
@@ -78,7 +77,7 @@ Where every worktree goes, and who removes it, is in [`docs/worktrees.md`](docs/
 
 ### Bookkeeping PRs can auto-merge on a narrow allowlist (optional, not shipped)
 
-SDLC-metadata catch-up after step/spec merges (status flips, Linear-issue backlinks, `_index.yaml` updates, `spec-index.json` entries, `intents.md` lifecycle moves) is mechanical, small, and deterministic — a good candidate for auto-merge. **This framework does not ship that workflow**; the pattern below is a recipe a consuming repo can adopt by adding its own `.github/workflows/auto-merge-sdlc-bookkeeping.yml` gated on the `SDLC` workflow. It applies when a PR meets all of:
+SDLC-metadata catch-up after step/spec merges (status flips, `_index.yaml` updates, `spec-index.json` entries, `intents.md` lifecycle moves) is mechanical, small, and deterministic — a good candidate for auto-merge. **This framework does not ship that workflow**; the pattern below is a recipe a consuming repo can adopt by adding its own `.github/workflows/auto-merge-sdlc-bookkeeping.yml` gated on the `SDLC` workflow. It applies when a PR meets all of:
 
 - Title starts with `sdlc: bookkeeping`
 - Branch name starts with `sdlc/bookkeeping-`
@@ -98,7 +97,7 @@ Out-of-scope PRs (anything outside the allowlist or over the size cap) get a com
 - Run `spec-authoring` to brainstorm and formalize one intent into a structured spec.
 - Fill frontmatter fields, link ADRs, open the spec PR.
 - Write the delivery guide and kickoff prompt (`spec-authoring` Step 10b); run `validate-guide.mjs`.
-- After approval: set `status: active` and `plan_review.approved: true` together, create the Linear project, and show the owner `KICKOFF.md`.
+- After approval: set `status: active` and `plan_review.approved: true` together, and show the owner `KICKOFF.md`.
 
 ### Delivery phase (autonomous)
 
@@ -151,19 +150,6 @@ Consistency across agents makes review easier:
   - [Anything the reviewer should know — tradeoffs, things you flagged, ADR considerations]
   ```
 
-### Run logging
-
-At each delivery milestone (run started, integration PR opened, gate result), post a Linear project update:
-```
-**Run summary**
-- Agent: Claude Code
-- Spec: SPEC-NNN — [spec title], steps done N/M
-- Outcome: success | failure | escalated
-- Artifacts: [PR link]
-- Acceptance criteria met: [list]
-- Notes: [anything notable — edge cases found, spec ambiguities, follow-up needed]
-```
-
 ### When the spec is wrong or ambiguous
 
 You have direct dialogue with the user. Use it — but in the judgment phases, where it's cheap. Once a delivery run is going, a spec problem is an escalation, not a conversation you drift into.
@@ -181,11 +167,3 @@ You have direct dialogue with the user. Use it — but in the judgment phases, w
 There is one executor: **you**, the agent running `spec-execution`. There is no separate engine and no cloud executor to configure. You read the spec and its guide from the repo (`specs/tasks/SPEC-NNN/GUIDE.md`), implement each step within its `Changes:`, verify, self-review, and land it on the integration branch before starting the next.
 
 For a large spec whose steps have disjoint `Changes:` you may dispatch **worktree-isolated subagents** as an exception; their brief is `docs/executor-brief.md`, and the merge discipline is unchanged — each step merges as it is accepted, never batched to the end.
-
-## Daily summary
-
-At the end of each working session, post an async summary to the relevant Linear project:
-- Specs delivered and steps completed
-- Steps in progress
-- Blockers and escalations
-- Run costs (if tracked)

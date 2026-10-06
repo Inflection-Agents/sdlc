@@ -204,16 +204,10 @@ After user approval:
 
 2. **Regenerate spec-index.json** with `node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs gen-spec-index` after the archive move below, in the same commit. CI's `--check` fails on a stale index.
 
-3. **Update Linear:**
-   - Mark the Linear project as completed
-   - Add the completion report as a project update/comment
-   - Close any remaining open Linear issues for this spec
+3. **Check for deferred verifications:**
+   - For each deferred criterion, add a `[deferred-verify]` entry to `specs/intents.md` > Deferred verifications from completed specs, naming its owner, trigger and method from Step 5
 
-4. **Check for deferred verifications:**
-   - If any criteria are deferred-to-production, create a follow-up Linear issue to track the verification
-   - Set a reminder with the deadline from Step 5
-
-5. **Move the closed spec out of the default search path:**
+4. **Move the closed spec out of the default search path:**
 
    ```bash
    node ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/run.mjs archive-specs --dry-run   # read the plan first
@@ -234,9 +228,9 @@ After user approval:
    script reports nothing to archive, say which clause held it rather than re-running or
    editing around it.
 
-6. **Commit:** `SPEC-NNN: mark completed — N/M success criteria verified, K deferred`
+5. **Commit:** `SPEC-NNN: mark completed — N/M success criteria verified, K deferred`
 
-7. **Announce:** "SPEC-NNN is complete. [N verified, K deferred to production with deadlines.]"
+6. **Announce:** "SPEC-NNN is complete. [N verified, K deferred to production with deadlines.]"
 
 ---
 
@@ -268,7 +262,7 @@ A spec with waived criteria is still `completed` — the decision to waive is it
 | Deferring everything to production | Only measurement criteria should be deferred. Step-covered and integration criteria can be verified now. |
 | No deferred verification plan | "We'll check in prod" without an owner, trigger, and method is not a plan. |
 | Completing a spec with cancelled steps and no explanation | Every cancelled step needs a `reason:`, and its ACs must be re-covered or removed by an amendment. |
-| Forgetting to update Linear | The spec, spec-index, and Linear project must all reflect completion. |
+| Leaving a deferred criterion only in the report | Add its `[deferred-verify]` entry to `specs/intents.md`, where the next completion will see it. |
 
 <!-- sdlc:handoff:start -->
 <!-- GENERATED from .sdlc/state-machine.yaml by ${CLAUDE_PLUGIN_ROOT}/scripts/sdlc/gen-handoffs.mjs — do not edit between markers; re-run the generator. -->

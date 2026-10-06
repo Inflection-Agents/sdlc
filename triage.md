@@ -1,8 +1,8 @@
 # Triage
 
-How defects move from raw signal to scheduled fix. Bugs are the one area where the flow starts in Linear (not the repo), because non-technical reporters need a low-friction intake path.
+How defects move from raw signal to scheduled fix. Bugs are the one area where the flow starts outside the repo files, as a GitHub issue, because reporters need a low-friction intake path.
 
-## The exception: bugs start in Linear
+## The exception: bugs start as GitHub issues
 
 Everything else in this SDLC starts in the repo (specs, delivery guides, ADRs). Bugs are different because:
 
@@ -10,17 +10,17 @@ Everything else in this SDLC starts in the repo (specs, delivery guides, ADRs). 
 - The signal is often vague — "it's broken" — and needs agent-driven investigation before it becomes a structured artifact
 - Speed matters more than process: capture first, structure later
 
-**Linear is the intake point. The agent normalizes the signal into the repo.**
+**A GitHub issue is the intake point. The agent normalizes the signal into the repo.**
 
 ## Intake paths
 
-All paths converge at the same point: a Linear issue with the `bug` label.
+All paths converge at the same point: a GitHub issue with the `bug` label.
 
-### Path 1: Linear issue (primary)
+### Path 1: GitHub issue (primary)
 
 For non-technical stakeholders, PMs, or anyone on the team.
 
-1. Create a Linear issue in the project
+1. Open an issue in the repo (`gh issue create --label bug`, or the web form)
 2. Apply the `bug` label
 3. Write whatever you can — a sentence is fine
 4. Attach screenshots if available
@@ -31,7 +31,7 @@ No template required. No frontmatter. No severity classification. The agent hand
 
 Automated alerts from monitoring tools.
 
-1. Alert fires → webhook creates a Linear issue with label `bug` and label `automated`
+1. Alert fires → webhook opens a GitHub issue with label `bug` and label `automated`
 2. Alert payload attached as issue description
 3. Agent picks it up from there
 
@@ -40,25 +40,25 @@ Automated alerts from monitoring tools.
 Someone posts about a bug in a channel.
 
 1. Agent detects the signal (via Slack MCP or integration)
-2. Agent creates a Linear issue with label `bug`, copies the relevant message
-3. Agent replies in the thread: "I've captured this — tracking as [Linear issue link]"
+2. Agent opens a GitHub issue with label `bug`, copies the relevant message
+3. Agent replies in the thread: "I've captured this — tracking as [issue link]"
 
 ### Path 4: In-app feedback (future)
 
 User submits feedback from within the product.
 
-1. Feedback widget creates a Linear issue with label `bug` and label `user-report`
+1. Feedback widget opens a GitHub issue with label `bug` and label `user-report`
 2. Includes: user ID, page, browser, timestamp, user's message
 3. Agent picks it up from there
 
 ## Pipeline
 
 ```
-Signal (Linear issue with bug label)
+Signal (GitHub issue with bug label)
   │
   1. Detect    → NOC agent finds new bug-labeled issues
   │
-  2. Clarify   → Agent asks reporter for missing context (as Linear comments)
+  2. Clarify   → Agent asks reporter for missing context (as issue comments)
   │
   3. Normalize → Agent creates structured bug spec in repo
   │
@@ -75,13 +75,13 @@ Signal (Linear issue with bug label)
 
 ## Stage details
 
-### 1. Detect — agent monitors Linear
+### 1. Detect — agent watches the issue list
 
-The NOC agent periodically checks Linear for new issues with the `bug` label (or receives a webhook notification). This is the trigger.
+The NOC agent periodically runs `gh issue list --label bug --state open` (or receives a webhook notification). This is the trigger.
 
 ### 2. Clarify — agent interviews the reporter
 
-The agent reads the issue and determines what's missing. It asks clarifying questions as Linear comments — this keeps the conversation where the reporter already is.
+The agent reads the issue and determines what's missing. It asks clarifying questions as issue comments — this keeps the conversation where the reporter already is.
 
 Questions the agent asks:
 - What did you expect to happen?
@@ -110,9 +110,9 @@ severity: sev2                    # agent's proposal, human confirms
 violates: SPEC-001                # which spec this contradicts
 regression_of:                    # optional: run or PR that introduced it
 source: user-report | monitoring | eval-regression | internal
-reporter: Linear issue author
+reporter: GitHub issue author
 assignee:                         # set after prioritization
-linear_issue: LIN-XYZ             # the original intake issue
+github_issue: 123                 # the original intake issue
 created: 2026-04-22
 updated: 2026-04-22
 confidence: high | medium | low   # agent's self-assessment
@@ -143,7 +143,7 @@ confidence: high | medium | low   # agent's self-assessment
 [What the agent found: recent deploys, related merges, similar bugs, frequency]
 ```
 
-The agent also updates the original Linear issue:
+The agent also updates the original GitHub issue:
 - Adds the structured description (observed/expected/repro) as a comment
 - Links to the bug spec file in the repo
 - Applies labels: proposed severity (`sev1`/`sev2`/`sev3`), affected component
@@ -168,13 +168,13 @@ The agent proposes:
 - **Root cause area:** suspected location in the codebase
 - **Agent-fixable?** Can an agent handle the fix, or does it need human judgment?
 
-All of this is in the bug spec frontmatter and body. The agent also comments on the Linear issue with a summary.
+All of this is in the bug spec frontmatter and body. The agent also comments on the issue with a summary.
 
 ### 6. Confirm — human reviews
 
 An engineer (on-call, domain lead, or EM) reviews the agent's work. Target: **<60 seconds.**
 
-They see in the Linear issue:
+They see in the GitHub issue:
 - Structured description (observed/expected/repro)
 - Proposed severity
 - Linked spec
@@ -200,7 +200,7 @@ The agent provides:
 - Cluster analysis (is this the Nth report of the same root cause?)
 - Conflict analysis (what in-flight work does this affect?)
 
-Human makes the call. Agent drafts the rationale on the Linear issue for audit.
+Human makes the call. Agent drafts the rationale on the issue for audit.
 
 ### 8. Fix — agent opens a fix spec
 
@@ -214,7 +214,7 @@ spec under `specs/bugs/` is neither, so the fix is delivered as its own small sp
 2. Its guide (`specs/tasks/SPEC-NNN/GUIDE.md`) has the usual steps: write the failing test,
    implement the fix, add the regression guard; work only a human can run becomes a `Run by:` step
 3. The owner approves spec and guide together and gets the kickoff prompt; the agent links both
-   from the Linear bug issue
+   from the bug issue
 4. Fix proceeds through the normal delivery flow (`spec-execution`)
 
 A lighter path that delivers straight from the bug spec is not defined yet
@@ -224,10 +224,10 @@ A lighter path that delivers straight from the bug spec is not defined yet
 
 The NOC agent is a role, not a separate system. It's Claude Code (or equivalent) running in triage mode. Its responsibilities:
 
-- Monitor Linear for new `bug`-labeled issues
+- Watch the repo's issues for new `bug`-labeled ones
 - Run the full pipeline: clarify → normalize → reproduce → classify
 - Maintain the bug spec in the repo
-- Keep the Linear issue updated at every step
+- Keep the GitHub issue updated at every step
 - Escalate immediately for: security, data loss, payments, sev1 components
 
 The NOC agent can run as a scheduled task, a webhook-triggered process, or simply as part of a developer's daily routine ("check for new bugs before starting feature work").
@@ -246,7 +246,7 @@ Agent must hand off to a human immediately for:
 
 | Role | Who | Does what | Time per bug |
 |------|-----|-----------|--------------|
-| **Reporter** | Anyone — stakeholder, PM, user, support, oncall | Creates a Linear issue with `bug` label. A sentence is enough. | 1–2 min |
+| **Reporter** | Anyone — stakeholder, PM, user, support, oncall | Opens a GitHub issue with the `bug` label. A sentence is enough. | 1–2 min |
 | **Confirmer** | On-call engineer or domain lead | Reviews agent's normalized spec. Confirms, rejects, or reclassifies. | <60s |
 | **Prioritizer** | PM or tech lead | Decides when and whether to fix, considering business context. | 2–5 min |
 
@@ -254,14 +254,14 @@ Agent must hand off to a human immediately for:
 
 The experience for a non-technical reporter:
 
-1. Create a Linear issue, write "login is broken on mobile," add `bug` label
+1. Open a GitHub issue, write "login is broken on mobile," add `bug` label
 2. Within minutes, the agent comments: "Thanks — can you tell me what browser you're using and whether you see an error message?"
 3. Reporter replies
 4. Agent comments: "I've reproduced this. It's a timeout in the auth service on Safari 17. I've filed it as sev2 and linked it to the auth spec. An engineer will confirm shortly."
 5. After confirmation: "This is confirmed and prioritized for the current cycle. I'll notify you when the fix is merged."
 6. After fix: "This is fixed in PR #234, deploying today."
 
-The reporter never touches markdown, YAML, or the repo. They stay in Linear and get specific, cited updates at every stage.
+The reporter never touches markdown, YAML, or the repo. They stay in the GitHub issue and get specific, cited updates at every stage.
 
 ## Context capture checklist
 

@@ -10,7 +10,6 @@ workspaces: []                  # which workspace members this spec affects (see
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
 tags: []
-linear_project:
 ---
 
 ## Problem

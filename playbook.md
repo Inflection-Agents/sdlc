@@ -14,7 +14,7 @@ intent-triage → spec-authoring (spec + delivery guide) │ spec-execution → 
 
 ## Phase 0: Setup
 
-1. Create a Linear initiative for the effort
+1. Add an `## Initiative:` section for the effort to `specs/intents.md`
 2. Create the `specs/` directory structure in the repo:
    ```
    specs/
@@ -23,7 +23,7 @@ intent-triage → spec-authoring (spec + delivery guide) │ spec-execution → 
    └── templates/    ← copy from sdlc/templates/
    ```
 3. Add the spec validation CI check (validates frontmatter, sections, references)
-4. Set up the agent's access: repo, Linear (via MCP), CI
+4. Set up the agent's access: repo, CI
 5. Define escalation rules for this project (what requires human sign-off)
 6. Agree on run budget limits (tokens, cost, timeout)
 
@@ -44,7 +44,7 @@ intent-triage → spec-authoring (spec + delivery guide) │ spec-execution → 
 3. If a refactor, include the Migration section (current state, target state, strategy, rollback)
 4. Open a spec PR — CI validates the schema; `spec-reviewer` grades it; the named reviewers and stakeholders sign off on *intent*
 5. **Write the delivery guide** (`spec-authoring` Step 10b): ordered steps naming the ACs they cover, the paths they change and the commands that verify them; `validate-guide.mjs` checks it; `KICKOFF.md` (at most 3,800 characters) is generated at sign-off
-6. **Sign-off gate:** on approval, set status to `active` and `plan_review.approved: true` together and merge; create the Linear project, set `linear_project`
+6. **Sign-off gate:** on approval, set status to `active` and `plan_review.approved: true` together and merge
 
 There is no separate decomposition phase ([ADR-007](specs/adrs/ADR-007-delivery-guide-replaces-decomposition.md)). The executor already holds the spec, so the plan is a short guide approved with it. A guide over 10 steps means the spec should be split.
 
@@ -70,7 +70,7 @@ A `task:scope` blocker means the guide was wrong: the run re-plans it in place, 
 **Who:** `spec-completion` skill + owner
 
 1. Verify the spec's success criteria end-to-end against `main`
-2. Move the spec to a terminal state; close out the Linear project
+2. Move the spec to a terminal state and archive it
 
 ## Phase 6: Triage (ongoing)
 
@@ -99,15 +99,15 @@ See [triage.md](triage.md) for the full pipeline. During active development:
 
 | Metric | Source | Purpose |
 |--------|--------|---------|
-| Specs delivered per cycle | Linear | Throughput |
+| Specs delivered per cycle | `specs/spec-index.json` | Throughput |
 | Guide words ÷ spec words | `wc -w` at the gate | Planning cost (ADR-007 target ≤ 0.30) |
 | Cost per spec (tokens) | Run logs | Efficiency |
 | Panel rounds per integration PR | `_execution.log.jsonl` | Spec and guide quality |
 | Guide changes per run | `DECISIONS.md` | Guide quality |
 | Escalations per spec (re-plan / amendment) | Run logs | Front-phase quality |
-| Bug density per spec | Linear relations | Spec quality |
+| Bug density per spec | `violates:` in `specs/bugs/` | Spec quality |
 | Regression rate by author type | Git + CI | Agent code quality |
-| Time from signal to fix | Linear timestamps | Triage effectiveness |
+| Time from signal to fix | GitHub issue and PR timestamps | Triage effectiveness |
 
 ## Anti-patterns to watch
 

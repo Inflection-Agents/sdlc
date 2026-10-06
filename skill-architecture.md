@@ -258,7 +258,7 @@ The new skill should define:
 - Any domain-specific orchestration model (like cartographer → craftsman)
 
 It does NOT need to:
-- Know about the SDLC lifecycle (specs, guides, Linear)
+- Know about the SDLC lifecycle (specs, guides)
 - Duplicate behavioral discipline (TDD, verification)
 - Define PR format or commit conventions (SDLC handles that)
 

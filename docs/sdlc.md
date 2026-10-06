@@ -63,10 +63,9 @@ id: SPEC-NNN          # unique identifier, referenced in guides and bugs
 title: ""             # short description
 status: draft | active | superseded | deprecated
 version: N            # increments on material changes
-initiative: INI-NNN   # links to the initiative in the work tracker
+initiative: INI-NNN   # the initiative this spec serves
 owner: username       # human accountable for intent
 tags: []              # for search/grouping
-linear_project: PRJ-X # work tracker project id
 ```
 
 ### Bug specs
@@ -76,14 +75,11 @@ Bugs are in `specs/bugs/`. They have extra fields:
 - `severity: sev1 | sev2 | sev3`
 - `confidence: high | medium | low`
 
-## Work tracker (Linear)
+## Work tracking
 
-The work graph lives in Linear. Key conventions:
-
-### One project per spec
-
-Each spec is a Linear project; there is no per-step issue graph to mirror (ADR-007). The project
-description links the spec, its delivery guide and its kickoff prompt.
+The repo is the only system of record; there is no external work tracker. Intents and deferred
+checks live in `specs/intents.md`, step and decision status in each spec's `_index.yaml`, and a
+run's evidence in its integration PR and `DECISIONS.md`. There is no per-step issue graph (ADR-007).
 
 ```
 Spec (one file in specs/) + delivery guide (specs/tasks/SPEC-NNN/GUIDE.md)
@@ -99,27 +95,6 @@ Spec (one file in specs/) + delivery guide (specs/tasks/SPEC-NNN/GUIDE.md)
 Work that needs a human is data in the guide: a `Run by:` step for work only a human can perform,
 and an owner decision for a call the agent must not make. A pending one of either blocks the
 integration PR. Specs don't live in agent-specific folders; there is one `specs/` directory.
-
-### Project conventions
-
-- Project name: `SPEC-NNN: [spec title]`
-- Project description must include:
-  - Link to the spec file in the repo
-  - Link to the delivery guide
-  - Any constraints or ADR references
-- Link the integration PR to the project
-
-### Run logging
-
-At each delivery milestone, post a Linear project update with:
-```
-**Run summary**
-- Agent: [your identity]
-- Duration: [time]
-- Outcome: [success | failure | escalated]
-- Artifacts: [PR link, test results]
-- Acceptance criteria met: [list which ones]
-```
 
 ## Delivery guide
 
@@ -141,9 +116,6 @@ them one at a time — each gated by its own `Verify:` commands and an executor 
 merged into the integration branch before the next begins. The step lifecycle below is the
 executor's view of a single step inside that loop.
 
-Each spec has a Linear project for human visibility. The repo owns definition and step status;
-Linear owns priority and discussion.
-
 ### How to find your step
 
 1. Your prompt or assignment references a spec ID and a step ID (e.g., SPEC-001, S3)
@@ -162,7 +134,7 @@ Linear owns priority and discussion.
 5. Write or update tests — every acceptance criterion should have a test
 6. Run the step's Verify: commands — all must pass
 7. Open a PR titled "SPEC-NNN S<n>: <title>" with evidence per AC in the body
-8. Log the run (a Linear project update if you have access, or in the PR description)
+8. Log the run in the PR description
 ```
 
 ## What you must NOT do
@@ -196,7 +168,7 @@ Escalate to a human immediately for:
 ## Agent-specific instructions
 
 This document is the shared process. Your agent-specific config file has additional instructions:
-- **Claude Code / local orchestrator:** see `CLAUDE.md` for MCP access, Linear integration, running a delivery, local env capabilities
+- **Claude Code / local orchestrator:** see `CLAUDE.md` for MCP access, running a delivery, local env capabilities
 - **Executor agents:** see `AGENTS.md` for the executor brief — how any agent dispatched to one guide step reads the spec and the step, stays within its `Changes:`, and opens a PR to the integration branch
 - **Other agents:** follow this document. If you have capabilities beyond what's described here, document them in your agent-specific config.
 

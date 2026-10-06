@@ -21,7 +21,7 @@ Initiative
 
 ### Spec
 - Versioned markdown artifact — the "why + what"
-- Lives in the repo alongside code, linked from the work tracker
+- Lives in the repo alongside code
 - Fields: title, version, status (draft/active/superseded), author, linked initiative
 - A spec can be authored by a human or drafted by an agent for human review
 
@@ -92,17 +92,17 @@ BugRejected        { bug_spec_id, reason(wontfix|duplicate|works-as-designed) }
 - Agent throughput — specs delivered per cycle, cost per spec
 - Regression rate — agent-authored vs human-authored code
 
-## Mapping to Linear (current implementation)
+## Mapping to the repo (current implementation)
 
-| Graph concept | Linear primitive |
-|---------------|-----------------|
-| Initiative | Initiative |
-| Spec | Project + linked doc |
-| Guide | Link in the project description |
-| Step | Project update at milestones (no per-step issue) |
-| Run | Project update thread (interim) |
-| ADR | Linked doc |
-| Edges | Issue relations (`blocks`, `relates to`) |
-| Events | Linear webhooks + activity log |
+| Graph concept | Where it lives |
+|---------------|----------------|
+| Initiative | An `## Initiative:` section in `specs/intents.md` |
+| Spec | `specs/SPEC-NNN-*.md` |
+| Guide | `specs/tasks/SPEC-NNN/GUIDE.md` |
+| Step | A step entry and its status in `specs/tasks/SPEC-NNN/_index.yaml` |
+| Run | The integration PR body and `specs/tasks/SPEC-NNN/DECISIONS.md` |
+| ADR | `specs/adrs/ADR-NNN-*.md` |
+| Edges | Frontmatter fields: `depends_on`, `supersedes`, `violates` |
+| Events | Git history of `specs/` |
 
-Linear's main gaps: no Run primitive, no typed edges beyond the basics, no event sourcing. These are filled by logging to a side store until better tooling exists.
+The repo has no Run primitive and no event stream that can be queried. Runs are recorded as PR bodies and decision logs, and events are read from git history.

@@ -174,7 +174,7 @@ Three modes:
 9. Dispatch `spec-reviewer` (the AGENT, via the `Agent` tool) — an independent quality gate before the user sees a draft
 10. Self-review for gaps, contradictions, untestable criteria
 11. **GATE: User approves the spec**
-12. Open a PR, after approval: set status to `active`, create Linear project
+12. Open a PR, after approval: set status to `active`
 
 **Interacts with:** `brainstorming` (behavioral discipline for the conversation), `spec-reviewer` (auto-invoked at the sign-off gate), domain skills (technology-specific constraints)
 
@@ -212,7 +212,7 @@ There is no separate decomposition skill ([ADR-007](specs/adrs/ADR-007-delivery-
 3. Runs guide impact analysis across every step
 4. Rewrites affected steps, adds rework steps for merged work that's now invalid, re-maps `Covers:`, bumps `spec_version`, resets `plan_review.approved`, and rewrites `KICKOFF.md`
 5. Scans open `clarification` gaps for the parent spec — incorporates them and sets `back_ported_to`
-6. Gets user approval, commits everything together, updates Linear
+6. Gets user approval, commits everything together
 
 **Interacts with:** `spec-authoring` (amendment is the backward path; a spec with no guide goes to "write the guide for SPEC-NNN"), `spec-execution` (a `spec:*` finding routes a run here)
 
@@ -227,7 +227,7 @@ There is no separate decomposition skill ([ADR-007](specs/adrs/ADR-007-delivery-
 4. Runs integration verification (e2e tests, cross-step validation)
 5. Handles measurement criteria: verify now or defer with owner + trigger condition + method
 6. Produces a `.sdlc/templates/completion-report.md`-shaped report with evidence for each criterion
-7. Gets user sign-off, then sets spec to `completed`, updates Linear
+7. Gets user sign-off, then sets spec to `completed`
 
 **Key rules:**
 - Merged PRs are not the finish line — verified success criteria are

@@ -5,7 +5,7 @@ The spec is the root artifact of the AI-native SDLC. Every spec is a markdown fi
 ## Why a schema
 
 - Agents are the primary consumers. They shouldn't guess where acceptance criteria are or whether a spec is active.
-- Specs link into the work graph. The frontmatter provides the structured fields that Linear, run logs, and bug specs reference.
+- Specs link into the work graph. The frontmatter provides the structured fields that guides, run logs, and bug specs reference.
 - CI validates on every PR. A malformed spec is caught before merge, not during agent execution.
 
 ## Frontmatter schema
@@ -17,13 +17,12 @@ title: "User authentication flow"
 status: draft | active | completed | superseded | deprecated
 version: 1                      # increments on material changes
 supersedes: SPEC-000            # optional, previous version's id
-initiative: INI-003             # links to Linear initiative
+initiative: INI-003             # the initiative this spec serves
 owner: franklin                 # human who owns intent
 workspaces: [dealer-app, shared] # which workspace members this spec affects (monorepo)
 created: 2026-04-22
 updated: 2026-04-22
 tags: [auth, security]          # free-form, used for search/grouping
-linear_project: PRJ-XYZ         # Linear project id, for bidirectional linking
 ---
 ```
 
@@ -44,7 +43,7 @@ linear_project: PRJ-XYZ         # Linear project id, for bidirectional linking
 | `depends_on` | no | yes | Array of spec ids this spec builds on, such as `[SPEC-001]`. Each must resolve to a spec file. The reviewer reads them as `upstream_specs`, and the spec index records them so a downstream spec can be found. |
 | `integration_strategy` | — | — | **Retired by ADR-003.** The integration branch `feat/spec-NNN` is now unconditional: every spec cuts one, and nothing reaches `main` except by merging it. The field is ignored where it still appears on an older spec; `direct` mode no longer exists. |
 | `tags` | no | yes | Array of strings. |
-| `linear_project` | no | yes | Set when the Linear project is created. |
+| `linear_project` | — | — | **Retired.** The framework no longer uses an external work tracker; the repo is the only system of record. The field is ignored where it still appears on an older spec. |
 
 **Plan-review verdict.** The plan-review gate's verdict for a spec is not recorded in the spec
 frontmatter — it lives in the `plan_review:` block of the spec's `specs/tasks/SPEC-NNN/_index.yaml`
@@ -255,7 +254,7 @@ specs/
 ├── SPEC-003-noc-agent.md
 ├── adrs/
 │   ├── ADR-001-postgres-event-store.md
-│   └── ADR-002-linear-over-jira.md
+│   └── ADR-002-plan-review-gate-in-index-yaml.md
 ├── baselines/
 │   └── SPEC-042.md              # per-spec baseline metric files
 ├── decisions/

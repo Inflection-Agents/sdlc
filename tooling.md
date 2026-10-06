@@ -7,25 +7,17 @@ Current and target tooling architecture for the AI-native SDLC.
 | Layer       | Jira-era                                 | AI-native (target)                                          | Current (pragmatic)         |
 | ----------- | ---------------------------------------- | ----------------------------------------------------------- | --------------------------- |
 | Intent/spec | Confluence (separate, weakly linked)     | Schema-enforced markdown in repo with CI validation         | Schema-enforced markdown in repo |
-| Work graph  | Jira (over-flexible, custom fields)      | Event-sourced graph with typed edges                        | Linear (issues + relations) |
+| Work graph  | Jira (over-flexible, custom fields)      | Event-sourced graph with typed edges                        | The repo: `specs/`, `specs/intents.md`, `_index.yaml`, plus GitHub PRs and issues |
 | Process spine | Tribal knowledge / wiki                | Executable state machine + phase memory + enforcement hooks | `.sdlc/state-machine.yaml` + per-spec `phase:` block + `.claude/hooks/` (Node) |
 | Orchestration | Humans assign + chase                   | One agent delivering against a stated goal, with a machine-readable floor | `spec-execution` skill + goal leash (`.claude/hooks/stop-handoff.mjs`) |
 | Execution   | Humans only                              | Agents as first-class assignees with run telemetry          | One executor, serial burn-down onto `feat/spec-NNN`, tracked on a visible task list (worktree-isolated subagents by exception) |
 | Review      | Human PR review                          | LLM multi-lens panel, routed by change surface              | Self-review per guide step, then a routed adversarial panel on the integration PR (lenses from `review-constraints.yaml`); human merges it |
 | CI/CD       | Jenkins/Actions                          | Same, plus eval pipelines                                   | GitHub Actions              |
-| Reporting   | Jira dashboards (story points, velocity) | Graph queries (cost/feature, defect/spec, agent throughput) | Linear insights + manual    |
+| Reporting   | Jira dashboards (story points, velocity) | Graph queries (cost/feature, defect/spec, agent throughput) | `spec-index.json`, review logs, git history |
 
-## Why Linear over alternatives
+## Why no external work tracker
 
-| Criteria | Linear | Jira | ClickUp | GitHub Issues |
-|----------|--------|------|---------|---------------|
-| API quality | GraphQL, clean schema | REST, sprawling | REST, inconsistent | GraphQL, decent |
-| Agent compatibility | MCP server, rigid schema = portable agents | Custom fields per project = agents need per-project adapters | Too many ways to model same concept | Good API, weak hierarchy |
-| Data model | Opinionated, small primitives | Maximally flexible | Maximally flexible | Minimal |
-| Speed/UX | Fast, keyboard-first | Slow, menu-heavy | Feature-dense, slower | Adequate |
-| AI-native features | Agent-assignable issues | Rovo (bolted on) | Limited | Copilot coding agent |
-
-Linear wins because rigidity is a feature for agents: an agent that works on one Linear workspace works on all of them.
+The framework once mirrored each spec into a Linear project. Since ADR-007 a spec is delivered from a short guide with no per-step issues, so every fact the tracker held already lives in the repo: intents in `specs/intents.md`, step status in `_index.yaml`, run evidence in the integration PR and `DECISIONS.md`. A second copy added a sync duty and no information, and the agent skipped it whenever the tracker was not connected. Bug intake uses GitHub issues, which the repo already has ([triage.md](triage.md)).
 
 ## Gaps in current tooling
 
@@ -40,20 +32,10 @@ None of the current tools provide:
 
 | Gap | Workaround |
 |-----|------------|
-| Runs | Log to a side store (structured JSON per run), link from Linear issue comments |
+| Runs | The integration PR body and `specs/tasks/SPEC-NNN/DECISIONS.md` |
 | Typed edges | Use labels + naming conventions on relations |
-| Event sourcing | Linear webhooks → append-only log (could be a simple DB or even a file) |
+| Event sourcing | Git history of `specs/` |
 | Spec-as-root | Schema-enforced markdown with frontmatter, CI validation, auto-generated index. See [spec-schema.md](skills/spec-schema.md) |
-
-## MCP integration
-
-Linear's MCP server enables agents to:
-- Create, update, and query issues
-- Manage cycles and projects
-- Read and write comments
-- Follow issue relations
-
-Claude Code connects to Linear via MCP, making the agent a direct participant in the work graph rather than operating through a human proxy.
 
 ## Delivery model (decided)
 
