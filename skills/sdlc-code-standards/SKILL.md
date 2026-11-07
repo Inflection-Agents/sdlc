@@ -70,11 +70,16 @@ Before changing any component with a **declared or known behavioral contract** â
 
 Seen live on 2026-08-13: a correct, fully-tested fix to make the prod SFTP mirror read raw root drops *also activated* a stale `CNY` entry in the mirror's practice list (merged weeks earlier, previously inert). Validating it with a live prod mirror-run delivered 261 CNY reports into an AIWW-only production â€” zero code errors, all tests green. The intent ("prod = AIWW only") was known; the committed config contradicted it; the change should have surfaced that delta for approval and been validated off-prod, not against prod.
 
-### Single Responsibility
+### Module Design
 
-- Each function does one thing. If you can't name it in 3 words, split it.
-- Each module has one reason to change
-- Each PR addresses one guide step
+A module is anything with an interface and an implementation: a function, a file, a package, a service. Its **interface** is everything a caller must know to use it correctly: the signature, plus invariants, ordering rules, error modes and required configuration. Aim for **deep** modules: a lot of behaviour behind a small interface. [`MODULE-DESIGN.md`](MODULE-DESIGN.md) holds the full vocabulary, the dependency categories and the design-it-twice procedure; read it before you add or reshape a module.
+
+1. **Deletion test.** Imagine deleting a new module. If its complexity would reappear in each caller, it earns its place. If the complexity would vanish, it is a pass-through: inline it. Splitting a function only to give each piece a three-word name fails this test.
+2. **The interface is the test surface.** Tests reach behaviour through the interface callers use. A test that has to import an internal helper or read private state to check something means the module is the wrong shape. Fix the shape, not the test.
+3. **Accept dependencies, return results.** Logic takes what it decides on as arguments and returns its decision. I/O, persistence and other side effects stay at the edge, in the caller.
+4. **One adapter is a hypothetical seam.** Add a port or interface only when two implementations exist after the change; a production adapter and an in-memory test adapter count as two.
+5. **Replace, don't layer.** When you deepen a module, delete the old tests of the shallow pieces that the new interface tests cover, in the same PR, and name them in the PR body.
+6. **Use the domain's words.** Name a domain concept with the term the repo's glossary gives it, when the repo keeps one.
 
 ### Explicit Over Implicit
 
@@ -96,6 +101,7 @@ Seen live on 2026-08-13: a correct, fully-tested fix to make the prod SFTP mirro
 - Commit message: `SPEC-NNN: [what you did]` or `SPEC-NNN S<n>: [what you did]`
 - Don't batch unrelated changes
 - Commit after each red-green-refactor cycle
+- Each PR addresses one guide step
 
 ### No Dead Code
 
@@ -195,6 +201,9 @@ If you catch yourself doing any of these, stop and correct:
 | Catching an error and ignoring it | Remove the catch, or handle it properly. |
 | Committing 500 lines in one go | Break into smaller commits. |
 | Naming something `helper`, `utils`, `misc` | Name it after what it does. |
+| Adding a module that only forwards calls | Inline it. It fails the deletion test. |
+| Importing a module's internals into its tests | Test through its interface, or reshape the module. |
+| Adding an interface with one implementation | Remove it until a second adapter exists. |
 | Adding a comment that restates the code | Delete the comment. |
 | Saying "should work" without running tests | Run the tests. Read the output. |
 | Keeping code you wrote before the test | Delete it. Start with the test. |
@@ -225,3 +234,4 @@ If `.sdlc/config.yaml` lists workspaces:
 - [ ] Commit message references the SPEC id and step
 - [ ] Error handling only at system boundaries
 - [ ] All names are descriptive and specific
+- [ ] Each new module passes the deletion test, and its tests go through its interface
