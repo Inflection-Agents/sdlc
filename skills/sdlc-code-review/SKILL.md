@@ -71,7 +71,7 @@ Check:
 - [ ] DRY — no unnecessary duplication
 - [ ] YAGNI — nothing built that the spec didn't ask for
 - [ ] TDD — tests exist and were written for the criteria
-- [ ] Single responsibility — functions and modules focused
+- [ ] Module design: new modules pass the deletion test and are tested through their interface (`std:module-design`)
 - [ ] Naming — clear, specific, descriptive
 - [ ] Error handling — at boundaries only
 - [ ] No dead code — no commented-out blocks, unused imports

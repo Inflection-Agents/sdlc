@@ -289,7 +289,7 @@ There is no separate decomposition skill ([ADR-007](specs/adrs/ADR-007-delivery-
 - **DRY:** Don't repeat yourself. Extract shared logic. But don't abstract prematurely — three instances before extracting.
 - **YAGNI:** Don't build what you don't need. No speculative features, no "might need this later." If the spec doesn't ask for it, don't build it.
 - **TDD:** Write the failing test first. Red → Green → Refactor.
-- **Single responsibility:** Each function/module does one thing. If you can't name it clearly, it's doing too much.
+- **Module design:** Deep modules behind small interfaces. A new module passes the deletion test, tests go through the interface, logic accepts dependencies and returns results, and a port needs two adapters.
 - **Explicit over implicit:** Name things clearly. Avoid magic numbers. Make dependencies visible.
 - **Error handling at boundaries:** Validate at system edges (user input, API calls). Trust internal code.
 - **Commit discipline:** Small, frequent commits. Each commit should be a coherent unit. Message references the spec id and step.
